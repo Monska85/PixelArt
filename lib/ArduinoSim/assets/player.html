@@ -1,0 +1,97 @@
+<!doctype html>
+<!--
+  Player for the frames recorded by the simulator. Embedded into the simulator
+  at build time (scripts/embed_assets.py); the data placeholder in the script
+  is replaced with frames.json.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LED Matrix Player</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #101114; color: #d8dae0; font: 14px/1.4 system-ui, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 16px; }
+  canvas { width: 100%; max-width: 480px; aspect-ratio: 1; display: block; margin: 0 auto 12px;
+           background: #050506; border-radius: 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin: 8px 0; }
+  button, select { background: #23252b; color: inherit; border: 1px solid #383b44; border-radius: 6px;
+                   padding: 6px 10px; font: inherit; cursor: pointer; }
+  input[type=range] { width: 100%; }
+  #info { text-align: center; font-variant-numeric: tabular-nums; color: #9aa0ad; }
+  #serial { white-space: pre-wrap; font: 12px ui-monospace, monospace; background: #17181c; padding: 8px;
+            border-radius: 6px; max-height: 160px; overflow: auto; }
+</style>
+</head>
+<body>
+<main>
+  <canvas id="c"></canvas>
+  <div id="info"></div>
+  <input id="seek" type="range" min="0" value="0">
+  <div class="row">
+    <button id="prev" title="Previous frame (left arrow)">&#9664;</button>
+    <button id="play" title="Play/pause (space)">Play</button>
+    <button id="next" title="Next frame (right arrow)">&#9654;</button>
+    <select id="speed" title="Playback speed">
+      <option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option>
+      <option value="2">2x</option><option value="4">4x</option><option value="10">10x</option>
+    </select>
+    <select id="scene" title="Jump to scene"></select>
+    <label><input id="perceived" type="checkbox" checked> perceived colors</label>
+  </div>
+  <div id="serial"></div>
+</main>
+<script>
+const D = __DATA__;
+const W = D.panel.width, H = D.panel.height, F = D.frames;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+const CELL = 32;
+cv.width = W * CELL; cv.height = H * CELL;
+let i = 0, playing = false, timer = null;
+$('seek').max = Math.max(0, F.length - 1);
+const scenes = [];
+F.forEach((f, k) => { if (!scenes.length || scenes[scenes.length - 1].name !== f.scene) scenes.push({ name: f.scene, at: k }); });
+$('scene').innerHTML = scenes.map(s => `<option value="${s.at}">${s.name || '(no scene)'} @${s.at}</option>`).join('');
+$('serial').textContent = D.serial.map(l => `[${(l.t_ms / 1000).toFixed(3)}s] ${l.text}`).join('\n') || '(no serial output)';
+const conv = v => $('perceived').checked ? Math.round(255 * Math.pow(v / 255, 1 / 2.2)) : v;
+function draw() {
+  const f = F[i];
+  ctx.fillStyle = '#050506'; ctx.fillRect(0, 0, cv.width, cv.height);
+  if (!f) { $('info').textContent = 'no frames recorded'; return; }
+  for (let p = 0; p < W * H; p++) {
+    const r = parseInt(f.pixels.substr(p * 6, 2), 16), g = parseInt(f.pixels.substr(p * 6 + 2, 2), 16),
+          b = parseInt(f.pixels.substr(p * 6 + 4, 2), 16);
+    ctx.fillStyle = (r | g | b) ? `rgb(${conv(r)},${conv(g)},${conv(b)})` : '#1b1c20';
+    ctx.beginPath();
+    ctx.arc((p % W + 0.5) * CELL, (Math.floor(p / W) + 0.5) * CELL, CELL * 0.4, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+  $('info').textContent = `frame ${i + 1}/${F.length} · t=${(f.t_ms / 1000).toFixed(2)}s · shown ${f.duration_ms}ms · ${f.scene || '-'}`;
+  $('seek').value = i;
+  let s = 0; scenes.forEach((sc, k) => { if (sc.at <= i) s = k; });
+  $('scene').selectedIndex = s;
+}
+function go(k) { i = Math.max(0, Math.min(F.length - 1, k)); draw(); }
+function tick() {
+  if (!playing) return;
+  timer = setTimeout(() => { go(i + 1 >= F.length ? 0 : i + 1); tick(); },
+                     Math.max(10, (F[i] ? F[i].duration_ms : 100) / parseFloat($('speed').value)));
+}
+function toggle() { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; clearTimeout(timer); tick(); }
+$('play').onclick = toggle;
+$('prev').onclick = () => go(i - 1);
+$('next').onclick = () => go(i + 1);
+$('seek').oninput = e => go(+e.target.value);
+$('scene').onchange = e => go(+e.target.value);
+$('perceived').onchange = draw;
+document.addEventListener('keydown', e => {
+  if (e.key === ' ') { e.preventDefault(); toggle(); }
+  else if (e.key === 'ArrowLeft') go(i - 1);
+  else if (e.key === 'ArrowRight') go(i + 1);
+});
+draw();
+</script>
+</body>
+</html>
