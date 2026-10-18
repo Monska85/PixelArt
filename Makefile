@@ -30,7 +30,8 @@ build-all: ## Build the firmware for every board
 	pio run -e esp32c3 -e esp32 -e esp32s3
 
 upload: data ## Flash the firmware and the animations to BOARD
-	pio run -e $(BOARD) -t upload -t uploadfs
+	pio run -e $(BOARD) -t upload
+	pio run -e $(BOARD) -t uploadfs
 
 upload-firmware: ## Flash only the firmware, keeping the animations on the board
 	pio run -e $(BOARD) -t upload
@@ -42,11 +43,13 @@ monitor: ## Open the serial monitor
 	pio device monitor -e $(BOARD)
 
 flash: data ## Flash the firmware and the animations, then open the serial monitor
-	pio run -e $(BOARD) -t upload -t uploadfs
+	pio run -e $(BOARD) -t upload
+	pio run -e $(BOARD) -t uploadfs
 	pio device monitor -e $(BOARD)
 
 mirror: data ## Flash with the frame mirror on, then watch the matrix live in the terminal
-	PLATFORMIO_BUILD_FLAGS=-DPIXELART_MIRROR pio run -e $(BOARD) -t upload -t uploadfs
+	PLATFORMIO_BUILD_FLAGS=-DPIXELART_MIRROR pio run -e $(BOARD) -t upload
+	pio run -e $(BOARD) -t uploadfs
 	pio device monitor -e $(BOARD)
 
 sim-build: ## Build the host simulator
