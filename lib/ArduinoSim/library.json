@@ -1,0 +1,10 @@
+{
+  "name": "ArduinoSim",
+  "version": "0.1.0",
+  "description": "Host-side Arduino core and NeoPixel stand-in that records LED matrix frames on a virtual clock",
+  "platforms": "native",
+  "frameworks": "*",
+  "build": {
+    "extraScript": "scripts/embed_assets.py"
+  }
+}
