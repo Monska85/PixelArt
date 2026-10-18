@@ -51,6 +51,8 @@ const std::vector<SerialLine> &serial() { return state().serial; }
 const Panel &panel() { return state().panel; }
 uint64_t now_us() { return state().clock_us; }
 unsigned long seed() { return state().opts.seed; }
+const std::string &data_dir() { return state().opts.data_dir; }
+void set_data_dir(const std::string &dir) { state().opts.data_dir = dir; }
 
 void reset()
 {

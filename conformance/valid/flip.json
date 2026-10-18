@@ -1,0 +1,58 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "sprites": {
+    "l": {
+      "at": [
+        2,
+        2
+      ],
+      "points": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        {
+          "sprite": "l",
+          "flip": "x"
+        }
+      ]
+    },
+    {
+      "show": [
+        {
+          "sprite": "l",
+          "flip": "y"
+        }
+      ]
+    },
+    {
+      "show": [
+        {
+          "sprite": "l",
+          "flip": "xy"
+        }
+      ]
+    }
+  ]
+}

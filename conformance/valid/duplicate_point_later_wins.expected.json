@@ -1,0 +1,18 @@
+{
+  "warnings": [
+    "duplicate_point"
+  ],
+  "frames": [
+    {
+      "ms": 500,
+      "pixels": {
+        "#00ff00": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  ]
+}

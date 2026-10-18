@@ -1,6 +1,6 @@
 # Playlist format `pixelart-playlist/1`
 
-Status: **draft**, not implemented yet.
+Status: **implemented** by the engine in `lib/PixelEngine/`, used by the firmware and the simulator.
 
 A playlist decides which [animations](pixelart-v1.md) the board plays, in which order and how many times. Animations and playlists are separate files, so changing the order, adding or removing an animation never touches the animation files themselves.
 
@@ -52,7 +52,7 @@ Every animation in a playlist must have the same `canvas` as the playlist. Decla
 ## How the board chooses what to play
 
 1. If `/playlists/default.json` exists, is valid and has the board's canvas, the board plays its enabled items in order.
-2. An item whose animation is missing, invalid, or made for a different canvas is skipped. The board reports the reason through the command protocol and goes on with the next item.
+2. An item whose animation is missing, invalid, or made for a different canvas is skipped. The board prints the reason on the serial port (once per boot) and goes on with the next item.
 3. If there is no playlist, the playlist is invalid, or it has no item the board can play, the board plays every valid animation in `/animations/`, in alphabetical order of ID.
 4. If there is no valid animation at all, the board shows a built-in "no animations" image.
 
@@ -66,6 +66,8 @@ Every animation in a playlist must have the same `canvas` as the playlist. Decla
 | `name`    | 128 characters |
 
 ## Validation
+
+Like for animations, an implementation keeps at most 32 messages per file.
 
 Errors reject the playlist (the board then falls back as described above): `format_unsupported`, `structure`, `limit_exceeded`, and `canvas_mismatch` when the playlist is made for a different matrix than the board's.
 

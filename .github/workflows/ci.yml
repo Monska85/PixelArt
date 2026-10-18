@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# The job only reads the repository and uploads an artifact
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO toolchains and libraries
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: platformio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'lib/*/library.json') }}
+
+      - name: Install tools
+        run: pip install platformio pyyaml jsonschema
+
+      - name: Convert animations and playlists, check them against the JSON Schemas
+        run: python tools/pixelart.py build --schema
+
+      - name: Check animations and playlists with the board's engine
+        run: |
+          pio run -e native
+          .pio/build/native/program --validate
+
+      - name: Run the tests on the simulator
+        run: pio test -e native_test
+
+      - name: Build the firmware for every board
+        run: pio run -e esp32c3 -e esp32 -e esp32s3
+
+      - name: Render previews of every animation
+        run: .pio/build/native/program --out sim-out
+
+      - name: Upload previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: previews
+          path: sim-out/
