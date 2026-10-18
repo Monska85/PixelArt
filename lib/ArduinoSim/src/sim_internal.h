@@ -31,6 +31,7 @@ struct Options
   bool raw_colors = false;
   size_t range_from = 0;
   size_t range_to = SIZE_MAX;
+  std::string data_dir = "data";
 };
 
 struct State

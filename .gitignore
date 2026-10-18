@@ -16,6 +16,9 @@ compile_commands.json
 __pycache__/
 *.pyc
 
+# Board files generated from animations/ and playlists/ (make data)
+data/
+
 # Simulator output (make sim)
 sim-out/
 

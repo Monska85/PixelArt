@@ -1,0 +1,29 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "palette": {
+    "green": "#00ff00"
+  },
+  "sprites": {
+    "d": {
+      "points": [
+        [
+          0,
+          0,
+          "gren"
+        ]
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        "d"
+      ]
+    }
+  ]
+}

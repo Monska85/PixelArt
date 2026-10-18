@@ -11,7 +11,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "animations.h"
+#include "app.h"
+#include "pixel_art.h"
+#include "storage.h"
 
 // The layout flags must match the physical panel wiring, which the simulator
 // and the live mirror also use: custom_panel_layout in platformio.ini.
@@ -23,12 +25,8 @@ void setup()
   Serial.begin(SERIAL_BAUD);
   matrix.begin();
   matrix.setBrightness(BRIGHTNESS);
+  if (!storage::begin())
+    Serial.println("pixelart: cannot mount the file system");
 }
 
-void loop()
-{
-  for (size_t i = 0; i < ANIMATION_COUNT; i++)
-  {
-    ANIMATIONS[i].play();
-  }
-}
+void loop() { play_from_storage(); }
