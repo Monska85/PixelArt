@@ -25,7 +25,8 @@ build-all:
 
 # Flash the firmware and the animations
 upload board=board: data
-    pio run -e {{board}} -t upload -t uploadfs
+    pio run -e {{board}} -t upload
+    pio run -e {{board}} -t uploadfs
 
 # Flash only the firmware, keeping the animations on the board
 upload-firmware board=board:
@@ -41,12 +42,14 @@ monitor board=board:
 
 # Flash the firmware and the animations, then open the serial monitor
 flash board=board: data
-    pio run -e {{board}} -t upload -t uploadfs
+    pio run -e {{board}} -t upload
+    pio run -e {{board}} -t uploadfs
     pio device monitor -e {{board}}
 
 # Flash with the frame mirror on, then watch the matrix live in the terminal
 mirror board=board: data
-    PLATFORMIO_BUILD_FLAGS=-DPIXELART_MIRROR pio run -e {{board}} -t upload -t uploadfs
+    PLATFORMIO_BUILD_FLAGS=-DPIXELART_MIRROR pio run -e {{board}} -t upload
+    pio run -e {{board}} -t uploadfs
     pio device monitor -e {{board}}
 
 # Build the host simulator
