@@ -159,6 +159,12 @@ The simulator does not emulate the ESP32 itself. Timing, memory use, WiFi and ot
 3. Add `{"my_animation", my_animation}` to the `ANIMATIONS` table in `src/playlist.cpp`, in the position it should play.
 4. Check it with `make sim ANIM=my_animation` and look at `sim-out/sheet.png`, then run `make check`.
 
+### Design documents
+
+- [`docs/format/`](docs/format/): specifications of the upcoming animation and playlist file formats (draft, not implemented yet).
+- [`schema/`](schema/): their JSON Schemas.
+- [`docs/adr/`](docs/adr/): architecture decision records, explaining why the project works the way it does.
+
 ### Code style
 
 C++ sources follow `.clang-format`. Run `make format` before committing; `make check` fails on unformatted code. Formatting needs `clang-format`.
