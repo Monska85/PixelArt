@@ -26,7 +26,7 @@ You can find the 3D model files to print a frame for the 16x16 LEDs matrix [here
    make upload
    ```
 
-   Without `make`, run `python3 tools/pixelart.py build`, then `pio run -e esp32c3 -t upload -t uploadfs`. The first build downloads the ESP32 toolchain and the libraries, so it takes a few minutes. Later builds take seconds.
+   Without `make`, run `python3 tools/pixelart.py build`, then `pio run -e esp32c3 -t upload` and `pio run -e esp32c3 -t uploadfs`. Run them as two commands: PlatformIO writes only the file system when both targets are given in one command. The first build downloads the ESP32 toolchain and the libraries, so it takes a few minutes. Later builds take seconds.
 
 The animations start as soon as the upload finishes. To see the serial output, run `make monitor` (or `pio device monitor -e esp32c3`). A board with the firmware but no animations shows a dim question mark.
 
