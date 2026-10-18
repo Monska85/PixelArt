@@ -1,0 +1,10 @@
+# C++ style for the firmware, the animations and the simulator.
+BasedOnStyle: LLVM
+IndentWidth: 2
+ColumnLimit: 120
+BreakBeforeBraces: Allman
+BraceWrapping:
+  BeforeLambdaBody: false
+AllowShortFunctionsOnASingleLine: All
+AllowShortLambdasOnASingleLine: Empty
+SortIncludes: Never
