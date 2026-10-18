@@ -1,0 +1,45 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "sprites": {
+    "bar": {
+      "at": [
+        5,
+        5
+      ],
+      "pivot": [
+        0,
+        0
+      ],
+      "points": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ]
+        ],
+        "#00ff00": [
+          [
+            2,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        {
+          "sprite": "bar",
+          "flip": "x",
+          "rotate": 90
+        }
+      ]
+    }
+  ]
+}

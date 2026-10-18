@@ -23,8 +23,12 @@ const char *USAGE = R"(Usage: program [options]
 Runs the sketch on a virtual clock and records every matrix show() as a frame.
 
 Selection:
-  --list               list the scenes (animations) and exit
-  --anim NAME[,NAME]   run setup() then only these scenes, instead of loop()
+  --data DIR           folder that stands in for the board's file system (default data,
+                       built from animations/ and playlists/ by `make data`)
+  --list               list the animations in DIR/animations and exit
+  --validate           check every animation and playlist in the data folder, then exit
+                       (status 1 if any file has an error)
+  --anim NAME[,NAME]   run setup() then only these animations, instead of loop()
   --loops N            how many times to run loop() or the selected scenes (default 1, 0 = forever)
   --live               emulate the board: run forever in real time, redraw the matrix in the
                        terminal and show serial output below it (no files written)
@@ -59,6 +63,7 @@ struct RunConfig
   std::filesystem::path out_dir = "sim-out";
   bool write_files = true;
   bool png_frames = false;
+  bool list = false;
 };
 
 bool parse_uint(const char *s, unsigned long long &out)
@@ -75,8 +80,8 @@ bool parse_uint(const char *s, unsigned long long &out)
 }
 
 // Fills cfg and the simulator options from argv. Returns false when the
-// program should exit right away with status 0 (--help, --list).
-bool parse_args(int argc, char **argv, const Scene *scenes, size_t count, RunConfig &cfg)
+// program should exit right away with status 0 (--help).
+bool parse_args(int argc, char **argv, RunConfig &cfg)
 {
   detail::Options &opts = detail::state().opts;
   Panel &panel = detail::state().panel;
@@ -106,11 +111,9 @@ bool parse_args(int argc, char **argv, const Scene *scenes, size_t count, RunCon
       return false;
     }
     else if (arg == "--list")
-    {
-      for (size_t i = 0; i < count; i++)
-        printf("%s\n", scenes[i].name);
-      return false;
-    }
+      cfg.list = true;
+    else if (arg == "--data")
+      opts.data_dir = value();
     else if (arg == "--anim")
     {
       std::stringstream ss(value());
@@ -186,15 +189,15 @@ bool parse_args(int argc, char **argv, const Scene *scenes, size_t count, RunCon
   return true;
 }
 
-std::vector<const Scene *> resolve_scenes(const std::vector<std::string> &names, const Scene *scenes, size_t count)
+std::vector<const Scene *> resolve_scenes(const std::vector<std::string> &names, const std::vector<Scene> &scenes)
 {
   std::vector<const Scene *> plan;
   for (const std::string &name : names)
   {
     const Scene *found = nullptr;
-    for (size_t i = 0; i < count && !found; i++)
-      if (name == scenes[i].name)
-        found = &scenes[i];
+    for (const Scene &scene : scenes)
+      if (!found && name == scene.name)
+        found = &scene;
     if (!found)
       usage_error("unknown scene '" + name + "' (see --list)");
     plan.push_back(found);
@@ -298,12 +301,19 @@ int write_outputs(const RunConfig &cfg)
 
 } // namespace
 
-int run(int argc, char **argv, const Scene *scenes, size_t count)
+int run(int argc, char **argv, const SceneProvider &provider)
 {
   RunConfig cfg;
-  if (!parse_args(argc, argv, scenes, count, cfg))
+  if (!parse_args(argc, argv, cfg))
     return 0;
-  std::vector<const Scene *> plan = resolve_scenes(cfg.selected, scenes, count);
+  std::vector<Scene> scenes = provider ? provider() : std::vector<Scene>();
+  if (cfg.list)
+  {
+    for (const Scene &scene : scenes)
+      printf("%s\n", scene.name.c_str());
+    return 0;
+  }
+  std::vector<const Scene *> plan = resolve_scenes(cfg.selected, scenes);
 
   State &s = detail::state();
   reset();

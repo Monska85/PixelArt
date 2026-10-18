@@ -1,0 +1,63 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "frame_ms": 200,
+  "sprites": {
+    "a": {
+      "points": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    "b": {
+      "points": {
+        "#00ff00": [
+          [
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        "a"
+      ],
+      "ms": 50
+    },
+    {
+      "loop": 2,
+      "steps": [
+        {
+          "show": [
+            "b"
+          ]
+        },
+        {
+          "loop": 2,
+          "steps": [
+            {
+              "show": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "show": [
+        "a",
+        "b"
+      ]
+    }
+  ]
+}

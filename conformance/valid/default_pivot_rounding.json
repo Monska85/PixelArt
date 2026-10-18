@@ -1,0 +1,60 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "sprites": {
+    "pair": {
+      "at": [
+        5,
+        5
+      ],
+      "points": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    },
+    "neg": {
+      "at": [
+        8,
+        8
+      ],
+      "points": {
+        "#00ff00": [
+          [
+            -3,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        {
+          "sprite": "pair",
+          "rotate": 90
+        },
+        {
+          "sprite": "neg",
+          "rotate": 180
+        }
+      ]
+    }
+  ]
+}

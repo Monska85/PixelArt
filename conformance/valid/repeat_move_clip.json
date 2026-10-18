@@ -1,0 +1,38 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "sprites": {
+    "dot": {
+      "at": [
+        14,
+        0
+      ],
+      "points": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        {
+          "sprite": "dot",
+          "move": [
+            1,
+            0
+          ]
+        }
+      ],
+      "repeat": 3
+    }
+  ]
+}

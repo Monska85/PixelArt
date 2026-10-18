@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -32,9 +33,13 @@ struct SerialLine
 // A named entry point the simulator can run on its own (--anim).
 struct Scene
 {
-  const char *name;
-  void (*play)();
+  std::string name;
+  std::function<void()> play;
 };
+
+// Returns the scenes available for --list and --anim. Called after the
+// options are parsed, so it can depend on them (for example on data_dir()).
+using SceneProvider = std::function<std::vector<Scene>()>;
 
 // Physical panel: size and how the LED strip snakes through it. Uses the
 // NEO_MATRIX_* bit values so it can be compared with the sketch's flags.
@@ -51,13 +56,16 @@ const Panel &panel();
 uint64_t now_us();
 unsigned long seed();
 
+// Folder that stands in for the board's file system (--data, default "data").
+const std::string &data_dir();
+void set_data_dir(const std::string &dir);
+
 // Clears recorded frames, serial output and the clock. Call between tests.
 void reset();
 void set_scene(const std::string &name);
 
 // Runs setup() then loop() (or the selected scenes) and writes the outputs.
-// Pass the sketch's scenes to enable --list and --anim.
-int run(int argc, char **argv, const Scene *scenes, size_t count);
+int run(int argc, char **argv, const SceneProvider &scenes);
 
 // Hooks used by the Arduino and NeoPixel shims.
 void advance_us(uint64_t us);

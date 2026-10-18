@@ -1,0 +1,25 @@
+{
+  "format": "pixelart-playlist/1",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "name": "test",
+  "items": [
+    {
+      "animation": "b",
+      "repeat": 2
+    },
+    {
+      "animation": "a",
+      "enabled": false
+    },
+    {
+      "animation": "a"
+    },
+    {
+      "animation": "x-1_y",
+      "repeat": 1000
+    }
+  ]
+}

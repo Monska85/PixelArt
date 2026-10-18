@@ -20,24 +20,13 @@ constexpr uint8_t PIN_WS2812B = 4;
 constexpr int16_t MATRIX_WIDTH = 16;
 constexpr int16_t MATRIX_HEIGHT = 16;
 constexpr uint8_t BRIGHTNESS = 100;
-constexpr uint32_t DEFAULT_DELAY_MS = 500;
-constexpr int DEFAULT_TOTAL_FRAMES = 9;
 
-constexpr int round_up_to_even(int n) { return n + n % 2; }
-
-// Same packing as Adafruit_NeoMatrix::Color(), but usable in constant
-// expressions, so frame data can be stored in flash.
+// Same packing as Adafruit_NeoMatrix::Color(), usable in constant expressions.
+// Animation colors go through it, then through the NeoMatrix gamma tables.
 constexpr uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b)
 {
   return ((uint16_t)(r & 0xF8) << 8) | ((uint16_t)(g & 0xFC) << 3) | (b >> 3);
 }
-
-struct Pixel
-{
-  int16_t x;
-  int16_t y;
-  uint16_t color;
-};
 
 // Adafruit_NeoMatrix whose show() can also mirror the frame over serial.
 // Build with -DPIXELART_MIRROR to enable the mirror (see `make mirror`).
@@ -52,25 +41,3 @@ private:
 };
 
 extern PixelMatrix matrix;
-
-// Draws every pixel of a fixed-size array: draw(frame0).
-template <size_t N> void draw(const Pixel (&pixels)[N])
-{
-  for (const Pixel &p : pixels)
-  {
-    matrix.drawPixel(p.x, p.y, p.color);
-  }
-}
-
-// Plays an animation: for each frame, clears the matrix, calls
-// draw_frame(frame) with the frame index, shows the result and waits.
-template <typename DrawFrame> void play_frames(int total_frames, uint32_t delay_ms, DrawFrame draw_frame)
-{
-  for (int frame = 0; frame < total_frames; frame++)
-  {
-    matrix.fillScreen(0);
-    draw_frame(frame);
-    matrix.show();
-    delay(delay_ms);
-  }
-}

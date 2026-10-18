@@ -1,0 +1,27 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "sprites": {
+    "a": {
+      "parts": [
+        "b"
+      ]
+    },
+    "b": {
+      "parts": [
+        "a"
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        "a"
+      ]
+    }
+  ]
+}

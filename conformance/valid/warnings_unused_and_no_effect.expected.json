@@ -1,0 +1,20 @@
+{
+  "warnings": [
+    "no_effect",
+    "unused_color",
+    "unused_sprite"
+  ],
+  "frames": [
+    {
+      "ms": 500,
+      "pixels": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  ]
+}

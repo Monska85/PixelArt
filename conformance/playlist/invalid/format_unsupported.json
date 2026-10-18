@@ -1,0 +1,12 @@
+{
+  "format": "pixelart-playlist/2",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "items": [
+    {
+      "animation": "a"
+    }
+  ]
+}

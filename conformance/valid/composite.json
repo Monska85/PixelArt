@@ -1,0 +1,96 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "sprites": {
+    "body": {
+      "points": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    },
+    "hat": {
+      "at": [
+        0,
+        -1
+      ],
+      "points": {
+        "#00ff00": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    "feet": {
+      "at": [
+        0,
+        1
+      ],
+      "points": {
+        "#0000ff": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    "guy": {
+      "at": [
+        3,
+        3
+      ],
+      "parts": [
+        "body",
+        {
+          "sprite": "hat",
+          "at": [
+            1,
+            -1
+          ]
+        },
+        "feet"
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        "guy"
+      ]
+    },
+    {
+      "show": [
+        {
+          "sprite": "guy",
+          "move": [
+            1,
+            0
+          ]
+        }
+      ],
+      "repeat": 2
+    },
+    {
+      "show": [
+        {
+          "sprite": "guy",
+          "flip": "x"
+        }
+      ]
+    }
+  ]
+}

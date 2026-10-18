@@ -1,6 +1,6 @@
 # Animation format `pixelart/1`
 
-Status: **draft**, not implemented yet.
+Status: **implemented** by the engine in `lib/PixelEngine/`, used by the firmware and the simulator.
 
 This document specifies the file that describes one animation for the 16x16 LED matrix. The board reads the file and plays it: there is no compilation step. Why the format works this way is recorded in [ADR 0001](../adr/0001-declarative-animations.md). The order in which animations play is defined separately, in a [playlist](playlist-v1.md).
 
@@ -136,6 +136,7 @@ sprites:
 - Each part is placed at its own `at`, measured from the composite's position. Write `{ sprite: tree, at: [8, -6] }` to place a part differently inside this composite only.
 - Parts are drawn in list order: later parts cover earlier ones.
 - A composite can contain other composites, up to the nesting limit in [Limits](#limits). A sprite that contains itself, directly or through other sprites, is an error.
+- A composite counts every pixel of its parts, as many times as each part appears, toward the limit of pixels drawn in one frame. A part listed 64 times at four nesting levels would otherwise draw millions of pixels per frame.
 - Parts cannot be hidden or animated one by one inside a composite. To animate one part on its own, show the parts as separate sprites in the frame instead.
 
 ## Timeline
@@ -309,44 +310,46 @@ timeline:
 
 Animations can come from any source, including URLs typed by users, so every implementation enforces these limits before playing anything. A file that breaks one of them is rejected as a whole.
 
-| Limit                                          | Value           |
-| ---------------------------------------------- | --------------- |
-| File size (JSON, as stored on the board)       | 64 KiB          |
-| Canvas                                         | exactly 16 x 16 |
-| Palette entries                                | 256             |
-| Different colors in the whole animation        | 256             |
-| Sprites                                        | 64              |
-| Points, counted once per sprite definition     | 4,096           |
-| Composite nesting depth                        | 4               |
-| Loop nesting depth                             | 4               |
-| Timeline items, frames and loops at all levels | 1,024           |
-| Entries in one `show` list                     | 32              |
-| `repeat` and `loop`                            | 1 to 10,000     |
-| `frame_ms` and `ms`                            | 20 to 60,000    |
-| Coordinates, `at`, `move` and `pivot` values   | -128 to 127     |
-| `name` and `author`                            | 128 characters  |
-| `description`                                  | 512 characters  |
+| Limit                                                               | Value           |
+| ------------------------------------------------------------------- | --------------- |
+| File size (JSON, as stored on the board)                            | 64 KiB          |
+| Canvas                                                              | exactly 16 x 16 |
+| Palette entries                                                     | 256             |
+| Different colors in the whole animation                             | 256             |
+| Sprites                                                             | 64              |
+| Points, counted once per sprite definition                          | 4,096           |
+| Composite nesting depth                                             | 4               |
+| Parts in one composite sprite                                       | 64              |
+| Pixels drawn in one frame, counting every part of composite sprites | 4,096           |
+| Loop nesting depth                                                  | 4               |
+| Timeline items, frames and loops at all levels                      | 1,024           |
+| Entries in one `show` list                                          | 32              |
+| `repeat` and `loop`                                                 | 1 to 10,000     |
+| `frame_ms` and `ms`                                                 | 20 to 60,000    |
+| Coordinates, `at`, `move` and `pivot` values                        | -128 to 127     |
+| `name` and `author`                                                 | 128 characters  |
+| `description`                                                       | 512 characters  |
 
 For reference, the largest current animation (`snow_globe`) is about 4.5 KB with 555 points, 4 sprites and 12 colors.
 
 ## Validation
 
-Validation runs in the web app, in the command line tools and in CI, and again on the board, which never trusts a file. Every message names the place of the problem, for example `sprite "tree", point 12: unknown color "gren"`.
+Validation runs in the command line tools and in CI, and again on the board, which never trusts a file. Every message names the place of the problem, for example `sprite "tree", point 12: unknown color "gren"`. An implementation keeps at most 32 messages per file, so a file full of mistakes cannot exhaust the board's memory; such a file is still rejected.
 
 ### Errors
 
 An error rejects the file.
 
-| Code                 | Meaning                                                                                                |
-| -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `format_unsupported` | `format` is missing or is not a version this implementation supports.                                  |
-| `structure`          | The file does not match the JSON Schema: missing field, wrong type, unknown field, value out of range. |
-| `limit_exceeded`     | One of the [limits](#limits) is exceeded.                                                              |
-| `unknown_color`      | A color is neither a palette name nor a valid `"#rrggbb"` value.                                       |
-| `unknown_sprite`     | `show` or `parts` names a sprite that does not exist.                                                  |
-| `sprite_cycle`       | A composite sprite contains itself, directly or through other sprites.                                 |
-| `invalid_angle`      | `rotate` or `spin` is not a multiple of 90 degrees.                                                    |
-| `empty_sprite`       | A sprite has no points, or an empty `parts` list.                                                      |
+| Code                 | Meaning                                                                                                                                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format_unsupported` | `format` is missing or is not a version this implementation supports.                                                                                                                                                                       |
+| `structure`          | The file does not match the JSON Schema: missing field, wrong type, unknown field, or a single value out of its range (a coordinate, a duration, a `repeat`).                                                                               |
+| `limit_exceeded`     | A size or count limit is exceeded: file size; number of palette entries, colors, sprites, points or timeline items; entries in a `show` list, parts of a composite or `recolor` substitutions; pixels drawn in one frame; or nesting depth. |
+| `unknown_color`      | A color is neither a palette name nor a valid `"#rrggbb"` value.                                                                                                                                                                            |
+| `unknown_sprite`     | `show` or `parts` names a sprite that does not exist.                                                                                                                                                                                       |
+| `sprite_cycle`       | A composite sprite contains itself, directly or through other sprites.                                                                                                                                                                      |
+| `invalid_angle`      | `rotate` or `spin` is an integer that is not one of -270, -180, -90, 0, 90, 180, 270. A value that is not an integer is `structure`.                                                                                                        |
+| `empty_sprite`       | A sprite has no points, or an empty `parts` list.                                                                                                                                                                                           |
 
 ### Warnings
 
