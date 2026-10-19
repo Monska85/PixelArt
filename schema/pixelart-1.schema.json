@@ -45,6 +45,13 @@
       "$ref": "#/$defs/duration",
       "default": 500
     },
+    "brightness": {
+      "description": "Percentage of the board brightness the animation plays at. It can only lower the board setting.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "default": 100
+    },
     "background": {
       "$ref": "#/$defs/color"
     },
