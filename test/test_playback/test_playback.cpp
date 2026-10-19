@@ -170,6 +170,21 @@ static void test_brightness_applies_from_the_next_frame()
   TEST_ASSERT_EQUAL(50, settings::brightness());
 }
 
+static void test_board_brightness_change_applies_to_the_animation_factor_from_the_next_frame()
+{
+  TempData data("playback");
+  data.write("animations/a.json", dot_animation("#ffffff", 3, 100, 50));
+  setup();
+  sim::serial_input(request(1, R"("cmd":"settings_set","brightness":200)"));
+  play_stored_animation("a");
+
+  TEST_ASSERT_EQUAL(3, sim::frames().size());
+  // Board 100 and 50 percent give 50; board 200 gives (200 * 50 + 50) / 100 = 100.
+  TEST_ASSERT_EQUAL_UINT8(50, red(sim::frames()[0].at(0, 0)));
+  TEST_ASSERT_EQUAL_UINT8(100, red(sim::frames()[1].at(0, 0)));
+  TEST_ASSERT_EQUAL_UINT8(100, red(sim::frames()[2].at(0, 0)));
+}
+
 static void test_boot_applies_the_brightness_setting()
 {
   TempData data("playback");
@@ -311,6 +326,7 @@ int main(int, char **)
   RUN_TEST(test_traffic_leaves_the_repository_animations_unchanged);
   RUN_TEST(test_a_slow_command_delays_one_frame_and_the_schedule_holds);
   RUN_TEST(test_brightness_applies_from_the_next_frame);
+  RUN_TEST(test_board_brightness_change_applies_to_the_animation_factor_from_the_next_frame);
   RUN_TEST(test_boot_applies_the_brightness_setting);
   RUN_TEST(test_active_playlist_change_waits_for_the_current_animation);
   RUN_TEST(test_deleting_a_playlist_waits_for_the_current_animation);

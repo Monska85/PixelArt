@@ -37,6 +37,20 @@ constexpr int MAX_MS = 60000;
 constexpr int MIN_COORD = -128;
 constexpr int MAX_COORD = 127;
 constexpr int DEFAULT_FRAME_MS = 500;
+constexpr int MIN_BRIGHTNESS_PERCENT = 1;
+constexpr int MAX_BRIGHTNESS_PERCENT = 100;
+constexpr int DEFAULT_BRIGHTNESS_PERCENT = 100;
+
+// Brightness the LEDs receive for a board brightness (0 to 255) and an
+// animation's percentage (1 to 100). Rule of docs/format/pixelart-v1.md#brightness:
+// an animation never switches the matrix off, only a board brightness of 0 does.
+constexpr uint8_t effective_brightness(uint8_t board, uint8_t percent)
+{
+  if (board == 0)
+    return 0;
+  const unsigned value = (board * (unsigned)percent + 50) / 100;
+  return value == 0 ? 1 : (uint8_t)value;
+}
 
 enum class Severity
 {
@@ -76,6 +90,8 @@ public:
   bool loaded() const { return loaded_; }
   const std::string &name() const { return name_; }
   uint32_t version() const { return version_; }
+  // Percentage of the board brightness, 1 to 100.
+  uint8_t brightness() const { return brightness_; }
 
 private:
   friend class Player;
@@ -151,6 +167,7 @@ private:
   bool loaded_ = false;
   std::string name_;
   uint32_t version_ = 1;
+  uint8_t brightness_ = DEFAULT_BRIGHTNESS_PERCENT;
   bool has_background_ = false;
   uint8_t background_ = 0;
   std::vector<Rgb> colors_; // distinct colors, indexed by Point::color

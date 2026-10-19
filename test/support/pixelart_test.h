@@ -69,15 +69,16 @@ inline std::string sha256_hex(const std::string &bytes)
   return hash.hex_digest();
 }
 
-// A dot at the corner that shows `frames` frames of `ms` milliseconds.
-inline std::string dot_animation(const char *color, int frames = 1, int ms = 100)
+// A dot at the corner that shows `frames` frames of `ms` milliseconds. A
+// `brightness` above 0 is written as the animation's brightness percentage.
+inline std::string dot_animation(const char *color, int frames = 1, int ms = 100, int brightness = 0)
 {
   std::string timeline;
   for (int i = 0; i < frames; i++)
     timeline += std::string(i ? "," : "") + R"({"show":["d"]})";
   return std::string(R"({"format":"pixelart/1","name":"dot","canvas":{"width":16,"height":16},"frame_ms":)") +
-         std::to_string(ms) + R"(,"sprites":{"d":{"points":{")" + color + R"(":[[0,0]]}}},"timeline":[)" + timeline +
-         "]}";
+         std::to_string(ms) + (brightness ? ",\"brightness\":" + std::to_string(brightness) : std::string()) +
+         R"(,"sprites":{"d":{"points":{")" + color + R"(":[[0,0]]}}},"timeline":[)" + timeline + "]}";
 }
 
 // A 147 byte animation, the one the upload tests send.
