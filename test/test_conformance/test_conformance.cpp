@@ -96,6 +96,9 @@ static void test_valid_cases()
     TEST_ASSERT_TRUE_MESSAGE(want_warnings == got_warnings,
                              (name + ": warnings differ:" + describe(diagnostics)).c_str());
 
+    const int want_brightness = expected["brightness"].isNull() ? 100 : expected["brightness"].as<int>();
+    TEST_ASSERT_EQUAL_MESSAGE(want_brightness, animation.brightness(), (name + ": brightness").c_str());
+
     pixelart::Player player(animation);
     pixelart::Frame frame;
     size_t index = 0;

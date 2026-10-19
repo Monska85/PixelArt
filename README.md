@@ -57,6 +57,8 @@ Every animation is a YAML file in [`animations/`](animations/), and [`playlists/
 
 `make data` converts them to the JSON files the board reads, in `data/` (the layout of the board's file system: `data/animations/<id>.json`, `data/playlists/default.json`). The file name is the animation ID. The board plays the default playlist; without one, it plays every animation in alphabetical order.
 
+An animation can play softer than the board's brightness setting with the optional field `brightness`, a percentage from 1 to 100 (for example `brightness: 50`). The board setting stays the limit: an animation never plays brighter than it. See the [format specification](docs/format/pixelart-v1.md#brightness).
+
 ### Adding an animation
 
 1. Create `animations/my_animation.yaml`. Any existing animation is a working example; this one blinks a small heart:

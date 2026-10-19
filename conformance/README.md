@@ -31,6 +31,7 @@ For a valid case:
 ```
 
 - `warnings`: the exact set of warning codes the implementation must report.
+- `brightness` (optional): the animation's `brightness` percentage, 1 to 100. It is 100 when the key is absent. The frames never change with it: the factor is applied when the LEDs are driven, as the [format specification](../docs/format/pixelart-v1.md#brightness) describes.
 - `frames`: every frame of the timeline, in order, and nothing more. `ms` is the frame duration, `pixels` lists the lit pixels by color as `[x, y]`, and every other pixel has the `background` color (off when `background` is missing).
 
 For an invalid case:

@@ -10,6 +10,8 @@
 #include <fstream>
 #include <string>
 
+#include <pixelart_engine.h>
+
 #include "app.h"
 #include "pixel_art.h"
 #include "settings.h"
@@ -67,6 +69,54 @@ void test_brightness_scales_led_output()
   matrix.show();
   uint32_t white = sim::frames().back().at(0, 0);
   TEST_ASSERT_EQUAL_UINT8((255 * (settings::DEFAULT_BRIGHTNESS + 1)) >> 8, red(white));
+}
+
+void test_effective_brightness_rule()
+{
+  struct Row
+  {
+    uint8_t board, percent, expected;
+  };
+  // Hand-computed from docs/format/pixelart-v1.md#brightness.
+  static const Row ROWS[] = {{100, 100, 100}, {100, 50, 50},  {255, 33, 84}, {255, 100, 255}, {3, 50, 2},    {1, 1, 1},
+                             {0, 50, 0},      {200, 99, 198}, {149, 1, 1},   {249, 1, 2},     {151, 99, 149}};
+  for (const Row &row : ROWS)
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(
+        row.expected, pixelart::effective_brightness(row.board, row.percent),
+        ("board " + std::to_string(row.board) + ", percent " + std::to_string(row.percent)).c_str());
+}
+
+void test_animation_brightness_lowers_led_output()
+{
+  TempData data("animations");
+  data.write("animations/a.json", dot_animation("#ffffff", 1, 100, 50));
+  play_stored_animation("a");
+  TEST_ASSERT_EQUAL(1, sim::frames().size());
+  TEST_ASSERT_EQUAL_UINT8(50, red(sim::frames()[0].at(0, 0)));
+}
+
+void test_animation_brightness_lowers_the_background()
+{
+  TempData data("animations");
+  data.write("animations/a.json",
+             R"({"format":"pixelart/1","name":"bg","canvas":{"width":16,"height":16},"brightness":50,)"
+             R"("background":"#ffffff","sprites":{"d":{"points":{"#ff0000":[[0,0]]}}},"timeline":[{"show":["d"]}]})");
+  play_stored_animation("a");
+  TEST_ASSERT_EQUAL(1, sim::frames().size());
+  TEST_ASSERT_EQUAL_UINT8(50, red(sim::frames()[0].at(15, 15)));
+  TEST_ASSERT_EQUAL_UINT8(50, green(sim::frames()[0].at(15, 15)));
+}
+
+void test_no_animations_image_ignores_the_animation_brightness()
+{
+  TempData data("animations");
+  data.write("animations/a.json", dot_animation("#ffffff", 1, 100, 50));
+  play_stored_animation("a");
+  TEST_ASSERT_EQUAL_UINT8(50, matrix.getBrightness());
+  fs::remove(data.root / "animations" / "a.json");
+  play_from_storage();
+  TEST_ASSERT_EQUAL_UINT8(settings::brightness(), matrix.getBrightness());
+  TEST_ASSERT_TRUE(sim::frames().back().at(7, 11) != 0);
 }
 
 void test_repository_playlist_plays_every_animation()
@@ -147,6 +197,10 @@ int main(int, char **)
   RUN_TEST(test_xmas_tree_frames_and_timing);
   RUN_TEST(test_xmas_tree_star_is_yellow_and_corner_is_off);
   RUN_TEST(test_brightness_scales_led_output);
+  RUN_TEST(test_effective_brightness_rule);
+  RUN_TEST(test_animation_brightness_lowers_led_output);
+  RUN_TEST(test_animation_brightness_lowers_the_background);
+  RUN_TEST(test_no_animations_image_ignores_the_animation_brightness);
   RUN_TEST(test_repository_playlist_plays_every_animation);
   RUN_TEST(test_playlist_order_and_repeat);
   RUN_TEST(test_without_playlist_plays_all_in_alphabetical_order);

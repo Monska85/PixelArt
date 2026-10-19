@@ -862,8 +862,8 @@ bool Loader::run(const char *json, size_t length)
   }
 
   check_keys(root,
-             {"format", "name", "version", "author", "description", "canvas", "frame_ms", "background", "palette",
-              "sprites", "timeline"},
+             {"format", "name", "version", "author", "description", "canvas", "frame_ms", "brightness", "background",
+              "palette", "sprites", "timeline"},
              "");
   for (const char *key : {"name", "canvas", "sprites", "timeline"})
     if (root[key].isNull())
@@ -887,6 +887,10 @@ bool Loader::run(const char *json, size_t length)
   }
   if (!root["frame_ms"].isNull() && get_int(root["frame_ms"], MIN_MS, MAX_MS, "frame_ms", value))
     frame_ms_ = (uint16_t)value;
+  // A present null is an error, unlike the optional fields above that ignore it.
+  if (root["brightness"].is<JsonVariantConst>() &&
+      get_int(root["brightness"], MIN_BRIGHTNESS_PERCENT, MAX_BRIGHTNESS_PERCENT, "brightness", value))
+    a_.brightness_ = (uint8_t)value;
 
   parse_palette(root["palette"]);
   if (!root["background"].isNull() && get_color(root["background"], "background", a_.background_))
@@ -926,6 +930,7 @@ void Animation::clear()
   loaded_ = false;
   name_.clear();
   version_ = 1;
+  brightness_ = DEFAULT_BRIGHTNESS_PERCENT;
   has_background_ = false;
   background_ = 0;
   colors_.clear();
