@@ -1,0 +1,84 @@
+{
+  "description": "exactly 8 files in one page: more is false",
+  "files": {
+    "animations/a01.json": "{\"format\":\"pixelart/1\",\"name\":\"Na01\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a02.json": "{\"format\":\"pixelart/1\",\"name\":\"Na02\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a03.json": "{\"format\":\"pixelart/1\",\"name\":\"Na03\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a04.json": "{\"format\":\"pixelart/1\",\"name\":\"Na04\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a05.json": "{\"format\":\"pixelart/1\",\"name\":\"Na05\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a06.json": "{\"format\":\"pixelart/1\",\"name\":\"Na06\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a07.json": "{\"format\":\"pixelart/1\",\"name\":\"Na07\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a08.json": "{\"format\":\"pixelart/1\",\"name\":\"Na08\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 1af0c9a8 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "a01",
+            "size": 148,
+            "sha256": "d9142589de1ca780ec25f887665e91c4e6e4ff106520268a41e9334d2a38f292",
+            "name": "Na01",
+            "version": 1
+          },
+          {
+            "id": "a02",
+            "size": 148,
+            "sha256": "cac254055882c527334b25c96824f6eac7b1efe4ec240a3ce871b4178f3934a6",
+            "name": "Na02",
+            "version": 1
+          },
+          {
+            "id": "a03",
+            "size": 148,
+            "sha256": "d7e8cbc848ccd78ad419cb18205f6b49cd189496b0bee86f8783c52333b732b3",
+            "name": "Na03",
+            "version": 1
+          },
+          {
+            "id": "a04",
+            "size": 148,
+            "sha256": "b5fa4e0bedb516f99ff3d9b93e65209ea68d6e3041cc090a4295e9612d30e01d",
+            "name": "Na04",
+            "version": 1
+          },
+          {
+            "id": "a05",
+            "size": 148,
+            "sha256": "e4fd3b2ca7b98176e81410469b3b9186d015d1de3f860f78bd9c79b7cd52e782",
+            "name": "Na05",
+            "version": 1
+          },
+          {
+            "id": "a06",
+            "size": 148,
+            "sha256": "0513286bfde4b91b878bd693f841a0e16188f05f06567bca0f5b354ce7a6b1ec",
+            "name": "Na06",
+            "version": 1
+          },
+          {
+            "id": "a07",
+            "size": 148,
+            "sha256": "bb488731b977f5aaece397137454a2f8923ae0940ae74eb3c338db0c4669e43f",
+            "name": "Na07",
+            "version": 1
+          },
+          {
+            "id": "a08",
+            "size": 148,
+            "sha256": "f4569ab3251b3d9a038e48a0006df49dd13acae2f7bd26b44e3cf5ff64f55e85",
+            "name": "Na08",
+            "version": 1
+          }
+        ],
+        "more": false
+      }
+    }
+  ]
+}

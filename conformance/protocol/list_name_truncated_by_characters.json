@@ -1,0 +1,50 @@
+{
+  "description": "a name is cut at 128 characters, not bytes, and never inside a character",
+  "files": {
+    "animations/e2.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IsOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwiY2FudmFzIjp7IndpZHRoIjoxNiwiaGVpZ2h0IjoxNn0sInNwcml0ZXMiOnsiZG90Ijp7InBvaW50cyI6W1s3LDcsIiNmZjAwMDAiXV19fSwidGltZWxpbmUiOlt7InNob3ciOlsiZG90Il19XX0="
+    },
+    "animations/e3.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IuKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrOKCrCIsImNhbnZhcyI6eyJ3aWR0aCI6MTYsImhlaWdodCI6MTZ9LCJzcHJpdGVzIjp7ImRvdCI6eyJwb2ludHMiOltbNyw3LCIjZmYwMDAwIl1dfX0sInRpbWVsaW5lIjpbeyJzaG93IjpbImRvdCJdfV19"
+    },
+    "animations/e4.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IvCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgPCfmIDwn5iA8J+YgCIsImNhbnZhcyI6eyJ3aWR0aCI6MTYsImhlaWdodCI6MTZ9LCJzcHJpdGVzIjp7ImRvdCI6eyJwb2ludHMiOltbNyw3LCIjZmYwMDAwIl1dfX0sInRpbWVsaW5lIjpbeyJzaG93IjpbImRvdCJdfV19"
+    }
+  },
+  "steps": [
+    {
+      "send": "@PR 1af0c9a8 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "animation",
+        "more": false,
+        "entries": [
+          {
+            "id": "e2",
+            "size": 404,
+            "sha256": "3c80f6e223be18167e4ada40cc5215433abebb33a5e72f2822aa4fa7342c4805",
+            "name": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "version": 1
+          },
+          {
+            "id": "e3",
+            "size": 528,
+            "sha256": "7e1d31d490f4f5f7f18ebcd0b7bfc3473dcb0c610ba632ad5da383feea544f7a",
+            "name": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+            "version": 1
+          },
+          {
+            "id": "e4",
+            "size": 660,
+            "sha256": "7b2c9fa8137419bc32220ccae1060c9075ee6c339b70aadb8545211f2bcac4a3",
+            "name": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+            "version": 1
+          }
+        ]
+      }
+    }
+  ]
+}

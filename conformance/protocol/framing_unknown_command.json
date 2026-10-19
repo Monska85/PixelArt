@@ -1,0 +1,161 @@
+{
+  "description": "an unknown command gets unknown_command; an unknown field is bad_request",
+  "steps": [
+    {
+      "send": "@PR a5642a03 {\"seq\":1,\"cmd\":\"reboot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "unknown_command",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 734aabbd {\"seq\":2,\"cmd\":\"INFO\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "unknown_command",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 8da61ae4 {\"seq\":3,\"cmd\":\"\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "unknown_command",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR a1c0ba42 {\"seq\":4,\"cmd\":\"info\",\"verbose\":true}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR b76da582 {\"seq\":5,\"cmd\":\"settings_get\",\"x\":1}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 500badd9 {\"seq\":6,\"cmd\":\"put_end\",\"x\":1}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR e26c2f9f {\"seq\":7,\"cmd\":\"put_abort\",\"x\":1}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 6607ff6a {\"seq\":8,\"cmd\":\"list\",\"kind\":\"animation\",\"limit\":3}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 7e0c828d {\"seq\":9,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":0,\"length\":1,\"x\":0}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 5d848162 {\"seq\":10,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\",\"force\":true}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 793ccc1f {\"seq\":11,\"cmd\":\"settings_set\",\"brightness\":5,\"volume\":1}"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 17f398c8 {\"seq\":12,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"QQ==\",\"x\":1}"
+    },
+    {
+      "expect": {
+        "seq": 12,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR e25b4b7c {\"seq\":13,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"dot\",\"size\":1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"x\":1}"
+    },
+    {
+      "expect": {
+        "seq": 13,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR edcfde51 {\"seq\":14,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 14,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default"
+        }
+      }
+    }
+  ]
+}

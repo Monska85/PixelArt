@@ -1,0 +1,59 @@
+{
+  "description": "an upload that has been idle for exactly 10 seconds is cancelled, 9.999 seconds is not",
+  "steps": [
+    {
+      "send": "@PR 41df5761 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"dot\",\"size\":147,\"sha256\":\"3c878c7d9776ae2066e60d164ef9d7f3d245fd1a844ba99d76ce31162d8fb225\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "advance_ms": 9999
+    },
+    {
+      "send": "@PR 551c5207 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IkRvdCIsImNhbnZhcyI6eyJ3aWQ=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 50
+      }
+    },
+    {
+      "advance_ms": 9999
+    },
+    {
+      "send": "@PR 8e83591d {\"seq\":3,\"cmd\":\"put_chunk\",\"offset\":50,\"data\":\"dGgiOjE2LCJoZWlnaHQiOjE2fSwic3ByaXRlcyI6eyJkb3QiOnsicG9pbnRzIjpbWzc=\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "received": 100
+      }
+    },
+    {
+      "advance_ms": 10000
+    },
+    {
+      "expect_files": {
+        "upload.tmp": null
+      }
+    },
+    {
+      "send": "@PR eff91e3c {\"seq\":4,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    }
+  ]
+}

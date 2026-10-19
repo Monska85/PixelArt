@@ -1,0 +1,77 @@
+{
+  "description": "a new put_begin cancels the upload in progress",
+  "steps": [
+    {
+      "send": "@PR 6d035acc {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"one\",\"size\":149,\"sha256\":\"3c142fed40c04a79222911d3240432032b0c4ae81b989f560b6341f07d39b08d\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 342f0f3d {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6Ik11bHRpIiwiY2FudmFzIjp7Inc=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 50
+      }
+    },
+    {
+      "send": "@PR fb71e334 {\"seq\":3,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"dot\",\"size\":147,\"sha256\":\"3c878c7d9776ae2066e60d164ef9d7f3d245fd1a844ba99d76ce31162d8fb225\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true
+      }
+    },
+    {
+      "expect_files": {
+        "upload.tmp": ""
+      }
+    },
+    {
+      "send": "@PR 3c09b469 {\"seq\":4,\"cmd\":\"put_chunk\",\"offset\":50,\"data\":\"dGgiOjE2LCJoZWlnaHQiOjE2fSwic3ByaXRlcyI6eyJkb3QiOnsicG9pbnRzIjpbWzc=\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "bad_offset",
+        "message": "<any>",
+        "expected": 0
+      }
+    },
+    {
+      "send": "@PR 86d5656d {\"seq\":5,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IkRvdCIsImNhbnZhcyI6eyJ3aWR0aCI6MTYsImhlaWdodCI6MTZ9LCJzcHJpdGVzIjp7ImRvdCI6eyJwb2ludHMiOltbNyw3LCIjZmYwMDAwIl1dfX0sInRpbWVsaW5lIjpbeyJzaG93IjpbImRvdCJdfV19\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "received": 147
+      }
+    },
+    {
+      "send": "@PR ea2d75bf {\"seq\":6,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+        "animations/one.json": null,
+        "upload.tmp": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "description": "a put_begin that is refused still cancels the upload in progress",
+  "steps": [
+    {
+      "send": "@PR 41df5761 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"dot\",\"size\":147,\"sha256\":\"3c878c7d9776ae2066e60d164ef9d7f3d245fd1a844ba99d76ce31162d8fb225\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 551c5207 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IkRvdCIsImNhbnZhcyI6eyJ3aWQ=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 50
+      }
+    },
+    {
+      "send": "@PR 681d3c8a {\"seq\":3,\"cmd\":\"put_begin\",\"kind\":\"song\",\"id\":\"dot\",\"size\":1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_kind",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_files": {
+        "upload.tmp": null
+      }
+    },
+    {
+      "send": "@PR 46ededc9 {\"seq\":4,\"cmd\":\"put_chunk\",\"offset\":50,\"data\":\"dGgiOjE2LCJoZWlnaHQiOjE2fSwic3ByaXRlcyI6eyJkb3QiOnsicG9pbnRzIjpbWzcsNywiI2ZmMDAwMCJdXX19LCJ0aW1lbGluZSI6W3sic2hvdyI6WyJkb3QiXX1dfQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    }
+  ]
+}

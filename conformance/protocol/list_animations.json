@@ -1,0 +1,78 @@
+{
+  "description": "list reports id, size, SHA-256, name and version, sorted by id in byte order",
+  "files": {
+    "animations/a.json": "{\"format\":\"pixelart/1\",\"name\":\"Beta\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a-b.json": "{\"format\":\"pixelart/1\",\"name\":\"Alpha\",\"version\":3,\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a_b.json": "{\"format\":\"pixelart/1\",\"name\":\"Gamma\",\"version\":2,\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[3,7,\"#00ff00\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a0.json": "{\"format\":\"pixelart/1\",\"name\":\"Beta\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/broken.json": "{\"format\":\"pixelart/1\",\"name\":",
+    "animations/long.json": "{\"format\":\"pixelart/1\",\"name\":\"NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/named.json": "{\"name\":\"Named\",\"x\":1}",
+    "animations/Upper.json": "{\"format\":\"pixelart/1\",\"name\":\"Alpha\",\"version\":3,\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/notes.txt": "x",
+    "animations/-bad.json": "{\"format\":\"pixelart/1\",\"name\":\"Alpha\",\"version\":3,\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/x.json.bak": "{\"format\":\"pixelart/1\",\"name\":\"Alpha\",\"version\":3,\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 1af0c9a8 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "a",
+            "size": 148,
+            "sha256": "1023e8f457ea6749655dae2d160c7029c4b65a1ecf676a76807569e68c551d15",
+            "name": "Beta",
+            "version": 1
+          },
+          {
+            "id": "a-b",
+            "size": 161,
+            "sha256": "95693c4f26880fefb19d80e95ea20b6165fce77a22f2f06392df2d37f272252b",
+            "name": "Alpha",
+            "version": 3
+          },
+          {
+            "id": "a0",
+            "size": 148,
+            "sha256": "1023e8f457ea6749655dae2d160c7029c4b65a1ecf676a76807569e68c551d15",
+            "name": "Beta",
+            "version": 1
+          },
+          {
+            "id": "a_b",
+            "size": 161,
+            "sha256": "7e84f9d45529f7899172078e6e272d57339a2b288bf124e4cdb167884b3ab718",
+            "name": "Gamma",
+            "version": 2
+          },
+          {
+            "id": "broken",
+            "size": 30,
+            "sha256": "0681776644896e43b1971de5b670313dc4fa4f772a9ab527d22815b2af123987"
+          },
+          {
+            "id": "long",
+            "size": 274,
+            "sha256": "e4161daa6b52618055eb5cf747cf27b44bda0bfa2d87b3d60e6430bc7b55174a",
+            "name": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+            "version": 1
+          },
+          {
+            "id": "named",
+            "size": 22,
+            "sha256": "ee6cec3813aa71b183343f27d288cd183e3cc9180e79e39b98ca9a4ce94b3ffc",
+            "name": "Named",
+            "version": 1
+          }
+        ],
+        "more": false
+      }
+    }
+  ]
+}

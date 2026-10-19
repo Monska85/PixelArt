@@ -1,21 +1,24 @@
 BOARD ?= esp32c3
 OUT ?= sim-out
+SITE ?= site
 ANIM ?=
 ARGS ?=
+WS ?=
 PYTHON ?= python3
 SIM := .pio/build/native/program
 CPP_SOURCES = $(shell find src include test lib -name '*.cpp' -o -name '*.h')
 
 ANIM_ARG := $(if $(ANIM),--anim $(ANIM),)
+WS_ARG := $(if $(WS),--ws,)
 
 .DEFAULT_GOAL := help
 .PHONY: help data validate build build-all upload upload-firmware upload-data monitor flash mirror sim-build sim \
-	sim-list sim-play emulate sim-open test format format-check check clean
+	sim-list sim-play emulate serve sim-open release-site test format format-check check clean
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
-	@echo "Variables: BOARD=$(BOARD) (esp32c3, esp32, esp32s3)  ANIM=name[,name]  OUT=$(OUT)  ARGS=extra simulator options"
+	@echo "Variables: BOARD=$(BOARD) (esp32c3, esp32, esp32s3)  ANIM=name[,name]  OUT=$(OUT)  SITE=$(SITE)  ARGS=extra simulator options  WS=1 (emulate with the WebSocket)"
 
 data: ## Build data/ (the board's files) from animations/ and playlists/
 	$(PYTHON) tools/pixelart.py build
@@ -64,13 +67,24 @@ sim-list: data sim-build ## List the animations the simulator can run
 sim-play: data sim-build ## Play once in real time in the terminal
 	$(SIM) $(ANIM_ARG) --realtime --no-files $(ARGS)
 
-emulate: data sim-build ## Emulate the board: live matrix and serial output in the terminal, no hardware
-	$(SIM) $(ANIM_ARG) --live $(ARGS)
+emulate: data sim-build ## Emulate the board: live matrix and serial output in the terminal, no hardware (WS=1 adds the WebSocket)
+	$(SIM) $(ANIM_ARG) --live $(WS_ARG) $(ARGS)
+
+serve: data sim-build ## Emulate the board and serve the command protocol on ws://127.0.0.1:8765
+	$(SIM) $(ANIM_ARG) --live --ws $(ARGS)
 
 sim-open: sim ## Run the simulator and open the HTML player
 	@if command -v xdg-open >/dev/null 2>&1; then xdg-open $(OUT)/player.html; \
 	elif command -v open >/dev/null 2>&1; then open $(OUT)/player.html; \
 	else echo "Open $(OUT)/player.html in a browser"; fi
+
+release-site: data ## Build every board and the release site into SITE (default site/), as a release would publish it
+	@set -eu; \
+	PIXELART_VERSION=$$($(PYTHON) tools/release.py version); export PIXELART_VERSION; \
+	echo "Release site for version $$PIXELART_VERSION"; \
+	pio run -e esp32c3 -e esp32 -e esp32s3; \
+	for board in esp32c3 esp32 esp32s3; do pio run -e $$board -t buildfs; done; \
+	$(PYTHON) tools/release.py build --out $(SITE) --schema
 
 test: data ## Run the tests on the simulator
 	pio test -e native_test
@@ -84,9 +98,10 @@ format-check: ## Fail if a C++ source is not formatted
 check: data sim-build ## Check formatting and animations, run the tests and build every board
 	@clang-format --dry-run --Werror $(CPP_SOURCES)
 	$(SIM) --validate
+	$(PYTHON) -m unittest discover -s tools
 	pio test -e native_test
 	pio run -e esp32c3 -e esp32 -e esp32s3
 
 clean: ## Remove build outputs, data/ and simulator output
 	pio run -t clean -e native -e native_test -e esp32c3 -e esp32 -e esp32s3
-	rm -rf data $(OUT)
+	rm -rf data $(OUT) $(SITE)

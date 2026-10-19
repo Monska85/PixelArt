@@ -1,0 +1,93 @@
+{
+  "description": "list rejects bad kind, id and fields",
+  "steps": [
+    {
+      "send": "@PR a97ca4b7 {\"seq\":1,\"cmd\":\"list\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR b59ab2ec {\"seq\":2,\"cmd\":\"list\",\"kind\":\"song\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "invalid_kind",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR b09be311 {\"seq\":3,\"cmd\":\"list\",\"kind\":5}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR c772a7fa {\"seq\":4,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"Bad\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 7581d079 {\"seq\":5,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 5600774e {\"seq\":6,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":7}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 0094812a {\"seq\":7,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR e5856540 {\"seq\":8,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"../x\"}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    }
+  ]
+}

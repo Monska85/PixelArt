@@ -1,0 +1,30 @@
+{
+  "description": "a stored file whose name is not valid UTF-8 is listed, each bad byte shown as U+FFFD",
+  "files": {
+    "animations/bad.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IkH/QiIsImNhbnZhcyI6eyJ3aWR0aCI6MTYsImhlaWdodCI6MTZ9LCJzcHJpdGVzIjp7ImRvdCI6eyJwb2ludHMiOltbNyw3LCIjZmYwMDAwIl1dfX0sInRpbWVsaW5lIjpbeyJzaG93IjpbImRvdCJdfV19"
+    }
+  },
+  "steps": [
+    {
+      "send": "@PR 1af0c9a8 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "bad",
+            "size": 147,
+            "sha256": "a3ee5fa568b553b5c02d198a0593b8de7098593c9a4fc1f1bd913242b0be9965",
+            "name": "A�B",
+            "version": 1
+          }
+        ],
+        "more": false
+      }
+    }
+  ]
+}

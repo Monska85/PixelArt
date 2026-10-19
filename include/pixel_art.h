@@ -19,7 +19,8 @@ constexpr uint32_t SERIAL_BAUD = 115200;
 constexpr uint8_t PIN_WS2812B = 4;
 constexpr int16_t MATRIX_WIDTH = 16;
 constexpr int16_t MATRIX_HEIGHT = 16;
-constexpr uint8_t BRIGHTNESS = 100;
+constexpr size_t SERIAL_RX_BUFFER = 4096;
+constexpr size_t SERIAL_TX_BUFFER = 4096;
 
 // Same packing as Adafruit_NeoMatrix::Color(), usable in constant expressions.
 // Animation colors go through it, then through the NeoMatrix gamma tables.

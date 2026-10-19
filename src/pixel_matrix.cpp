@@ -12,6 +12,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "pixel_art.h"
+#include "protocol.h"
 
 void PixelMatrix::show()
 {
@@ -33,6 +34,10 @@ void PixelMatrix::mirror()
   if (!Serial)
   {
     return; // USB serial not connected: skip instead of blocking
+  }
+  if (protocol::upload_active())
+  {
+    return; // the long mirror lines would compete with the upload
   }
 
   size_t needed = 16 + numLEDs * 6 + 1;

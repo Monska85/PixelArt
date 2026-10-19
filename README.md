@@ -113,6 +113,8 @@ Every command is available through both `make` and `just`. Run `make help` or `j
 | `make validate`            | `just validate`              | Check every animation and playlist with the board's engine                                          |
 | `make emulate`             | `just emulate`               | Emulate the board: run forever in real time, with the matrix and serial output live in the terminal |
 | `make emulate ANIM=santa`  | `just emulate --anim santa`  | Emulate only some animations, in a loop                                                             |
+| `make serve`               | `just serve`                 | Emulate the board and serve the command protocol on `ws://127.0.0.1:8765`                           |
+| `make emulate WS=1`        | `just emulate --ws`          | Same as `make serve`, through `emulate`                                                             |
 | `make sim`                 | `just sim`                   | Run one pass of the playlist, write the output to `sim-out/`                                        |
 | `make sim ANIM=santa,bell` | `just sim --anim santa,bell` | Run only some animations                                                                            |
 | `make sim-list`            | `just sim-list`              | List the animations                                                                                 |
@@ -121,12 +123,50 @@ Every command is available through both `make` and `just`. Run `make help` or `j
 
 ### Development
 
-| make          | just          | What it does                                                         |
-| ------------- | ------------- | -------------------------------------------------------------------- |
-| `make test`   | `just test`   | Run the tests in `test/` on the simulator                            |
-| `make format` | `just format` | Format the C++ sources with `clang-format`                           |
-| `make check`  | `just check`  | Check formatting and animations, run the tests and build every board |
-| `make clean`  | `just clean`  | Remove build outputs, `data/` and simulator output                   |
+| make                | just                | What it does                                                                             |
+| ------------------- | ------------------- | ---------------------------------------------------------------------------------------- |
+| `make test`         | `just test`         | Run the tests in `test/` on the simulator                                                |
+| `make format`       | `just format`       | Format the C++ sources with `clang-format`                                               |
+| `make format-check` | `just format-check` | Fail if a C++ source is not formatted                                                    |
+| `make check`        | `just check`        | Check formatting and animations, run the C++ and Python unit tests and build every board |
+| `make release-site` | `just release-site` | Build every board and the release site into `site/`, see [Releases](#releases)           |
+| `make clean`        | `just clean`        | Remove build outputs, `data/`, `site/` and simulator output                              |
+
+## Commands from a terminal
+
+The board answers a command protocol over its USB serial port, and the simulator over a local WebSocket. Both are driven by `tools/pixelart.py board`, which needs PyYAML (`pip install pyyaml`). The protocol itself is specified in [`docs/protocol/protocol-v1.md`](docs/protocol/protocol-v1.md).
+
+```sh
+python3 tools/pixelart.py board --port /dev/ttyACM0 info          # a board over USB serial
+python3 tools/pixelart.py board --ws ws://127.0.0.1:8765 info     # the simulator (make serve)
+```
+
+Use `--port DEVICE` for a board and `--ws URL` for the simulator. The serial option needs `pyserial`, which PlatformIO already installs; with another Python, run `pip install pyserial`. The commands are the same for both:
+
+| Command                                      | What it does                                                                                      |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `info`                                       | Firmware version, board, storage, memory and the protocol limits                                  |
+| `ls [--kind animation\|playlist]`            | List the stored files with their size, SHA-256, name and version                                  |
+| `put FILE [--id ID] [--kind KIND]`           | Upload an animation or playlist, YAML or JSON. The board validates it before it replaces the file |
+| `get ID [--kind KIND] [-o FILE]`             | Download a file, checked against the SHA-256 that `ls` reports                                    |
+| `rm ID [--kind KIND]`                        | Delete a file                                                                                     |
+| `settings [brightness=0..255] [playlist=ID]` | Show the settings, or change them                                                                 |
+
+`put` converts YAML the same way `make data` does, and takes the ID from the file name (`--id` overrides it). It takes the kind from the folder (`animations/` or `playlists/`), or else from the file's `format` field (`--kind` overrides it). `get` and `rm` use `animation` unless `--kind playlist` is given.
+
+A rejected file leaves the board unchanged. The tool prints the engine's diagnostics in the format of `make validate` and exits with a non-zero status, as it does for any other failure.
+
+```text
+$ python3 tools/pixelart.py board --ws ws://127.0.0.1:8765 put bad.yaml
+animation/bad: error unknown_color at sprites.dot.points[0][2]: unknown color "#gren": not a palette name or a "#rrggbb" value
+pixelart: invalid_file: the file is not a valid animation
+```
+
+Only one program can open the serial port at a time. Close the serial monitor (`make monitor`) before you run the client, and the client before you open the monitor again. The board keeps playing while it handles commands. If the board has just started, the first command can take a few seconds while the client retries.
+
+The client keeps the DTR and RTS lines low, so opening the port does not reset the board. Other programs may reset the board when they open the port, which stops the animation and cancels an upload in progress.
+
+Over USB, a request takes a few milliseconds to tens of milliseconds, and a 64 KB animation uploads in a few seconds.
 
 ## Live mirror of the real matrix
 
@@ -155,41 +195,84 @@ Colors are shown as the panel looks to the eye (LED output converted to screen c
 
 The simulator models the physical panel wiring (16x16, strip starting top-left, running in zigzag columns). Firmware configured with the wrong `NEO_MATRIX_*` flags looks scrambled in the simulator, as it would on the real frame. Use `--panel` and `--layout` to simulate a different panel.
 
+### WebSocket
+
+`make serve` (or `make emulate WS=1`) starts the emulation with the command protocol on `ws://127.0.0.1:8765`, so a client can be developed without a board. Choose another port with `ARGS="--ws 9000"`. The option is `--ws [PORT]` in the simulator itself, and it works with `--live` or `--realtime` only, because the clients need a clock that runs.
+
+- The server listens on `127.0.0.1` only and serves one client at a time. A second connection gets HTTP 503 until the first one closes.
+- Each WebSocket text message is one protocol line, without the final newline. The simulator sends back only the `@PR` reply lines.
+- Uploads and deletions change the `--data` folder (`data/` by default). `make data` writes the converted repository files there again.
+- A web page you visit could try to open a WebSocket to `localhost`, so the simulator checks the `Origin` header. It accepts connections with no `Origin` (command line clients), `http://localhost` and `http://127.0.0.1` on any port, and `https://monska85.github.io`. Anything else gets HTTP 403. Add an origin with `--ws-origin ORIGIN`, which can be repeated, for example `make serve ARGS="--ws-origin https://example.org"`.
+- There is no authentication: any program on your computer can connect.
+
 ### Simulator limits
 
-The simulator does not emulate the ESP32 itself. Timing, memory use, WiFi and other ESP32-only APIs are not covered: `make build-all` checks that the code compiles for each board, and the real board is the final check. GPIO reads always return `LOW` and `random()` is seeded with a fixed value (`--seed` changes it), so runs are repeatable.
+The simulator does not emulate the ESP32 itself. Timing, memory use, WiFi and other ESP32-only APIs are not covered: `make build-all` checks that the code compiles for each board, and the real board is the final check. GPIO reads always return `LOW` and `random()` is seeded with a fixed value (`--seed` changes it), so runs are repeatable. The one exception is the `boot_id` that `info` reports: it is random on every run, as on the board.
+
+## Releases
+
+Versions are cut by [release-please](https://github.com/googleapis/release-please) from the commit messages on `main`, which follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+1. Every push to `main` updates a release pull request. It holds the next version and the `CHANGELOG.md` entries: `feat` commits go under Added, `fix` under Fixed, and `perf` and `refactor` under Changed. Other types are left out of the changelog. While the version is below 1.0.0, a breaking change raises the minor number.
+2. Merging that pull request creates the `vX.Y.Z` tag and the GitHub Release. The release workflow (`.github/workflows/release.yml`) runs the quick checks on every push to `main` before release-please runs, so a `main` that fails them gets no release. After the release exists, the workflow checks out the tag, runs the checks again, builds the firmware of every board and the animations, attaches `pixelart-site-<version>.zip` and the factory image of each board to the GitHub Release, and publishes the site on GitHub Pages.
+
+GitHub Pages, at <https://monska85.github.io/PixelArt/>, holds the latest release only: `manifest.json`, the firmware of each board with ESP Web Tools manifests (`firmware/install.json` for a first install, `firmware/update.json` to keep the animations), and every animation and playlist as stored on a board. The GitHub Releases keep every version: each holds `pixelart-site-<version>.zip`, the same files in the same layout as Pages (so the manifests resolve inside it), and the `<board>-factory-<version>.bin` images for `esptool write_flash 0x0`. The layout and the manifest are specified in [`docs/format/manifest-v1.md`](docs/format/manifest-v1.md).
+
+Two repository settings cannot be changed from the code, and a maintainer must set them once:
+
+- **Settings, Pages, Source:** `GitHub Actions`.
+- **Settings, Actions, General, Workflow permissions:** turn on `Allow GitHub Actions to create and approve pull requests`, so release-please can open its pull request.
+
+Checks do not run on the release pull request, because pull requests opened by the default workflow token do not trigger workflows. The release workflow runs them again before it publishes anything.
+
+If the build or a publish job fails after the release was created, open the failed workflow run in the Actions tab and choose "Re-run failed jobs". Do not push to `main` to retry: a new push finds the release already created, reports `release_created` as false and builds nothing. The re-run keeps the outputs of the run, so it builds and publishes the same release.
+
+To try a release without publishing, run `make release-site` (`just release-site`). It builds every board, the file system images and the manifests into `site/`, which Git ignores, and checks `manifest.json` against its JSON Schema. It needs PlatformIO, PyYAML and `jsonschema`. The workflow can also run as a dry run from the Actions tab (`Run workflow`, with `dry_run` on): it builds the site and attaches it to the run, and publishes nothing. CI builds the site on every push too.
+
+The firmware reports its version in `info`. A build of a commit tagged `vX.Y.Z` with no local changes reports `X.Y.Z`. Any other build reports `<last tag>-dev.<commits since the tag>+g<commit>`, with `.dirty` at the end when there are local changes, and `0.0.0` stands for the last tag until the first release. The release build takes the version from release-please and fails if the firmware is not built with it.
 
 ## Development
 
 ### Project layout
 
-| Path                         | Content                                                                                              |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `animations/`, `playlists/`  | The animations and playlists, in YAML                                                                |
-| `platformio.ini`             | Boards, libraries, the simulator and test environments, and the physical panel settings              |
-| `src/main.cpp`               | `setup()`, `loop()` and the matrix configuration                                                     |
-| `src/app.cpp`                | Plays the playlist and the animations stored on the board                                            |
-| `src/storage.cpp`            | File access: LittleFS on the board, the `data/` folder in the simulator                              |
-| `src/pixel_matrix.cpp`       | The matrix `show()`, with the optional live mirror                                                   |
-| `src/sim_main.cpp`           | Entry point of the host simulator (only built by the `native` env)                                   |
-| `lib/PixelEngine/`           | The animation engine: parsing, validation and playback of the file formats, shared by all builds     |
-| `lib/ArduinoSim/`            | Host Arduino core, simulated NeoPixel driver and simulator (`assets/player.html` is the HTML player) |
-| `conformance/`               | Test cases every implementation of the animation format must pass                                    |
-| `test/`                      | Tests that run on the simulator (`native_test` env)                                                  |
-| `tools/pixelart.py`          | Converts animations and playlists from YAML to the board's JSON                                      |
-| `monitor/filter_pixelart.py` | Serial monitor filter that draws the live mirror of the real matrix                                  |
-| `scripts/`                   | PlatformIO build scripts                                                                             |
-| `docs/`, `schema/`           | Format specifications, JSON Schemas and architecture decision records                                |
+| Path                         | Content                                                                                                                             |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `animations/`, `playlists/`  | The animations and playlists, in YAML                                                                                               |
+| `platformio.ini`             | Boards, libraries, the simulator and test environments, and the physical panel settings                                             |
+| `src/main.cpp`               | `setup()`, `loop()` and the matrix configuration                                                                                    |
+| `src/app.cpp`                | Plays the playlist and the animations stored on the board                                                                           |
+| `src/storage.cpp`            | File access: LittleFS on the board, the `data/` folder in the simulator                                                             |
+| `src/protocol.cpp`           | The command protocol, served over USB serial on the board and over the WebSocket in the simulator                                   |
+| `src/settings.cpp`           | Brightness and active playlist, kept in NVS on the board                                                                            |
+| `src/platform.cpp`           | Board services: firmware version, memory and boot ID                                                                                |
+| `include/`                   | Headers of the modules in `src/`                                                                                                    |
+| `src/pixel_matrix.cpp`       | The matrix `show()`, with the optional live mirror                                                                                  |
+| `src/sim_main.cpp`           | Entry point of the host simulator (only built by the `native` env)                                                                  |
+| `lib/PixelEngine/`           | The animation engine: parsing, validation and playback of the file formats, shared by all builds                                    |
+| `lib/PixelCodec/`            | CRC-32, SHA-256, base64 and UTF-8 helpers used by the protocol                                                                      |
+| `lib/ArduinoSim/`            | Host Arduino core, simulated NeoPixel driver, simulator and its protocol WebSocket server (`assets/player.html` is the HTML player) |
+| `conformance/`               | Test cases every implementation of the animation format must pass                                                                   |
+| `test/`                      | Tests that run on the simulator (`native_test` env)                                                                                 |
+| `tools/pixelart.py`          | Converts animations and playlists from YAML to the board's JSON, and talks to a board or the simulator                              |
+| `tools/test_*.py`            | Unit tests of the tools, run by `make check`                                                                                        |
+| `tools/fw_version.py`        | The firmware version rules, shared by `tools/release.py` and the PlatformIO version script                                          |
+| `tools/release.py`           | Builds the release site: firmware parts, ESP Web Tools manifests, animations, playlists and `manifest.json`                         |
+| `monitor/filter_pixelart.py` | Serial monitor filter that draws the live mirror of the real matrix                                                                 |
+| `.github/actions/checks`     | The checks shared by the CI and release workflows                                                                                   |
+| `scripts/`                   | PlatformIO build scripts, including the firmware version, which uses `tools/fw_version.py`                                          |
+| `release-please-config.json` | Release automation settings, with `.release-please-manifest.json` and `version.txt`                                                 |
+| `docs/`, `schema/`           | Format specifications, JSON Schemas and architecture decision records                                                               |
 
 ### Design documents
 
-- [`docs/format/`](docs/format/): specifications of the animation and playlist file formats.
+- [`docs/format/`](docs/format/): specifications of the animation, playlist and release manifest file formats.
+- [`docs/protocol/`](docs/protocol/): the command protocol of the board and the simulator.
 - [`schema/`](schema/): their JSON Schemas.
 - [`docs/adr/`](docs/adr/): architecture decision records, explaining why the project works the way it does.
 
 ### Continuous integration
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests, builds every board, and attaches a rendered preview of every animation to each run. It does not check C++ formatting yet: run `make format-check` locally.
+The GitHub Actions workflow in `.github/workflows/ci.yml` converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests, drives the simulator's WebSocket with `tools/pixelart.py board` (info, upload, list, download, delete and a rejected file), builds every board and the release site (checking its manifest against the JSON Schema), and attaches a rendered preview of every animation to each run. `.github/workflows/release.yml` publishes releases, see [Releases](#releases). It does not check C++ formatting yet: run `make format-check` locally. Dependabot opens a weekly pull request to update the pinned actions.
 
 ### Code style
 
