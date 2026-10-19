@@ -9,7 +9,7 @@ The JSON Schema in [`schema/playlist-1.schema.json`](../../schema/playlist-1.sch
 ## Files
 
 - Like animations, a playlist is written in YAML or JSON, and the board stores and reads JSON only.
-- On the board, playlists live in `/playlists/`. The board plays `/playlists/default.json`.
+- On the board, playlists live in `/playlists/`. The board plays the active playlist: the one named by the `playlist` [setting](../protocol/protocol-v1.md#settings_get-settings_set), which is `default` (`/playlists/default.json`) until a client changes it.
 - Playlist file names follow the same rules as animation IDs.
 
 ## Example
@@ -51,10 +51,12 @@ Every animation in a playlist must have the same `canvas` as the playlist. Decla
 
 ## How the board chooses what to play
 
-1. If `/playlists/default.json` exists, is valid and has the board's canvas, the board plays its enabled items in order.
+1. If the active playlist (`/playlists/default.json` unless the `playlist` setting names another) exists, is valid and has the board's canvas, the board plays its enabled items in order.
 2. An item whose animation is missing, invalid, or made for a different canvas is skipped. The board prints the reason on the serial port (once per boot) and goes on with the next item.
-3. If there is no playlist, the playlist is invalid, or it has no item the board can play, the board plays every valid animation in `/animations/`, in alphabetical order of ID.
+3. If there is no active playlist, it is invalid, or it has no item the board can play, the board plays every valid animation in `/animations/`, in alphabetical order of ID.
 4. If there is no valid animation at all, the board shows a built-in "no animations" image.
+
+The board reads the active playlist again, and starts it from its first item, when the current animation ends after the active playlist changed, or after a playlist file was uploaded or deleted.
 
 ## Limits
 
