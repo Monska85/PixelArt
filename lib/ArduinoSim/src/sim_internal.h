@@ -4,6 +4,7 @@
 #pragma once
 
 #include <chrono>
+#include <deque>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -32,6 +33,9 @@ struct Options
   size_t range_from = 0;
   size_t range_to = SIZE_MAX;
   std::string data_dir = "data";
+  bool ws = false; // serve the command protocol over a WebSocket
+  unsigned ws_port = 8765;
+  std::vector<std::string> ws_origins;
 };
 
 struct State
@@ -43,6 +47,7 @@ struct State
   std::vector<Frame> frames;
   std::vector<SerialLine> serial;
   std::string serial_buf;
+  std::deque<char> serial_in;     // bytes waiting for Serial.read()
   std::vector<int> strip_to_grid; // LED index on the strip -> y * width + x
   std::chrono::steady_clock::time_point wall_start;
   size_t shown_frames = 0;
@@ -55,6 +60,9 @@ State &state();
 
 // sim.cpp
 void finish_frames();
+
+// sim_ws.cpp
+void ws_send_line(const std::string &line);
 
 // sim_panel.cpp
 void build_strip_map();

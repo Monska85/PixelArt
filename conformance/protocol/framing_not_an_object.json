@@ -1,0 +1,77 @@
+{
+  "description": "JSON that is not an object, or nests deeper than 4 levels, gets bad_frame",
+  "steps": [
+    {
+      "send": "@PR fd6db3e9 [1,2,3]"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR cf22118c \"info\""
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 3224b088 42"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 214301ec {\"seq\":1,\"cmd\":\"info\",\"a\":{\"b\":{\"c\":{\"d\":1}}}}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 847d27ba {\"seq\":1,\"cmd\":\"info\",\"a\":{\"b\":{\"c\":{\"d\":{\"e\":1}}}}}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR f0906265 {\"seq\":1,\"cmd\":\"info\",\"a\":[[[[1]]]]}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR b23a2deb {\"seq\":1,\"cmd\":\"info\",\"a\":[[[1]]]}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    }
+  ]
+}

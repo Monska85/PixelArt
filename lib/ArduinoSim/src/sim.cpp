@@ -1,6 +1,7 @@
 // Virtual clock, frame recorder and serial capture: the hooks the Arduino and
 // NeoPixel shims call while the sketch runs.
 
+#include <algorithm>
 #include <cstdio>
 #include <thread>
 
@@ -62,8 +63,27 @@ void reset()
   s.frames.clear();
   s.serial.clear();
   s.serial_buf.clear();
+  s.serial_in.clear();
   s.shown_frames = 0;
   s.live_log.clear();
+}
+
+void serial_input(const std::string &bytes)
+{
+  state().serial_in.insert(state().serial_in.end(), bytes.begin(), bytes.end());
+}
+
+size_t serial_input_size() { return state().serial_in.size(); }
+
+int serial_input_read(bool consume)
+{
+  std::deque<char> &in = state().serial_in;
+  if (in.empty())
+    return -1;
+  int byte = (unsigned char)in.front();
+  if (consume)
+    in.pop_front();
+  return byte;
 }
 
 void set_scene(const std::string &name) { state().scene = name; }
@@ -103,9 +123,27 @@ void on_show(const uint8_t *pixels, uint16_t count, uint8_t r_off, uint8_t g_off
 
   size_t index = s.shown_frames++;
   if (s.opts.realtime)
-    std::this_thread::sleep_until(s.wall_start + std::chrono::microseconds(s.clock_us));
+    sync_wall_clock();
   if (s.opts.ansi && detail::in_range(index))
     detail::print_ansi(s.frames.back(), index);
+}
+
+void sync_wall_clock()
+{
+  State &s = state();
+  const auto target = s.wall_start + std::chrono::microseconds(s.clock_us);
+  if (!ws_active())
+  {
+    std::this_thread::sleep_until(target);
+    return;
+  }
+  // Always one pass, so the sockets are serviced even when the run is behind the wall clock.
+  // The target is absolute: a wake-up that overshoots by under 1 ms does not accumulate.
+  do
+  {
+    const auto left = target - std::chrono::steady_clock::now();
+    ws_wait(std::max(std::chrono::duration_cast<std::chrono::microseconds>(left), std::chrono::microseconds(0)));
+  } while (std::chrono::steady_clock::now() < target);
 }
 
 void on_serial(char c)
@@ -121,14 +159,23 @@ void on_serial(char c)
     return;
   }
 
+  // Replies of the command protocol go to the WebSocket client. In live mode
+  // they stay out of the log below the matrix, where a long line would wrap.
+  const bool to_client = ws_active() && s.serial_buf.compare(0, 4, "@PR ") == 0;
+  if (to_client)
+    detail::ws_send_line(s.serial_buf);
+
   if (s.opts.live)
   {
-    // Live mode keeps only the latest lines, shown below the matrix
-    s.live_log.push_back(s.serial_buf);
-    if (s.live_log.size() > detail::LIVE_LOG_LINES)
-      s.live_log.erase(s.live_log.begin());
-    if (!s.frames.empty())
-      detail::print_ansi(s.frames.back(), s.shown_frames - 1);
+    if (!to_client)
+    {
+      // Live mode keeps only the latest lines, shown below the matrix
+      s.live_log.push_back(s.serial_buf);
+      if (s.live_log.size() > detail::LIVE_LOG_LINES)
+        s.live_log.erase(s.live_log.begin());
+      if (!s.frames.empty())
+        detail::print_ansi(s.frames.back(), s.shown_frames - 1);
+    }
   }
   else
   {

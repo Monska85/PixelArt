@@ -1,0 +1,43 @@
+{
+  "description": "uploading or deleting files never changes the settings",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 544863fe {\"seq\":1,\"cmd\":\"settings_set\",\"brightness\":20}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 20,
+          "playlist": "default"
+        }
+      }
+    },
+    {
+      "send": "@PR 6e5366fe {\"seq\":2,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR ccc5b064 {\"seq\":3,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "settings": {
+          "brightness": 20,
+          "playlist": "default"
+        }
+      }
+    }
+  ]
+}

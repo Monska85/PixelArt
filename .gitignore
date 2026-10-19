@@ -25,3 +25,6 @@ sim-out/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Release site built by `make release-site`
+site/

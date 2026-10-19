@@ -1,0 +1,49 @@
+{
+  "description": "bytes that are not JSON are invalid_file with a structure error",
+  "steps": [
+    {
+      "send": "@PR d7c43e64 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":23,\"sha256\":\"82d233c9388c8fecc2e2dc5d93933ba3cfee384c0a8bd599e2b7decf7a24af69\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR bd43d937 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"dGhpcyBpcyBub3QganNvbiBhdCBhbGw=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 23
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "animations/x.json": null,
+        "upload.tmp": null
+      }
+    }
+  ]
+}

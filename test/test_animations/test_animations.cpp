@@ -12,36 +12,18 @@
 
 #include "app.h"
 #include "pixel_art.h"
+#include "settings.h"
+#include "pixelart_test.h"
 
 namespace fs = std::filesystem;
+using pixelart_test::dot_animation;
+using pixelart_test::TempData;
 
 static const std::string REPO_DATA = std::string(PIXELART_PROJECT_DIR) + "/data";
 
 static uint8_t red(uint32_t c) { return c >> 16; }
 static uint8_t green(uint32_t c) { return c >> 8; }
 static uint8_t blue(uint32_t c) { return c; }
-
-// A throwaway storage folder for one test.
-struct TempData
-{
-  fs::path root;
-  TempData()
-  {
-    root = fs::temp_directory_path() / ("pixelart-test-" + std::to_string(std::rand()));
-    fs::remove_all(root);
-    fs::create_directories(root / "animations");
-    fs::create_directories(root / "playlists");
-    sim::set_data_dir(root.string());
-  }
-  ~TempData() { fs::remove_all(root); }
-  void write(const std::string &path, const std::string &text) const { std::ofstream(root / path) << text; }
-};
-
-static std::string dot_animation(const char *color)
-{
-  return std::string(R"({"format":"pixelart/1","name":"dot","canvas":{"width":16,"height":16},"frame_ms":100,)") +
-         R"("sprites":{"d":{"points":{")" + color + R"(":[[0,0]]}}},"timeline":[{"show":["d"]}]})";
-}
 
 static std::string serial_text()
 {
@@ -84,7 +66,7 @@ void test_brightness_scales_led_output()
   matrix.fillScreen(matrix.Color(255, 255, 255));
   matrix.show();
   uint32_t white = sim::frames().back().at(0, 0);
-  TEST_ASSERT_EQUAL_UINT8((255 * (BRIGHTNESS + 1)) >> 8, red(white));
+  TEST_ASSERT_EQUAL_UINT8((255 * (settings::DEFAULT_BRIGHTNESS + 1)) >> 8, red(white));
 }
 
 void test_repository_playlist_plays_every_animation()
@@ -97,7 +79,7 @@ void test_repository_playlist_plays_every_animation()
 
 void test_playlist_order_and_repeat()
 {
-  TempData data;
+  TempData data("animations");
   data.write("animations/a.json", dot_animation("#ff0000"));
   data.write("animations/b.json", dot_animation("#00ff00"));
   data.write("playlists/default.json", R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},)"
@@ -113,7 +95,7 @@ void test_playlist_order_and_repeat()
 
 void test_without_playlist_plays_all_in_alphabetical_order()
 {
-  TempData data;
+  TempData data("animations");
   data.write("animations/b.json", dot_animation("#00ff00"));
   data.write("animations/a.json", dot_animation("#ff0000"));
   play_from_storage();
@@ -125,7 +107,7 @@ void test_without_playlist_plays_all_in_alphabetical_order()
 
 void test_invalid_playlist_falls_back_and_is_reported()
 {
-  TempData data;
+  TempData data("animations");
   data.write("animations/a.json", dot_animation("#ff0000"));
   data.write("playlists/default.json", R"({"format":"pixelart-playlist/1","items":[]})");
   play_from_storage();
@@ -135,7 +117,7 @@ void test_invalid_playlist_falls_back_and_is_reported()
 
 void test_broken_animation_is_skipped_and_reported_once()
 {
-  TempData data;
+  TempData data("animations");
   data.write("animations/a.json", dot_animation("#ff0000"));
   data.write("animations/bad.json", dot_animation("gren"));
   data.write("playlists/default.json", R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},)"
@@ -151,7 +133,7 @@ void test_broken_animation_is_skipped_and_reported_once()
 
 void test_empty_storage_shows_the_no_animations_image()
 {
-  TempData data;
+  TempData data("animations");
   play_from_storage();
   const auto &frames = sim::frames();
   TEST_ASSERT_EQUAL(1, frames.size());

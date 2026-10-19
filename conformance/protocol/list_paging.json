@@ -1,0 +1,344 @@
+{
+  "description": "17 files come in pages of 8 with more and after",
+  "files": {
+    "animations/a01.json": "{\"format\":\"pixelart/1\",\"name\":\"Na01\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a02.json": "{\"format\":\"pixelart/1\",\"name\":\"Na02\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a03.json": "{\"format\":\"pixelart/1\",\"name\":\"Na03\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a04.json": "{\"format\":\"pixelart/1\",\"name\":\"Na04\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a05.json": "{\"format\":\"pixelart/1\",\"name\":\"Na05\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a06.json": "{\"format\":\"pixelart/1\",\"name\":\"Na06\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a07.json": "{\"format\":\"pixelart/1\",\"name\":\"Na07\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a08.json": "{\"format\":\"pixelart/1\",\"name\":\"Na08\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a09.json": "{\"format\":\"pixelart/1\",\"name\":\"Na09\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a10.json": "{\"format\":\"pixelart/1\",\"name\":\"Na10\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a11.json": "{\"format\":\"pixelart/1\",\"name\":\"Na11\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a12.json": "{\"format\":\"pixelart/1\",\"name\":\"Na12\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a13.json": "{\"format\":\"pixelart/1\",\"name\":\"Na13\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a14.json": "{\"format\":\"pixelart/1\",\"name\":\"Na14\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a15.json": "{\"format\":\"pixelart/1\",\"name\":\"Na15\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a16.json": "{\"format\":\"pixelart/1\",\"name\":\"Na16\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/a17.json": "{\"format\":\"pixelart/1\",\"name\":\"Na17\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 1af0c9a8 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "a01",
+            "size": 148,
+            "sha256": "d9142589de1ca780ec25f887665e91c4e6e4ff106520268a41e9334d2a38f292",
+            "name": "Na01",
+            "version": 1
+          },
+          {
+            "id": "a02",
+            "size": 148,
+            "sha256": "cac254055882c527334b25c96824f6eac7b1efe4ec240a3ce871b4178f3934a6",
+            "name": "Na02",
+            "version": 1
+          },
+          {
+            "id": "a03",
+            "size": 148,
+            "sha256": "d7e8cbc848ccd78ad419cb18205f6b49cd189496b0bee86f8783c52333b732b3",
+            "name": "Na03",
+            "version": 1
+          },
+          {
+            "id": "a04",
+            "size": 148,
+            "sha256": "b5fa4e0bedb516f99ff3d9b93e65209ea68d6e3041cc090a4295e9612d30e01d",
+            "name": "Na04",
+            "version": 1
+          },
+          {
+            "id": "a05",
+            "size": 148,
+            "sha256": "e4fd3b2ca7b98176e81410469b3b9186d015d1de3f860f78bd9c79b7cd52e782",
+            "name": "Na05",
+            "version": 1
+          },
+          {
+            "id": "a06",
+            "size": 148,
+            "sha256": "0513286bfde4b91b878bd693f841a0e16188f05f06567bca0f5b354ce7a6b1ec",
+            "name": "Na06",
+            "version": 1
+          },
+          {
+            "id": "a07",
+            "size": 148,
+            "sha256": "bb488731b977f5aaece397137454a2f8923ae0940ae74eb3c338db0c4669e43f",
+            "name": "Na07",
+            "version": 1
+          },
+          {
+            "id": "a08",
+            "size": 148,
+            "sha256": "f4569ab3251b3d9a038e48a0006df49dd13acae2f7bd26b44e3cf5ff64f55e85",
+            "name": "Na08",
+            "version": 1
+          }
+        ],
+        "more": true
+      }
+    },
+    {
+      "send": "@PR daa027f5 {\"seq\":2,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"a08\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "a09",
+            "size": 148,
+            "sha256": "9e059771fc4433ab08f91f1e641e9ca91a7a33c63038a4157692a083aeb9e748",
+            "name": "Na09",
+            "version": 1
+          },
+          {
+            "id": "a10",
+            "size": 148,
+            "sha256": "66be406b6cafabe16b9aed7f61afc9ccf3171e0c03e90937c97c8446376e5870",
+            "name": "Na10",
+            "version": 1
+          },
+          {
+            "id": "a11",
+            "size": 148,
+            "sha256": "f22e3e69745c0d41a3049275f88af5c5274db2eccb036fbc4b905ce154c504cc",
+            "name": "Na11",
+            "version": 1
+          },
+          {
+            "id": "a12",
+            "size": 148,
+            "sha256": "5e5aae3946ac12175e9afd7fba86e59540564039aa6945f7042d5d160fa20af2",
+            "name": "Na12",
+            "version": 1
+          },
+          {
+            "id": "a13",
+            "size": 148,
+            "sha256": "be3f89023ccfed77f81baec120998ab1c0b3d054ae7623adef834f68dc927934",
+            "name": "Na13",
+            "version": 1
+          },
+          {
+            "id": "a14",
+            "size": 148,
+            "sha256": "de9720fccac39c51f4d32dd743b3aad878831aae4472bf120db50deeb7056ffe",
+            "name": "Na14",
+            "version": 1
+          },
+          {
+            "id": "a15",
+            "size": 148,
+            "sha256": "b0db5961b77326d5590aa78a0d754db90a9417611089c9478f250fad3e8f748e",
+            "name": "Na15",
+            "version": 1
+          },
+          {
+            "id": "a16",
+            "size": 148,
+            "sha256": "b944c191a47ed180cda8b11458ccff05ffe6496297965cee3ce25440d31896b6",
+            "name": "Na16",
+            "version": 1
+          }
+        ],
+        "more": true
+      }
+    },
+    {
+      "send": "@PR 55338146 {\"seq\":3,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"a16\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "a17",
+            "size": 148,
+            "sha256": "f68706e24a42d7a4c964ca0485148751144d604de76fe3429cf5c26f0daa31b5",
+            "name": "Na17",
+            "version": 1
+          }
+        ],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR e4e46d65 {\"seq\":4,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"a17\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "kind": "animation",
+        "entries": [],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR 0f9b712d {\"seq\":5,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"a085\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "a09",
+            "size": 148,
+            "sha256": "9e059771fc4433ab08f91f1e641e9ca91a7a33c63038a4157692a083aeb9e748",
+            "name": "Na09",
+            "version": 1
+          },
+          {
+            "id": "a10",
+            "size": 148,
+            "sha256": "66be406b6cafabe16b9aed7f61afc9ccf3171e0c03e90937c97c8446376e5870",
+            "name": "Na10",
+            "version": 1
+          },
+          {
+            "id": "a11",
+            "size": 148,
+            "sha256": "f22e3e69745c0d41a3049275f88af5c5274db2eccb036fbc4b905ce154c504cc",
+            "name": "Na11",
+            "version": 1
+          },
+          {
+            "id": "a12",
+            "size": 148,
+            "sha256": "5e5aae3946ac12175e9afd7fba86e59540564039aa6945f7042d5d160fa20af2",
+            "name": "Na12",
+            "version": 1
+          },
+          {
+            "id": "a13",
+            "size": 148,
+            "sha256": "be3f89023ccfed77f81baec120998ab1c0b3d054ae7623adef834f68dc927934",
+            "name": "Na13",
+            "version": 1
+          },
+          {
+            "id": "a14",
+            "size": 148,
+            "sha256": "de9720fccac39c51f4d32dd743b3aad878831aae4472bf120db50deeb7056ffe",
+            "name": "Na14",
+            "version": 1
+          },
+          {
+            "id": "a15",
+            "size": 148,
+            "sha256": "b0db5961b77326d5590aa78a0d754db90a9417611089c9478f250fad3e8f748e",
+            "name": "Na15",
+            "version": 1
+          },
+          {
+            "id": "a16",
+            "size": 148,
+            "sha256": "b944c191a47ed180cda8b11458ccff05ffe6496297965cee3ce25440d31896b6",
+            "name": "Na16",
+            "version": 1
+          }
+        ],
+        "more": true
+      }
+    },
+    {
+      "send": "@PR 1abf74f3 {\"seq\":6,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"a\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "a01",
+            "size": 148,
+            "sha256": "d9142589de1ca780ec25f887665e91c4e6e4ff106520268a41e9334d2a38f292",
+            "name": "Na01",
+            "version": 1
+          },
+          {
+            "id": "a02",
+            "size": 148,
+            "sha256": "cac254055882c527334b25c96824f6eac7b1efe4ec240a3ce871b4178f3934a6",
+            "name": "Na02",
+            "version": 1
+          },
+          {
+            "id": "a03",
+            "size": 148,
+            "sha256": "d7e8cbc848ccd78ad419cb18205f6b49cd189496b0bee86f8783c52333b732b3",
+            "name": "Na03",
+            "version": 1
+          },
+          {
+            "id": "a04",
+            "size": 148,
+            "sha256": "b5fa4e0bedb516f99ff3d9b93e65209ea68d6e3041cc090a4295e9612d30e01d",
+            "name": "Na04",
+            "version": 1
+          },
+          {
+            "id": "a05",
+            "size": 148,
+            "sha256": "e4fd3b2ca7b98176e81410469b3b9186d015d1de3f860f78bd9c79b7cd52e782",
+            "name": "Na05",
+            "version": 1
+          },
+          {
+            "id": "a06",
+            "size": 148,
+            "sha256": "0513286bfde4b91b878bd693f841a0e16188f05f06567bca0f5b354ce7a6b1ec",
+            "name": "Na06",
+            "version": 1
+          },
+          {
+            "id": "a07",
+            "size": 148,
+            "sha256": "bb488731b977f5aaece397137454a2f8923ae0940ae74eb3c338db0c4669e43f",
+            "name": "Na07",
+            "version": 1
+          },
+          {
+            "id": "a08",
+            "size": 148,
+            "sha256": "f4569ab3251b3d9a038e48a0006df49dd13acae2f7bd26b44e3cf5ff64f55e85",
+            "name": "Na08",
+            "version": 1
+          }
+        ],
+        "more": true
+      }
+    },
+    {
+      "send": "@PR 81513f3d {\"seq\":7,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":\"zzz\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "kind": "animation",
+        "entries": [],
+        "more": false
+      }
+    }
+  ]
+}

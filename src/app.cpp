@@ -17,6 +17,9 @@
 #include <set>
 
 #include "pixel_art.h"
+#include "platform.h"
+#include "protocol.h"
+#include "settings.h"
 #include "storage.h"
 
 namespace
@@ -24,12 +27,52 @@ namespace
 
 const char *ANIMATIONS_FOLDER = "/animations";
 const char *PLAYLISTS_FOLDER = "/playlists";
-const char *DEFAULT_PLAYLIST = "default";
 const char *JSON_SUFFIX = ".json";
 constexpr uint32_t NO_ANIMATIONS_MS = 2000;
 // Distinct problems remembered by report_once; beyond this they are not
 // printed again, so the memory used stays bounded.
 constexpr size_t MAX_REPORTED = 64;
+// A frame this far behind its schedule starts a new schedule instead of
+// catching up with a burst of frames.
+constexpr uint64_t MAX_LAG_US = 1000000;
+
+bool reload_requested = false;
+
+// Deadline of the frame being waited for. Each frame's deadline follows the
+// previous one, so a command that delays one frame does not shift the frames
+// after it, and the schedule does not drift.
+uint64_t deadline_us = 0;
+bool has_deadline = false;
+
+// Starts a new schedule at the next wait: the first frame of an animation.
+void restart_schedule() { has_deadline = false; }
+
+// Waits for the end of a frame of `ms` milliseconds, handling protocol
+// commands meanwhile. A command that runs long delays this frame only.
+void wait(uint32_t ms)
+{
+  uint64_t now = platform::now_us();
+  if (!has_deadline || now > deadline_us + MAX_LAG_US)
+    deadline_us = now;
+  has_deadline = true;
+  deadline_us += (uint64_t)ms * 1000;
+  for (;;)
+  {
+    protocol::poll();
+    now = platform::now_us();
+    if (now >= deadline_us)
+      return;
+    platform::wait_us(deadline_us - now);
+  }
+}
+
+// Applies a brightness change made through the protocol. Only a change is
+// applied, because setBrightness() rescales what the matrix holds.
+void apply_brightness()
+{
+  if (matrix.getBrightness() != settings::brightness())
+    matrix.setBrightness(settings::brightness());
+}
 
 // Reports each problem once per boot, so a broken file does not flood the
 // serial port on every pass of the playlist.
@@ -87,6 +130,7 @@ std::vector<std::string> json_names(const char *folder)
 
 void draw(const pixelart::Frame &frame)
 {
+  apply_brightness();
   matrix.fillScreen(0);
   for (int y = 0; y < pixelart::CANVAS_HEIGHT; y++)
     for (int x = 0; x < pixelart::CANVAS_WIDTH; x++)
@@ -96,18 +140,20 @@ void draw(const pixelart::Frame &frame)
         matrix.drawPixel(x, y, rgb565(c >> 16, c >> 8, c));
     }
   matrix.show();
-  delay(frame.ms);
+  wait(frame.ms);
 }
 
 // A dim question mark, shown when the board has nothing to play.
 void show_no_animations()
 {
   static const uint8_t QUESTION_MARK[][2] = {{6, 4}, {7, 3}, {8, 3}, {9, 4}, {9, 5}, {8, 6}, {7, 7}, {7, 8}, {7, 11}};
+  apply_brightness();
+  restart_schedule();
   matrix.fillScreen(0);
   for (const auto &p : QUESTION_MARK)
     matrix.drawPixel(p[0], p[1], rgb565(96, 96, 96));
   matrix.show();
-  delay(NO_ANIMATIONS_MS);
+  wait(NO_ANIMATIONS_MS);
 }
 
 } // namespace
@@ -150,31 +196,48 @@ bool play_stored_animation(const std::string &id, uint16_t times)
 
   static pixelart::Frame frame; // 1 KiB: kept off the loop task's small stack
   pixelart::Player player(animation);
+  restart_schedule();
   for (uint16_t i = 0; i < times; i++)
   {
     player.restart();
     while (player.next(frame))
       draw(frame);
+    if (reload_requested)
+      break; // the playlist changed: leave the repeats
   }
   return true;
 }
 
+void request_playlist_reload() { reload_requested = true; }
+
+bool playlist_reload_pending() { return reload_requested; }
+
 void play_from_storage()
 {
+  reload_requested = false;
+  const std::string active = settings::playlist();
   std::vector<pixelart::PlaylistItem> items;
   pixelart::Playlist playlist;
   std::vector<pixelart::Diagnostic> diagnostics;
-  if (load_stored_playlist(DEFAULT_PLAYLIST, playlist, diagnostics))
+  if (load_stored_playlist(active, playlist, diagnostics))
     items = playlist.items();
   else if (diagnostics.empty() || diagnostics.front().code != "missing_file")
-    report_once(playlist_file(DEFAULT_PLAYLIST), diagnostics); // no playlist at all is normal
+    report_once(playlist_file(active), diagnostics); // no playlist at all is normal
 
   bool played = false;
   for (const pixelart::PlaylistItem &item : items)
+  {
     played = play_stored_animation(item.animation, item.repeat) || played;
+    if (reload_requested)
+      return;
+  }
   if (!played)
     for (const std::string &id : stored_animations())
+    {
       played = play_stored_animation(id) || played;
+      if (reload_requested)
+        return;
+    }
   if (!played)
     show_no_animations();
 }

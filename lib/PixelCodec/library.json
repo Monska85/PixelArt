@@ -1,0 +1,7 @@
+{
+  "name": "PixelCodec",
+  "version": "0.1.0",
+  "description": "CRC-32, SHA-256 and base64 for the command protocol (docs/protocol/protocol-v1.md). Plain C++17, no Arduino dependency.",
+  "frameworks": "*",
+  "platforms": "*"
+}

@@ -1,0 +1,38 @@
+{
+  "description": "A malformed put_chunk is bad_request even without an upload; a well-formed one is no_upload",
+  "steps": [
+    {
+      "send": "@PR c834ad69 {\"seq\":1,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"!!!!\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 2021a59f {\"seq\":2,\"cmd\":\"put_chunk\",\"data\":\"eA==\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 566176b4 {\"seq\":3,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eA==\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    }
+  ]
+}

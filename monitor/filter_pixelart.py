@@ -4,7 +4,7 @@ Firmware built with -DPIXELART_MIRROR sends each frame as one serial line:
 "@PX <count> <rrggbb...>" in LED strip order. This filter maps the strip onto
 the physical panel (same wiring as the simulator), redraws the matrix in place
 and keeps the latest serial output below it. Other lines pass through as-is
-until the first frame arrives.
+until the first frame arrives. Protocol lines ("@PR ...") are dropped.
 
 Panel settings come from the env in platformio.ini:
   custom_panel_size = 16x16
@@ -17,6 +17,8 @@ import time
 from platformio.public import DeviceMonitorFilterBase
 
 FRAME_PREFIX = "@PX "
+# Command protocol lines (docs/protocol/protocol-v1.md): for programs, not for the log.
+PROTOCOL_PREFIX = "@PR "
 OFF_CELL = "\x1b[38;2;60;60;60m··"
 
 
@@ -86,6 +88,8 @@ class PixelArtMirror(DeviceMonitorFilterBase):
         while "\n" in self.buffer:
             line, self.buffer = self.buffer.split("\n", 1)
             line = line.rstrip("\r")
+            if line.startswith(PROTOCOL_PREFIX):
+                continue
             if line.startswith(FRAME_PREFIX):
                 frame = self.parse_frame(line)
                 if frame is not None:

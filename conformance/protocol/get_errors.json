@@ -1,0 +1,195 @@
+{
+  "description": "get rejects missing files, bad fields and bad ranges",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 7f5b1962 {\"seq\":1,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"nope\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 51be025d {\"seq\":2,\"cmd\":\"get\",\"kind\":\"playlist\",\"id\":\"nope\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 8a9e4eef {\"seq\":3,\"cmd\":\"get\",\"kind\":\"playlist\",\"id\":\"dot\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 49366d6c {\"seq\":4,\"cmd\":\"get\",\"kind\":\"song\",\"id\":\"dot\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "invalid_kind",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 1b5c46e3 {\"seq\":5,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"Dot\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 980ec1dd {\"seq\":6,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"../animations/dot\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 2d7d7b36 {\"seq\":7,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":0,\"length\":0}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR e45ce959 {\"seq\":8,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":0,\"length\":513}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR c19a5356 {\"seq\":9,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":-1,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR e8173687 {\"seq\":10,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":0,\"length\":-1}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ac621a1b {\"seq\":11,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 2c297179 {\"seq\":12,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":0}"
+    },
+    {
+      "expect": {
+        "seq": 12,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR cca81a2d {\"seq\":13,\"cmd\":\"get\",\"id\":\"dot\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 13,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 2f0d00f6 {\"seq\":14,\"cmd\":\"get\",\"kind\":\"animation\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 14,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 6b45081f {\"seq\":15,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":\"0\",\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 15,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 4cba47c9 {\"seq\":16,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":0.5,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 16,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 47ec4f5f {\"seq\":17,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":5,\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 17,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    }
+  ]
+}
