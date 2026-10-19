@@ -234,10 +234,10 @@ Deleting the active playlist is allowed: the board then plays every animation, a
 
 The board's settings. They live in the board's settings memory (NVS), not with the animations, so uploading or deleting files never changes them. The simulator keeps them in memory for the length of a run.
 
-| Setting      | Type    | Default   | Meaning                                             |
-| ------------ | ------- | --------- | --------------------------------------------------- |
-| `brightness` | integer | `100`     | LED brightness, from 0 (off) to 255.                |
-| `playlist`   | string  | `default` | ID of the active playlist, the one the board plays. |
+| Setting      | Type    | Default   | Meaning                                                                                                                                                                             |
+| ------------ | ------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brightness` | integer | `100`     | LED brightness, from 0 (off) to 255. It is the limit: the playing animation can lower it with its own `brightness` ([format](../format/pixelart-v1.md#brightness)), never raise it. |
+| `playlist`   | string  | `default` | ID of the active playlist, the one the board plays.                                                                                                                                 |
 
 `settings_get` has no fields. Its reply holds `settings`, an object with every setting.
 
@@ -318,7 +318,7 @@ The board keeps playing its animations while it handles commands. It reads reque
 
 Changes reach the matrix at these times:
 
-- **`brightness`** applies from the next frame.
+- **`brightness`** applies from the next frame. The brightness the LEDs receive is the board setting lowered by the playing animation's own `brightness` ([format](../format/pixelart-v1.md#brightness)), so a change of the setting reaches the LEDs in that proportion.
 - **The active playlist,** and any upload or deletion of a playlist, applies when the current animation ends: the board then reads the active playlist again and starts it from its first item.
 - **Animations** are read from storage each time they start, so an uploaded or deleted animation applies the next time the playlist reaches it. The animation playing at the moment finishes unchanged.
 

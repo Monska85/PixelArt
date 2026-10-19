@@ -66,12 +66,14 @@ void wait(uint32_t ms)
   }
 }
 
-// Applies a brightness change made through the protocol. Only a change is
-// applied, because setBrightness() rescales what the matrix holds.
-void apply_brightness()
+// Applies the board setting limited by the percentage of the playing animation,
+// so a change made through the protocol reaches the next frame. Only a change
+// is applied, because setBrightness() rescales what the matrix holds.
+void apply_brightness(uint8_t percent)
 {
-  if (matrix.getBrightness() != settings::brightness())
-    matrix.setBrightness(settings::brightness());
+  const uint8_t target = pixelart::effective_brightness(settings::brightness(), percent);
+  if (matrix.getBrightness() != target)
+    matrix.setBrightness(target);
 }
 
 // Reports each problem once per boot, so a broken file does not flood the
@@ -128,9 +130,9 @@ std::vector<std::string> json_names(const char *folder)
   return names;
 }
 
-void draw(const pixelart::Frame &frame)
+void draw(const pixelart::Frame &frame, uint8_t percent)
 {
-  apply_brightness();
+  apply_brightness(percent);
   matrix.fillScreen(0);
   for (int y = 0; y < pixelart::CANVAS_HEIGHT; y++)
     for (int x = 0; x < pixelart::CANVAS_WIDTH; x++)
@@ -147,7 +149,7 @@ void draw(const pixelart::Frame &frame)
 void show_no_animations()
 {
   static const uint8_t QUESTION_MARK[][2] = {{6, 4}, {7, 3}, {8, 3}, {9, 4}, {9, 5}, {8, 6}, {7, 7}, {7, 8}, {7, 11}};
-  apply_brightness();
+  apply_brightness(pixelart::DEFAULT_BRIGHTNESS_PERCENT);
   restart_schedule();
   matrix.fillScreen(0);
   for (const auto &p : QUESTION_MARK)
@@ -201,7 +203,7 @@ bool play_stored_animation(const std::string &id, uint16_t times)
   {
     player.restart();
     while (player.next(frame))
-      draw(frame);
+      draw(frame, animation.brightness());
     if (reload_requested)
       break; // the playlist changed: leave the repeats
   }
