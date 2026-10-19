@@ -11,41 +11,70 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          python-version: "3.12"
+          # The firmware version comes from git describe
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Cache PlatformIO toolchains and libraries
-        uses: actions/cache@v4
-        with:
-          path: ~/.platformio
-          key: platformio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'lib/*/library.json') }}
+      - uses: ./.github/actions/checks
 
-      - name: Install tools
-        run: pip install platformio pyyaml jsonschema
-
-      - name: Convert animations and playlists, check them against the JSON Schemas
-        run: python tools/pixelart.py build --schema
-
-      - name: Check animations and playlists with the board's engine
+      - name: Smoke test the command line client against the simulator
+        id: smoke
         run: |
-          pio run -e native
-          .pio/build/native/program --validate
+          set -eu
+          cp -r data "$RUNNER_TEMP/board-data"
+          .pio/build/native/program --data "$RUNNER_TEMP/board-data" --realtime --no-files --loops 0 --ws \
+            >/dev/null 2>"$RUNNER_TEMP/simulator.log" &
+          simulator=$!
+          trap 'kill "$simulator" 2>/dev/null || true' EXIT
+          board() { python tools/pixelart.py board --ws ws://127.0.0.1:8765 "$@"; }
 
-      - name: Run the tests on the simulator
-        run: pio test -e native_test
+          for _ in $(seq 1 30); do
+            board info >/dev/null 2>&1 && break
+            sleep 1
+          done
+          board info
 
-      - name: Build the firmware for every board
-        run: pio run -e esp32c3 -e esp32 -e esp32s3
+          cat > "$RUNNER_TEMP/dot.yaml" <<'EOF'
+          format: pixelart/1
+          name: Dot
+          canvas: {width: 16, height: 16}
+          sprites:
+            dot:
+              points: [[7, 7, "#ff0000"]]
+          timeline:
+            - show: [dot]
+          EOF
+          board put "$RUNNER_TEMP/dot.yaml" --kind animation
+          board ls --kind animation | grep -q "dot "
+          board get dot -o "$RUNNER_TEMP/dot.json"
+          test "$(wc -c < "$RUNNER_TEMP/dot.json")" -eq 147
+          board rm dot
+          if board ls --kind animation | grep -q "dot "; then echo "dot was not deleted"; exit 1; fi
+
+          sed 's/#ff0000/#gren/' "$RUNNER_TEMP/dot.yaml" > "$RUNNER_TEMP/bad.yaml"
+          if board put "$RUNNER_TEMP/bad.yaml" --kind animation 2>"$RUNNER_TEMP/bad.log"; then
+            echo "a rejected file must give a non-zero exit status"; exit 1
+          fi
+          cat "$RUNNER_TEMP/bad.log"
+          grep -q unknown_color "$RUNNER_TEMP/bad.log"
+          if board ls --kind animation | grep -q "bad "; then echo "the rejected file was stored"; exit 1; fi
+
+      - name: Show the simulator log of the failed smoke test
+        if: failure() && steps.smoke.conclusion == 'failure'
+        run: cat "$RUNNER_TEMP/simulator.log" || true
+
+      - name: Build the firmware for every board and the release site, check its manifest against the JSON Schema
+        run: make release-site
 
       - name: Render previews of every animation
         run: .pio/build/native/program --out sim-out
 
       - name: Upload previews
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: previews
           path: sim-out/
