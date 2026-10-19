@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -60,7 +61,30 @@ unsigned long seed();
 const std::string &data_dir();
 void set_data_dir(const std::string &dir);
 
-// Clears recorded frames, serial output and the clock. Call between tests.
+// Bytes the sketch will read from Serial: queued by tests and transports,
+// consumed by Serial.read().
+void serial_input(const std::string &bytes);
+size_t serial_input_size();
+// Next input byte (removed from the queue when `consume`), or -1 when empty.
+int serial_input_read(bool consume);
+
+// WebSocket transport for the command protocol (sim_ws.cpp), for real-time
+// runs. Each text message from the client is one protocol line queued as
+// serial input; each `@PR` line the sketch writes to Serial goes to the client.
+// ws_listen() binds 127.0.0.1 only (port 0 picks a free port: see ws_port())
+// and accepts the origins of docs/protocol/protocol-v1.md plus `extra_origins`.
+// ws_poll() never blocks: call it often.
+bool ws_listen(unsigned port, const std::vector<std::string> &extra_origins, std::string &error);
+void ws_poll();
+// Waits up to `limit` (rounded up to a whole millisecond) for the sockets to need service, serves
+// what is ready, and returns at once when something was. A request thus reaches the serial input
+// early, but the sketch only sees it when the caller returns. Does not sleep without a listening server.
+void ws_wait(std::chrono::microseconds limit);
+void ws_stop();
+bool ws_active();
+unsigned ws_port();
+
+// Clears recorded frames, serial output, queued input and the clock. Call between tests.
 void reset();
 void set_scene(const std::string &name);
 
@@ -72,5 +96,8 @@ void advance_us(uint64_t us);
 void on_show(const uint8_t *pixels, uint16_t count, uint8_t r_off, uint8_t g_off, uint8_t b_off,
              uint8_t bytes_per_pixel);
 void on_serial(char c);
+// Lets a real-time run wait for the wall clock to reach the virtual time while
+// polling the WebSocket; without a WebSocket it just sleeps.
+void sync_wall_clock();
 
 } // namespace sim

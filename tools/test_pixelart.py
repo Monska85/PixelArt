@@ -1,0 +1,562 @@
+"""Tests for the board client in tools/pixelart.py: framing, retries, uploads and the WebSocket framing.
+
+Run with: python3 -m unittest discover -s tools   (part of `make check`)
+"""
+
+import base64
+import contextlib
+import hashlib
+import io
+import socket
+import struct
+import sys
+import threading
+import types
+import zlib
+import unittest
+from pathlib import Path
+from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import pixelart  # noqa: E402
+
+
+class Responder:
+    """Answers each request with `handler(body)`: a reply body, a raw line, a list of those, or None."""
+
+    def __init__(self, handler):
+        self.handler = handler
+        self.sent = []
+        self.inbox = []
+
+    def receive(self, timeout):
+        return self.inbox.pop(0) if self.inbox else None
+
+    def send(self, line):
+        self.sent.append(line)
+        body = pixelart.decode_line(line)
+        out = self.handler(body)
+        for item in out if isinstance(out, list) else [out]:
+            if isinstance(item, dict):
+                self.inbox.append(pixelart.encode_line({"seq": body["seq"], **item}))
+            elif item is not None:
+                self.inbox.append(item)
+
+
+INFO = {"ok": True, "protocol": 1, "limits": {"chunk": 512, "line": 1024}}
+
+
+def serve(reply):
+    """A handler that answers `info` with INFO and every other request with `reply` (a body, or a function of the request)."""
+    return lambda body: INFO if body["cmd"] == "info" else reply(body) if callable(reply) else reply
+
+
+class FramingTest(unittest.TestCase):
+    def test_spec_example_line(self):
+        self.assertEqual(pixelart.encode_line({"seq": 1, "cmd": "info"}), b'@PR 3c250228 {"seq":1,"cmd":"info"}')
+
+    def test_round_trip(self):
+        body = {"seq": 5, "cmd": "list", "kind": "animation"}
+        self.assertEqual(pixelart.decode_line(pixelart.encode_line(body)), body)
+
+    def test_ignored_lines(self):
+        good = pixelart.encode_line({"seq": 1, "ok": True})
+        for line in [b"", b"pixelart: log", b"@PX 256 ff00", good.replace(b"@PR", b"@pr"),
+                     good[:-1] + b"x",  # CRC mismatch
+                     b"@PR 3C250228 " + good[13:],  # upper case digits
+                     b"@PR 3c25022 " + good[13:], b"@PR  " + good[5:],
+                     pixelart.encode_line({"seq": 1})[:-1],  # broken JSON
+                     b'@PR %08x []' % pixelart.zlib.crc32(b"[]")]:  # not an object
+            self.assertIsNone(pixelart.decode_line(line), line)
+
+
+class RequestTest(unittest.TestCase):
+    def test_handshake_requires_protocol_1(self):
+        t = Responder(lambda body: {"ok": True, "protocol": 2})
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.Board(t)
+        self.assertIn("protocol 2", str(e.exception))
+
+    def test_retry_after_silence_then_success(self):
+        calls = []
+
+        def handler(body):
+            calls.append(body)
+            return None if len(calls) < 3 else INFO
+
+        board = pixelart.Board(Responder(handler))
+        self.assertEqual(len(calls), 3)
+        self.assertEqual({c["seq"] for c in calls}, {calls[0]["seq"]})  # a retry keeps its seq
+        self.assertEqual(board.limits["chunk"], 512)
+
+    def test_gives_up_after_five_tries(self):
+        t = Responder(lambda body: None)
+        with self.assertRaises(pixelart.BoardError):
+            pixelart.Board(t)
+        self.assertEqual(len(t.sent), pixelart.TRIES)
+
+    def test_bad_frame_resends_at_once(self):
+        # One bad_frame, then the answer: the retry is not delayed by a timeout.
+        sent = []
+
+        def handler(body):
+            sent.append(body)
+            if len(sent) == 1:
+                return pixelart.encode_line({"ok": False, "error": "bad_frame", "message": "x"})
+            return INFO
+
+        pixelart.Board(Responder(handler))
+        self.assertEqual(len(sent), 2)
+
+    def test_noise_and_other_seq_are_skipped(self):
+        def handler(body):
+            return [b"pixelart: boot", b"@PX 1 ff0000", pixelart.encode_line({"seq": body["seq"] + 1, "ok": True}),
+                    pixelart.encode_line({"event": "x"}), b"@PR 00000000 {}", dict(INFO)]
+
+        self.assertEqual(pixelart.Board(Responder(handler)).info["protocol"], 1)
+
+    def test_error_reply_raises_with_diagnostics(self):
+        diagnostics = [{"severity": "error", "code": "unknown_color", "where": "a.b", "message": "bad"}]
+
+        def handler(body):
+            if body["cmd"] == "info":
+                return INFO
+            return {"ok": False, "error": "invalid_file", "message": "no", "diagnostics": diagnostics}
+
+        board = pixelart.Board(Responder(handler))
+        with self.assertRaises(pixelart.BoardError) as e:
+            board.command("put_end")
+        self.assertEqual(e.exception.diagnostics, diagnostics)
+        self.assertEqual(str(e.exception), "invalid_file: no")
+
+    def test_seq_differs_between_runs(self):
+        seqs = set()
+        for _ in range(5):
+            t = Responder(lambda body: INFO)
+            pixelart.Board(t)
+            seqs.add(pixelart.decode_line(t.sent[0])["seq"])
+        self.assertGreater(len(seqs), 1)
+
+
+class UploadTest(unittest.TestCase):
+    def test_chunks_follow_the_limit_and_the_data_matches(self):
+        data = bytes(range(256)) * 5  # 1280 bytes: three chunks
+        received = bytearray()
+        sha = []
+
+        def handler(body):
+            cmd = body["cmd"]
+            if cmd == "info":
+                return INFO
+            if cmd == "put_begin":
+                sha.append(body["sha256"])
+                self.assertEqual(body["size"], len(data))
+            if cmd == "put_chunk":
+                self.assertEqual(body["offset"], len(received))
+                received.extend(base64.b64decode(body["data"]))
+                return {"ok": True, "received": len(received)}
+            if cmd == "put_end":
+                return {"ok": True, "warnings": []}
+            return {"ok": True}
+
+        pixelart.upload(pixelart.Board(Responder(handler)), "animation", "x", data)
+        self.assertEqual(bytes(received), data)
+        self.assertEqual(sha[0], hashlib.sha256(data).hexdigest())
+
+    def test_bad_offset_resumes_and_a_failure_aborts(self):
+        data = b"a" * 1200
+        offsets = []
+        state = {"gap": True}
+
+        def handler(body):
+            cmd = body["cmd"]
+            if cmd == "info":
+                return INFO
+            if cmd == "put_chunk":
+                offsets.append(body["offset"])
+                if body["offset"] == 512 and state["gap"]:
+                    state["gap"] = False
+                    return {"ok": False, "error": "bad_offset", "expected": 0}
+                return {"ok": True, "received": body["offset"] + len(base64.b64decode(body["data"]))}
+            if cmd == "put_end":
+                return {"ok": False, "error": "checksum_mismatch", "message": "x"}
+            return {"ok": True}
+
+        t = Responder(handler)
+        with self.assertRaises(pixelart.BoardError):
+            pixelart.upload(pixelart.Board(t), "animation", "x", data)
+        self.assertEqual(offsets, [0, 512, 0, 512, 1024])
+        self.assertEqual(pixelart.decode_line(t.sent[-1])["cmd"], "put_abort")
+
+    def lost_upload(self, lost_begins):
+        """A board that loses the upload at the first chunk of each of the first `lost_begins` put_begin."""
+        begins = []
+
+        def handler(body):
+            cmd = body["cmd"]
+            if cmd == "info":
+                return INFO
+            if cmd == "put_begin":
+                begins.append(1)
+            if cmd == "put_chunk" and len(begins) <= lost_begins:
+                return {"ok": False, "error": "no_upload"}
+            if cmd == "put_chunk":
+                return {"ok": True, "received": body["offset"] + len(base64.b64decode(body["data"]))}
+            if cmd == "put_end":
+                return {"ok": True, "warnings": []}
+            return {"ok": True}
+
+        return Responder(handler), begins
+
+    def test_no_upload_restarts_the_upload_once(self):
+        t, begins = self.lost_upload(1)
+        pixelart.upload(pixelart.Board(t), "animation", "x", b"a" * 700)
+        self.assertEqual(len(begins), 2)
+
+    def test_no_upload_twice_gives_up_with_an_abort(self):
+        t, begins = self.lost_upload(2)
+        with self.assertRaises(pixelart.UploadGone):
+            pixelart.upload(pixelart.Board(t), "animation", "x", b"a" * 700)
+        self.assertEqual(len(begins), 2)
+        self.assertEqual(pixelart.decode_line(t.sent[-1])["cmd"], "put_abort")
+
+
+class DownloadTest(unittest.TestCase):
+    def serve(self, content, listed_sha=None):
+        def handler(body):
+            cmd = body["cmd"]
+            if cmd == "info":
+                return INFO
+            if cmd == "list":
+                return {"ok": True, "entries": [{"id": "x", "size": len(content),
+                                                 "sha256": listed_sha or hashlib.sha256(content).hexdigest()}],
+                        "more": False}
+            part = content[body["offset"]: body["offset"] + body["length"]]
+            return {"ok": True, "size": len(content), "offset": body["offset"],
+                    "data": base64.b64encode(part).decode()}
+
+        return pixelart.Board(Responder(handler))
+
+    def test_download_verifies_the_checksum(self):
+        content = b"0123456789" * 120
+        self.assertEqual(pixelart.download(self.serve(content), "animation", "x"), content)
+        with self.assertRaises(pixelart.BoardError):
+            pixelart.download(self.serve(content, listed_sha="0" * 64), "animation", "x")
+
+    def test_a_page_that_repeats_ends_the_listing(self):
+        def handler(body):
+            if body["cmd"] == "info":
+                return INFO
+            return {"ok": True, "entries": [{"id": "a", "size": 1, "sha256": "0" * 64}], "more": True}
+
+        with self.assertRaises(pixelart.BoardError):
+            list(pixelart.Board(Responder(handler)).entries("animation"))
+
+    def test_a_size_above_the_limit_of_the_kind_is_refused(self):
+        content = b"x" * 100
+        board = self.serve(content)
+        board.limits = {"animation": 99, "playlist": 1000}
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.download(board, "animation", "x")
+        self.assertIn("limit", str(e.exception))
+        board.limits = {"animation": 100}
+        self.assertEqual(pixelart.download(board, "animation", "x"), content)
+
+    def test_a_limit_above_the_protocol_maximum_is_capped(self):
+        board = self.serve(b"x" * (64 * 1024 + 1))
+        board.limits = {"animation": 10**9}
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.download(board, "animation", "x")
+        self.assertIn("limit of 65536", str(e.exception))
+
+    def test_a_board_without_limits_gets_the_protocol_maximum(self):
+        for limits in ({}, {"animation": None}, {"animation": True}, {"animation": "9"}):
+            board = self.serve(b"x" * (64 * 1024 + 1))
+            board.limits = limits
+            with self.assertRaises(pixelart.BoardError, msg=limits) as e:
+                pixelart.download(board, "animation", "x")
+            self.assertIn("limit of 65536", str(e.exception))
+        board = self.serve(b"x" * (16 * 1024 + 1))
+        board.limits = {}
+        with self.assertRaises(pixelart.BoardError):
+            pixelart.download(board, "playlist", "x")
+
+    def test_a_boolean_size_is_refused(self):
+        def handler(body):
+            if body["cmd"] == "info":
+                return INFO
+            return {"ok": True, "entries": [{"id": "x", "size": True, "sha256": "0" * 64}], "more": False}
+
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.download(pixelart.Board(Responder(handler)), "animation", "x")
+        self.assertIn("invalid size", str(e.exception))
+
+    def test_more_bytes_than_the_reported_size_stop_the_download(self):
+        def handler(body):
+            if body["cmd"] == "info":
+                return INFO
+            if body["cmd"] == "list":
+                return {"ok": True, "entries": [{"id": "x", "size": 10, "sha256": "0" * 64}], "more": False}
+            return {"ok": True, "size": 10, "offset": body["offset"], "data": base64.b64encode(b"y" * 40).decode()}
+
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.download(pixelart.Board(Responder(handler)), "animation", "x")
+        self.assertIn("more bytes", str(e.exception))
+
+    def run_get(self, data, tty, output=None):
+        board = self.serve(data)
+        stdout = types.SimpleNamespace(isatty=lambda: tty, buffer=io.BytesIO(), flush=lambda: None)
+        text = io.StringIO()
+        stdout.write = text.write
+        with mock.patch.object(sys, "stdout", stdout):
+            pixelart.board_get(board, types.SimpleNamespace(kind="animation", id="x", output=output))
+        return text.getvalue(), stdout.buffer.getvalue()
+
+    def test_get_to_a_terminal_prints_escaped_text_and_to_a_pipe_the_raw_bytes(self):
+        data = b'{"a":"\x1b[2J\xe2\x80\xae"}'
+        text, raw = self.run_get(data, tty=True)
+        self.assertEqual(raw, b"")
+        self.assertNotIn("\x1b", text)
+        self.assertNotIn("\u202e", text)
+        self.assertIn("\\x1b[2J\\u202e", text)
+        text, raw = self.run_get(data, tty=False)
+        self.assertEqual((text, raw), ("", data + b"\n"))
+
+    def test_get_to_a_terminal_keeps_lines_and_tabs_and_escapes_the_rest(self):
+        text, _ = self.run_get(b"a\r\n\x1b[2J\tb\rc\xe2\x80\xae\n", tty=True)
+        self.assertEqual(text, "a\n\\x1b[2J\tb\\x0dc\\u202e\n\n")
+
+    def test_missing_file(self):
+        board = self.serve(b"abc")
+        with self.assertRaises(pixelart.BoardError):
+            pixelart.download(board, "animation", "other")
+
+
+class TerminalTextTest(unittest.TestCase):
+    HOSTILE = "a\x1b[2J\u202eb\u2066\u200b\u2028\u061c\x85c"
+    ESCAPED = "a\\x1b[2J\\u202eb\\u2066\\u200b\\u2028\\u061c\\x85c"
+
+    def assert_clean(self, text):
+        for c in "\x1b\u202e\u2066\u200b\u2028\u061c\x85\x07":
+            self.assertNotIn(c, text)
+
+    def test_control_and_formatting_characters_become_visible_escapes(self):
+        self.assertEqual(pixelart.safe("a\x1b[31m\x00\x7f\x85\x9fb\n"), "a\\x1b[31m\\x00\\x7f\\x85\\x9fb\\x0a")
+        self.assertEqual(pixelart.safe(self.HOSTILE), self.ESCAPED)
+        self.assertEqual(pixelart.safe("\u00ad\u2029\ufeff"), "\\xad\\u2029\\ufeff")
+        self.assertEqual(pixelart.safe("plain \u00e9 text \u00e8\u4e2d"), "plain \u00e9 text \u00e8\u4e2d")
+        self.assertEqual(pixelart.safe(12), "12")
+
+    def test_a_character_above_the_bmp_has_an_unambiguous_escape(self):
+        self.assertEqual(pixelart.safe("a\U000e0001b"), "a\\U000e0001b")
+        self.assertEqual(pixelart.safe("\u202e"), "\\u202e")
+
+    def test_shown_stops_at_a_depth_bound(self):
+        deep = "\x1b"
+        for _ in range(pixelart.MAX_SHOWN_DEPTH + 40):
+            deep = [deep]
+        value = pixelart.shown(deep)
+        for _ in range(pixelart.MAX_SHOWN_DEPTH):
+            value = value[0]
+        self.assertEqual(value, "...")
+        self.assertEqual(pixelart.shown({"a": [{"b": "\x1b"}]}), {"a": [{"b": "\\x1b"}]})
+
+    def test_a_reply_nested_too_deep_is_a_damaged_line(self):
+        payload = b'{"seq":1}'
+        line = b"@PR %08x " % zlib.crc32(payload) + payload
+        with mock.patch.object(pixelart.json, "loads", side_effect=RecursionError):
+            self.assertIsNone(pixelart.decode_line(line))
+        self.assertEqual(pixelart.decode_line(line), {"seq": 1})
+
+    def test_shown_escapes_every_string_and_leaves_the_original_alone(self):
+        reply = {"k\x1b": ["a\x1b", {"n": "\u202e"}, 5, True, None]}
+        self.assertEqual(pixelart.shown(reply), {"k\\x1b": ["a\\x1b", {"n": "\\u202e"}, 5, True, None]})
+        self.assertEqual(reply["k\x1b"][0], "a\x1b")
+
+    def test_board_supplied_text_is_escaped_in_errors_and_diagnostics(self):
+        text = pixelart.describe_error({"error": "bad\x1b", "message": "hi\x07\u202e", "expected": "\x1b"})
+        self.assertEqual(text, "bad\\x1b: hi\\x07\\u202e")
+        text = pixelart.describe_error({"error": "bad_offset", "message": "", "expected": "\x1b"})
+        self.assertEqual(text, "bad_offset (expected offset \\x1b)")
+        out = io.StringIO()
+        pixelart.print_diagnostics("l", [{"severity": "error", "code": "c", "where": "w\x1b", "message": "m\x9b\u202e"}], out)
+        self.assertEqual(out.getvalue(), "l: error c at w\\x1b: m\\x9b\\u202e\n")
+
+    def run_command(self, function, handler, **args):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            function(pixelart.Board(Responder(handler)), types.SimpleNamespace(**args))
+        self.assert_clean(out.getvalue())
+        return out.getvalue()
+
+    def test_error_path_is_escaped(self):
+        board = pixelart.Board(Responder(serve({"ok": False, "error": "x" + self.HOSTILE, "message": self.HOSTILE})))
+        with self.assertRaises(pixelart.BoardError) as e:
+            board.command("delete")
+        self.assert_clean(str(e.exception))
+        self.assertIn(self.ESCAPED, str(e.exception))
+
+    def test_protocol_mismatch_message_is_escaped(self):
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.Board(Responder(lambda body: {"ok": True, "protocol": self.HOSTILE}))
+        self.assert_clean(str(e.exception))
+        self.assertIn(self.ESCAPED, str(e.exception))
+
+    def test_repeated_page_message_is_escaped(self):
+        page = {"ok": True, "entries": [{"id": self.HOSTILE, "size": 1, "sha256": "0" * 64}], "more": True}
+
+        with self.assertRaises(pixelart.BoardError) as e:
+            list(pixelart.Board(Responder(serve(page))).entries("animation"))
+        self.assert_clean(str(e.exception))
+        self.assertIn(self.ESCAPED, str(e.exception))
+
+    def test_ls_escapes_ids_and_names(self):
+        entry = {"id": "a\x1b[2J" + self.HOSTILE, "size": 1, "sha256": "0" * 64, "name": "n\x07" + self.HOSTILE,
+                 "version": "\x1b"}
+        text = self.run_command(pixelart.board_ls, serve({"ok": True, "entries": [entry], "more": False}),
+                                kind="animation")
+        self.assertIn("a\\x1b[2J" + self.ESCAPED, text)
+        self.assertIn("n\\x07" + self.ESCAPED, text)
+
+    def test_ls_accepts_ids_that_are_not_strings(self):
+        for bad in (None, ["a"], {"a": 1}, 7):
+            entry = {"id": bad, "size": 1, "sha256": "0" * 64}
+            text = self.run_command(pixelart.board_ls, serve({"ok": True, "entries": [entry], "more": False}),
+                                    kind="animation")
+            self.assertIn(str(bad), text)
+
+    def test_ls_uses_the_original_id_for_paging(self):
+        asked = []
+
+        def page(body):
+            asked.append(body.get("after"))
+            if body.get("after") is None:
+                return {"ok": True, "entries": [{"id": "a\x1bb", "size": 1, "sha256": "0" * 64}], "more": True}
+            return {"ok": True, "entries": [{"id": "a\x1bc", "size": 1, "sha256": "0" * 64}], "more": False}
+
+        self.run_command(pixelart.board_ls, serve(page), kind="animation")
+        self.assertEqual(asked, [None, "a\x1bb"])
+
+    def test_info_escapes_every_field_and_accepts_any_shape(self):
+        hostile = {**INFO, "firmware": self.HOSTILE, "board": self.HOSTILE, "canvas": {"width": self.HOSTILE},
+                   "formats": {self.HOSTILE: [self.HOSTILE, 1]}, "storage": {"used": self.HOSTILE},
+                   "memory": {"free": self.HOSTILE}, "limits": {self.HOSTILE: self.HOSTILE}}
+        text = self.run_command(pixelart.board_info, lambda body: hostile)
+        self.assertIn(self.ESCAPED, text)
+        for formats in (7, "text", None, ["a", "b"], {"animation": 5}, {"animation": None}):
+            for field in ("canvas", "storage", "memory", "limits"):
+                shape = {**INFO, "formats": formats, field: formats}
+                self.run_command(pixelart.board_info, lambda body, shape=shape: shape)
+
+    def test_settings_escapes_keys_and_values(self):
+        reply = {"ok": True, "settings": {"k" + self.HOSTILE: "v" + self.HOSTILE}}
+        text = self.run_command(pixelart.board_settings, serve(reply), pairs=[])
+        self.assertIn("k" + self.ESCAPED + "=v" + self.ESCAPED, text)
+
+    def test_the_error_of_a_failed_command_is_escaped_in_settings(self):
+        board = pixelart.Board(Responder(serve({"ok": False, "error": "bad_request", "message": self.HOSTILE})))
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.board_settings(board, types.SimpleNamespace(pairs=["brightness=1"]))
+        self.assert_clean(str(e.exception))
+
+
+class ArgumentTest(unittest.TestCase):
+    def test_kind_inference(self):
+        self.assertEqual(pixelart.infer_kind(Path("/x/animations/a.yaml"), {}), "animation")
+        self.assertEqual(pixelart.infer_kind(Path("/x/playlists/a.yaml"), {}), "playlist")
+        self.assertEqual(pixelart.infer_kind(Path("/x/y/a.json"), {"format": "pixelart/1"}), "animation")
+        self.assertEqual(pixelart.infer_kind(Path("/x/y/a.json"), {"format": "pixelart-playlist/1"}), "playlist")
+        self.assertIsNone(pixelart.infer_kind(Path("/x/y/a.json"), {"format": "other"}))
+
+    def test_settings(self):
+        self.assertEqual(pixelart.parse_settings(["brightness=40", "playlist=xmas"]),
+                         {"brightness": 40, "playlist": "xmas"})
+        for bad in ["brightness=256", "brightness=-1", "brightness=x", "playlist=../x", "volume=1", "brightness"]:
+            with self.assertRaises(pixelart.BoardError, msg=bad):
+                pixelart.parse_settings([bad])
+
+
+class WebSocketTest(unittest.TestCase):
+    def test_accept_key_from_rfc_6455(self):
+        self.assertEqual(pixelart.websocket_accept("dGhlIHNhbXBsZSBub25jZQ=="), "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")
+
+    def client_pair(self):
+        """A WebSocketTransport wired to a socket pair, without a handshake."""
+        client, server = socket.socketpair()
+        transport = pixelart.WebSocketTransport.__new__(pixelart.WebSocketTransport)
+        transport._socket, transport._buffer, transport._message = client, b"", bytearray()
+        self.addCleanup(client.close)
+        self.addCleanup(server.close)
+        return transport, server
+
+    @staticmethod
+    def read_masked_frame(sock):
+        head = sock.recv(2)
+        length = head[1] & 0x7F
+        if length == 126:
+            length = struct.unpack("!H", sock.recv(2))[0]
+        mask = sock.recv(4)
+        data = b""
+        while len(data) < length:
+            data += sock.recv(length - len(data))
+        return head[0], head[1] & 0x80, bytes(b ^ mask[i % 4] for i, b in enumerate(data))
+
+    def test_frames_sent_are_masked_text(self):
+        transport, server = self.client_pair()
+        for size in (5, 300):
+            transport.send(b"a" * size)
+            opcode, masked, payload = self.read_masked_frame(server)
+            self.assertEqual((opcode, masked, payload), (0x81, 0x80, b"a" * size))
+
+    def test_receives_fragments_answers_ping_and_closes(self):
+        transport, server = self.client_pair()
+        server.sendall(b"\x01\x03abc" + b"\x89\x02hi" + b"\x80\x03def")
+        self.assertEqual(transport.receive(1.0), b"abcdef")
+        opcode, masked, payload = self.read_masked_frame(server)  # the pong sent while reading
+        self.assertEqual((opcode, masked, payload), (0x8A, 0x80, b"hi"))
+        server.sendall(b"\x88\x02\x03\xe8")
+        with self.assertRaises(pixelart.BoardError):
+            transport.receive(1.0)
+
+    def test_a_fragmented_message_above_the_cap_closes_the_connection(self):
+        transport, server = self.client_pair()
+        half = pixelart.MAX_MESSAGE // 2 + 1
+        frame = struct.pack("!H", half) + b"a" * half
+        server.sendall(b"\x01\x7e" + frame + b"\x00\x7e" + frame + b"\x80\x00")
+        with self.assertRaises(pixelart.BoardError) as e:
+            transport.receive(1.0)
+        self.assertIn("too long", str(e.exception))
+        server.settimeout(1.0)
+        head = server.recv(2)
+        self.assertEqual(head[0], 0x88)  # a close frame
+        server.recv(6)
+        server.close()
+
+    def test_a_message_of_exactly_the_cap_is_accepted(self):
+        transport, server = self.client_pair()
+        threading.Thread(target=server.sendall, args=(b"\x81\x7f" + struct.pack("!Q", pixelart.MAX_MESSAGE)
+                                                      + b"a" * pixelart.MAX_MESSAGE,), daemon=True).start()
+        self.assertEqual(len(transport.receive(2.0)), pixelart.MAX_MESSAGE)
+
+    def test_a_message_one_byte_over_the_cap_is_refused(self):
+        transport, server = self.client_pair()
+        threading.Thread(target=server.sendall, args=(b"\x81\x7f" + struct.pack("!Q", pixelart.MAX_MESSAGE + 1)
+                                                      + b"a" * (pixelart.MAX_MESSAGE + 1),), daemon=True).start()
+        with self.assertRaises(pixelart.BoardError) as e:
+            transport.receive(2.0)
+        self.assertIn("too long", str(e.exception))
+
+    def test_receive_times_out(self):
+        transport, _ = self.client_pair()
+        self.assertIsNone(transport.receive(0.05))
+
+    def test_masked_server_frame_is_rejected(self):
+        transport, server = self.client_pair()
+        server.sendall(b"\x81\x81abcd" + bytes([ord("x") ^ ord("a")]))
+        with self.assertRaises(pixelart.BoardError):
+            transport.receive(1.0)
+
+
+if __name__ == "__main__":
+    unittest.main()

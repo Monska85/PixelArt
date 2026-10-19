@@ -1,0 +1,80 @@
+{
+  "description": "a request with one bad setting changes none of them",
+  "files": {
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 502f9864 {\"seq\":1,\"cmd\":\"settings_set\",\"brightness\":30,\"playlist\":\"ghost\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default"
+        }
+      }
+    },
+    {
+      "send": "@PR 6728d980 {\"seq\":3,\"cmd\":\"settings_set\",\"brightness\":300,\"playlist\":\"christmas\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 2a517393 {\"seq\":4,\"cmd\":\"settings_set\",\"brightness\":30,\"playlist\":\"Bad\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 210fc21e {\"seq\":5,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default"
+        }
+      }
+    },
+    {
+      "send": "@PR 88402624 {\"seq\":6,\"cmd\":\"settings_set\",\"brightness\":30,\"playlist\":\"christmas\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true,
+        "settings": {
+          "brightness": 30,
+          "playlist": "christmas"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "description": "the same seq with a different CRC is a new request and runs again",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/other.json": "{\"format\":\"pixelart/1\",\"name\":\"Other\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR d5d87b51 {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR f5d5765c {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"} "
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 6f31b3bf {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"other\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 6f31b3bf {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"other\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": null,
+        "animations/other.json": null
+      }
+    }
+  ]
+}

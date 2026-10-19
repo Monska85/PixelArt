@@ -1,0 +1,31 @@
+{
+  "description": "put_end right after put_begin is size_mismatch",
+  "steps": [
+    {
+      "send": "@PR 41df5761 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"dot\",\"size\":147,\"sha256\":\"3c878c7d9776ae2066e60d164ef9d7f3d245fd1a844ba99d76ce31162d8fb225\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR e185a2b9 {\"seq\":2,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "size_mismatch",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_files": {
+        "upload.tmp": null,
+        "animations/dot.json": null
+      }
+    }
+  ]
+}

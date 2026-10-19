@@ -87,9 +87,13 @@ class HardwareSerial : public Print
 public:
   void begin(unsigned long baud) { (void)baud; }
   void end() {}
-  int available() { return 0; }
-  int read() { return -1; }
-  int peek() { return -1; }
+  // Buffer sizes are only recorded by the board's core; the simulator has no buffers to size.
+  size_t setRxBufferSize(size_t size) { return size; }
+  size_t setTxBufferSize(size_t size) { return size; }
+  // Input comes from the queue that tests and transports fill with sim::serial_input().
+  int available();
+  int read();
+  int peek();
   void flush() {}
   size_t write(uint8_t c) override;
   using Print::write;

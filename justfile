@@ -1,5 +1,6 @@
 board := "esp32c3"
 out := "sim-out"
+site := "site"
 python := "python3"
 sim := ".pio/build/native/program"
 
@@ -68,9 +69,13 @@ sim-list: data sim-build
 sim-play *args: data sim-build
     {{sim}} --realtime --no-files {{args}}
 
-# Emulate the board: live matrix and serial output in the terminal, no hardware (e.g. just emulate --anim santa)
+# Emulate the board: live matrix and serial output in the terminal, no hardware (e.g. just emulate --anim santa, or just emulate --ws)
 emulate *args: data sim-build
     {{sim}} --live {{args}}
+
+# Emulate the board and serve the command protocol on ws://127.0.0.1:8765 (e.g. just serve --anim santa)
+serve *args: data sim-build
+    {{sim}} --live --ws {{args}}
 
 # Run the simulator and open the HTML player
 sim-open *args: data sim-build
@@ -78,6 +83,17 @@ sim-open *args: data sim-build
     @if command -v xdg-open >/dev/null 2>&1; then xdg-open {{out}}/player.html; \
     elif command -v open >/dev/null 2>&1; then open {{out}}/player.html; \
     else echo "Open {{out}}/player.html in a browser"; fi
+
+# Build every board and the release site into site/ (or `just release-site out-folder`), as a release would publish it
+release-site folder=site: data
+    #!/usr/bin/env sh
+    set -eu
+    PIXELART_VERSION=$({{python}} tools/release.py version)
+    export PIXELART_VERSION
+    echo "Release site for version $PIXELART_VERSION"
+    pio run -e esp32c3 -e esp32 -e esp32s3
+    for board in esp32c3 esp32 esp32s3; do pio run -e "$board" -t buildfs; done
+    {{python}} tools/release.py build --out "{{folder}}" --schema
 
 # Run the tests on the simulator
 test: data
@@ -95,10 +111,11 @@ format-check:
 check: data sim-build
     find src include test lib \( -name '*.cpp' -o -name '*.h' \) -exec clang-format --dry-run --Werror {} +
     {{sim}} --validate
+    {{python}} -m unittest discover -s tools
     pio test -e native_test
     pio run -e esp32c3 -e esp32 -e esp32s3
 
 # Remove build outputs, data/ and simulator output
 clean:
     pio run -t clean -e native -e native_test -e esp32c3 -e esp32 -e esp32s3
-    rm -rf data {{out}}
+    rm -rf data {{out}} {{site}}

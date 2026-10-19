@@ -53,3 +53,44 @@ For a valid playlist, the expected file lists the enabled items in order:
 - Every change to the format or to an effect comes with new cases, and CI fails until every implementation passes them.
 - Keep cases small: a few pixels per sprite make the expected result easy to check by reading it.
 - Every limit has a pair of cases: the largest accepted value in `valid/` (when its frames are easy to write down) and one above it in `invalid/`.
+
+## Protocol cases
+
+`protocol/<case>.json` are test cases for the [command protocol](../docs/protocol/protocol-v1.md): requests, and the replies every implementation must give. The Unity test `test/test_protocol` runs them through the real line reader on the simulated serial port (`make test`). Every case starts from a fresh data folder and a fresh boot.
+
+A case is one JSON object:
+
+```json
+{
+  "description": "what the case shows",
+  "capacity": 12288,
+  "files": { "animations/dot.json": "{...}", "animations/blob.json": { "base64": "..." } },
+  "settings": { "brightness": 7, "playlist": "christmas" },
+  "steps": [
+    { "send": "@PR 3c250228 {\"seq\":1,\"cmd\":\"info\"}" },
+    { "expect": { "seq": 1, "ok": true, "firmware": "<any>" } }
+  ]
+}
+```
+
+- `capacity` (optional): size of the simulated file system in bytes. The default is 1,441,792, the size of the board's data partition. Space is used in blocks of 4,096 bytes per file.
+- `files` (optional): the files that exist before the board boots, by path from the root of the file system. The value is the text of the file, or `{"base64": "..."}` for bytes that are not text.
+- `settings` (optional): the settings the board starts with, `brightness` and `playlist`.
+- `steps`: what happens, in order. Each step has exactly one of these keys:
+  - `send`: one line of text sent to the serial port, followed by a newline. The optional key `eol` replaces the newline, for example with `"\r\n"`. The line is sent as written: protocol requests spell out the whole line, marker and CRC included.
+  - `expect`: the next reply line from the board. Its CRC must be right, and its JSON must equal this object, with the same keys. The string `"<any>"` matches any value, for what a case cannot know: the firmware version, `boot_id`, memory, used storage, and the text of messages.
+  - `expect_nothing`: the board has sent nothing that is still unread.
+  - `advance_ms`: lets this many milliseconds of virtual time pass, with no traffic.
+  - `reboot`: restarts the board. The files stay, the settings go back to their defaults, and any upload is gone.
+  - `expect_files`: a map from path to content. A string is the exact content the file must have, and `null` means the file must not exist. Other files are not checked.
+
+A case fails when the board sends a reply no step expects. Lines that are not protocol lines (log lines) are not replies and are ignored.
+
+### Writing protocol cases
+
+The rules for format cases apply here too. In addition:
+
+- The requests and the expected replies are written from the specification, never copied from what an implementation sent. A reply the specification does not fix (a message, a diagnostic place) uses `"<any>"`.
+- A CRC-32 or SHA-256 in a case is computed with an independent tool, on the bytes the case spells out: `python3 -c 'import zlib,sys; print("%08x" % zlib.crc32(sys.argv[1].encode()))' '{"seq":1,"cmd":"info"}'` and `sha256sum` or `hashlib.sha256`. Base64 comes from `base64` or `python3 -m base64`.
+- Keep one idea per case, and name the case after it: `framing_*`, `info_*`, `list_*`, `get_*`, `upload_*`, `delete_*`, `settings_*`.
+- Every change to the protocol comes with new cases.

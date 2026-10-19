@@ -1,0 +1,36 @@
+{
+  "description": "put_chunk and put_end without an upload are no_upload",
+  "steps": [
+    {
+      "send": "@PR ca3c206d {\"seq\":1,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eA==\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR e185a2b9 {\"seq\":2,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 90e6b5fc {\"seq\":3,\"cmd\":\"put_abort\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true
+      }
+    }
+  ]
+}

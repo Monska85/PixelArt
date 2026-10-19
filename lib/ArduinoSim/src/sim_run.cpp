@@ -30,6 +30,10 @@ Selection:
                        (status 1 if any file has an error)
   --anim NAME[,NAME]   run setup() then only these animations, instead of loop()
   --loops N            how many times to run loop() or the selected scenes (default 1, 0 = forever)
+  --ws [PORT]          serve the command protocol over a WebSocket on 127.0.0.1 (default port 8765),
+                       with --live or --realtime; uploads change the --data folder
+  --ws-origin ORIGIN   also accept this Origin (repeatable). Always accepted: no Origin,
+                       http://localhost and http://127.0.0.1 (any port), https://monska85.github.io
   --live               emulate the board: run forever in real time, redraw the matrix in the
                        terminal and show serial output below it (no files written)
 
@@ -129,6 +133,27 @@ bool parse_args(int argc, char **argv, RunConfig &cfg)
     }
     else if (arg == "--live")
       opts.live = opts.ansi = opts.realtime = true;
+    else if (arg == "--ws")
+    {
+      opts.ws = true;
+      if (a + 1 < argc && argv[a + 1][0] >= '0' && argv[a + 1][0] <= '9')
+      {
+        unsigned long long port;
+        if (!parse_uint(argv[++a], port) || port < 1 || port > 65535)
+          usage_error("--ws expects a port from 1 to 65535");
+        opts.ws_port = (unsigned)port;
+      }
+    }
+    else if (arg == "--ws-origin")
+    {
+      std::string origin = value();
+      bool printable = !origin.empty();
+      for (unsigned char c : origin)
+        printable = printable && c > 0x20 && c < 0x7F;
+      if (!printable)
+        usage_error("--ws-origin expects an origin such as https://example.org");
+      opts.ws_origins.push_back(origin);
+    }
     else if (arg == "--max-ms")
     {
       opts.max_us = number() * 1000;
@@ -178,6 +203,10 @@ bool parse_args(int argc, char **argv, RunConfig &cfg)
       usage_error("unknown option '" + arg + "' (see --help)");
   }
 
+  if (opts.ws && !opts.realtime)
+    usage_error("--ws needs a real-time run: add --live or --realtime");
+  if (!opts.ws && !opts.ws_origins.empty())
+    usage_error("--ws-origin needs --ws");
   if (opts.live)
   {
     cfg.write_files = false;
@@ -319,10 +348,28 @@ int run(int argc, char **argv, const SceneProvider &provider)
   reset();
   detail::build_strip_map();
   s.wall_start = std::chrono::steady_clock::now();
+  if (s.opts.ws)
+  {
+    std::string error;
+    if (!ws_listen(s.opts.ws_port, s.opts.ws_origins, error))
+    {
+      fprintf(stderr, "sim: %s\n", error.c_str());
+      return 1;
+    }
+  }
   if (s.opts.realtime)
     fputs("\x1b[2J", stdout);
+  if (s.opts.ws)
+  {
+    std::string note = "WebSocket: ws://127.0.0.1:" + std::to_string(ws_port());
+    if (s.opts.live)
+      s.live_log.push_back(note); // the live display owns the terminal
+    else
+      fprintf(stderr, "sim: %s\n", note.c_str());
+  }
 
   std::string stop_reason = play(plan, cfg.loops);
+  ws_stop();
   detail::finish_frames();
   print_summary(stop_reason);
   return cfg.write_files ? write_outputs(cfg) : 0;

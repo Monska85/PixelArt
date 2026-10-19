@@ -1,0 +1,49 @@
+{
+  "description": "an invalid playlist is rejected like an invalid animation",
+  "steps": [
+    {
+      "send": "@PR 57e0200f {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"playlist\",\"id\":\"p\",\"size\":77,\"sha256\":\"906918d679814197552801bb6f21a55e3fa65519b763381257942d00b132807a\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR b5ab14fb {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5bGlzdC8xIiwiY2FudmFzIjp7IndpZHRoIjoxNiwiaGVpZ2h0IjoxNn0sIml0ZW1zIjpbXX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 77
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "<any>",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "playlists/p.json": null,
+        "upload.tmp": null
+      }
+    }
+  ]
+}

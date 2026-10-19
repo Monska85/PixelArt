@@ -1,0 +1,55 @@
+{
+  "description": "delete removes a stored file",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/keep.json": "{\"format\":\"pixelart/1\",\"name\":\"One\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR d5d87b51 {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": null,
+        "animations/keep.json": "{\"format\":\"pixelart/1\",\"name\":\"One\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+      }
+    },
+    {
+      "send": "@PR 77763af2 {\"seq\":2,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "keep",
+            "size": 147,
+            "sha256": "5c78a257d3d7425520ad90fcbeb3f38e134bbb6e84a83b447323934c6a40357e",
+            "name": "One",
+            "version": 1
+          }
+        ],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR 072a6d9b {\"seq\":3,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    }
+  ]
+}

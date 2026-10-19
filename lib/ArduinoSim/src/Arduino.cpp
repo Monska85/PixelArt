@@ -62,6 +62,10 @@ int digitalRead(uint8_t) { return LOW; }
 int analogRead(uint8_t) { return 0; }
 void analogWrite(uint8_t, int) {}
 
+int HardwareSerial::available() { return (int)sim::serial_input_size(); }
+int HardwareSerial::read() { return sim::serial_input_read(true); }
+int HardwareSerial::peek() { return sim::serial_input_read(false); }
+
 size_t HardwareSerial::write(uint8_t c)
 {
   sim::on_serial((char)c);

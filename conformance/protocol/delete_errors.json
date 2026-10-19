@@ -1,0 +1,90 @@
+{
+  "description": "delete checks kind, id and fields",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR c600590e {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"song\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "invalid_kind",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 4aebaac5 {\"seq\":2,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"../dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR c6eb429f {\"seq\":3,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"Dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 777007c1 {\"seq\":4,\"cmd\":\"delete\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 68b34650 {\"seq\":5,\"cmd\":\"delete\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 748d1051 {\"seq\":6,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":7}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR cace3ed9 {\"seq\":7,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"upload\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+      }
+    }
+  ]
+}
