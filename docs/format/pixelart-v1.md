@@ -58,6 +58,7 @@ timeline:
 | `description` | no       | Free text.                                                                                                                                                            |
 | `canvas`      | yes      | `{ width: 16, height: 16 }`, the size of the matrix the animation is drawn for. Version 1 supports only 16x16, see [Coordinates and canvas](#coordinates-and-canvas). |
 | `frame_ms`    | no       | Default duration of every frame, in milliseconds. Default `500`.                                                                                                      |
+| `brightness`  | no       | Percentage of the board's brightness the animation plays at, from 1 to 100. Default `100`. See [Brightness](#brightness).                                             |
 | `background`  | no       | [Color](#colors) of every pixel that no sprite draws, in every frame. Without it, those pixels are off.                                                               |
 | `palette`     | no       | Named colors, see [Colors](#colors).                                                                                                                                  |
 | `sprites`     | yes      | The pictures the animation is made of, see [Sprites](#sprites).                                                                                                       |
@@ -74,7 +75,31 @@ Hex values **must be quoted** in YAML. Without quotes, `#` starts a comment that
 
 Two colors are the same if they resolve to the same `#rrggbb` value, whatever way they were written. This matters for [`recolor`](#recolor).
 
-The file describes the color as it should look. The board converts it for the LEDs exactly as the current firmware does (16-bit color plus the NeoMatrix gamma correction), so animations keep their current look. Brightness is a board setting and is not part of the file.
+The file describes the color as it should look. The board converts it for the LEDs exactly as the current firmware does (16-bit color plus the NeoMatrix gamma correction), so animations keep their current look. The overall brightness of the LEDs is a board setting; an animation can only lower it, see [Brightness](#brightness).
+
+## Brightness
+
+The board has a brightness setting from 0 (off) to 255, chosen by its user and changed through the [command protocol](../protocol/protocol-v1.md). It is the absolute limit: it keeps the matrix within what the user's power supply handles, and at the level the user wants for the room.
+
+An animation can play softer than that with `brightness`, a whole percentage from 1 to 100. It applies to the whole animation, every frame and every LED, background included. Without the field, the animation plays at 100 percent, which is the board brightness itself. Nothing in a file can make the LEDs brighter than the board setting.
+
+The brightness the LEDs receive is computed with whole numbers only, so that every implementation gives the same result. With `B` the board brightness (0 to 255) and `P` the animation's percentage (1 to 100):
+
+- if `B` is 0, the result is 0;
+- otherwise the result is `(B × P + 50) ÷ 100`, where `÷` keeps only the whole part (the fraction is dropped), and a result of 0 becomes 1.
+
+The `+ 50` rounds to the nearest whole number, halves upwards. The last rule keeps a dimmed animation visible: an animation never switches the matrix off by itself, only a board brightness of 0 does.
+
+| Board brightness `B` | Animation `brightness` `P` | LEDs receive |
+| -------------------- | -------------------------- | ------------ |
+| 100                  | 100 (or no field)          | 100          |
+| 100                  | 50                         | 50           |
+| 255                  | 33                         | 84           |
+| 3                    | 50                         | 2            |
+| 1                    | 1                          | 1            |
+| 0                    | 50                         | 0            |
+
+The result is used for as long as the animation plays, in the same way as the board brightness: the colors go through the same 16-bit and gamma conversion, then the LED driver scales them by the result. When the board brightness changes while an animation plays, the new result applies from the next frame.
 
 ## Sprites
 
@@ -326,6 +351,7 @@ Animations can come from any source, including URLs typed by users, so every imp
 | Entries in one `show` list                                          | 32              |
 | `repeat` and `loop`                                                 | 1 to 10,000     |
 | `frame_ms` and `ms`                                                 | 20 to 60,000    |
+| `brightness`                                                        | 1 to 100        |
 | Coordinates, `at`, `move` and `pivot` values                        | -128 to 127     |
 | `name` and `author`                                                 | 128 characters  |
 | `description`                                                       | 512 characters  |
