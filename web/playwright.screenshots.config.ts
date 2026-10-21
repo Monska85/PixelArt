@@ -8,12 +8,13 @@ const here = (path: string): string => fileURLToPath(new URL(path, import.meta.u
 // moves a reference image. The functional fixtures read PIXELART_DATA for the simulator's files.
 process.env.PIXELART_DATA = here("./screenshots/board-files");
 
-// Compares screenshots of every view and its main states with the reference images in screenshots/baselines/. They
+// Compares one main state per view (screenshots/views.spec.ts) with the reference images in screenshots/baselines/. They
 // are only comparable when drawn by the same browser build and fonts, so `make web-screenshots` runs this suite in
 // the official Playwright container (see README.md in this folder). Run without the container, text renders
 // differently and every comparison fails.
 export default defineConfig({
   testDir: "screenshots",
+  testMatch: "views.spec.ts",
   snapshotPathTemplate: "{testDir}/baselines/{arg}{ext}",
   // Every test starts its own simulator on its own port.
   workers: 2,
@@ -25,7 +26,8 @@ export default defineConfig({
     : [["list"]],
   outputDir: "test-results-screenshots",
   expect: {
-    toHaveScreenshot: { animations: "disabled", caret: "hide", maxDiffPixelRatio: 0.002 },
+    // A count, not a share of the page: a share of a long page hid a mark 76 px out of place.
+    toHaveScreenshot: { animations: "disabled", caret: "hide", maxDiffPixels: 20 },
   },
   use: {
     baseURL: `http://localhost:${PORT}`,

@@ -1,7 +1,7 @@
 #!/bin/sh
-# Runs the screenshot suite inside the official Playwright container, so the text of every page is drawn by the same
-# browser build and fonts everywhere. `compare` checks the pages against screenshots/baselines/; `update` writes the
-# reference images again.
+# Runs the reference image comparison (screenshots/views.spec.ts) inside the official Playwright container, so the
+# text of every page is drawn by the same browser build and fonts everywhere. `compare` checks the pages against
+# screenshots/baselines/; `update` writes the reference images again.
 #
 #   PLAYWRIGHT_IMAGE  the image to use; by default the one of the pinned @playwright/test version (CI names it by digest)
 #   PIXELART_SIM      the simulator to start for each test; by default the one `make sim-build` makes. It runs inside

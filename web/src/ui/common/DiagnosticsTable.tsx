@@ -8,18 +8,19 @@ export interface ShownDiagnostic {
   message: string;
 }
 
-// Every text here comes from a file or a board: React shows it as text only.
+// Every text here comes from a file or a board: React shows it as text only. The table follows the width of its
+// container, not of the window: below 36 rem (a phone, or the editor's side column) code and place go into the message.
 export function DiagnosticsTable({ diagnostics, caption }: { diagnostics: ShownDiagnostic[]; caption?: string }) {
   if (diagnostics.length === 0) return null;
   return (
-    <div className="rounded-md border border-border bg-card text-foreground">
-      <Table className="table-fixed text-xs max-sm:text-[0.8rem]">
+    <div className="@container rounded-md border border-border bg-card text-foreground">
+      <Table className="table-fixed text-xs max-sm:text-[0.8rem]" aria-label="Diagnostics">
         {caption && <caption className="p-2 text-left text-muted-foreground">{caption}</caption>}
         <TableHeader>
           <TableRow>
-            <TableHead className="w-20 sm:w-24">Severity</TableHead>
-            <TableHead className="w-28 max-sm:hidden sm:w-36">Code</TableHead>
-            <TableHead className="w-32 max-sm:hidden sm:w-44">Place</TableHead>
+            <TableHead className="w-20 @xl:w-24">Severity</TableHead>
+            <TableHead className="w-36 @max-xl:hidden">Code</TableHead>
+            <TableHead className="w-44 @max-xl:hidden">Place</TableHead>
             <TableHead>Message</TableHead>
           </TableRow>
         </TableHeader>
@@ -35,14 +36,14 @@ export function DiagnosticsTable({ diagnostics, caption }: { diagnostics: ShownD
                     {d.severity}
                   </span>
                 </TableCell>
-                <TableCell className="break-words py-2 align-top max-sm:hidden">
+                <TableCell className="break-words py-2 align-top @max-xl:hidden">
                   <code>{d.code}</code>
                 </TableCell>
-                <TableCell className="break-all py-2 align-top max-sm:hidden">
+                <TableCell className="break-all py-2 align-top @max-xl:hidden">
                   <code>{d.where === "" ? "(whole file)" : d.where}</code>
                 </TableCell>
                 <TableCell className="break-words py-2 align-top">
-                  <span className="sm:hidden">
+                  <span className="@xl:hidden">
                     <code>{d.code}</code>
                     {d.where !== "" && (
                       <>

@@ -6,18 +6,18 @@ A static React and TypeScript app (Vite) that manages a board or the simulator f
 
 Run them from this folder, or use the `make web-*` targets of the repository root. The app needs Node.js at the version in the `engines` field of `package.json`. `make check` and the `make web-*` targets run `npm ci` the first time they need the dependencies.
 
-| Command                | What it does                                                      |
-| ---------------------- | ----------------------------------------------------------------- |
-| `npm ci`               | Install the exact dependencies of `package-lock.json`.            |
-| `npm run dev`          | Start the app on `http://localhost:5173` with live reload.        |
-| `npm run build`        | Type check and build into `dist/`.                                |
-| `npm run typecheck`    | Type check with `tsc`.                                            |
-| `npm run lint`         | Run ESLint.                                                       |
-| `npm run format:check` | Check formatting with Prettier (`npm run format` fixes it).       |
-| `npm test`             | Run the unit tests and the conformance suite with Vitest.         |
-| `npm run size`         | Fail when the JavaScript loaded at start is over 190 KB gzip.     |
-| `npm run e2e`          | Run the Playwright tests against the built app and the simulator. |
-| `npm run screenshots`  | Compare screenshots (only inside the Playwright container).       |
+| Command                | What it does                                                         |
+| ---------------------- | -------------------------------------------------------------------- |
+| `npm ci`               | Install the exact dependencies of `package-lock.json`.               |
+| `npm run dev`          | Start the app on `http://localhost:5173` with live reload.           |
+| `npm run build`        | Type check and build into `dist/`.                                   |
+| `npm run typecheck`    | Type check with `tsc`.                                               |
+| `npm run lint`         | Run ESLint.                                                          |
+| `npm run format:check` | Check formatting with Prettier (`npm run format` fixes it).          |
+| `npm test`             | Run the unit tests and the conformance suite with Vitest.            |
+| `npm run size`         | Fail when the JavaScript loaded at start is over 190 KB gzip.        |
+| `npm run e2e`          | Run the Playwright tests against the built app and the simulator.    |
+| `npm run screenshots`  | Compare the reference images (only inside the Playwright container). |
 
 The unit tests read `../conformance`, and the YAML tests compare with `../data`, so run `make data` (or `python3 tools/pixelart.py build`) first.
 
@@ -31,7 +31,10 @@ The built app is served by `e2e/serve-site.mjs` with a fixture release next to i
 
 ## Screenshot tests
 
-`screenshots/views.spec.ts` takes a screenshot of every view and its main states at 1,280 and 375 px wide, in the light and the dark theme, compares it with the image in `screenshots/baselines/`, and checks that the page does not scroll sideways. Text is only drawn the same way by the same browser build and fonts, so the suite runs inside the official Playwright container, never directly:
+Every view and its main states are scripted once, in `screenshots/states.ts`, and checked two ways:
+
+- **Layout checks**, for every state, at 1,280 and 375 px wide (`screenshots/layout.spec.ts`, run by `npm run e2e` and `make web-e2e` on the host): the page does not scroll sideways and nothing sticks out of the window or of the box that clips it, every control has an accessible name, the cells of a table row are centred on one line (except the Diagnostics table, whose messages start at the top) and the last action of every row ends at the same place, and a playlist item's mark sits under its animation field. Each state also asserts what it shows (a dialog, a progress panel, an error). A failure names the element that moved. `e2e/layout-checks.spec.ts` shows each rule failing on a small page that breaks it. To add a state, see the comment at the top of `screenshots/states.ts`.
+- **Reference images**, for one main state per view (`screenshots/views.spec.ts`): the Board view (both tabs), the Library, Firmware and Editor views, the playlist editor, a confirmation dialog and the connection chip's panel, at 1,280 and 375 px, in the light and the dark theme, 32 images in `screenshots/baselines/`. A difference of more than 20 pixels fails. Text is only drawn the same way by the same browser build and fonts, so this part runs inside the official Playwright container, never directly:
 
 - `make web-screenshots` builds the app and compares. A failure leaves the expected, actual and diff images in `test-results-screenshots/`.
 - `make web-screenshots-update` draws the reference images again. Look at the new images before committing them: a changed image is a changed layout.
