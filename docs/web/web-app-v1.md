@@ -117,7 +117,7 @@ The connection chip of the [app shell](#user-interface) is always visible. It sh
 
 Both transports deliver lines to the same protocol client. Lines that do not start with `@PR ` are ignored, as are lines with a bad CRC. Board lines with an `event` field and no `seq` are ignored, since protocol 1 defines no events.
 
-Only one program can open a serial port. If the port is busy (the serial monitor or `tools/pixelart.py` holds it), the browser refuses to open it, and the app says to close the other program.
+Only one program can open a serial port. If the port is busy (another browser tab, the serial monitor or `tools/pixelart.py` holds it), the browser refuses to open it, and the app says to close the other program, followed by what the browser said in brackets (for example "NetworkError: Failed to open serial port."), so a failure of another kind can be told apart. When the page itself still holds the port open ("InvalidStateError"), the app waits for a close still under way (at most one second), or closes the port, and opens it once more. Any failure after the port opened (no streams, a board that does not answer the handshake) closes the port again, and closing always reaches the port: each stream gets at most one second to finish, because a device that went away (unplugged, or reset on USB) can leave a write or a read pending forever, and a port left open stays busy for every later attempt until the browser is restarted. After a lost connection, **Reconnect** closes the old port before it asks for one again.
 
 ### Handshake and versions
 
