@@ -397,7 +397,7 @@ The published site:
 | `index.html`, `assets/`                          | The web app.                                               |
 | `manifest.json`, `firmware/`, `animations/`, ... | The firmware release, as described in the manifest format. |
 
-`make release-site` builds both from the working tree into `site/`, the site Pages would show if both were released from that commit. CI builds it on every push.
+`make release-site` builds both from the working tree into `site/`, the site Pages would show if both were released from that commit. CI builds it for every pull request and on `main`.
 
 The firmware version rules do not change: only tags of the form `vX.Y.Z` count, so `web-v` tags never change a firmware version.
 
@@ -423,7 +423,7 @@ The firmware version rules do not change: only tags of the form `vX.Y.Z` count, 
 - **Theme:** an end-to-end test cycles the theme button through System, Dark and Light (tooltip, accessible name, keyboard), checks the page follows an emulated operating system change only on System, checks the choice survives a reload, and checks that with storage blocked the app starts on System.
 - **Look:** Playwright compares screenshots of every view and its main states (not connected, connected, empty, lost connection, dialogs, side panels, progress, errors), 1,280 px and 375 px wide, in both themes, and checks that no page scrolls sideways. Each state is its own test with its own simulator, started on board files and a published release that belong to the suite (`web/screenshots/board-files/`), with a fixed clock, time zone and firmware version, so nothing but a change of the app moves a picture. The comparison runs inside the official Playwright container, in CI and locally with `make web-screenshots` (`make web-screenshots-update` draws the reference images again), so text renders the same everywhere. The reference images are kept in `web/screenshots/baselines/`, so a layout change is a reviewed change. The suite is separate from the functional end-to-end tests, which run on the host with `make web-e2e`.
 
-CI runs the type check, the linter, the unit tests, the conformance suite, the build and the end-to-end tests on every push. `make check` runs the type check, the linter and the unit tests too.
+CI runs the type check, the linter, the unit tests, the conformance suite, the build and the end-to-end tests on every pull request and on `main`. `make check` runs the type check, the linter and the unit tests too.
 
 ## Limits of version 1
 
