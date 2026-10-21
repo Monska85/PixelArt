@@ -1,8 +1,16 @@
 name: CI
 
+# Every change is checked once: in its pull request, and on main after the merge. A push to a branch with an open
+# pull request no longer starts a second, identical run. Releases run their own checks in release.yml.
 on:
   push:
+    branches: [main]
   pull_request:
+
+# A newer run of the same pull request, or of main, cancels the one still running.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 # The job only reads the repository and uploads an artifact
 permissions:

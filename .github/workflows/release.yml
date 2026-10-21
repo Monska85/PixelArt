@@ -155,7 +155,7 @@ jobs:
         working-directory: web
         run: npm ci
 
-      # npm run build type checks first. The unit and end-to-end tests run in CI on every push.
+      # npm run build type checks first. The unit and end-to-end tests run in CI on every pull request and on main.
       - name: Lint
         working-directory: web
         run: npm run lint
