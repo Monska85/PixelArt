@@ -11,6 +11,7 @@
 #include <set>
 
 #include "pixelart_engine.h"
+#include "strict_json.h"
 
 namespace pixelart
 {
@@ -207,7 +208,7 @@ bool Loader::get_position(JsonVariantConst value, const std::string &where, Anim
 bool Loader::get_string(JsonVariantConst value, size_t max_length, bool allow_empty, const std::string &where)
 {
   const char *s = value.as<const char *>();
-  if (!value.is<const char *>() || (!allow_empty && !*s) || strlen(s) > max_length)
+  if (!value.is<const char *>() || (!allow_empty && !*s) || utf8_code_points(s) > max_length)
   {
     error("structure", where,
           "must be a text of " + std::string(allow_empty ? "0" : "1") + " to " + std::to_string(max_length) +
@@ -841,8 +842,16 @@ bool Loader::run(const char *json, size_t length)
     return false;
   }
 
+  constexpr int MAX_JSON_DEPTH = 32;
+  const std::string strict_error = strict_json_error(json, length, MAX_JSON_DEPTH);
+  if (!strict_error.empty())
+  {
+    error("structure", "", strict_error);
+    return false;
+  }
   JsonDocument doc;
-  DeserializationError parse_error = deserializeJson(doc, json, length, DeserializationOption::NestingLimit(32));
+  DeserializationError parse_error =
+      deserializeJson(doc, json, length, DeserializationOption::NestingLimit(MAX_JSON_DEPTH));
   if (parse_error)
   {
     error("structure", "", std::string("not valid JSON: ") + parse_error.c_str());

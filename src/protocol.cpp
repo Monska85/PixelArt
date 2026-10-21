@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "app.h"
 #include "platform.h"
@@ -43,6 +44,8 @@ constexpr size_t MAX_SHA256_DIGITS = 64;
 constexpr size_t MAX_LIST_NAME = 128;
 constexpr size_t MAX_BYTES_PER_POLL = 512;
 const char *TEMP_FILE = "/upload.tmp";
+const char *PLAYLISTS_DIR = "/playlists";
+const char *ANIMATIONS_DIR = "/animations";
 const char OUT_OF_MEMORY_MESSAGE[] = "not enough free memory to validate the file";
 
 // Memory a file needs for validation: one block for the file, and the parsed
@@ -732,10 +735,80 @@ Status cmd_delete(JsonObjectConst request, JsonDocument &)
   return {};
 }
 
+// Removes every file in `folder`, whatever its name, and counts them. Stops at
+// the first file that cannot be removed.
+bool remove_all_files(const char *folder, size_t &count)
+{
+  count = 0;
+  for (const std::string &name : storage::list(folder))
+  {
+    if (!storage::remove(std::string(folder) + "/" + name))
+      return false;
+    count++;
+  }
+  return true;
+}
+
+// Saves the given settings, all or nothing: the playlist is saved first, and
+// put back if the brightness cannot be saved. When the settings memory also
+// refuses the playlist back, the new playlist stays and the message says so.
+// Returns the storage_error message, or nullptr when every setting is saved.
+const char *save_settings(const std::optional<std::string> &playlist, std::optional<uint8_t> brightness)
+{
+  const std::string previous = settings::playlist();
+  bool restart = playlist && *playlist != previous;
+  if (playlist && !settings::set_playlist(*playlist))
+    return "the settings cannot be saved";
+  const char *failure = nullptr;
+  if (brightness && !settings::set_brightness(*brightness))
+  {
+    failure = "the settings cannot be saved";
+    if (playlist && !settings::set_playlist(previous))
+      failure = "the settings cannot be saved and may be partly changed";
+    else
+      restart = false; // the previous playlist is back: playback keeps it
+  }
+  if (restart)
+    request_playlist_reload(); // playback follows the playlist that is now set
+  return failure;
+}
+
 void add_settings(JsonDocument &reply)
 {
   reply["settings"]["brightness"] = settings::brightness();
   reply["settings"]["playlist"] = settings::playlist();
+}
+
+Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
+{
+  if (Status s = allow_only(request, {"settings"}); s.code)
+    return s;
+  // A missing field means false; any value but true or false, null included, is refused.
+  bool reset = false;
+  for (JsonPairConst field : request)
+    if (field.key() == "settings")
+    {
+      if (!field.value().is<bool>())
+        return fail("bad_request", "settings must be true or false");
+      reset = field.value().as<bool>();
+    }
+  cancel_upload();
+  size_t playlists = 0, animations = 0;
+  bool done = remove_all_files(PLAYLISTS_DIR, playlists) && remove_all_files(ANIMATIONS_DIR, animations);
+  if (playlists > 0)
+    request_playlist_reload();
+  if (!done)
+    return fail("storage_error", "a file cannot be removed");
+  // The settings go back to their defaults only once every file is gone.
+  if (reset)
+  {
+    if (const char *failure = save_settings(std::string(settings::DEFAULT_PLAYLIST), settings::DEFAULT_BRIGHTNESS))
+      return fail("storage_error", std::string("the files are removed but ") + failure);
+    add_settings(reply);
+  }
+  reply["playlists"] = playlists;
+  reply["animations"] = animations;
+  return {};
 }
 
 Status cmd_settings_get(JsonObjectConst request, JsonDocument &reply)
@@ -770,25 +843,13 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
       return fail("not_found", "no such playlist");
   }
 
-  // All or nothing: the playlist is saved first, and put back if the
-  // brightness cannot be saved. When the settings memory also refuses the
-  // playlist back, the new playlist stays and the reply says so.
-  const std::string previous = settings::playlist();
-  bool restart = !playlist.isNull() && id != previous;
-  if (!playlist.isNull() && !settings::set_playlist(id))
-    return fail("storage_error", "the settings cannot be saved");
-  const char *failure = nullptr;
-  if (!brightness.isNull() && !settings::set_brightness((uint8_t)brightness.as<uint32_t>()))
-  {
-    failure = "the settings cannot be saved";
-    if (!playlist.isNull() && !settings::set_playlist(previous))
-      failure = "the settings cannot be saved and may be partly changed";
-    else
-      restart = false; // the previous playlist is back: playback keeps it
-  }
-  if (restart)
-    request_playlist_reload(); // playback follows the playlist that is now set
-  if (failure)
+  std::optional<std::string> new_playlist;
+  if (!playlist.isNull())
+    new_playlist = id;
+  std::optional<uint8_t> new_brightness;
+  if (!brightness.isNull())
+    new_brightness = (uint8_t)brightness.as<uint32_t>();
+  if (const char *failure = save_settings(new_playlist, new_brightness))
     return fail("storage_error", failure);
   add_settings(reply);
   return {};
@@ -809,6 +870,7 @@ const Command COMMANDS[] = {
     {"put_end", cmd_put_end},
     {"put_abort", cmd_put_abort},
     {"delete", cmd_delete},
+    {"delete_all", cmd_delete_all},
     {"settings_get", cmd_settings_get},
     {"settings_set", cmd_settings_set},
 };

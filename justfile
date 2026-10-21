@@ -84,16 +84,31 @@ sim-open *args: data sim-build
     elif command -v open >/dev/null 2>&1; then open {{out}}/player.html; \
     else echo "Open {{out}}/player.html in a browser"; fi
 
-# Build every board and the release site into site/ (or `just release-site out-folder`), as a release would publish it
+# Build every board and the firmware part of the release site into site/ (or `just release-firmware out-folder`)
+release-firmware folder=site: data
+    #!/usr/bin/env sh
+    set -eu
+    PIXELART_VERSION=$({{python}} tools/release.py version)
+    export PIXELART_VERSION
+    echo "Firmware release site for version $PIXELART_VERSION"
+    pio run -e esp32c3 -e esp32 -e esp32s3
+    for board in esp32c3 esp32 esp32s3; do pio run -e "$board" -t buildfs; done
+    {{python}} tools/release.py build --out "{{folder}}" --schema
+
+# Build every board and the web app into site/ (or `just release-site out-folder`): the site Pages shows if both were released from this commit
 release-site folder=site: data
     #!/usr/bin/env sh
     set -eu
     PIXELART_VERSION=$({{python}} tools/release.py version)
     export PIXELART_VERSION
     echo "Release site for version $PIXELART_VERSION"
+    work=$(mktemp -d)
+    trap 'rm -rf "$work"' EXIT
     pio run -e esp32c3 -e esp32 -e esp32s3
     for board in esp32c3 esp32 esp32s3; do pio run -e "$board" -t buildfs; done
-    {{python}} tools/release.py build --out "{{folder}}" --schema
+    {{python}} tools/release.py build --out "$work/firmware" --schema
+    (cd web && npm ci && npm run build)
+    {{python}} tools/release.py assemble --out "{{folder}}" --firmware "$work/firmware" --web web/dist
 
 # Run the tests on the simulator
 test: data
@@ -107,6 +122,26 @@ format:
 format-check:
     find src include test lib \( -name '*.cpp' -o -name '*.h' \) -exec clang-format --dry-run --Werror {} +
 
+# Install the web app's dependencies from the lockfile
+web-install:
+    cd web && npm ci
+
+# Start the web app on http://localhost:5173 with live reload
+web-dev: web-install
+    cd web && npm run dev
+
+# Build the web app into web/dist
+web-build: web-install
+    cd web && npm run build
+
+# Type check, lint and run the web app's unit tests and the conformance suite
+web-test: data web-install
+    cd web && npm run typecheck && npm run lint && npm test
+
+# Run the web app's end-to-end tests against the simulator (first: cd web && npx playwright install chromium)
+web-e2e: data sim-build web-install
+    cd web && npm run build && npm run e2e
+
 # Check formatting and animations, run the tests and build every board
 check: data sim-build
     find src include test lib \( -name '*.cpp' -o -name '*.h' \) -exec clang-format --dry-run --Werror {} +
@@ -114,8 +149,9 @@ check: data sim-build
     {{python}} -m unittest discover -s tools
     pio test -e native_test
     pio run -e esp32c3 -e esp32 -e esp32s3
+    just web-test
 
 # Remove build outputs, data/ and simulator output
 clean:
     pio run -t clean -e native -e native_test -e esp32c3 -e esp32 -e esp32s3
-    rm -rf data {{out}} {{site}}
+    rm -rf data {{out}} {{site}} web/dist web/test-results

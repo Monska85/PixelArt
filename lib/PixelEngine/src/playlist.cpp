@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "pixelart_engine.h"
+#include "strict_json.h"
 
 namespace pixelart
 {
@@ -42,8 +43,17 @@ bool Playlist::load(const char *json, size_t length, std::vector<Diagnostic> &di
     error("limit_exceeded", "", "file larger than " + std::to_string(MAX_PLAYLIST_FILE_SIZE / 1024) + " KiB");
     return false;
   }
+  // ArduinoJson's default nesting limit.
+  constexpr int MAX_JSON_DEPTH = 10;
+  const std::string strict_error = strict_json_error(json, length, MAX_JSON_DEPTH);
+  if (!strict_error.empty())
+  {
+    error("structure", "", strict_error);
+    return false;
+  }
   JsonDocument doc;
-  DeserializationError parse_error = deserializeJson(doc, json, length);
+  DeserializationError parse_error =
+      deserializeJson(doc, json, length, DeserializationOption::NestingLimit(MAX_JSON_DEPTH));
   if (parse_error)
   {
     error("structure", "", std::string("not valid JSON: ") + parse_error.c_str());
@@ -64,7 +74,7 @@ bool Playlist::load(const char *json, size_t length, std::vector<Diagnostic> &di
   if (!root["name"].isNull())
   {
     const char *name = root["name"].as<const char *>();
-    if (!name || !*name || strlen(name) > 128)
+    if (!name || !*name || utf8_code_points(name) > 128)
       error("structure", "name", "must be a text of 1 to 128 characters");
   }
 

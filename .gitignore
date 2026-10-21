@@ -27,4 +27,12 @@ sim-out/
 Thumbs.db
 
 # Release site built by `make release-site`
-site/
+/site/
+
+# Web app: dependencies, build output and Playwright output
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+web/test-results-screenshots/
+web/playwright-report-screenshots/

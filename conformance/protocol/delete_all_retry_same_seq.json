@@ -1,0 +1,69 @@
+{
+  "description": "the same seq with the same CRC gets the cached reply: delete_all runs once",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 822b57f4 {\"seq\":1,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 1,
+        "animations": 1
+      }
+    },
+    {
+      "send": "@PR 822b57f4 {\"seq\":1,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 1,
+        "animations": 1
+      }
+    },
+    {
+      "send": "@PR 822b57f4 {\"seq\":1,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 1,
+        "animations": 1
+      }
+    },
+    {
+      "expect_nothing": true
+    },
+    {
+      "send": "@PR 77763af2 {\"seq\":2,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "kind": "animation",
+        "entries": [],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR 425d127a {\"seq\":3,\"cmd\":\"list\",\"kind\":\"playlist\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "kind": "playlist",
+        "entries": [],
+        "more": false
+      }
+    }
+  ]
+}
