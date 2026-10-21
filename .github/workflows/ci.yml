@@ -157,14 +157,14 @@ jobs:
         working-directory: web
         run: npx playwright install --with-deps chromium
 
-      - name: Run the end-to-end tests against the simulator
+      - name: Run the end-to-end tests and the layout checks against the simulator
         id: e2e
         working-directory: web
         run: npm run e2e
 
       # The same comparison as `make web-screenshots`, in the official Playwright container. The digest belongs to the
       # version of @playwright/test in web/package.json: the script refuses an image of another version.
-      - name: Compare the screenshots of every view with the reference images
+      - name: Compare one main state per view with its reference image
         id: screenshots
         env:
           PLAYWRIGHT_IMAGE: mcr.microsoft.com/playwright:v1.62.0-noble@sha256:baed2032d533817f3dbe6425de795788430ba345e819a1201337009ba17c9d07
@@ -178,6 +178,8 @@ jobs:
           path: |
             web/playwright-report/
             web/test-results/
+            web/playwright-report-layout/
+            web/test-results-layout/
             web/playwright-report-screenshots/
             web/test-results-screenshots/
           if-no-files-found: ignore
