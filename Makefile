@@ -126,10 +126,10 @@ web-size: web-build ## Fail when the JavaScript the web app loads at start is ov
 web-test: data web/node_modules ## Type check, lint and run the web app's unit tests and the conformance suite
 	cd web && npm run typecheck && npm run lint && npm test
 
-web-e2e: data sim-build web/node_modules ## Run the web app's end-to-end tests against the simulator (first: cd web && npx playwright install chromium)
+web-e2e: data sim-build web/node_modules ## Run the web app's end-to-end tests and layout checks against the simulator (first: cd web && npx playwright install chromium)
 	cd web && npm run build && npm run e2e
 
-web-screenshots: data sim-build web/node_modules ## Compare screenshots of every view with the reference images, inside the Playwright container (needs Docker)
+web-screenshots: data sim-build web/node_modules ## Compare one main state per view with its reference image, inside the Playwright container (needs Docker)
 	cd web && npm run build
 	web/scripts/run-screenshots.sh compare
 

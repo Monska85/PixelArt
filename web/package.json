@@ -17,7 +17,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "e2e": "playwright test",
+    "e2e": "playwright test && playwright test --config playwright.layout.config.ts",
     "screenshots": "playwright test --config playwright.screenshots.config.ts",
     "screenshots:update": "playwright test --config playwright.screenshots.config.ts --update-snapshots"
   },
