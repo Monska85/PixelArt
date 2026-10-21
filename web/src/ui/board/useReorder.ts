@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { EDGE_SCROLL, edgeSpeed, scrollDistance } from "./edgeScroll";
 
 interface Options<K> {
   /** The list whose element children are the items, in the order of `keys`. */
@@ -19,10 +20,6 @@ interface Drag<K> {
   from: number;
 }
 
-/** How close to the edge of the scrolling area a dragged item makes it scroll, and by how much per move. */
-const EDGE = 48;
-const STEP = 16;
-
 /** The nearest ancestor that scrolls vertically, or null for the page. */
 function scroller(element: HTMLElement): HTMLElement | null {
   for (let node = element.parentElement; node; node = node.parentElement) {
@@ -34,7 +31,8 @@ function scroller(element: HTMLElement): HTMLElement | null {
 
 /**
  * Reordering of a vertical list. Drag handles serve a pointer (mouse, pen or touch): an item is dragged over the
- * others, and near an edge of the scrolling area the list keeps scrolling while the pointer rests there. The handles
+ * others, and near an edge of the scrolling area the list keeps scrolling while the pointer rests there, faster the
+ * nearer the edge. The handles
  * are not focusable; keyboard users move items with buttons that call `moveBy`. Every move is announced. The handle
  * needs `touch-action: none`, so a touch drags instead of scrolling the page.
  */
@@ -104,11 +102,11 @@ export function useReorder<K>({ list, keys, move, name, announce }: Options<K>) 
     moveTo(key, target);
   }
 
-  /** How far to scroll `area` (null: the page) for a pointer at `clientY`: STEP up or down near an edge, else 0. */
-  function edgeStep(area: HTMLElement | null, clientY: number): number {
+  /** The pointer's speed into an edge zone of `area` (null: the page), in pixels per 60 Hz frame; 0 outside. */
+  function speedAt(area: HTMLElement | null, clientY: number): number {
     const top = area ? area.getBoundingClientRect().top : 0;
     const bottom = area ? area.getBoundingClientRect().bottom : window.innerHeight;
-    return clientY < top + EDGE ? -STEP : clientY > bottom - EDGE ? STEP : 0;
+    return edgeSpeed(clientY, top, bottom);
   }
 
   /** Scrolls `area` (null: the page) and says whether it moved: false once it cannot scroll further that way. */
@@ -120,18 +118,28 @@ export function useReorder<K>({ list, keys, move, name, announce }: Options<K>) 
   }
 
   /**
-   * Scrolls once per frame while the pointer rests in an edge zone, and keeps the item under it. It stops when the
+   * Scrolls every frame while the pointer rests in an edge zone, faster the deeper it is (see edgeScroll.ts), and
+   * keeps the item under it. A drag that started inside the zone waits until `holdUntil` first. It stops when the
    * drag ends, the pointer leaves the zone, or the area cannot scroll further.
    */
-  function scrollWhileAtEdge(pointer: { clientY: number }, key: K): void {
+  function scrollWhileAtEdge(pointer: { clientY: number; holdUntil: number }, key: K): void {
     if (scrolling.current !== null) return;
-    const step = (): void => {
+    let last: number | null = null;
+    let carried = 0;
+    const step = (now: number): void => {
       scrolling.current = null;
       if (current.current?.key !== key || !list.current) return;
       const area = scroller(list.current);
-      const by = edgeStep(area, pointer.clientY);
-      if (by === 0 || !scrollArea(area, by)) return;
-      follow(pointer.clientY, key);
+      const speed = speedAt(area, pointer.clientY);
+      if (speed === 0) return;
+      const elapsed = last === null ? EDGE_SCROLL.frameMs : now - last;
+      last = now;
+      if (now >= pointer.holdUntil) {
+        const distance = scrollDistance(speed, elapsed, carried);
+        carried = distance.carried;
+        if (distance.pixels !== 0 && !scrollArea(area, distance.pixels)) return;
+        follow(pointer.clientY, key);
+      }
       scrolling.current = requestAnimationFrame(step);
     };
     scrolling.current = requestAnimationFrame(step);
@@ -157,7 +165,12 @@ export function useReorder<K>({ list, keys, move, name, announce }: Options<K>) 
         // The page listens, not the handle: React moves the item's element while it is dragged, and a moved element
         // loses pointer capture.
         const pointer = event.pointerId;
-        const last = { clientY: event.clientY };
+        // A drag that starts inside an edge zone waits a moment before the list scrolls.
+        const startArea = list.current && scroller(list.current);
+        const last = {
+          clientY: event.clientY,
+          holdUntil: speedAt(startArea ?? null, event.clientY) === 0 ? 0 : performance.now() + EDGE_SCROLL.startDelayMs,
+        };
         const onMove = (e: globalThis.PointerEvent): void => {
           if (e.pointerId !== pointer) return;
           last.clientY = e.clientY;
