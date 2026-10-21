@@ -1,6 +1,6 @@
 # Conformance suite
 
-Test cases for the [`pixelart/1` animation format](../docs/format/pixelart-v1.md) and the [`pixelart-playlist/1` playlist format](../docs/format/playlist-v1.md). Every implementation of the formats must pass all of them. Today that is the engine in `lib/PixelEngine/`, used by the firmware and the simulator; the planned web app will be the second. `make test` runs them locally, and CI runs the same tests (`pio test -e native_test`).
+Test cases for the [`pixelart/1` animation format](../docs/format/pixelart-v1.md) and the [`pixelart-playlist/1` playlist format](../docs/format/playlist-v1.md). Every implementation of the formats must pass all of them. Today there are two: the engine in `lib/PixelEngine/`, used by the firmware and the simulator, and the web app engine in `web/src/engine`. `make test` runs the first locally (`pio test -e native_test`), `make web-test` runs the second, and CI runs both.
 
 ## Layout
 
@@ -40,13 +40,21 @@ For an invalid case:
 { "error": "unknown_color" }
 ```
 
-The implementation must reject the file and report at least this error code. It may report other errors too. An optional `"max_diagnostics": 32` means the implementation must keep at most that many messages for the file.
+The implementation must reject the file and report at least this error code. It may report other errors too. An optional `"max_diagnostics": 32` means the implementation must keep at most that many messages for the file. The `cap_keeps_error_over_warnings` case fills the 32 messages with warnings before an error is found, and expects the error to replace the latest warning.
 
 For a valid playlist, the expected file lists the enabled items in order:
 
 ```json
 { "items": [{ "animation": "santa", "repeat": 2 }] }
 ```
+
+## Strict JSON cases
+
+Files are strict JSON in valid UTF-8 and text lengths count characters, as the [format specification](../docs/format/pixelart-v1.md#files) says. The `strict_json_*` cases in `invalid/` and `playlist/invalid/` each break one rule (comment, single quotes, unquoted key, a number outside the JSON grammar, a raw control character, data after the value, byte order mark, invalid, overlong or surrogate UTF-8, U+0000 in a text or a key, a fraction or exponent where an integer is required) and expect `structure`. The `name_128_characters` and `name_129_characters` cases use the two-byte character `é`, so the byte count of the name is twice its length.
+
+## Brightness rows
+
+`brightness.json` is not a case file: it holds the hand-computed rows of the effective brightness rule ([format specification](../docs/format/pixelart-v1.md#brightness)). Its shape is `{"description": "...", "rows": [{"board": 100, "percent": 50, "expected": 50}]}`: the board brightness (0 to 255), the animation's percentage (1 to 100) and the brightness the LEDs must receive. The C++ test `test_effective_brightness_rule` and the web app engine tests read the same rows.
 
 ## Rules for new cases
 
@@ -65,7 +73,10 @@ A case is one JSON object:
 {
   "description": "what the case shows",
   "capacity": 12288,
-  "files": { "animations/dot.json": "{...}", "animations/blob.json": { "base64": "..." } },
+  "files": {
+    "animations/dot.json": "{...}",
+    "animations/blob.json": { "base64": "..." }
+  },
   "settings": { "brightness": 7, "playlist": "christmas" },
   "steps": [
     { "send": "@PR 3c250228 {\"seq\":1,\"cmd\":\"info\"}" },
@@ -93,5 +104,5 @@ The rules for format cases apply here too. In addition:
 
 - The requests and the expected replies are written from the specification, never copied from what an implementation sent. A reply the specification does not fix (a message, a diagnostic place) uses `"<any>"`.
 - A CRC-32 or SHA-256 in a case is computed with an independent tool, on the bytes the case spells out: `python3 -c 'import zlib,sys; print("%08x" % zlib.crc32(sys.argv[1].encode()))' '{"seq":1,"cmd":"info"}'` and `sha256sum` or `hashlib.sha256`. Base64 comes from `base64` or `python3 -m base64`.
-- Keep one idea per case, and name the case after it: `framing_*`, `info_*`, `list_*`, `get_*`, `upload_*`, `delete_*`, `settings_*`.
+- Keep one idea per case, and name the case after it: `framing_*`, `info_*`, `list_*`, `get_*`, `upload_*`, `delete_*` (`delete_all_*` for `delete_all`), `settings_*`.
 - Every change to the protocol comes with new cases.

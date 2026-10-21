@@ -4,6 +4,7 @@ Run with: python3 -m unittest discover -s tools   (part of `make check`)
 """
 
 import base64
+import argparse
 import contextlib
 import hashlib
 import io
@@ -459,6 +460,122 @@ class TerminalTextTest(unittest.TestCase):
         with self.assertRaises(pixelart.BoardError) as e:
             pixelart.board_settings(board, types.SimpleNamespace(pairs=["brightness=1"]))
         self.assert_clean(str(e.exception))
+
+
+class WipeTest(unittest.TestCase):
+    def board(self, reply):
+        responder = Responder(serve(reply))
+        return pixelart.Board(responder), responder
+
+    def run_wipe(self, board, yes, answer=None, settings=False):
+        out, err = io.StringIO(), io.StringIO()
+        args = types.SimpleNamespace(yes=yes, settings=settings)
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                mock.patch("builtins.input", side_effect=answer if isinstance(answer, BaseException) else [answer]):
+            code = pixelart.board_wipe(board, args)
+        return code, out.getvalue(), err.getvalue()
+
+    def sent_commands(self, responder):
+        return [pixelart.decode_line(line)["cmd"] for line in responder.sent]
+
+    def test_yes_skips_the_question_and_prints_the_counts(self):
+        board, responder = self.board({"ok": True, "playlists": 1, "animations": 30})
+        code, out, _ = self.run_wipe(board, yes=True, answer=AssertionError("asked"))
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "deleted 1 playlists and 30 animations\n")
+        self.assertIn("delete_all", self.sent_commands(responder))
+
+    def test_the_command_waits_10_seconds_for_the_reply(self):
+        board, _ = self.board({"ok": True, "playlists": 0, "animations": 0})
+        with mock.patch.object(board, "command", wraps=board.command) as command:
+            self.run_wipe(board, yes=True)
+        command.assert_called_once_with("delete_all", timeout=10.0)
+
+    def sent_requests(self, responder):
+        return [pixelart.decode_line(line) for line in responder.sent]
+
+    def test_without_settings_the_request_has_no_settings_field(self):
+        board, responder = self.board({"ok": True, "playlists": 0, "animations": 0})
+        self.run_wipe(board, yes=True)
+        wipe = [r for r in self.sent_requests(responder) if r["cmd"] == "delete_all"]
+        self.assertEqual(len(wipe), 1)
+        self.assertNotIn("settings", wipe[0])
+
+    def test_settings_resets_them_and_prints_the_defaults(self):
+        board, responder = self.board({"ok": True, "playlists": 1, "animations": 30,
+                                       "settings": {"brightness": 100, "playlist": "default"}})
+        code, out, _ = self.run_wipe(board, yes=True, settings=True)
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "deleted 1 playlists and 30 animations\nbrightness=100\nplaylist=default\n")
+        wipe = [r for r in self.sent_requests(responder) if r["cmd"] == "delete_all"]
+        self.assertIs(wipe[0]["settings"], True)
+
+    def test_settings_asks_a_question_that_names_the_defaults(self):
+        board, responder = self.board({"ok": True, "playlists": 0, "animations": 0})
+        with mock.patch("builtins.input", return_value="no") as asked:
+            with contextlib.redirect_stderr(io.StringIO()):
+                code = pixelart.board_wipe(board, types.SimpleNamespace(yes=False, settings=True))
+        self.assertEqual(code, 1)
+        self.assertIn("brightness 100, playlist default", asked.call_args.args[0])
+        self.assertNotIn("delete_all", self.sent_commands(responder))
+
+    def test_settings_on_an_old_firmware_says_nothing_was_deleted(self):
+        board, _ = self.board({"ok": False, "error": "bad_request", "message": "unknown field \"settings\""})
+        with self.assertRaises(pixelart.BoardError) as e:
+            self.run_wipe(board, yes=True, settings=True)
+        self.assertIn("nothing was deleted", str(e.exception))
+        self.assertIn("wipe --settings", str(e.exception))
+
+    def test_settings_needs_the_settings_in_the_reply(self):
+        board, _ = self.board({"ok": True, "playlists": 0, "animations": 0})
+        with self.assertRaises(pixelart.BoardError) as e:
+            self.run_wipe(board, yes=True, settings=True)
+        self.assertIn("no settings", str(e.exception))
+
+    def test_the_command_line_has_the_settings_option(self):
+        parser = argparse.ArgumentParser()
+        pixelart.add_board_parser(parser.add_subparsers(dest="command"))
+        args = parser.parse_args(["board", "--port", "x", "wipe", "--yes", "--settings"])
+        self.assertTrue(args.settings)
+        self.assertFalse(parser.parse_args(["board", "--port", "x", "wipe"]).settings)
+        help_text = io.StringIO()
+        with contextlib.redirect_stdout(help_text), self.assertRaises(SystemExit):
+            parser.parse_args(["board", "--port", "x", "wipe", "--help"])
+        self.assertIn("brightness 100, playlist default", " ".join(help_text.getvalue().split()))
+
+    def test_the_answer_yes_runs_the_command(self):
+        board, responder = self.board({"ok": True, "playlists": 0, "animations": 0})
+        code, out, _ = self.run_wipe(board, yes=False, answer="Yes")
+        self.assertEqual(code, 0)
+        self.assertIn("deleted 0 playlists and 0 animations", out)
+        self.assertIn("delete_all", self.sent_commands(responder))
+
+    def test_any_other_answer_or_a_closed_input_deletes_nothing(self):
+        for answer in ["", "y", "no", EOFError()]:
+            board, responder = self.board({"ok": True, "playlists": 1, "animations": 1})
+            code, out, err = self.run_wipe(board, yes=False, answer=answer)
+            self.assertEqual(code, 1, msg=repr(answer))
+            self.assertEqual(out, "")
+            self.assertIn("nothing deleted", err)
+            self.assertNotIn("delete_all", self.sent_commands(responder))
+
+    def test_an_old_firmware_gets_an_update_hint(self):
+        board, _ = self.board({"ok": False, "error": "unknown_command", "message": "this firmware does not know the command"})
+        with self.assertRaises(pixelart.BoardError) as e:
+            self.run_wipe(board, yes=True)
+        self.assertIn("update the board's firmware", str(e.exception))
+
+    def test_a_storage_error_is_reported(self):
+        board, _ = self.board({"ok": False, "error": "storage_error", "message": "a file cannot be removed"})
+        with self.assertRaises(pixelart.BoardError) as e:
+            self.run_wipe(board, yes=True)
+        self.assertIn("storage_error", str(e.exception))
+
+    def test_invalid_counts_are_refused(self):
+        for reply in [{"ok": True}, {"ok": True, "playlists": "1", "animations": 2}, {"ok": True, "playlists": True, "animations": 2}]:
+            board, _ = self.board(reply)
+            with self.assertRaises(pixelart.BoardError):
+                self.run_wipe(board, yes=True)
 
 
 class ArgumentTest(unittest.TestCase):

@@ -1,5 +1,5 @@
 {
-  "description": "diagnostics that quote bytes that are not UTF-8 still make a reply that is valid UTF-8",
+  "description": "a file with a byte that is not UTF-8 is rejected as structure, and the reply is valid UTF-8",
   "steps": [
     {
       "send": "@PR b9be142f {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"bad\",\"size\":148,\"sha256\":\"d9002532bf2faf0c4373f05a935f0926947a773fca444d39636dca8b839dc027\"}"
@@ -32,7 +32,7 @@
         "diagnostics": [
           {
             "severity": "error",
-            "code": "unknown_sprite",
+            "code": "structure",
             "where": "<any>",
             "message": "<any>"
           }

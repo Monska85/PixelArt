@@ -1,0 +1,47 @@
+{
+  "description": "delete_all with settings true removes every file, then puts every setting back to its default, even the playlist default that is not stored; the reply carries the settings",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "settings": {
+    "brightness": 7,
+    "playlist": "christmas"
+  },
+  "steps": [
+    {
+      "send": "@PR 595a097c {\"seq\":1,\"cmd\":\"delete_all\",\"settings\":true}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 1,
+        "animations": 1,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default"
+        }
+      }
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default"
+        }
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": null,
+        "playlists/christmas.json": null
+      }
+    }
+  ]
+}

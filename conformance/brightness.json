@@ -1,0 +1,16 @@
+{
+  "description": "Hand-computed rows of the effective brightness rule of docs/format/pixelart-v1.md#brightness. board is the board brightness (0 to 255), percent is the animation's brightness percentage (1 to 100), expected is the brightness the LEDs receive (0 to 255).",
+  "rows": [
+    { "board": 100, "percent": 100, "expected": 100 },
+    { "board": 100, "percent": 50, "expected": 50 },
+    { "board": 255, "percent": 33, "expected": 84 },
+    { "board": 255, "percent": 100, "expected": 255 },
+    { "board": 3, "percent": 50, "expected": 2 },
+    { "board": 1, "percent": 1, "expected": 1 },
+    { "board": 0, "percent": 50, "expected": 0 },
+    { "board": 200, "percent": 99, "expected": 198 },
+    { "board": 149, "percent": 1, "expected": 1 },
+    { "board": 249, "percent": 1, "expected": 2 },
+    { "board": 151, "percent": 99, "expected": 149 }
+  ]
+}

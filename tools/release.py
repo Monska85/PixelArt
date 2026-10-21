@@ -6,6 +6,9 @@
   tools/release.py build [--out site] [--version X] [--schema]
       Collect the files of every board from the PlatformIO build folders and
       write the site. Run `make release-site` to build everything first.
+  tools/release.py assemble --out DIR [--firmware DIR] [--web DIR]
+      Merge a firmware site (the output of `build`) and a built web app into the
+      site GitHub Pages serves. Used by the release workflow and `make release-site`.
 
 The layout and the manifest are specified in docs/format/manifest-v1.md. Needs
 PlatformIO (pio) on the PATH, PyYAML is not used here. --schema needs jsonschema.
@@ -320,6 +323,69 @@ def build_site(out, version, data, use_schema):
           f"{len(playlists)} playlists in {site}")
 
 
+def list_tree(root, label):
+    """Every file under `root` as a relative POSIX path. Symbolic links and special files are refused."""
+    root = Path(root)
+    if root.is_symlink() or not root.is_dir():
+        raise ReleaseError(f"{label} {root}: not a folder, or a symbolic link")
+    files = []
+    for folder, dirs, names in os.walk(root, followlinks=False):
+        for name in dirs + names:
+            path = Path(folder) / name
+            if path.is_symlink():
+                raise ReleaseError(f"{label}: {path} is a symbolic link")
+        for name in names:
+            path = Path(folder) / name
+            if not path.is_file():
+                raise ReleaseError(f"{label}: {path} is not a regular file")
+            files.append(path.relative_to(root).as_posix())
+    return sorted(files)
+
+
+def find_conflicts(first, second):
+    """Paths the two trees both hold, as a file in one and a file or a folder in the other."""
+    def parents(path):
+        parts = path.split("/")
+        return {"/".join(parts[:i]) for i in range(1, len(parts))}
+
+    conflicts = set(first) & set(second)
+    conflicts |= {p for p in second if parents(p) & set(first)}
+    conflicts |= {p for p in first if parents(p) & set(second)}
+    return sorted(conflicts)
+
+
+def assemble_site(out, firmware, web):
+    """Copy the firmware site, then the web app, into `out`. A path in both is an error and nothing is written."""
+    if firmware is None and web is None:
+        raise ReleaseError("assemble needs --firmware, --web or both")
+    site = Path(out).resolve()
+    if site == ROOT or site in ROOT.parents:
+        raise ReleaseError(f"refusing to use {site} as the site folder")
+    inputs = [(label, Path(path)) for label, path in (("firmware", firmware), ("web", web)) if path]
+    # Listed first, as given: a link must be seen before it is resolved
+    trees = [(label, path, list_tree(path, label)) for label, path in inputs]
+    for label, path, _ in trees:
+        real = path.resolve()
+        if site == real or site in real.parents or real in site.parents:
+            raise ReleaseError(f"the site folder {site} and the {label} folder {real} must not contain each other")
+    if len(trees) == 2:
+        conflicts = find_conflicts(trees[0][2], trees[1][2])
+        if conflicts:
+            shown = ", ".join(conflicts[:10]) + (f" and {len(conflicts) - 10} more" if len(conflicts) > 10 else "")
+            raise ReleaseError(f"the firmware site and the web app both hold: {shown}")
+
+    check_replaceable(site)
+    if site.exists():
+        shutil.rmtree(site)
+    site.mkdir(parents=True)
+    for label, path, files in trees:
+        for name in files:
+            target = site / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path / name, target)
+        print(f"release: {len(files)} files of the {label} copied to {site}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -329,11 +395,17 @@ def main():
     build.add_argument("--version", help="release version (default: PIXELART_VERSION or git, as the firmware)")
     build.add_argument("--data", default=str(ROOT / "data"), help="folder made by `tools/pixelart.py build`")
     build.add_argument("--schema", action="store_true", help="check manifest.json against the JSON Schema")
+    assemble = commands.add_parser("assemble", help="merge a firmware site and a web app into one site")
+    assemble.add_argument("--out", required=True, help="site folder, replaced if it is site/ or a site built by this tool")
+    assemble.add_argument("--firmware", help="the firmware site made by `build`")
+    assemble.add_argument("--web", help="the built web app (web/dist)")
     args = parser.parse_args()
 
     try:
         if args.command == "version":
             print(describe_version())
+        elif args.command == "assemble":
+            assemble_site(args.out, args.firmware, args.web)
         else:
             build_site(args.out, args.version or describe_version(), args.data, args.schema)
     except ReleaseError as e:

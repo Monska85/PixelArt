@@ -14,3 +14,16 @@ updates:
     commit-message:
       prefix: "ci"
       include: "scope"
+
+  # Dependency updates of the web app are build changes, so they stay out of the changelogs
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+    groups:
+      web:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "build"
+      include: "scope"

@@ -2,6 +2,20 @@
 
 Firmware that plays pixel-art animations on a 16x16 WS2812B LED matrix driven by an ESP32-C3 SuperMini board. Animations are data files (YAML in this repository, JSON on the board), so adding one needs no code. A simulator shows the animations on your computer, without any hardware.
 
+## Web app
+
+The web app manages a board from the browser, with nothing to install:
+
+1. Open <https://monska85.github.io/PixelArt/> in a desktop Chromium browser (Chrome, Edge, Opera or another browser built on Chromium). Connecting to a board and installing firmware need Web Serial, which Firefox, Safari and phones do not have.
+2. **Firmware:** plug in the board, open the Firmware view, and use **Install from scratch** for an empty board, or **Update firmware** to keep the animations, playlists and settings. The view tells you when a newer firmware is published.
+3. **Board:** choose **Connect board** and pick the serial port. The Board view lists the animations and playlists stored on the board, and shows, previews, downloads and deletes them. Use **Upload files** or **Upload folder** (every `.json`, `.yaml` and `.yml` file in a folder, subfolders included), or drop files on the view, to add your own. The files are checked first, compared with the board (identical ones are skipped, one question asks about the ones that differ), checked against the free space, and sent one at a time, animations first. A playlist brings the animations it names, from the same selection, the Library or the board. **Cancel** stops the queue, and a failure stops it at that file and says what was done: run it again to continue. **More** has **Delete everything**, which removes every animation and playlist after a confirmation; the settings stay, unless you check **Also reset the settings** in the dialog, which puts the brightness back to 100 and the active playlist back to `default`. The Firmware view has the same button in its **Reset** card, with the same box, which also resets the settings of a board that has no files. Each row has icon buttons to preview and edit, and a **More** menu to download the file as JSON or YAML, or delete it. It also sets the brightness, picks the active playlist, and edits a playlist's order (drag an item by its handle, or use the Up and Down buttons, also from the keyboard), repeat counts and enabled items.
+4. **Library:** the Library view lists the animations and playlists of the latest release, with a preview of each, and marks the ones that are not on the board or differ from it. The install button of a row adds one (a playlist with the animations it names), and **Install all** adds all animations, all playlists or everything, asking once about files that differ.
+5. **Editor:** the Editor view makes and changes animations without writing YAML by hand. Open a file, use **Edit** on a board animation or **Open in editor** on a Library animation, or start a new one. You edit the palette, draw sprites pixel by pixel on a 16x16 grid, combine sprites into composites, and build the timeline of frames and loops with every effect (move, wrap, rotate, spin, flip, pivot, recolor). The preview plays the result and says which timeline item made each frame, and a table lists the engine's errors and warnings as you type. The YAML tab shows the same document as text and follows your edits both ways. Every change can be undone (Ctrl or Cmd+Z, redo with Shift+Ctrl or Cmd+Z, or Ctrl+Y). **Download YAML** saves `<id>.yaml` to your computer and **Upload to board** stores the animation on the connected board. The header always says where the work is saved: a draft in this browser only, saved to the board, downloaded, the same as the file it came from, changed since, not on the connected board, or board copy not checked (the app could not read the board's files yet); the browser asks before you leave the page with work that is saved nowhere or whose board copy cannot be confirmed. The editor also keeps a draft in the browser, so a reload does not lose your work. The draft comes back when the page loads. Opening a file or an animation while the editor has unsaved changes asks first, and an animation opened from the Board or the Library has a **Back** button, which stays after a reload. The draft stays in that browser: the saved file and the board hold the real copies, and **Discard the draft** in the note shown with a restored draft deletes it.
+
+The theme follows the operating system. The button at the top right cycles System, Dark and Light and remembers the choice in the browser.
+
+To try the app without a board, run `make serve`, then choose **Use the simulator** in the connect card of the Board view and **Connect simulator**. The app is described in [`docs/web/web-app-v1.md`](docs/web/web-app-v1.md).
+
 ## 3D printed frame
 
 You can find the 3D model files to print a frame for the 16x16 LEDs matrix [here](https://www.printables.com/model/1497091-pixel-art-frame). The frame holds the LEDs matrix and has a back support to increase stability and hold the ESP32 board and connection wires.
@@ -125,14 +139,21 @@ Every command is available through both `make` and `just`. Run `make help` or `j
 
 ### Development
 
-| make                | just                | What it does                                                                             |
-| ------------------- | ------------------- | ---------------------------------------------------------------------------------------- |
-| `make test`         | `just test`         | Run the tests in `test/` on the simulator                                                |
-| `make format`       | `just format`       | Format the C++ sources with `clang-format`                                               |
-| `make format-check` | `just format-check` | Fail if a C++ source is not formatted                                                    |
-| `make check`        | `just check`        | Check formatting and animations, run the C++ and Python unit tests and build every board |
-| `make release-site` | `just release-site` | Build every board and the release site into `site/`, see [Releases](#releases)           |
-| `make clean`        | `just clean`        | Remove build outputs, `data/`, `site/` and simulator output                              |
+| make                    | just                    | What it does                                                                                                                 |
+| ----------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `make test`             | `just test`             | Run the tests in `test/` on the simulator                                                                                    |
+| `make format`           | `just format`           | Format the C++ sources with `clang-format`                                                                                   |
+| `make format-check`     | `just format-check`     | Fail if a C++ source is not formatted                                                                                        |
+| `make check`            | `just check`            | Check formatting and animations, run the C++ and Python unit tests, build every board, type check, lint and test the web app |
+| `make release-firmware` | `just release-firmware` | Build every board and the firmware part of the release site into `site/`, see [Releases](#releases)                          |
+| `make release-site`     | `just release-site`     | Build every board and the web app into `site/`, the site Pages shows, see [Releases](#releases)                              |
+| `make web-dev`          | `just web-dev`          | Start the web app on `http://localhost:5173` with live reload                                                                |
+| `make web-build`        | `just web-build`        | Build the web app into `web/dist`                                                                                            |
+| `make web-test`         | `just web-test`         | Type check, lint and run the web app's unit tests and the conformance suite                                                  |
+| `make web-e2e`          | `just web-e2e`          | Run the web app's end-to-end tests against the simulator                                                                     |
+| `make clean`            | `just clean`            | Remove build outputs, `data/`, `site/` and simulator output                                                                  |
+
+The web app needs Node.js at the version in the `engines` field of `web/package.json`. `make check` and the `make web-*` targets run `npm ci` in `web/` the first time they need the dependencies.
 
 ## Commands from a terminal
 
@@ -152,9 +173,10 @@ Use `--port DEVICE` for a board and `--ws URL` for the simulator. The serial opt
 | `put FILE [--id ID] [--kind KIND]`           | Upload an animation or playlist, YAML or JSON. The board validates it before it replaces the file |
 | `get ID [--kind KIND] [-o FILE]`             | Download a file, checked against the SHA-256 that `ls` reports                                    |
 | `rm ID [--kind KIND]`                        | Delete a file                                                                                     |
+| `wipe [--yes] [--settings]`                  | Delete every animation and playlist after a confirmation (`--yes` skips it) and print the counts  |
 | `settings [brightness=0..255] [playlist=ID]` | Show the settings, or change them                                                                 |
 
-`put` converts YAML the same way `make data` does, and takes the ID from the file name (`--id` overrides it). It takes the kind from the folder (`animations/` or `playlists/`), or else from the file's `format` field (`--kind` overrides it). `get` and `rm` use `animation` unless `--kind playlist` is given.
+`put` converts YAML the same way `make data` does, and takes the ID from the file name (`--id` overrides it). It takes the kind from the folder (`animations/` or `playlists/`), or else from the file's `format` field (`--kind` overrides it). `get` and `rm` use `animation` unless `--kind playlist` is given. `wipe` runs the protocol's `delete_all`: it removes every animation and playlist, keeps the settings, and prints how many files it removed. With `--settings` it also puts the settings back to their defaults (brightness 100, playlist `default`), as **Also reset the settings** does in the web app, and prints them. It asks you to type `yes` first, unless you give `--yes`; a board with an older firmware answers `unknown_command`, or `bad_request` to `--settings`, and then deletes nothing.
 
 A rejected file leaves the board unchanged. The tool prints the engine's diagnostics in the format of `make validate` and exits with a non-zero status, as it does for any other failure.
 
@@ -213,23 +235,30 @@ The simulator does not emulate the ESP32 itself. Timing, memory use, WiFi and ot
 
 ## Releases
 
-Versions are cut by [release-please](https://github.com/googleapis/release-please) from the commit messages on `main`, which follow [Conventional Commits](https://www.conventionalcommits.org/):
+The firmware and the web app are released separately, each with its own version, tag and changelog. [release-please](https://github.com/googleapis/release-please) cuts both from the commit messages on `main`, which follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-1. Every push to `main` updates a release pull request. It holds the next version and the `CHANGELOG.md` entries: `feat` commits go under Added, `fix` under Fixed, and `perf` and `refactor` under Changed. Other types are left out of the changelog. While the version is below 1.0.0, a breaking change raises the minor number.
-2. Merging that pull request creates the `vX.Y.Z` tag and the GitHub Release. The release workflow (`.github/workflows/release.yml`) runs the quick checks on every push to `main` before release-please runs, so a `main` that fails them gets no release. After the release exists, the workflow checks out the tag, runs the checks again, builds the firmware of every board and the animations, attaches `pixelart-site-<version>.zip` and the factory image of each board to the GitHub Release, and publishes the site on GitHub Pages.
+| Package  | Contents                                   | Tags         | Changelog          |
+| -------- | ------------------------------------------ | ------------ | ------------------ |
+| Firmware | Everything in the repository except `web/` | `vX.Y.Z`     | `CHANGELOG.md`     |
+| Web app  | The `web/` folder                          | `web-vX.Y.Z` | `web/CHANGELOG.md` |
 
-GitHub Pages, at <https://monska85.github.io/PixelArt/>, holds the latest release only: `manifest.json`, the firmware of each board with ESP Web Tools manifests (`firmware/install.json` for a first install, `firmware/update.json` to keep the animations), and every animation and playlist as stored on a board. The GitHub Releases keep every version: each holds `pixelart-site-<version>.zip`, the same files in the same layout as Pages (so the manifests resolve inside it), and the `<board>-factory-<version>.bin` images for `esptool write_flash 0x0`. The layout and the manifest are specified in [`docs/format/manifest-v1.md`](docs/format/manifest-v1.md).
+1. Every push to `main` updates two release pull requests, one per package, each with the next version and its changelog entries: `feat` commits go under Added, `fix` under Fixed, and `perf` and `refactor` under Changed. Other types are left out of the changelog. While a version is below 1.0.0, a breaking change raises the minor number. A commit that changes only `web/` is part of the web release only. A commit that changes `web/` and other files is part of both.
+2. Merging the firmware pull request creates the `vX.Y.Z` tag and the GitHub Release. The release workflow (`.github/workflows/release.yml`) runs the quick checks on every push to `main` before release-please runs, so a `main` that fails them gets no release. After the release exists, the workflow checks out the tag, runs the checks again, builds the firmware of every board and the animations, and attaches `pixelart-site-<version>.zip` and the factory image of each board to the GitHub Release.
+3. Merging the web pull request creates the `web-vX.Y.Z` tag and its GitHub Release. The workflow checks out the tag, builds the web app and attaches `pixelart-web-<version>.zip`, the built app.
+4. After either release, the workflow publishes GitHub Pages. A Pages deployment replaces the whole site, so the workflow downloads the latest firmware archive and the latest web archive from the GitHub Releases, merges them into one folder and deploys it. When one of the two has never been released, the site holds the other alone. A file name present in both archives fails the deployment.
+
+GitHub Pages, at <https://monska85.github.io/PixelArt/>, holds the latest release of each package. The web app is at the root (`index.html` and `assets/`), next to the firmware release files: `manifest.json`, the firmware of each board with ESP Web Tools manifests (`firmware/install.json` for a first install, `firmware/update.json` to keep the animations), and every animation and playlist as stored on a board. The GitHub Releases keep every version: each firmware release holds `pixelart-site-<version>.zip`, the same files in the same layout as Pages (so the manifests resolve inside it), and the `<board>-factory-<version>.bin` images for `esptool write_flash 0x0`. The layout and the manifest are specified in [`docs/format/manifest-v1.md`](docs/format/manifest-v1.md), and the web release in [`docs/web/web-app-v1.md`](docs/web/web-app-v1.md#publishing).
 
 Two repository settings cannot be changed from the code, and a maintainer must set them once:
 
 - **Settings, Pages, Source:** `GitHub Actions`.
-- **Settings, Actions, General, Workflow permissions:** turn on `Allow GitHub Actions to create and approve pull requests`, so release-please can open its pull request.
+- **Settings, Actions, General, Workflow permissions:** turn on `Allow GitHub Actions to create and approve pull requests`, so release-please can open its pull requests.
 
-Checks do not run on the release pull request, because pull requests opened by the default workflow token do not trigger workflows. The release workflow runs them again before it publishes anything.
+Checks do not run on the release pull requests, because pull requests opened by the default workflow token do not trigger workflows. The release workflow runs them again before it publishes anything.
 
-If the build or a publish job fails after the release was created, open the failed workflow run in the Actions tab and choose "Re-run failed jobs". Do not push to `main` to retry: a new push finds the release already created, reports `release_created` as false and builds nothing. The re-run keeps the outputs of the run, so it builds and publishes the same release.
+If a build or a publish job fails after a release was created, open the failed workflow run in the Actions tab and choose "Re-run failed jobs". Do not push to `main` to retry: a new push finds the release already created, reports `release_created` as false and builds nothing. The re-run keeps the outputs of the run, so it builds and publishes the same release, and the deployment of the site follows. The deployment waits until every build and publish job of the run has succeeded.
 
-To try a release without publishing, run `make release-site` (`just release-site`). It builds every board, the file system images and the manifests into `site/`, which Git ignores, and checks `manifest.json` against its JSON Schema. It needs PlatformIO, PyYAML and `jsonschema`. The workflow can also run as a dry run from the Actions tab (`Run workflow`, with `dry_run` on): it builds the site and attaches it to the run, and publishes nothing. CI builds the site on every push too.
+To try a release without publishing, run `make release-site` (`just release-site`). It builds every board, the file system images and the manifests, builds the web app, and merges both with `tools/release.py assemble` into `site/`, which Git ignores: the site Pages would show if both packages were released from this commit. It checks `manifest.json` against its JSON Schema, and needs PlatformIO, PyYAML, `jsonschema` and Node.js 22.12 or later. `make release-firmware` builds only the firmware part. The workflow can also run as a dry run from the Actions tab (`Run workflow`, with `dry_run` on): it builds the firmware site and the web app, assembles them, attaches the three to the run, and publishes nothing. CI builds the merged site on every push too.
 
 The firmware reports its version in `info`. A build of a commit tagged `vX.Y.Z` with no local changes reports `X.Y.Z`. Any other build reports `<last tag>-dev.<commits since the tag>+g<commit>`, with `.dirty` at the end when there are local changes, and `0.0.0` stands for the last tag until the first release. The release build takes the version from release-please and fails if the firmware is not built with it.
 
@@ -237,33 +266,34 @@ The firmware reports its version in `info`. A build of a commit tagged `vX.Y.Z` 
 
 ### Project layout
 
-| Path                         | Content                                                                                                                             |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `animations/`, `playlists/`  | The animations and playlists, in YAML                                                                                               |
-| `platformio.ini`             | Boards, libraries, the simulator and test environments, and the physical panel settings                                             |
-| `src/main.cpp`               | `setup()`, `loop()` and the matrix configuration                                                                                    |
-| `src/app.cpp`                | Plays the playlist and the animations stored on the board                                                                           |
-| `src/storage.cpp`            | File access: LittleFS on the board, the `data/` folder in the simulator                                                             |
-| `src/protocol.cpp`           | The command protocol, served over USB serial on the board and over the WebSocket in the simulator                                   |
-| `src/settings.cpp`           | Brightness and active playlist, kept in NVS on the board                                                                            |
-| `src/platform.cpp`           | Board services: firmware version, memory and boot ID                                                                                |
-| `include/`                   | Headers of the modules in `src/`                                                                                                    |
-| `src/pixel_matrix.cpp`       | The matrix `show()`, with the optional live mirror                                                                                  |
-| `src/sim_main.cpp`           | Entry point of the host simulator (only built by the `native` env)                                                                  |
-| `lib/PixelEngine/`           | The animation engine: parsing, validation and playback of the file formats, shared by all builds                                    |
-| `lib/PixelCodec/`            | CRC-32, SHA-256, base64 and UTF-8 helpers used by the protocol                                                                      |
-| `lib/ArduinoSim/`            | Host Arduino core, simulated NeoPixel driver, simulator and its protocol WebSocket server (`assets/player.html` is the HTML player) |
-| `conformance/`               | Test cases every implementation of the animation format must pass                                                                   |
-| `test/`                      | Tests that run on the simulator (`native_test` env)                                                                                 |
-| `tools/pixelart.py`          | Converts animations and playlists from YAML to the board's JSON, and talks to a board or the simulator                              |
-| `tools/test_*.py`            | Unit tests of the tools, run by `make check`                                                                                        |
-| `tools/fw_version.py`        | The firmware version rules, shared by `tools/release.py` and the PlatformIO version script                                          |
-| `tools/release.py`           | Builds the release site: firmware parts, ESP Web Tools manifests, animations, playlists and `manifest.json`                         |
-| `monitor/filter_pixelart.py` | Serial monitor filter that draws the live mirror of the real matrix                                                                 |
-| `.github/actions/checks`     | The checks shared by the CI and release workflows                                                                                   |
-| `scripts/`                   | PlatformIO build scripts, including the firmware version, which uses `tools/fw_version.py`                                          |
-| `release-please-config.json` | Release automation settings, with `.release-please-manifest.json` and `version.txt`                                                 |
-| `docs/`, `schema/`           | Format specifications, JSON Schemas and architecture decision records                                                               |
+| Path                         | Content                                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `animations/`, `playlists/`  | The animations and playlists, in YAML                                                                                                    |
+| `platformio.ini`             | Boards, libraries, the simulator and test environments, and the physical panel settings                                                  |
+| `src/main.cpp`               | `setup()`, `loop()` and the matrix configuration                                                                                         |
+| `src/app.cpp`                | Plays the playlist and the animations stored on the board                                                                                |
+| `src/storage.cpp`            | File access: LittleFS on the board, the `data/` folder in the simulator                                                                  |
+| `src/protocol.cpp`           | The command protocol, served over USB serial on the board and over the WebSocket in the simulator                                        |
+| `src/settings.cpp`           | Brightness and active playlist, kept in NVS on the board                                                                                 |
+| `src/platform.cpp`           | Board services: firmware version, memory and boot ID                                                                                     |
+| `include/`                   | Headers of the modules in `src/`                                                                                                         |
+| `src/pixel_matrix.cpp`       | The matrix `show()`, with the optional live mirror                                                                                       |
+| `src/sim_main.cpp`           | Entry point of the host simulator (only built by the `native` env)                                                                       |
+| `lib/PixelEngine/`           | The animation engine: parsing, validation and playback of the file formats, shared by all builds                                         |
+| `lib/PixelCodec/`            | CRC-32, SHA-256, base64 and UTF-8 helpers used by the protocol                                                                           |
+| `lib/ArduinoSim/`            | Host Arduino core, simulated NeoPixel driver, simulator and its protocol WebSocket server (`assets/player.html` is the HTML player)      |
+| `conformance/`               | Test cases every implementation of the animation format must pass                                                                        |
+| `test/`                      | Tests that run on the simulator (`native_test` env)                                                                                      |
+| `tools/pixelart.py`          | Converts animations and playlists from YAML to the board's JSON, and talks to a board or the simulator                                   |
+| `tools/test_*.py`            | Unit tests of the tools, run by `make check`                                                                                             |
+| `tools/fw_version.py`        | The firmware version rules, shared by `tools/release.py` and the PlatformIO version script                                               |
+| `tools/release.py`           | Builds the firmware release site (parts, ESP Web Tools manifests, animations, playlists, `manifest.json`) and merges it with the web app |
+| `web/`                       | The web app: React and TypeScript, its own `package.json`, tests and changelog, see [`web/README.md`](web/README.md)                     |
+| `monitor/filter_pixelart.py` | Serial monitor filter that draws the live mirror of the real matrix                                                                      |
+| `.github/actions/checks`     | The checks shared by the CI and release workflows                                                                                        |
+| `scripts/`                   | PlatformIO build scripts, including the firmware version, which uses `tools/fw_version.py`                                               |
+| `release-please-config.json` | Release automation settings for the firmware and the web app, with `.release-please-manifest.json` and `version.txt`                     |
+| `docs/`, `schema/`           | Format specifications, JSON Schemas and architecture decision records                                                                    |
 
 ### Design documents
 
@@ -274,7 +304,7 @@ The firmware reports its version in `info`. A build of a commit tagged `vX.Y.Z` 
 
 ### Continuous integration
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests, drives the simulator's WebSocket with `tools/pixelart.py board` (info, upload, list, download, delete and a rejected file), builds every board and the release site (checking its manifest against the JSON Schema), and attaches a rendered preview of every animation to each run. `.github/workflows/release.yml` publishes releases, see [Releases](#releases). It does not check C++ formatting yet: run `make format-check` locally. Dependabot opens a weekly pull request to update the pinned actions.
+The GitHub Actions workflow in `.github/workflows/ci.yml` converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests, drives the simulator's WebSocket with `tools/pixelart.py board` (info, upload, list, download, delete and a rejected file), builds every board, the web app and the merged release site (checking its manifest against the JSON Schema), and attaches a rendered preview of every animation to each run. A second job, `web`, type checks, lints, formats, tests and builds the web app, and runs its end-to-end tests in Chromium against the simulator. `.github/workflows/release.yml` publishes releases, see [Releases](#releases). It does not check C++ formatting yet: run `make format-check` locally. Dependabot opens a weekly pull request to update the pinned actions and the web app's npm dependencies.
 
 ### Code style
 
