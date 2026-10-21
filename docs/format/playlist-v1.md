@@ -8,7 +8,7 @@ The JSON Schema in [`schema/playlist-1.schema.json`](../../schema/playlist-1.sch
 
 ## Files
 
-- Like animations, a playlist is written in YAML or JSON, and the board stores and reads JSON only.
+- Like animations, a playlist is written in YAML or JSON, and the board stores and reads JSON only. The JSON follows the same rules as for [animations](pixelart-v1.md#files): strict JSON in valid UTF-8, no U+0000 in any text, integers without fraction or exponent, and text lengths counted in characters.
 - On the board, playlists live in `/playlists/`. The board plays the active playlist: the one named by the `playlist` [setting](../protocol/protocol-v1.md#settings_get-settings_set), which is `default` (`/playlists/default.json`) until a client changes it.
 - Playlist file names follow the same rules as animation IDs.
 
@@ -71,7 +71,7 @@ The board reads the active playlist again, and starts it from its first item, wh
 
 Like for animations, an implementation keeps at most 32 messages per file.
 
-Errors reject the playlist (the board then falls back as described above): `format_unsupported`, `structure`, `limit_exceeded`, and `canvas_mismatch` when the playlist is made for a different matrix than the board's.
+Errors reject the playlist (the board then falls back as described above): `format_unsupported`, `structure` (which includes a file that is not strict JSON), `limit_exceeded`, and `canvas_mismatch` when the playlist is made for a different matrix than the board's.
 
 Warnings, reported by the tools when they know the full set of animations, for example in CI:
 
