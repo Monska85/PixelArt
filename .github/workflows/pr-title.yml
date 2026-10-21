@@ -1,0 +1,35 @@
+name: PR title
+
+# main takes squash merges only, and the squash commit takes the pull request's title, so the title becomes the
+# commit release-please reads. This check fails unless the title is a conventional commit it accepts; the rule is in
+# README.md, "Contributing", and in tools/check_pr_title.py.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+# Editing the title again cancels the check of the previous one.
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    # A stable name: the main ruleset requires the check "pr-title".
+    name: pr-title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: tools/check_pr_title.py
+          sparse-checkout-cone-mode: false
+
+      - name: Check the title
+        # The title comes in through the environment, never pasted into the script.
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: python3 tools/check_pr_title.py "$TITLE"
