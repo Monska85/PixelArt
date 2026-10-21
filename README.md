@@ -233,6 +233,21 @@ The simulator models the physical panel wiring (16x16, strip starting top-left, 
 
 The simulator does not emulate the ESP32 itself. Timing, memory use, WiFi and other ESP32-only APIs are not covered: `make build-all` checks that the code compiles for each board, and the real board is the final check. GPIO reads always return `LOW` and `random()` is seeded with a fixed value (`--seed` changes it), so runs are repeatable. The one exception is the `boot_id` that `info` reports: it is random on every run, as on the board.
 
+## Contributing
+
+Changes reach `main` through pull requests, merged by squashing: the commit on `main` takes the pull request's title and nothing else, and release-please reads that title. The title must therefore be a [Conventional Commit](https://www.conventionalcommits.org/):
+
+```text
+<type>[(scope)][!]: <description>
+```
+
+- **Type:** `feat`, `fix`, `docs`, `ci`, `chore`, `refactor`, `perf`, `test`, `build`, `style` or `revert`. `feat` and `fix` appear in the changelog and raise the version; see [Releases](#releases).
+- **Scope:** optional, lowercase, in parentheses, for example `fix(web): ...`.
+- **`!`:** marks a breaking change, for example `feat(protocol)!: ...`.
+- **Description:** does not start with a capital letter or a space, and does not end with a period.
+
+The `pr-title` check (`.github/workflows/pr-title.yml`) fails a pull request whose title breaks the rule; fix the title and it runs again. `python3 tools/check_pr_title.py "<title>"` runs the same check locally.
+
 ## Releases
 
 The firmware and the web app are released separately, each with its own version, tag and changelog. [release-please](https://github.com/googleapis/release-please) cuts both from the commit messages on `main`, which follow [Conventional Commits](https://www.conventionalcommits.org/):
@@ -254,7 +269,7 @@ Two repository settings cannot be changed from the code, and a maintainer must s
 - **Settings, Pages, Source:** `GitHub Actions`.
 - **Settings, Actions, General, Workflow permissions:** turn on `Allow GitHub Actions to create and approve pull requests`, so release-please can open its pull requests.
 
-Checks do not run on the release pull requests, because pull requests opened by the default workflow token do not trigger workflows. The release workflow runs them again before it publishes anything.
+Checks do not run on the release pull requests, because pull requests opened by the default workflow token do not trigger workflows. The release workflow runs them again before it publishes anything. For the same reason a check that the `main` ruleset requires, such as `pr-title`, never reports on them: before requiring one, give release-please a token that triggers workflows (a GitHub App or a fine-grained token), give the release pull requests a ruleset bypass, or close and reopen each release pull request by hand so the checks run.
 
 If a build or a publish job fails after a release was created, open the failed workflow run in the Actions tab and choose "Re-run failed jobs". Do not push to `main` to retry: a new push finds the release already created, reports `release_created` as false and builds nothing. The re-run keeps the outputs of the run, so it builds and publishes the same release, and the deployment of the site follows. The deployment waits until every build and publish job of the run has succeeded.
 
@@ -288,6 +303,7 @@ The firmware reports its version in `info`. A build of a commit tagged `vX.Y.Z` 
 | `tools/test_*.py`            | Unit tests of the tools, run by `make check`                                                                                             |
 | `tools/fw_version.py`        | The firmware version rules, shared by `tools/release.py` and the PlatformIO version script                                               |
 | `tools/release.py`           | Builds the firmware release site (parts, ESP Web Tools manifests, animations, playlists, `manifest.json`) and merges it with the web app |
+| `tools/check_pr_title.py`    | Checks that a pull request title is a conventional commit release-please accepts, for the `pr-title` check                               |
 | `web/`                       | The web app: React and TypeScript, its own `package.json`, tests and changelog, see [`web/README.md`](web/README.md)                     |
 | `monitor/filter_pixelart.py` | Serial monitor filter that draws the live mirror of the real matrix                                                                      |
 | `.github/actions/checks`     | The checks shared by the CI and release workflows                                                                                        |
