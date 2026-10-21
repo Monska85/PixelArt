@@ -100,7 +100,7 @@ A request without a `seq` that is a valid integer, or without a `cmd` string, is
 
 ### Retries
 
-A request or its reply can be lost on the link. The client waits for the reply with a timeout (the command line tool waits 2 seconds, and 10 seconds for `put_end`) and then sends the same request again, with the same `seq`, up to 5 times in all.
+A request or its reply can be lost on the link. The client waits for the reply with a timeout (the command line tool waits 2 seconds, and 10 seconds for `put_end` and `delete_all`) and then sends the same request again, with the same `seq`, up to 5 times in all.
 
 The board remembers its last reply, with the `seq` and the CRC of the request it answered. When a request arrives with the same `seq` and the same CRC, the board sends that reply again without running the command a second time. A file is therefore never committed twice. A request with the same `seq` but a different CRC is a new request and runs normally. The board forgets the last reply when it restarts; `info.boot_id` lets a client notice a restart.
 
@@ -230,9 +230,32 @@ Removes a stored file. Fields `kind` and `id`. A missing file is `not_found`.
 
 Deleting the active playlist is allowed: the board then plays every animation, as the [playlist specification](../format/playlist-v1.md#how-the-board-chooses-what-to-play) describes for a missing playlist.
 
+### `delete_all`
+
+Removes every animation and every playlist, and, when asked, puts the settings back to their defaults. It has one optional field, `settings`: `true` or `false`, `false` when it is left out. Any other value, `null` included, is `bad_request`, and nothing changes.
+
+The board first cancels an upload in progress and removes its temporary file, as `put_begin` does. Then it removes every file in `/playlists`, then every file in `/animations`, including files whose names are not valid IDs, so a damaged file can always be cleared.
+
+Without `settings` (or with `false`) the settings do not change: the `playlist` setting keeps its value, so the board plays every animation until a playlist with that ID is stored again, and shows its built-in "no animations" image while there is none.
+
+With `settings: true`, once every file is removed, every setting goes back to its default in the [settings table](#settings_get-settings_set): brightness `100` and playlist `default`. The playlist setting takes its default even though no playlist `default` is stored, which `settings_set` refuses. Saving follows the all or nothing rule of `settings_set`: the playlist is saved first and put back if the brightness cannot be saved.
+
+The reply on success holds `playlists` and `animations`, the number of files removed from each folder, and with `settings: true` also `settings`, with every setting after the reset, as `settings_get` gives them. When a file cannot be removed, the board stops and replies `storage_error`; the files removed before it stay removed, the settings do not change, and sending `delete_all` again removes the rest. When every file is removed but the settings cannot be saved, the reply is `storage_error` too: the files stay removed and the settings are as they were, except when the settings memory fails twice, as for `settings_set`, and the message says the settings may be partly changed. Sending `delete_all` with `settings: true` again, as a new request, finishes the reset; the client can also read the settings with `settings_get`.
+
+A board whose firmware is older than this field answers `bad_request` to `settings`, since a field the command does not define is an error, and removes nothing.
+
+```text
+> {"seq":12,"cmd":"delete_all"}
+< {"seq":12,"ok":true,"playlists":1,"animations":30}
+> {"seq":13,"cmd":"delete_all","settings":true}
+< {"seq":13,"ok":true,"playlists":0,"animations":0,"settings":{"brightness":100,"playlist":"default"}}
+```
+
+Removing many files takes time on the board, so the frame being waited for can be shown late, as for other slow commands (see [Playback while commands run](#playback-while-commands-run)).
+
 ### `settings_get`, `settings_set`
 
-The board's settings. They live in the board's settings memory (NVS), not with the animations, so uploading or deleting files never changes them. The simulator keeps them in memory for the length of a run.
+The board's settings. They live in the board's settings memory (NVS), not with the animations, so uploading or deleting files never changes them; only `delete_all` with `settings: true` puts them back to their defaults. The simulator keeps them in memory for the length of a run.
 
 | Setting      | Type    | Default   | Meaning                                                                                                                                                                             |
 | ------------ | ------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -342,7 +365,7 @@ Changes reach the matrix at these times:
 | `out_of_memory`     | The board has not enough free memory to validate the file, at `put_begin` or `put_end`. Nothing is changed. |
 | `storage_error`     | The file system failed to read, write, rename or remove a file. An upload in progress is cancelled.         |
 
-Every error leaves the stored files and the settings as they were, except that a `storage_error` during `delete` may have removed the file.
+Every error leaves the stored files and the settings as they were, except that a `storage_error` during `delete` may have removed the file, and a `storage_error` during `delete_all` does not bring back the files it removed before the failure (nor, with `settings: true`, the files when the settings then cannot be saved). One more exception: when the settings memory fails twice during `settings_set`, or during `delete_all` with `settings: true`, the settings may be partly changed, and the `storage_error` message says so (see [`settings_set`](#settings_get-settings_set)).
 
 ## Limits
 

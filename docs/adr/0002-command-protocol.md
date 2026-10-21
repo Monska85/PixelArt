@@ -4,6 +4,8 @@ Date: 2026-10-19
 
 Status: accepted
 
+Note: decision 8 is replaced in part by [ADR 0004](0004-web-app.md), decision 5. The repository now has two release packages, the firmware and the web app. The firmware release itself is unchanged.
+
 ## Context
 
 The board plays animations stored in its file system, but only PlatformIO can change them today, by flashing a whole file system image. The web app planned in phase 3 must read what is on a board and change it from a browser, and boards will update themselves over WiFi in phase 4. Both need a way to talk to the board and a place to download firmware and animations from.

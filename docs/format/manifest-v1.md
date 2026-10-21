@@ -20,6 +20,8 @@ CI publishes each release on GitHub Pages, at `https://monska85.github.io/PixelA
 | `animations/<id>.json`                   | Every animation of the repository, as stored on a board.                   |
 | `playlists/<id>.json`                    | Every playlist of the repository, as stored on a board.                    |
 
+The same site also holds the web app at its root (`index.html` and `assets/`), which reads this manifest; see [Publishing](../web/web-app-v1.md#publishing).
+
 Paths in the manifest are relative to the manifest's own URL, so a copy of the files hosted elsewhere works without changes.
 
 Firmware file names carry the release version. GitHub Pages lets browsers and proxies cache a file for 10 minutes, so a file that kept its name across releases could arrive stale and fail its checksum.
