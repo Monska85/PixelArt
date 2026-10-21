@@ -270,3 +270,27 @@ test("Remove from the keyboard moves focus to the next item, the previous one, t
   }
   await expect(editor.getByRole("button", { name: "Add animation" })).toBeFocused();
 });
+
+test("near the outer limit of the edge zone the panel scrolls slowly, and a drag that starts there waits first", async ({
+  page,
+  simulator,
+}) => {
+  await page.setViewportSize({ width: 375, height: 600 });
+  await connectSimulator(page, simulator);
+  const { editor } = await openDefault(page, simulator.dataDir);
+  const panel = page.getByTestId("wide-panel");
+  const scrollTop = () => panel.evaluate((element) => element.scrollTop);
+
+  // The drag starts inside the bottom zone (48 px): nothing scrolls for the first 300 ms.
+  await touch(page, "pointerdown", handle(editor, 1), 600 - 40);
+  await touch(page, "pointermove", null, 600 - 40);
+  await page.waitForTimeout(150);
+  expect(await scrollTop()).toBe(0);
+
+  // Near the outer limit the speed is about 4 px per 60 Hz frame: well under 400 px in the next second.
+  await page.waitForTimeout(1300);
+  const after = await scrollTop();
+  expect(after).toBeGreaterThan(0);
+  expect(after).toBeLessThan(400);
+  await touch(page, "pointerup", null, 600 - 40);
+});
