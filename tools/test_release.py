@@ -1,5 +1,6 @@
 """Tests of tools/release.py that need neither PlatformIO nor a build: python3 -m unittest discover -s tools"""
 
+import json
 import struct
 import sys
 import tempfile
@@ -150,6 +151,130 @@ class CollectDocumentsTest(unittest.TestCase):
             with self.assertRaises(release.ReleaseError):
                 release.collect_documents(data, "animations", site, True)
             self.assertFalse((site / "animations" / "outside.json").exists())
+
+
+class AssembleTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        printing = mock.patch("builtins.print")
+        printing.start()
+        self.addCleanup(printing.stop)
+        self.base = Path(self.tmp.name)
+
+    def tree(self, name, files):
+        root = self.base / name
+        root.mkdir()
+        for path, text in files.items():
+            (root / path).parent.mkdir(parents=True, exist_ok=True)
+            (root / path).write_text(text)
+        return root
+
+    def read(self, root):
+        return {p.relative_to(root).as_posix(): p.read_text() for p in sorted(root.rglob("*")) if p.is_file()}
+
+    def test_merges_the_firmware_site_and_the_web_app(self):
+        firmware = self.tree("fw", {"manifest.json": "m", "firmware/install.json": "i", "animations/star.json": "s"})
+        web = self.tree("web", {"index.html": "h", "assets/app.js": "j"})
+        out = self.base / "out"
+        release.assemble_site(out, firmware, web)
+        self.assertEqual(
+            self.read(out),
+            {
+                "manifest.json": "m",
+                "firmware/install.json": "i",
+                "animations/star.json": "s",
+                "index.html": "h",
+                "assets/app.js": "j",
+            },
+        )
+
+    def test_either_input_alone_is_enough_and_one_is_required(self):
+        firmware = self.tree("fw", {"manifest.json": "m"})
+        web = self.tree("web", {"index.html": "h"})
+        release.assemble_site(self.base / "a", firmware, None)
+        self.assertEqual(self.read(self.base / "a"), {"manifest.json": "m"})
+        release.assemble_site(self.base / "b", None, web)
+        self.assertEqual(self.read(self.base / "b"), {"index.html": "h"})
+        with self.assertRaises(release.ReleaseError):
+            release.assemble_site(self.base / "c", None, None)
+        self.assertFalse((self.base / "c").exists())
+
+    def test_a_path_in_both_fails_and_writes_nothing(self):
+        firmware = self.tree("fw", {"manifest.json": "m", "assets/x.js": "f"})
+        web = self.tree("web", {"index.html": "h", "assets/x.js": "w"})
+        out = self.base / "out"
+        with self.assertRaises(release.ReleaseError) as caught:
+            release.assemble_site(out, firmware, web)
+        self.assertIn("assets/x.js", str(caught.exception))
+        self.assertFalse(out.exists())
+
+    def test_a_file_in_one_and_a_folder_of_that_name_in_the_other_fails(self):
+        firmware = self.tree("fw", {"assets": "a file"})
+        web = self.tree("web", {"assets/app.js": "j"})
+        with self.assertRaises(release.ReleaseError) as caught:
+            release.assemble_site(self.base / "out", firmware, web)
+        self.assertIn("assets", str(caught.exception))
+        with self.assertRaises(release.ReleaseError):
+            release.assemble_site(self.base / "out", web, firmware)
+
+    def test_a_symbolic_link_is_refused_in_a_file_a_folder_or_the_input_itself(self):
+        secret = self.base / "secret.txt"
+        secret.write_text("secret")
+        elsewhere = self.base / "elsewhere"
+        elsewhere.mkdir()
+        (elsewhere / "x.txt").write_text("x")
+        linked_file = self.tree("a", {"index.html": "h"})
+        (linked_file / "leak.txt").symlink_to(secret)
+        linked_dir = self.tree("b", {"index.html": "h"})
+        (linked_dir / "assets").symlink_to(elsewhere)
+        broken = self.tree("c", {"index.html": "h"})
+        (broken / "gone").symlink_to(self.base / "missing")
+        linked_root = self.base / "d"
+        linked_root.symlink_to(elsewhere)
+        for name, folder in (("file", linked_file), ("folder", linked_dir), ("broken", broken), ("root", linked_root)):
+            out = self.base / f"out-{name}"
+            with self.assertRaises(release.ReleaseError, msg=name):
+                release.assemble_site(out, None, folder)
+            with self.assertRaises(release.ReleaseError, msg=name):
+                release.assemble_site(out, folder, None)
+            self.assertFalse(out.exists(), name)
+
+    def test_an_input_that_is_not_a_folder_is_refused(self):
+        file = self.base / "file"
+        file.write_text("x")
+        for missing in (file, self.base / "missing"):
+            with self.assertRaises(release.ReleaseError):
+                release.assemble_site(self.base / "out", missing, None)
+
+    def test_the_site_folder_and_an_input_must_not_contain_each_other(self):
+        web = self.tree("web", {"index.html": "h"})
+        for out in (web, web / "inside", self.base):
+            with self.assertRaises(release.ReleaseError):
+                release.assemble_site(out, None, web)
+        self.assertEqual(self.read(web), {"index.html": "h"})
+
+    def test_a_non_empty_folder_that_is_not_a_site_is_not_replaced(self):
+        web = self.tree("web", {"index.html": "h"})
+        out = self.tree("out", {"keep.txt": "mine"})
+        with self.assertRaises(release.ReleaseError):
+            release.assemble_site(out, None, web)
+        self.assertEqual(self.read(out), {"keep.txt": "mine"})
+
+    def test_replaces_an_empty_folder_and_an_earlier_site(self):
+        firmware = self.tree("fw", {"manifest.json": json.dumps({"format": release.FORMAT})})
+        web = self.tree("web", {"index.html": "h"})
+        out = self.base / "out"
+        out.mkdir()
+        release.assemble_site(out, firmware, web)
+        (out / "stale.txt").write_text("stale")
+        release.assemble_site(out, firmware, web)
+        self.assertEqual(sorted(self.read(out)), ["index.html", "manifest.json"])
+
+    def test_the_repository_root_is_refused(self):
+        web = self.tree("web", {"index.html": "h"})
+        with self.assertRaises(release.ReleaseError):
+            release.assemble_site(release.ROOT, None, web)
 
 
 class VersionTest(unittest.TestCase):

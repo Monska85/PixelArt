@@ -697,6 +697,52 @@ def board_rm(board, args):
     return 0
 
 
+WIPE_TIMEOUT = 10.0  # removing many files takes the board a while, as put_end does
+
+
+def confirmed(prompt):
+    """Whether the person typed "yes". No answer (a closed input) counts as no."""
+    try:
+        return input(prompt).strip().lower() == "yes"
+    except EOFError:
+        return False
+
+
+# What `wipe --settings` puts back: the defaults of the settings table in docs/protocol/protocol-v1.md, also
+# DEFAULT_SETTINGS in web/src/protocol/files.ts.
+DEFAULT_SETTINGS = {"brightness": 100, "playlist": "default"}
+DEFAULTS_TEXT = f"brightness {DEFAULT_SETTINGS['brightness']}, playlist {DEFAULT_SETTINGS['playlist']}"
+
+
+def board_wipe(board, args):
+    reset = args.settings
+    question = ("Delete every animation and playlist on the board and put the settings back to their defaults "
+                f"({DEFAULTS_TEXT})? " if reset else "Delete every animation and playlist on the board? The settings stay. ")
+    if not args.yes and not confirmed(question + "Type yes to continue: "):
+        print("nothing deleted", file=sys.stderr)
+        return 1
+    try:
+        reply = board.command("delete_all", timeout=WIPE_TIMEOUT, **({"settings": True} if reset else {}))
+    except BoardError as e:
+        if str(e).startswith("unknown_command"):
+            raise BoardError(f"{e}: update the board's firmware to use wipe") from e
+        # A firmware older than the settings field refuses it and removes nothing.
+        if reset and str(e).startswith("bad_request"):
+            raise BoardError(f"{e}: nothing was deleted; update the board's firmware to use wipe --settings") from e
+        raise
+    playlists, animations = reply.get("playlists"), reply.get("animations")
+    if not (is_count(playlists) and is_count(animations)):
+        raise BoardError("the board reports invalid counts for delete_all")
+    print(f"deleted {playlists} playlists and {animations} animations")
+    if reset:
+        settings = reply.get("settings")
+        if not isinstance(settings, dict):
+            raise BoardError("the board sent no settings after resetting them")
+        for key, value in shown(settings).items():
+            print(f"{key}={value}")
+    return 0
+
+
 def parse_settings(pairs):
     """{"brightness": int, "playlist": str} from key=value arguments."""
     changes = {}
@@ -725,7 +771,7 @@ def board_settings(board, args):
     return 0
 
 
-BOARD_COMMANDS = {"info": board_info, "ls": board_ls, "put": board_put, "get": board_get, "rm": board_rm,
+BOARD_COMMANDS = {"info": board_info, "ls": board_ls, "put": board_put, "get": board_get, "rm": board_rm, "wipe": board_wipe,
                   "settings": board_settings}
 
 
@@ -758,6 +804,10 @@ def add_board_parser(sub):
     rm = commands.add_parser("rm", help="delete a stored file")
     rm.add_argument("id")
     rm.add_argument("--kind", choices=kinds, default="animation")
+    wipe = commands.add_parser("wipe", help="delete every animation and playlist; the settings stay unless --settings")
+    wipe.add_argument("--yes", action="store_true", help="do not ask for confirmation")
+    wipe.add_argument("--settings", action="store_true",
+                      help=f"also put the settings back to their defaults ({DEFAULTS_TEXT})")
     settings = commands.add_parser("settings", help="show the settings, or change them with key=value")
     settings.add_argument("pairs", nargs="*", metavar="key=value", help="brightness=0..255, playlist=ID")
 

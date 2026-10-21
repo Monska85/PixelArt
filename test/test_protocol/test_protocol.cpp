@@ -593,6 +593,59 @@ static void test_settings_set_says_so_when_the_playlist_cannot_be_put_back()
   TEST_ASSERT_TRUE(playlist_reload_pending()); // playback follows the playlist that stayed set
 }
 
+static void test_delete_all_keeps_the_settings_when_they_cannot_be_reset()
+{
+  sim::reset();
+  TempData data("protocol");
+  data.write("animations/dot.json", DOT);
+  data.write("playlists/christmas.json",
+             R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[{"animation":"dot"}]})");
+  setup();
+  settings::set_brightness(7);
+  settings::set_playlist("christmas");
+  Replies replies;
+
+  settings::fail_brightness_saves(true);
+  replies.send(request(1, R"("cmd":"delete_all","settings":true)"));
+  std::string json = reply_json(replies.pop(), "delete_all");
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\":\"storage_error\"") != std::string::npos, json.c_str());
+  TEST_ASSERT_TRUE_MESSAGE(json.find("the files are removed") != std::string::npos, json.c_str());
+  TEST_ASSERT_TRUE_MESSAGE(json.find("partly changed") == std::string::npos, json.c_str());
+  TEST_ASSERT_FALSE(fs::exists(data.root / "animations/dot.json"));
+  TEST_ASSERT_FALSE(fs::exists(data.root / "playlists/christmas.json"));
+  TEST_ASSERT_EQUAL(7, settings::brightness());
+  TEST_ASSERT_EQUAL_STRING("christmas", settings::playlist().c_str());
+
+  // Once the settings memory works again, a new request finishes the reset.
+  settings::fail_brightness_saves(false);
+  replies.send(request(2, R"("cmd":"delete_all","settings":true)"));
+  json = reply_json(replies.pop(), "delete_all");
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"settings\":{\"brightness\":100,\"playlist\":\"default\"}") != std::string::npos,
+                           json.c_str());
+}
+
+static void test_delete_all_says_so_when_the_settings_are_partly_reset()
+{
+  sim::reset();
+  TempData data("protocol");
+  data.write("playlists/christmas.json",
+             R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[{"animation":"dot"}]})");
+  setup();
+  settings::set_brightness(7);
+  settings::set_playlist("christmas");
+  Replies replies;
+
+  settings::fail_brightness_saves(true);
+  settings::fail_playlist_saves_after(1); // the default playlist is saved, putting the old one back fails
+  replies.send(request(1, R"("cmd":"delete_all","settings":true)"));
+  std::string json = reply_json(replies.pop(), "delete_all");
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\":\"storage_error\"") != std::string::npos, json.c_str());
+  TEST_ASSERT_TRUE_MESSAGE(json.find("partly changed") != std::string::npos, json.c_str());
+  TEST_ASSERT_EQUAL(7, settings::brightness());
+  TEST_ASSERT_EQUAL_STRING(settings::DEFAULT_PLAYLIST, settings::playlist().c_str());
+  TEST_ASSERT_TRUE(playlist_reload_pending());
+}
+
 static void test_info_reports_the_memory_probe()
 {
   sim::reset();
@@ -775,6 +828,8 @@ int main(int, char **)
   RUN_TEST(test_same_active_playlist_does_not_restart_playback);
   RUN_TEST(test_settings_set_is_all_or_nothing);
   RUN_TEST(test_settings_set_says_so_when_the_playlist_cannot_be_put_back);
+  RUN_TEST(test_delete_all_keeps_the_settings_when_they_cannot_be_reset);
+  RUN_TEST(test_delete_all_says_so_when_the_settings_are_partly_reset);
   RUN_TEST(test_info_reports_the_memory_probe);
   RUN_TEST(test_replies_are_whole_lines);
   RUN_TEST(test_protocol_logs_do_not_stop_the_reader);

@@ -1,0 +1,24 @@
+{
+  "description": "delete_all with settings true on a board without files still puts the settings back to their defaults",
+  "settings": {
+    "brightness": 7,
+    "playlist": "christmas"
+  },
+  "steps": [
+    {
+      "send": "@PR 595a097c {\"seq\":1,\"cmd\":\"delete_all\",\"settings\":true}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 0,
+        "animations": 0,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default"
+        }
+      }
+    }
+  ]
+}

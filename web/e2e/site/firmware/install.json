@@ -1,0 +1,14 @@
+{
+  "name": "PixelArt",
+  "version": "0.1.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        { "path": "esp32c3/app-0.1.0.bin", "offset": 65536 },
+        { "path": "esp32c3/filesystem-0.1.0.bin", "offset": 2686976 }
+      ]
+    }
+  ]
+}

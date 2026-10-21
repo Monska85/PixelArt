@@ -2,12 +2,14 @@
 // read from storage, the fallbacks of docs/format/playlist-v1.md, and the LED
 // output. Run with: pio test -e native_test (or make test)
 
+#include <ArduinoJson.h>
 #include <sim.h>
 #include <unity.h>
 
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 
 #include <pixelart_engine.h>
@@ -73,17 +75,20 @@ void test_brightness_scales_led_output()
 
 void test_effective_brightness_rule()
 {
-  struct Row
+  // The rows are hand-computed from docs/format/pixelart-v1.md#brightness and shared with the web app tests.
+  std::ifstream in(std::string(PIXELART_PROJECT_DIR) + "/conformance/brightness.json", std::ios::binary);
+  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  JsonDocument doc;
+  TEST_ASSERT_FALSE_MESSAGE(deserializeJson(doc, text), "conformance/brightness.json is not valid JSON");
+  JsonArrayConst rows = doc["rows"].as<JsonArrayConst>();
+  TEST_ASSERT_TRUE_MESSAGE(rows.size() > 0, "conformance/brightness.json has no rows");
+  for (JsonVariantConst row : rows)
   {
-    uint8_t board, percent, expected;
-  };
-  // Hand-computed from docs/format/pixelart-v1.md#brightness.
-  static const Row ROWS[] = {{100, 100, 100}, {100, 50, 50},  {255, 33, 84}, {255, 100, 255}, {3, 50, 2},    {1, 1, 1},
-                             {0, 50, 0},      {200, 99, 198}, {149, 1, 1},   {249, 1, 2},     {151, 99, 149}};
-  for (const Row &row : ROWS)
+    const int board = row["board"].as<int>(), percent = row["percent"].as<int>();
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(
-        row.expected, pixelart::effective_brightness(row.board, row.percent),
-        ("board " + std::to_string(row.board) + ", percent " + std::to_string(row.percent)).c_str());
+        row["expected"].as<int>(), pixelart::effective_brightness((uint8_t)board, (uint8_t)percent),
+        ("board " + std::to_string(board) + ", percent " + std::to_string(percent)).c_str());
+  }
 }
 
 void test_animation_brightness_lowers_led_output()
