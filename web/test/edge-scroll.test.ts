@@ -41,6 +41,12 @@ describe("the edge scroll speed", () => {
     expect(speed(760)).toBe(EDGE_SCROLL.fastest);
   });
 
+  it("gives the same speed up and down for the same depth into the zone", () => {
+    for (let depth = 0; depth <= 48; depth += 4) expect(speed(148 - depth)).toBe(-speed(652 + depth));
+    for (let depth = 0; depth <= 30; depth += 3)
+      expect(edgeSpeed(130 - depth, 100, 300)).toBe(-edgeSpeed(270 + depth, 100, 300));
+  });
+
   it("uses the smaller zone of a short area", () => {
     // 200 px tall: zones of 30 px.
     expect(edgeSpeed(269, 100, 300)).toBe(0);

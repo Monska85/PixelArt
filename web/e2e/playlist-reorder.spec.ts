@@ -271,6 +271,20 @@ test("Remove from the keyboard moves focus to the next item, the previous one, t
   await expect(editor.getByRole("button", { name: "Add animation" })).toBeFocused();
 });
 
+/** The part of the panel where the list shows, between the title bar and the button bar that stick to it. */
+const visibleBand = (panel: Locator) =>
+  panel.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    let { top, bottom } = box;
+    for (const child of element.children) {
+      if (getComputedStyle(child).position !== "sticky") continue;
+      const bar = child.getBoundingClientRect();
+      if (bar.top <= box.top + 1) top = Math.max(top, bar.bottom);
+      else if (bar.bottom >= box.bottom - 1) bottom = Math.min(bottom, bar.top);
+    }
+    return { top, bottom };
+  });
+
 test("near the outer limit of the edge zone the panel scrolls slowly, and a drag that starts there waits first", async ({
   page,
   simulator,
@@ -280,17 +294,52 @@ test("near the outer limit of the edge zone the panel scrolls slowly, and a drag
   const { editor } = await openDefault(page, simulator.dataDir);
   const panel = page.getByTestId("wide-panel");
   const scrollTop = () => panel.evaluate((element) => element.scrollTop);
+  const near = (await visibleBand(panel)).bottom - 40;
 
-  // The drag starts inside the bottom zone (48 px): nothing scrolls for the first 300 ms.
-  await touch(page, "pointerdown", handle(editor, 1), 600 - 40);
-  await touch(page, "pointermove", null, 600 - 40);
+  // The drag starts inside the bottom zone (48 px above the button bar): nothing scrolls for the first 300 ms.
+  await touch(page, "pointerdown", handle(editor, 1), near);
+  await touch(page, "pointermove", null, near);
   await page.waitForTimeout(150);
   expect(await scrollTop()).toBe(0);
 
-  // Near the outer limit the speed is about 4 px per 60 Hz frame: well under 400 px in the next second.
+  // 8 px into the zone the speed is under 5 px per 60 Hz frame: well under 400 px in the next second.
   await page.waitForTimeout(1300);
   const after = await scrollTop();
   expect(after).toBeGreaterThan(0);
   expect(after).toBeLessThan(400);
-  await touch(page, "pointerup", null, 600 - 40);
+  await touch(page, "pointerup", null, near);
+});
+
+test("scrolling up while dragging is as fast as scrolling down", async ({ page, simulator }) => {
+  await page.setViewportSize({ width: 375, height: 600 });
+  await connectSimulator(page, simulator);
+  const { editor } = await openDefault(page, simulator.dataDir);
+  const panel = page.getByTestId("wide-panel");
+  const scrollTop = () => panel.evaluate((element) => element.scrollTop);
+  const band = await visibleBand(panel);
+  const middle = await panel.evaluate((element) => Math.round((element.scrollHeight - element.clientHeight) / 2));
+
+  /** Drags item 10 to `y` from the middle of the list and returns how far the panel scrolled in one second. */
+  async function scrolledFrom(y: number): Promise<number> {
+    await panel.evaluate((element, top) => (element.scrollTop = top), middle);
+    const grip = handle(editor, 10);
+    await grip.scrollIntoViewIfNeeded();
+    const box = await grip.boundingBox();
+    if (!box) throw new Error("the handle is not shown");
+    await touch(page, "pointerdown", grip, box.y + 4);
+    await touch(page, "pointermove", null, box.y + 5);
+    const before = await scrollTop();
+    await touch(page, "pointermove", null, y);
+    await page.waitForTimeout(1000);
+    const moved = Math.abs((await scrollTop()) - before);
+    await touch(page, "pointerup", null, y);
+    return moved;
+  }
+
+  // The same depth into each zone, 24 px from the inner edge of each bar.
+  const down = await scrolledFrom(band.bottom - 24);
+  const up = await scrolledFrom(band.top + 24);
+  expect(down).toBeGreaterThan(100);
+  expect(up / down).toBeGreaterThan(0.8);
+  expect(up / down).toBeLessThan(1.25);
 });

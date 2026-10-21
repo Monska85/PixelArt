@@ -20,6 +20,23 @@ interface Drag<K> {
   from: number;
 }
 
+/**
+ * The part of `area` (null: the window) where the list shows: below the bars that stick to its top and above those
+ * that stick to its bottom, such as a panel's title and buttons, so both edge zones lie over the list itself.
+ */
+function visibleBand(area: HTMLElement | null): { top: number; bottom: number } {
+  if (!area) return { top: 0, bottom: window.innerHeight };
+  const box = area.getBoundingClientRect();
+  let { top, bottom } = box;
+  for (const child of area.children) {
+    if (getComputedStyle(child).position !== "sticky") continue;
+    const bar = child.getBoundingClientRect();
+    if (bar.top <= box.top + 1) top = Math.max(top, bar.bottom);
+    else if (bar.bottom >= box.bottom - 1) bottom = Math.min(bottom, bar.top);
+  }
+  return { top, bottom };
+}
+
 /** The nearest ancestor that scrolls vertically, or null for the page. */
 function scroller(element: HTMLElement): HTMLElement | null {
   for (let node = element.parentElement; node; node = node.parentElement) {
@@ -32,9 +49,9 @@ function scroller(element: HTMLElement): HTMLElement | null {
 /**
  * Reordering of a vertical list. Drag handles serve a pointer (mouse, pen or touch): an item is dragged over the
  * others, and near an edge of the scrolling area the list keeps scrolling while the pointer rests there, faster the
- * nearer the edge. The handles
- * are not focusable; keyboard users move items with buttons that call `moveBy`. Every move is announced. The handle
- * needs `touch-action: none`, so a touch drags instead of scrolling the page.
+ * nearer the edge, the same way up and down. The handles are not focusable; keyboard users move items with buttons
+ * that call `moveBy`. Every move is announced. The handle needs `touch-action: none`, so a touch drags instead of
+ * scrolling the page.
  */
 export function useReorder<K>({ list, keys, move, name, announce }: Options<K>) {
   const [drag, setDrag] = useState<Drag<K> | null>(null);
@@ -104,8 +121,7 @@ export function useReorder<K>({ list, keys, move, name, announce }: Options<K>) 
 
   /** The pointer's speed into an edge zone of `area` (null: the page), in pixels per 60 Hz frame; 0 outside. */
   function speedAt(area: HTMLElement | null, clientY: number): number {
-    const top = area ? area.getBoundingClientRect().top : 0;
-    const bottom = area ? area.getBoundingClientRect().bottom : window.innerHeight;
+    const { top, bottom } = visibleBand(area);
     return edgeSpeed(clientY, top, bottom);
   }
 
@@ -169,8 +185,13 @@ export function useReorder<K>({ list, keys, move, name, announce }: Options<K>) 
         const startArea = list.current && scroller(list.current);
         const last = {
           clientY: event.clientY,
-          holdUntil: speedAt(startArea ?? null, event.clientY) === 0 ? 0 : performance.now() + EDGE_SCROLL.startDelayMs,
+          holdUntil: speedAt(startArea, event.clientY) === 0 ? 0 : performance.now() + EDGE_SCROLL.startDelayMs,
         };
+        // Scroll anchoring would shift the area each time the dragged item moves past the item the browser anchors
+        // to, which made scrolling up several times faster than down: it is off for the length of the drag.
+        const anchored = startArea ?? document.documentElement;
+        const anchoring = anchored.style.overflowAnchor;
+        anchored.style.overflowAnchor = "none";
         const onMove = (e: globalThis.PointerEvent): void => {
           if (e.pointerId !== pointer) return;
           last.clientY = e.clientY;
@@ -187,12 +208,15 @@ export function useReorder<K>({ list, keys, move, name, announce }: Options<K>) 
         window.addEventListener("pointerup", onEnd);
         window.addEventListener("pointercancel", onEnd);
         stopListening.current = () => {
+          anchored.style.overflowAnchor = anchoring;
           if (scrolling.current !== null) cancelAnimationFrame(scrolling.current);
           scrolling.current = null;
           window.removeEventListener("pointermove", onMove);
           window.removeEventListener("pointerup", onEnd);
           window.removeEventListener("pointercancel", onEnd);
-          stopListening.current = () => {};
+          stopListening.current = () => {
+            anchored.style.overflowAnchor = anchoring;
+          };
         };
       },
     }),
