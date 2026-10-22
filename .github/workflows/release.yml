@@ -55,7 +55,9 @@ jobs:
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # release-please acts with the RELEASE_PLEASE_TOKEN secret, not with this job's token. Token: README.md, Releases.
+    # release-please acts with the RELEASE_PLEASE_TOKEN secret, not with this job's token. The secret belongs to the
+    # release environment, which only main can use, and no other job uses that environment. Token: README.md, Releases.
+    environment: release
     permissions: {}
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -71,7 +73,7 @@ jobs:
           RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
           if [ -z "$RELEASE_PLEASE_TOKEN" ]; then
-            echo "::error title=RELEASE_PLEASE_TOKEN is missing::Add the repository secret RELEASE_PLEASE_TOKEN, a fine-grained token for this repository with Contents, Pull requests and Issues read and write. See Releases in README.md."
+            echo "::error title=RELEASE_PLEASE_TOKEN is missing::Add RELEASE_PLEASE_TOKEN as a secret of the release environment, a fine-grained token for this repository with Contents, Pull requests and Issues read and write. See Releases in README.md."
             exit 1
           fi
 
