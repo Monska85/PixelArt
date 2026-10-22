@@ -1,10 +1,13 @@
 # The same commands as the Makefile, for just users: each recipe has the steps of the make target of the same name.
-# BOARD=x is `just <name> x`, ANIM=x is `--anim x`, WS=1 is `--ws` and SITE=x is `just release-site x`.
+# BOARD=x is `just <name> x`, ANIM=x is `--anim x`, WS=1 is `--ws`, PORT=x is `just serve x` and SITE=x is
+# `just release-site x`.
 
 board := "esp32c3"
 out := "sim-out"
 site := "site"
 python := "python3"
+# The simulator's --ws starts tools/ws_bridge.py with this Python, the one the other tools use
+export PIXELART_PYTHON := python
 sim := ".pio/build/native/program"
 
 # List recipes
@@ -74,9 +77,9 @@ sim-play *args: data sim-build
 emulate *args: data sim-build
     {{sim}} --live {{args}}
 
-# Emulate the board and serve the command protocol on ws://127.0.0.1:8765 (e.g. just serve --anim santa)
-serve *args: data sim-build
-    {{sim}} --live --ws {{args}}
+# Emulate the board and serve the command protocol on ws://127.0.0.1:8765 (e.g. just serve 9000, or just serve 8765 --anim santa)
+serve port="8765" *args: data sim-build
+    {{sim}} --live --ws {{port}} {{args}}
 
 # Run the simulator and open the HTML player
 sim-open *args: (sim args)

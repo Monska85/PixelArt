@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ws_bridge  # noqa: E402
 
 try:
-    from websockets.exceptions import InvalidStatus
+    from websockets.exceptions import ConnectionClosed, InvalidStatus
     from websockets.sync.client import connect
 except ImportError:
     connect = None
@@ -128,7 +128,7 @@ class BridgeTest(unittest.TestCase):
             with open(to_read, "rb", buffering=0) as stdin, open(from_write, "wb", buffering=0) as stdout:
                 asyncio.run(ws_bridge.run(0, list(origins), stdin, stdout))
 
-        thread = threading.Thread(target=serve, daemon=True)
+        thread = self.thread = threading.Thread(target=serve, daemon=True)
         thread.start()
         self.to_bridge = open(to_write, "wb", buffering=0)
         self.from_bridge = open(from_read, "rb", buffering=0)
@@ -237,6 +237,41 @@ class BridgeTest(unittest.TestCase):
         for _ in range(300):  # about 300 KiB in all, over the 256 KiB cap on unread replies
             self.reply(line)
             self.assertEqual(ws.recv(timeout=2), line)
+
+    def test_the_bridge_ends_when_its_input_closes_while_a_write_waits(self):
+        self.start()
+        ws = self.client()
+        # Nobody reads the requests: about 200 KiB fill the pipe and the bridge's own buffer, then a write waits
+        for _ in range(200):
+            ws.send("@PR 00000000 " + "x" * 1000)
+        time.sleep(0.5)
+        self.to_bridge.close()  # the simulator stops
+        self.thread.join(5)
+        self.assertFalse(self.thread.is_alive(), "the bridge did not end")
+
+    def test_the_client_is_closed_with_1001_when_the_simulator_stops(self):
+        self.start()
+        ws = self.client()
+        self.to_bridge.close()  # the simulator stops
+        with self.assertRaises(ConnectionClosed) as closed:
+            ws.recv(timeout=5)
+        self.assertEqual(closed.exception.rcvd.code, 1001)
+
+    def test_the_blocking_mode_of_the_pipes_is_restored(self):
+        to_read, to_write = os.pipe()
+        from_read, from_write = os.pipe()
+        for fd in (to_read, from_read, from_write):
+            self.addCleanup(os.close, fd)
+        stdin, stdout = mock.Mock(fileno=lambda: to_read), mock.Mock(fileno=lambda: from_write)
+        thread = threading.Thread(target=lambda: asyncio.run(ws_bridge.run(0, [], stdin, stdout)), daemon=True)
+        thread.start()
+        with open(from_read, "rb", buffering=0, closefd=False) as replies:
+            self.assertTrue(replies.readline().startswith(b"ready "))
+        os.close(to_write)  # the simulator stops
+        thread.join(5)
+        self.assertFalse(thread.is_alive())
+        self.assertTrue(os.get_blocking(to_read))
+        self.assertTrue(os.get_blocking(from_write))
 
     def test_lines_without_a_client_are_dropped(self):
         self.start()
@@ -353,6 +388,45 @@ class BridgeTest(unittest.TestCase):
             except OSError:
                 dropped = True
         self.assertTrue(dropped, "the bridge kept buffering pongs for a client that never reads")
+
+
+class PipeTest(unittest.TestCase):
+    """The bridge's writer to the simulator."""
+
+    def test_writes_wait_while_the_simulator_does_not_read(self):
+        read_end, write_end = os.pipe()
+        self.addCleanup(os.close, read_end)
+        self.addCleanup(os.close, write_end)
+        os.set_blocking(write_end, False)
+        line = b"r" * 1024 + b"\n"
+
+        async def scenario():
+            pipe = ws_bridge.Pipe(write_end)
+            accepted = 0
+            # The pipe fills, then the writer holds MAX_PENDING bytes and makes the next write wait
+            while True:
+                try:
+                    await asyncio.wait_for(pipe.write(line), 0.2)
+                except asyncio.TimeoutError:
+                    break
+                accepted += len(line)
+                self.assertLess(accepted, 8 * 1024 * 1024, "the writer never made a write wait")
+            self.assertLessEqual(len(pipe.pending), ws_bridge.MAX_PENDING + 2 * len(line))
+            self.assertGreater(len(pipe.pending), ws_bridge.MAX_PENDING)
+            waiting = asyncio.ensure_future(pipe.write(line))
+            # Once the simulator reads, the waiting write goes on and everything arrives in order
+            total, received = accepted + 2 * len(line), b""
+            deadline = time.monotonic() + 5
+            while len(received) < total and time.monotonic() < deadline:
+                await asyncio.sleep(0.001)
+                with contextlib.suppress(BlockingIOError):
+                    received += os.read(read_end, 65536)
+            await asyncio.wait_for(waiting, 1)
+            return total, received
+
+        os.set_blocking(read_end, False)
+        total, received = asyncio.run(scenario())
+        self.assertEqual(received, line * (total // len(line)))
 
 
 @unittest.skipIf(connect is None, "needs the websockets package")

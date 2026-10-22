@@ -24,6 +24,7 @@ import sys
 
 MAX_MESSAGE = 1024  # the protocol's line limit
 MAX_OUTPUT = 256 * 1024  # bytes queued for a client above which it is dropped
+MAX_PENDING = 64 * 1024  # requests buffered for the simulator above which the client is not read
 HANDSHAKE_TIMEOUT = 5.0
 CLOSE_TIMEOUT = 1.0
 # No Origin (command line clients), local pages on any port and the project's site. --origin adds more.
@@ -67,8 +68,7 @@ class Bridge:
                 elif "\n" in message:
                     await connection.close(1008)  # one message is one line
                 else:
-                    self.to_simulator.write(message.encode("utf-8") + b"\n")
-                    await self.to_simulator.drain()
+                    await self.to_simulator.write(message.encode("utf-8") + b"\n")
         except ConnectionClosed:
             pass
         finally:
@@ -91,15 +91,73 @@ class Bridge:
         self.replies.put_nowait(line)
 
 
-async def forward_replies(bridge, reader):
+class Pipe:
+    """Writes to a pipe without blocking the event loop, holding at most MAX_PENDING bytes it could not write yet."""
+
+    def __init__(self, fd):
+        self.fd = fd
+        self.loop = asyncio.get_running_loop()
+        self.pending = bytearray()
+        self.drained = asyncio.Event()
+        self.broken = False
+
+    async def write(self, data):
+        """Writes `data`, waiting while more than MAX_PENDING bytes are not written yet: the client is not read then."""
+        if self.broken:
+            return  # the simulator is gone; the end of the bridge's input follows
+        idle = not self.pending
+        self.pending += data
+        if idle:
+            self.flush()
+            if self.pending:
+                self.loop.add_writer(self.fd, self.flush)
+        while len(self.pending) > MAX_PENDING:
+            self.drained.clear()
+            await self.drained.wait()
+
+    def flush(self):
+        try:
+            del self.pending[:os.write(self.fd, self.pending)]
+        except BlockingIOError:
+            return
+        except OSError:
+            self.broken = True
+            self.pending.clear()
+        if not self.pending:
+            self.loop.remove_writer(self.fd)
+        if len(self.pending) <= MAX_PENDING:
+            self.drained.set()
+
+    def close(self):
+        """Drops what is not written yet and releases a write that waits: the simulator is gone."""
+        self.broken = True
+        self.pending.clear()
+        self.loop.remove_writer(self.fd)
+        self.drained.set()
+
+
+def forward_replies(bridge, fd, ended):
+    """Reads the simulator's lines from `fd` as they come and hands each one to the bridge."""
     pending = b""
-    while True:
-        chunk = await reader.read(65536)
+
+    def readable():
+        nonlocal pending
+        try:
+            chunk = os.read(fd, 65536)
+        except BlockingIOError:
+            return
+        except OSError:
+            chunk = b""
         if not chunk:
+            asyncio.get_running_loop().remove_reader(fd)
+            if not ended.done():
+                ended.set_result(None)
             return
         *lines, pending = (pending + chunk).split(b"\n")
         for line in lines:
             bridge.reply(line.decode("utf-8", "replace"))
+
+    asyncio.get_running_loop().add_reader(fd, readable)
 
 
 async def run(port, origins, stdin, stdout):
@@ -114,20 +172,29 @@ async def run(port, origins, stdin, stdout):
                 self.transport.abort()
 
     loop = asyncio.get_running_loop()
-    reader = asyncio.StreamReader()
-    await loop.connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), stdin)
-    transport, protocol = await loop.connect_write_pipe(asyncio.streams.FlowControlMixin, stdout)
-    writer = asyncio.StreamWriter(transport, protocol, None, loop)
-
+    stdin, stdout = stdin.fileno(), stdout.fileno()
+    blocking = os.get_blocking(stdin), os.get_blocking(stdout)
+    os.set_blocking(stdin, False)
+    os.set_blocking(stdout, False)
+    writer = Pipe(stdout)
     bridge = Bridge(writer)
-    # No compression and no keepalive pings: plain RFC 6455, as the clients expect.
-    async with serve(bridge.serve, "127.0.0.1", port, origins=ORIGINS + origins, max_size=MAX_MESSAGE,
-                     process_request=bridge.process_request, create_connection=Connection, compression=None,
-                     open_timeout=HANDSHAKE_TIMEOUT, close_timeout=CLOSE_TIMEOUT, ping_interval=None,
-                     server_header=None) as server:
-        writer.write(f"ready {server.sockets[0].getsockname()[1]}\n".encode())
-        await writer.drain()
-        await forward_replies(bridge, reader)
+    ended = loop.create_future()
+    try:
+        # No compression and no keepalive pings: plain RFC 6455, as the clients expect.
+        async with serve(bridge.serve, "127.0.0.1", port, origins=ORIGINS + origins, max_size=MAX_MESSAGE,
+                         process_request=bridge.process_request, create_connection=Connection, compression=None,
+                         open_timeout=HANDSHAKE_TIMEOUT, close_timeout=CLOSE_TIMEOUT, ping_interval=None,
+                         server_header=None) as server:
+            await writer.write(f"ready {server.sockets[0].getsockname()[1]}\n".encode())
+            forward_replies(bridge, stdin, ended)
+            await ended
+            # A simulator that stopped reading would otherwise hold the server's shutdown on a waiting write
+            writer.close()
+    finally:
+        loop.remove_reader(stdin)
+        loop.remove_writer(stdout)
+        os.set_blocking(stdin, blocking[0])
+        os.set_blocking(stdout, blocking[1])
 
 
 def main(argv=None):

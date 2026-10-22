@@ -139,7 +139,7 @@ jobs:
           path: site/
 
   build-web:
-    needs: release-please
+    needs: [check, release-please]
     # release-please is skipped on a dry run, which must not stop the build
     if: >-
       ${{ !cancelled() && needs.release-please.result != 'failure' &&
@@ -162,7 +162,17 @@ jobs:
         working-directory: web
         run: npm ci
 
-      # npm run build type checks first. Lint, the unit and the end-to-end tests run in CI on every pull request and on main.
+      # The check job already linted this run's commit, which is normally the one release-please tagged. A dry run
+      # skips the check job, and a tag on another commit was never linted: both lint here.
+      - id: tagged
+        run: echo "checked=$([ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Lint
+        if: needs.check.result != 'success' || steps.tagged.outputs.checked != 'true'
+        working-directory: web
+        run: npm run lint
+
+      # npm run build type checks first. The unit and the end-to-end tests run in CI on every pull request and on main.
       - name: Build the web app
         working-directory: web
         run: npm run build

@@ -33,6 +33,9 @@ The simulator serves the protocol with `--ws [PORT]`, default port 8765, in real
 - The simulator sends only protocol lines over the WebSocket. Clients still ignore any line without the protocol marker, as on the serial port.
 - A connection that does not complete its opening handshake within 5 seconds is closed, and the closing handshake waits at most 1 second for the client. A client that leaves more than 256 KiB of replies or pongs unread is disconnected. Requests the simulator has not read yet are buffered up to a limit, after which the connection is not read, so a client that sends faster than the simulator reads has to wait.
 - **Origin check.** Any web page can open a WebSocket to `localhost`, so the simulator accepts a connection only when its `Origin` header is missing (command line clients), is `http://localhost` or `http://127.0.0.1` with any port, or is `https://monska85.github.io`. `--ws-origin ORIGIN`, which can be repeated, adds another one. Any other origin is refused with HTTP status 403. This keeps a website you happen to visit from rewriting the simulator's files.
+- Any other invalid handshake (a wrong method, a missing or unsupported header) gets the HTTP status the `websockets` package gives under the WebSocket standard. Clients must not rely on the body of a refusal, 403 and 503 included. A refused connection is closed right after the HTTP response.
+- Malformed frames during the closing handshake are handled as RFC 6455 says. When the simulator stops, the client is closed with status 1001.
+- A client that completed the handshake keeps the single slot until it disconnects, even while it sends nothing, so the web app can stay connected while idle.
 
 Uploads and deletions through the simulator change its data folder (`data/` or the folder given with `--data`). `make data` writes the converted repository files there again.
 
@@ -55,7 +58,7 @@ For example, the `info` request with sequence number 1:
 @PR 3c250228 {"seq":1,"cmd":"info"}
 ```
 
-Every reply the board sends is valid UTF-8, whatever the files or the request contained. Text the board quotes from a stored file, an upload or a request (a list `name`, a diagnostic `where` or `message`, a message that names a field) is copied with every byte that is not part of a well-formed UTF-8 sequence replaced by U+FFFD, the replacement character, one for each such byte. Well-formed means the sequences of RFC 3629: no overlong forms, no surrogates and nothing above U+10FFFF. A client can therefore always decode a reply, and a damaged file can always be listed and deleted.
+Every reply the board sends is valid UTF-8, whatever the files or the request contained. Text the board quotes from a stored file, an upload or a request (a list `name`, a diagnostic `where` or `message`, a message that names a field) is copied with every byte that is not part of a well-formed UTF-8 sequence replaced by U+FFFD, the replacement character, one for each such byte. Well-formed means the sequences of RFC 3629: no overlong forms, no surrogates and nothing above U+10FFFF. A control character in such a text (U+0001 to U+001F) is always written as a JSON escape (`\b`, `\f`, `\n`, `\r`, `\t` or `\u00XX`), never raw, so every reply follows the strict JSON rules above and the text arrives unchanged. A client can therefore always decode a reply, and a damaged file can always be listed and deleted.
 
 The board ignores, without replying, every line that does not start with `@PR `. Log lines and typed noise therefore never run anything. The board writes every line it sends in one piece, so a protocol line never mixes with a log or mirror line.
 

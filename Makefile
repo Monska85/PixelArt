@@ -4,7 +4,11 @@ SITE ?= site
 ANIM ?=
 ARGS ?=
 WS ?=
+# Set on the command line only (make serve PORT=9000): a PORT in the environment is ignored
+PORT := 8765
 PYTHON ?= python3
+# The simulator's --ws starts tools/ws_bridge.py with this Python, the one the other tools use
+export PIXELART_PYTHON = $(PYTHON)
 SIM := .pio/build/native/program
 CPP_SOURCES = $(shell find src include test lib -name '*.cpp' -o -name '*.h')
 
@@ -19,7 +23,7 @@ WS_ARG := $(if $(WS),--ws,)
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-24s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
-	@echo "Variables: BOARD=$(BOARD) (esp32c3, esp32, esp32s3)  ANIM=name[,name]  OUT=$(OUT)  SITE=$(SITE)  ARGS=extra simulator options  WS=1 (emulate with the WebSocket)"
+	@echo "Variables: BOARD=$(BOARD) (esp32c3, esp32, esp32s3)  ANIM=name[,name]  OUT=$(OUT)  SITE=$(SITE)  ARGS=extra simulator options  WS=1 (emulate with the WebSocket)  PORT=$(PORT) (serve)  PYTHON=$(PYTHON)"
 
 data: ## Build data/ (the board's files) from animations/ and playlists/
 	$(PYTHON) tools/pixelart.py build
@@ -70,8 +74,8 @@ sim-play: data sim-build ## Play once in real time in the terminal
 emulate: data sim-build ## Emulate the board: live matrix and serial output in the terminal, no hardware (WS=1 adds the WebSocket)
 	$(SIM) $(ANIM_ARG) --live $(WS_ARG) $(ARGS)
 
-serve: data sim-build ## Emulate the board and serve the command protocol on ws://127.0.0.1:8765
-	$(SIM) $(ANIM_ARG) --live --ws $(ARGS)
+serve: data sim-build ## Emulate the board and serve the command protocol on ws://127.0.0.1:PORT (default 8765)
+	$(SIM) $(ANIM_ARG) --live --ws $(PORT) $(ARGS)
 
 sim-open: sim ## Run the simulator and open the HTML player
 	@if command -v xdg-open >/dev/null 2>&1; then xdg-open $(OUT)/player.html; \

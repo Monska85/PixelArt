@@ -121,14 +121,36 @@ std::string valid_utf8(const std::string &text)
   return out;
 }
 
+// ArduinoJson escapes only \b, \f, \n, \r and \t among the control characters
+// and writes the others raw, which strict JSON forbids. Compact JSON syntax has
+// no control character, so each one is inside a string and becomes a \u00XX
+// escape: the text is kept and the reply stays strict JSON.
+std::string escape_controls(const std::string &json)
+{
+  std::string out;
+  out.reserve(json.size());
+  for (char c : json)
+  {
+    if ((unsigned char)c < 0x20)
+    {
+      char escape[7];
+      snprintf(escape, sizeof(escape), "\\u%04x", (unsigned)c);
+      out += escape;
+    }
+    else
+      out += c;
+  }
+  return out;
+}
+
 // Serializes a reply body and adds the frame: "@PR <crc> <json>". Anything
-// quoted from a file or a request is made valid UTF-8 first: the JSON syntax
-// is ASCII, so only string contents can change.
+// quoted from a file or a request is made valid UTF-8 and strict JSON first:
+// the JSON syntax is ASCII, so only string contents can change.
 std::string frame(JsonDocument &body)
 {
   std::string json;
   serializeJson(body, json);
-  json = valid_utf8(json);
+  json = escape_controls(valid_utf8(json));
   char head[MARKER_SIZE + CRC_DIGITS + 2];
   snprintf(head, sizeof(head), "%s%08x ", MARKER, (unsigned)pixelart::crc32(json.data(), json.size()));
   return head + json;
@@ -249,11 +271,13 @@ bool is_lower_hex(const std::string &text, size_t digits)
   return true;
 }
 
-// A diagnostic text cut after MAX_DIAGNOSTIC_TEXT characters, or sooner when it
-// would take more than MAX_DIAGNOSTIC_BYTES once written in JSON, never inside a
-// character: 32 diagnostics then keep a reply under 16 KiB whatever the file holds.
-std::string diagnostic_text(const std::string &text)
+// A diagnostic text made valid UTF-8 and cut after MAX_DIAGNOSTIC_TEXT
+// characters, or sooner when it would take more than MAX_DIAGNOSTIC_BYTES once
+// written in JSON (as frame writes it), never inside a character: 32
+// diagnostics then keep a reply under 16 KiB whatever the file holds.
+std::string diagnostic_text(const std::string &raw)
 {
+  const std::string text = valid_utf8(raw);
   size_t characters = 0, written = 0, start = 0;
   for (size_t i = 0; i < text.size(); i++)
   {
@@ -264,7 +288,10 @@ std::string diagnostic_text(const std::string &text)
       if (++characters > MAX_DIAGNOSTIC_TEXT)
         return text.substr(0, i);
     }
-    written += c == '"' || c == '\\' ? 2 : c < 0x20 ? 6 : 1; // a control character escapes to at most 6 bytes
+    if (c == '"' || c == '\\' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t')
+      written += 2;
+    else
+      written += c < 0x20 ? 6 : 1; // \u00XX
     if (written > MAX_DIAGNOSTIC_BYTES)
       return text.substr(0, start);
   }

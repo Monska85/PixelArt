@@ -83,14 +83,18 @@ static bool is_utf8(const std::string &text)
   return true;
 }
 
-// Splits a reply line and checks its framing: marker, 8 lowercase hex digits
-// and a CRC that matches the JSON.
+// Splits a reply line and checks its framing: marker, 8 lowercase hex digits,
+// a CRC that matches the JSON, and JSON that follows the strict rules.
 static std::string reply_json(const std::string &line, const std::string &where)
 {
   TEST_ASSERT_TRUE_MESSAGE(line.size() > 13 && line.compare(0, 4, "@PR ") == 0 && line[12] == ' ',
                            (where + ": not a protocol line: " + line).c_str());
   std::string json = line.substr(13);
   TEST_ASSERT_TRUE_MESSAGE(is_utf8(json), (where + ": the reply is not valid UTF-8: " + line).c_str());
+  const char *reason;
+  size_t offset;
+  TEST_ASSERT_TRUE_MESSAGE(pixelart::check_strict_json(json.data(), json.size(), 32, reason, offset),
+                           (where + ": the reply is not strict JSON: " + line).c_str());
   char want[16];
   snprintf(want, sizeof(want), "%08x", (unsigned)pixelart::crc32(json.data(), json.size()));
   TEST_ASSERT_EQUAL_STRING_MESSAGE(want, line.substr(4, 8).c_str(), (where + ": wrong CRC in " + line).c_str());
@@ -463,14 +467,16 @@ static std::string end_upload(const std::string &sent, const std::string &declar
 
 static void test_put_end_reply_stays_under_16_kib_with_long_texts()
 {
-  // 40 unknown fields named with 200 four-byte characters or 200 escaped quotes:
-  // every diagnostic quotes its field, so uncut texts would make a reply of about 50 KB.
+  // 40 unknown fields named with 200 four-byte characters, 200 escaped quotes or
+  // 200 U+0001 (written back as \u0001): every diagnostic quotes its field, so
+  // uncut texts would make a reply of about 50 KB.
+  static const char *const parts[] = {"\xF0\x9F\x98\x80", "\\\"", "\\u0001"};
   std::string file = DOT.substr(0, DOT.size() - 1);
   for (int i = 0; i < 40; i++)
   {
     std::string name = std::to_string(i);
     for (int j = 0; j < 200; j++)
-      name += i % 2 ? "\xF0\x9F\x98\x80" : "\\\"";
+      name += parts[i % 3];
     file += ",\"" + name + "\":1";
   }
   file += "}";
@@ -723,6 +729,29 @@ static void expect_not_in(const std::string &part, const std::string &json)
 
 // SHA-256 values below were computed with Python hashlib over the bytes the
 // test spells out.
+static void test_control_characters_are_escaped_in_replies()
+{
+  // A diagnostic, a message that names a field and a list name, each quoting
+  // U+0001 or U+001F: reply_json checks that every reply is strict JSON.
+  std::string file = DOT.substr(0, DOT.size() - 1) + R"(,"a\u0001b":1})";
+  std::string json = end_upload(file, file, file.size());
+  expect_in(R"("code":"structure")", json);
+  expect_in(R"(a\u0001b)", json);
+
+  sim::reset();
+  TempData data("protocol");
+  std::string named = DOT;
+  named.replace(named.find(R"("Dot")"), 5, R"("D\u001ft")");
+  data.write("animations/named.json", named);
+  setup();
+  Replies replies;
+  expect_in(R"("name":"D\u001ft")", list_animations(replies, 1));
+  replies.send(request(2, R"("cmd":"list","kind":"animation","a\u0001b":1)"));
+  json = reply_json(replies.pop(), "list");
+  expect_in(R"("error":"bad_request")", json);
+  expect_in(R"(a\u0001b)", json);
+}
+
 static void test_list_reads_metadata_only_up_to_the_size_limit()
 {
   sim::reset();
@@ -812,6 +841,7 @@ int main(int, char **)
   RUN_TEST(test_refused_put_begin_closes_the_open_upload_file);
   RUN_TEST(test_every_put_end_result_closes_the_upload_file);
   RUN_TEST(test_put_end_reply_stays_under_16_kib_with_long_texts);
+  RUN_TEST(test_control_characters_are_escaped_in_replies);
   RUN_TEST(test_same_active_playlist_does_not_restart_playback);
   RUN_TEST(test_settings_set_is_all_or_nothing);
   RUN_TEST(test_settings_set_says_so_when_the_playlist_cannot_be_put_back);

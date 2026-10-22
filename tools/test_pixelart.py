@@ -615,6 +615,28 @@ class BuildTest(unittest.TestCase):
                 pixelart.board_put(None, args)
             self.assertIn(str(path), str(e.exception))
 
+    def test_a_lone_surrogate_is_an_error_of_its_file_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source, out = Path(folder) / "src", Path(folder) / "out"
+            (source / "animations").mkdir(parents=True)
+            (source / "playlists").mkdir()
+            (source / "animations" / "lone.yaml").write_text('a: "\\ud800"\n')
+            (source / "animations" / "good.yaml").write_text("a: 1\n")
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                self.assertEqual(pixelart.build(source, out, False), 1)
+            self.assertIn("lone.yaml: text with a lone surrogate (U+D800)", err.getvalue())
+            self.assertEqual([p.name for p in (out / "animations").iterdir()], ["good.json"])
+
+    def test_put_refuses_a_lone_surrogate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "a.yaml"
+            path.write_text('format: pixelart/1\na: "\\ud800"\n')
+            args = types.SimpleNamespace(file=path, kind=None, id=None)
+            with self.assertRaises(pixelart.BoardError) as e:
+                pixelart.board_put(None, args)
+            self.assertEqual(str(e.exception), f"{path}: text with a lone surrogate (U+D800), which UTF-8 cannot hold")
+
 
 class RunBoardTest(unittest.TestCase):
     def test_a_reply_with_a_missing_field_is_one_error(self):
@@ -706,6 +728,12 @@ class WebSocketServerTest(unittest.TestCase):
         with self.assertRaises(pixelart.BoardError) as e:
             transport.receive(2.0)
         self.assertIn("too long", str(e.exception))
+
+    def test_a_binary_message_is_refused(self):
+        transport = self.connect(self.start(lambda connection: connection.send(b"@PR 00000000 {}") or connection.recv()))
+        with self.assertRaises(pixelart.BoardError) as e:
+            transport.receive(2.0)
+        self.assertIn("binary WebSocket message", str(e.exception))
 
     def test_a_close_from_the_server_is_an_error(self):
         transport = self.connect(self.start(lambda connection: connection.close()))

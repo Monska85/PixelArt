@@ -80,8 +80,12 @@ def load_source(path):
 
 
 def compact_json(document):
-    """The JSON text of a board file, as `build` writes it and `board put` sends it."""
-    return json.dumps(document, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    """The UTF-8 JSON of a board file, as `build` writes it and `board put` sends it."""
+    text = json.dumps(document, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    try:
+        return text.encode("utf-8")
+    except UnicodeEncodeError as e:
+        raise ValueError(f"text with a lone surrogate (U+{ord(e.object[e.start]):04X}), which UTF-8 cannot hold") from None
 
 
 def build(source, out, use_schema):
@@ -112,8 +116,8 @@ def build(source, out, use_schema):
             ids[name] = path
             try:
                 document = load_source(path)
-                # Dates, binary values, .inf and .nan have no JSON form
-                text = compact_json(document)
+                # Dates, binary values, .inf, .nan and lone surrogates have no JSON form for the board
+                data = compact_json(document)
             except (yaml.YAMLError, TypeError, ValueError) as e:
                 print(f"{path}: {e}", file=sys.stderr)
                 errors += 1
@@ -128,7 +132,7 @@ def build(source, out, use_schema):
                     continue
             target = out / kind / f"{name}.json"
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(text, encoding="utf-8")
+            target.write_bytes(data)
             written += 1
     print(f"pixelart: wrote {written} files to {out}" + (f", {errors} failed" if errors else ""))
     return 1 if errors else 0
@@ -314,11 +318,14 @@ class WebSocketTransport:
         from websockets.exceptions import WebSocketException
 
         try:
-            return self._ws.recv(timeout=timeout, decode=False)
+            message = self._ws.recv(timeout=timeout)
         except TimeoutError:
             return None
         except WebSocketException as e:
             raise _connection_error(e)
+        if isinstance(message, bytes):
+            raise BoardError("the simulator sent a binary WebSocket message: protocol lines are text messages")
+        return message.encode("utf-8")
 
     def close(self):
         self._ws.close()
@@ -571,7 +578,7 @@ def board_put(board, args):
     try:
         document = load_source(path)
         # The same bytes `build` writes, so the board holds what `make data` would produce.
-        data = compact_json(document).encode("utf-8")
+        data = compact_json(document)
     except (OSError, yaml.YAMLError, TypeError, ValueError) as e:
         raise BoardError(f"{path}: {e}")
     kind = args.kind or infer_kind(path, document)
