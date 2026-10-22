@@ -1,9 +1,8 @@
 import * as ToastPrimitive from "@radix-ui/react-toast";
 import { X } from "lucide-react";
 import { useSyncExternalStore, type ComponentProps } from "react";
+import { createEmitter } from "../emitter";
 import { cn } from "./cn";
-
-export const ToastProvider = ToastPrimitive.Provider;
 
 export function ToastViewport({ className, ...props }: ComponentProps<typeof ToastPrimitive.Viewport>) {
   return (
@@ -52,7 +51,7 @@ export function ToastClose({ className, ...props }: ComponentProps<typeof ToastP
   );
 }
 
-export interface ToastMessage {
+interface ToastMessage {
   id: number;
   title: string;
   description?: string;
@@ -62,11 +61,11 @@ export interface ToastMessage {
 
 let messages: ToastMessage[] = [];
 let nextId = 1;
-const listeners = new Set<() => void>();
+const { subscribe, emit } = createEmitter();
 
 const publish = (next: ToastMessage[]): void => {
   messages = next;
-  for (const listener of listeners) listener();
+  emit();
 };
 
 /** Shows the outcome of an action: it is announced to screen readers and goes away by itself. */
@@ -76,11 +75,4 @@ export function toast(message: Omit<ToastMessage, "id" | "tone"> & { tone?: Toas
 
 export const dismissToast = (id: number): void => publish(messages.filter((m) => m.id !== id));
 
-export const useToasts = (): ToastMessage[] =>
-  useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    () => messages,
-  );
+export const useToasts = (): ToastMessage[] => useSyncExternalStore(subscribe, () => messages);

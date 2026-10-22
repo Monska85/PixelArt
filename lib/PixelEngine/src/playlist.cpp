@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Parsing and validation of pixelart-playlist/1 documents.
 // Structural rules mirror schema/playlist-1.schema.json.
 
@@ -38,25 +40,14 @@ bool Playlist::load(const char *json, size_t length, std::vector<Diagnostic> &di
     ok = false;
   };
 
-  if (length > MAX_PLAYLIST_FILE_SIZE)
-  {
-    error("limit_exceeded", "", "file larger than " + std::to_string(MAX_PLAYLIST_FILE_SIZE / 1024) + " KiB");
-    return false;
-  }
   // ArduinoJson's default nesting limit.
   constexpr int MAX_JSON_DEPTH = 10;
-  const std::string strict_error = strict_json_error(json, length, MAX_JSON_DEPTH);
-  if (!strict_error.empty())
-  {
-    error("structure", "", strict_error);
-    return false;
-  }
   JsonDocument doc;
-  DeserializationError parse_error =
-      deserializeJson(doc, json, length, DeserializationOption::NestingLimit(MAX_JSON_DEPTH));
-  if (parse_error)
+  const char *code = nullptr;
+  std::string message;
+  if (!parse_document(json, length, MAX_PLAYLIST_FILE_SIZE, MAX_JSON_DEPTH, doc, code, message))
   {
-    error("structure", "", std::string("not valid JSON: ") + parse_error.c_str());
+    error(code, "", message);
     return false;
   }
   JsonObjectConst root = doc.as<JsonObjectConst>();
@@ -68,7 +59,7 @@ bool Playlist::load(const char *json, size_t length, std::vector<Diagnostic> &di
   }
 
   for (JsonPairConst kv : root)
-    if (!(kv.key() == "format" || kv.key() == "name" || kv.key() == "canvas" || kv.key() == "items"))
+    if (!is_allowed_key(kv.key(), {"format", "name", "canvas", "items"}))
       error("structure", kv.key().c_str(), std::string("unknown field \"") + kv.key().c_str() + "\"");
 
   if (!root["name"].isNull())
@@ -108,7 +99,7 @@ bool Playlist::load(const char *json, size_t length, std::vector<Diagnostic> &di
       continue;
     }
     for (JsonPairConst kv : item)
-      if (!(kv.key() == "animation" || kv.key() == "repeat" || kv.key() == "enabled"))
+      if (!is_allowed_key(kv.key(), {"animation", "repeat", "enabled"}))
         error("structure", where + "." + kv.key().c_str(), std::string("unknown field \"") + kv.key().c_str() + "\"");
     const char *id = item["animation"].as<const char *>();
     if (!is_valid_id(id))

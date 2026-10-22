@@ -4,7 +4,7 @@ import { Player, type Animation, type Frame } from "../engine";
 import type { Path } from "./doc";
 
 /** Frames searched at most when looking for the first frame of a timeline item. */
-export const SEARCH_LIMIT = 1_000_000;
+const SEARCH_LIMIT = 1_000_000;
 
 const startsWith = (path: readonly number[], prefix: Path): boolean =>
   prefix.length <= path.length && prefix.every((v, i) => path[i] === v);
@@ -19,7 +19,7 @@ export function firstFrameOf(animation: Animation, path: Path): number | null {
   return null;
 }
 
-export interface FrameAt {
+interface FrameAt {
   frame: Frame;
   /** The timeline item that produced it. */
   path: readonly number[];

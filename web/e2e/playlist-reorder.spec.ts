@@ -1,15 +1,14 @@
-import { copyFileSync, readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, readFileSync } from "node:fs";
 import type { Locator, Page } from "@playwright/test";
-import { connectSimulator, expect, test } from "./fixtures";
+import { connectSimulator, expect, showPlaylists, type Simulator, stored, test } from "./fixtures";
 
 const editorPanel = (page: Page) => page.getByRole("dialog", { name: "Edit playlist default" });
 
 /** Opens the simulator's playlist `default` in the editor and returns its items as stored. */
-async function openDefault(page: Page, dataDir: string): Promise<{ editor: Locator; before: string[] }> {
-  const path = join(dataDir, "playlists", "default.json");
+async function openDefault(page: Page, simulator: Simulator): Promise<{ editor: Locator; before: string[] }> {
+  const path = stored(simulator, "playlists", "default");
   const before = (JSON.parse(readFileSync(path, "utf8")).items as Array<{ animation: string }>).map((i) => i.animation);
-  await page.getByRole("tab", { name: /^Playlists/ }).click();
+  await showPlaylists(page);
   await page.getByRole("button", { name: "Edit default", exact: true }).click();
   const editor = editorPanel(page);
   await expect(editor.getByRole("heading", { name: "Edit playlist default" })).toBeFocused();
@@ -20,11 +19,11 @@ const animationOf = (editor: Locator, n: number) => editor.getByLabel(`Animation
 const handle = (editor: Locator, n: number) => editor.getByTestId(`reorder-handle-${n}`);
 
 /** Uploads the editor's playlist and reads back the order of the animations the board stores. */
-async function uploadAndRead(page: Page, editor: Locator, dataDir: string): Promise<string[]> {
+async function uploadAndRead(page: Page, editor: Locator, simulator: Simulator): Promise<string[]> {
   await editor.getByRole("button", { name: "Upload to board" }).click();
   await expect(editorPanel(page)).toHaveCount(0);
-  const stored = JSON.parse(readFileSync(join(dataDir, "playlists", "default.json"), "utf8"));
-  return (stored.items as Array<{ animation: string }>).map((i) => i.animation);
+  const saved = JSON.parse(readFileSync(stored(simulator, "playlists", "default"), "utf8"));
+  return (saved.items as Array<{ animation: string }>).map((i) => i.animation);
 }
 
 test("the playlist editor spans the content width on a wide screen and fills the screen on a phone", async ({
@@ -33,7 +32,7 @@ test("the playlist editor spans the content width on a wide screen and fills the
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await connectSimulator(page, simulator);
-  const { editor } = await openDefault(page, simulator.dataDir);
+  const { editor } = await openDefault(page, simulator);
   const main = await page.getByRole("main").boundingBox();
   const wide = await editor.boundingBox();
   if (!main || !wide) throw new Error("the editor is not shown");
@@ -65,10 +64,10 @@ test("the playlist editor spans the content width on a wide screen and fills the
 });
 
 test("a discard question asked from the editor still works after the window narrows", async ({ page, simulator }) => {
-  copyFileSync(join(simulator.dataDir, "playlists", "default.json"), join(simulator.dataDir, "playlists", "mine.json"));
+  copyFileSync(stored(simulator, "playlists", "default"), stored(simulator, "playlists", "mine"));
   await page.setViewportSize({ width: 1280, height: 800 });
   await connectSimulator(page, simulator);
-  const { editor } = await openDefault(page, simulator.dataDir);
+  const { editor } = await openDefault(page, simulator);
   await editor.getByLabel("Name", { exact: true }).fill("Changed");
   await page.getByRole("button", { name: "Edit mine", exact: true }).click();
   const ask = page.getByRole("dialog", { name: /^Discard the unsaved changes/ });
@@ -84,7 +83,7 @@ test("a discard question asked from the editor still works after the window narr
 test("dragging an item's handle with the mouse reorders the playlist", async ({ page, simulator }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await connectSimulator(page, simulator);
-  const { editor, before } = await openDefault(page, simulator.dataDir);
+  const { editor, before } = await openDefault(page, simulator);
   const [first, second, third] = before;
 
   const from = await handle(editor, 1).boundingBox();
@@ -103,7 +102,7 @@ test("dragging an item's handle with the mouse reorders the playlist", async ({ 
   await expect(editor.getByTestId("reorder-status")).toHaveText(`${first} dropped at position 3 of ${before.length}.`);
   await expect(editor.getByTestId("playlist-item-3")).not.toHaveClass(/ring-primary/);
 
-  expect(await uploadAndRead(page, editor, simulator.dataDir)).toEqual([second, third, first, ...before.slice(3)]);
+  expect(await uploadAndRead(page, editor, simulator)).toEqual([second, third, first, ...before.slice(3)]);
 });
 
 test("the keyboard reorders with the Up and Down buttons, focus follows the item, and the handles are not focusable", async ({
@@ -111,7 +110,7 @@ test("the keyboard reorders with the Up and Down buttons, focus follows the item
   simulator,
 }) => {
   await connectSimulator(page, simulator);
-  const { editor, before } = await openDefault(page, simulator.dataDir);
+  const { editor, before } = await openDefault(page, simulator);
   const [first, second, third] = before;
   const status = editor.getByTestId("reorder-status");
   const total = before.length;
@@ -141,12 +140,12 @@ test("the keyboard reorders with the Up and Down buttons, focus follows the item
   await expect(status).toHaveText(`${first} moved to position 2 of ${total}.`);
   expect(await focused()).toBe("Up item 2");
 
-  expect(await uploadAndRead(page, editor, simulator.dataDir)).toEqual([second, first, third, ...before.slice(3)]);
+  expect(await uploadAndRead(page, editor, simulator)).toEqual([second, first, third, ...before.slice(3)]);
 });
 
 test("a move to the top or the bottom hands focus to the item's other move button", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  const { editor, before } = await openDefault(page, simulator.dataDir);
+  const { editor, before } = await openDefault(page, simulator);
   const total = before.length;
   const focused = () => page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
 
@@ -159,26 +158,6 @@ test("a move to the top or the bottom hands focus to the item's other move butto
   await page.keyboard.press("Enter");
   await expect(animationOf(editor, total)).toHaveValue(before[total - 2]!);
   await expect.poll(focused).toBe(`Up item ${total}`);
-});
-
-test("the missing-animation mark sits under the item's animation field, on a wide screen and on a phone", async ({
-  page,
-  simulator,
-}) => {
-  const path = join(simulator.dataDir, "playlists", "default.json");
-  const missing = (JSON.parse(readFileSync(path, "utf8")).items as Array<{ animation: string }>)[2]!.animation;
-  rmSync(join(simulator.dataDir, "animations", `${missing}.json`));
-  await connectSimulator(page, simulator);
-  for (const width of [1280, 375]) {
-    await page.setViewportSize({ width, height: 800 });
-    const { editor } = await openDefault(page, simulator.dataDir);
-    const mark = await editor.getByTestId("item-missing-3").boundingBox();
-    const select = await animationOf(editor, 3).boundingBox();
-    if (!mark || !select) throw new Error("the mark or the field is not shown");
-    expect(Math.abs(mark.x - select.x)).toBeLessThan(2);
-    expect(mark.y).toBeGreaterThan(select.y + select.height);
-    await editor.getByRole("button", { name: "Close" }).click();
-  }
 });
 
 /** Sends the pointer events of a touch drag to the page, as a finger would: down on the handle, then moves. */
@@ -195,7 +174,7 @@ async function touch(page: Page, type: string, target: Locator | null, clientY: 
 test("a cancelled touch drag puts the item back", async ({ page, simulator }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await connectSimulator(page, simulator);
-  const { editor, before } = await openDefault(page, simulator.dataDir);
+  const { editor, before } = await openDefault(page, simulator);
   const target = await editor.getByTestId("playlist-item-3").boundingBox();
   if (!target) throw new Error("the items are not shown");
 
@@ -215,7 +194,7 @@ test("a drag resting near the bottom edge keeps scrolling the panel until it lea
 }) => {
   await page.setViewportSize({ width: 375, height: 600 });
   await connectSimulator(page, simulator);
-  const { editor } = await openDefault(page, simulator.dataDir);
+  const { editor } = await openDefault(page, simulator);
   const panel = page.getByTestId("wide-panel");
   const scrollTop = () => panel.evaluate((element) => element.scrollTop);
   expect(await scrollTop()).toBe(0);
@@ -245,7 +224,7 @@ test("Remove from the keyboard moves focus to the next item, the previous one, t
   simulator,
 }) => {
   await connectSimulator(page, simulator);
-  const { editor, before } = await openDefault(page, simulator.dataDir);
+  const { editor, before } = await openDefault(page, simulator);
   const status = editor.getByTestId("reorder-status");
   const total = before.length;
   const focused = () => page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
@@ -271,6 +250,31 @@ test("Remove from the keyboard moves focus to the next item, the previous one, t
   await expect(editor.getByRole("button", { name: "Add animation" })).toBeFocused();
 });
 
+/** A fixed start for the page's clock, so the tests do not depend on the machine's date or time zone. */
+const CLOCK_START = new Date("2026-01-15T10:30:00Z");
+
+/**
+ * Stops the page's clock: from here its time, frames and timers move only by `page.clock.runFor`, so a test of the
+ * edge scrolling speed or delay gives the same result on a slow runner. Needs `page.clock.install` before the page
+ * loads. The installed clock runs until it is paused and `pauseAt` only moves forward, so it aims a second past the
+ * page's time, and again if the page got there first. It waits for the board lists first: a request still waiting
+ * for its reply when the clock jumps could time out (after 2 s).
+ */
+async function pauseClock(page: Page): Promise<void> {
+  for (const kind of ["animations", "playlists"]) {
+    await expect(page.locator("#main")).toHaveAttribute(`data-list-${kind}`, "known");
+  }
+  for (;;) {
+    const target = (await page.evaluate(() => Date.now())) + 1000;
+    try {
+      await page.clock.pauseAt(target);
+      return;
+    } catch (error) {
+      if (!String(error).includes("Cannot fast-forward to the past")) throw error;
+    }
+  }
+}
+
 /** The part of the panel where the list shows, between the title bar and the button bar that stick to it. */
 const visibleBand = (panel: Locator) =>
   panel.evaluate((element) => {
@@ -289,21 +293,23 @@ test("near the outer limit of the edge zone the panel scrolls slowly, and a drag
   page,
   simulator,
 }) => {
+  await page.clock.install({ time: CLOCK_START });
   await page.setViewportSize({ width: 375, height: 600 });
   await connectSimulator(page, simulator);
-  const { editor } = await openDefault(page, simulator.dataDir);
+  const { editor } = await openDefault(page, simulator);
   const panel = page.getByTestId("wide-panel");
   const scrollTop = () => panel.evaluate((element) => element.scrollTop);
   const near = (await visibleBand(panel)).bottom - 40;
+  await pauseClock(page);
 
   // The drag starts inside the bottom zone (48 px above the button bar): nothing scrolls for the first 300 ms.
   await touch(page, "pointerdown", handle(editor, 1), near);
   await touch(page, "pointermove", null, near);
-  await page.waitForTimeout(150);
+  await page.clock.runFor(280);
   expect(await scrollTop()).toBe(0);
 
   // 8 px into the zone the speed is under 5 px per 60 Hz frame: well under 400 px in the next second.
-  await page.waitForTimeout(1300);
+  await page.clock.runFor(1170);
   const after = await scrollTop();
   expect(after).toBeGreaterThan(0);
   expect(after).toBeLessThan(400);
@@ -311,13 +317,15 @@ test("near the outer limit of the edge zone the panel scrolls slowly, and a drag
 });
 
 test("scrolling up while dragging is as fast as scrolling down", async ({ page, simulator }) => {
+  await page.clock.install({ time: CLOCK_START });
   await page.setViewportSize({ width: 375, height: 600 });
   await connectSimulator(page, simulator);
-  const { editor } = await openDefault(page, simulator.dataDir);
+  const { editor } = await openDefault(page, simulator);
   const panel = page.getByTestId("wide-panel");
   const scrollTop = () => panel.evaluate((element) => element.scrollTop);
   const band = await visibleBand(panel);
   const middle = await panel.evaluate((element) => Math.round((element.scrollHeight - element.clientHeight) / 2));
+  await pauseClock(page);
 
   /** Drags item 10 to `y` from the middle of the list and returns how far the panel scrolled in one second. */
   async function scrolledFrom(y: number): Promise<number> {
@@ -330,7 +338,7 @@ test("scrolling up while dragging is as fast as scrolling down", async ({ page, 
     await touch(page, "pointermove", null, box.y + 5);
     const before = await scrollTop();
     await touch(page, "pointermove", null, y);
-    await page.waitForTimeout(1000);
+    await page.clock.runFor(1000);
     const moved = Math.abs((await scrollTop()) - before);
     await touch(page, "pointerup", null, y);
     return moved;

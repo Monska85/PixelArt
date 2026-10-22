@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // frames.json and the self-contained HTML player built around it.
 
 #include <cmath>
@@ -77,8 +79,18 @@ std::string player_html(const std::string &frames_json)
   std::string html = reinterpret_cast<const char *>(PLAYER_HTML);
   const std::string placeholder = "__DATA__";
   size_t at = html.find(placeholder);
+  // A `<` can only be inside a JSON string, where \u003c means the same: no
+  // text from the run can then close the <script> element.
+  std::string data;
+  for (char c : frames_json)
+  {
+    if (c == '<')
+      data += "\\u003c";
+    else
+      data += c;
+  }
   if (at != std::string::npos)
-    html.replace(at, placeholder.size(), frames_json);
+    html.replace(at, placeholder.size(), data);
   return html;
 }
 

@@ -57,7 +57,13 @@ const TYPES = {
 };
 
 const server = createServer((request, response) => {
-  const path = decodeURIComponent(new URL(request.url ?? "/", "http://localhost").pathname);
+  let path;
+  try {
+    path = decodeURIComponent(new URL(request.url ?? "/", "http://localhost").pathname);
+  } catch {
+    response.writeHead(400, { "content-type": "text/plain" }).end("bad request");
+    return;
+  }
   let file = normalize(join(root, path === "/" ? "index.html" : path));
   if (file !== root && !file.startsWith(root + sep)) file = "";
   if (!file || !existsSync(file) || !statSync(file).isFile()) {

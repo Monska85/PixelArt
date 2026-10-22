@@ -4,11 +4,10 @@ import { Alert, AlertDescription } from "../components/alert";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
 import { IconButton } from "../components/icon-button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";
+import { ReasonTooltip } from "../components/tooltip";
 import { capNames, nameList, splitMissing } from "./missing";
 import type { ManifestState } from "../useManifest";
-
-const plural = (count: number): string => `${count} animation${count === 1 ? "" : "s"}`;
+import { plural } from "../format";
 
 /** What the Library can do about missing animations. `library` is a ManifestState: nothing is offered while its status is "loading". */
 export interface MissingContext {
@@ -52,31 +51,33 @@ export function MissingBadge({
   context: MissingContext;
 }) {
   const { unavailable } = describe(missing, context);
-  const summary = `Missing ${plural(missing.length)}: ${missing.join(", ")}`;
+  const summary = `Missing ${plural(missing.length, "animation")}: ${missing.join(", ")}`;
   const { shown, more } = capNames(missing);
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span tabIndex={0} role="group" aria-label={summary} data-testid={`missing-${playlist}`}>
-          <Badge variant="warning">
-            <TriangleAlert aria-hidden="true" />
-            {missing.length} missing
-          </Badge>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent data-testid={`missing-tip-${playlist}`}>
-        <p className="font-medium">Not stored on the board:</p>
-        <ul className="list-disc pl-4">
-          {shown.map((name) => (
-            <li key={name}>
-              {name}
-              {unavailable.includes(name) ? " (not available in the Library)" : ""}
-            </li>
-          ))}
-        </ul>
-        {more > 0 && <p>and {more} more</p>}
-      </TooltipContent>
-    </Tooltip>
+    <ReasonTooltip
+      reason={summary}
+      testId={`missing-${playlist}`}
+      tipTestId={`missing-tip-${playlist}`}
+      tip={
+        <>
+          <p className="font-medium">Not stored on the board:</p>
+          <ul className="list-disc pl-4">
+            {shown.map((name) => (
+              <li key={name}>
+                {name}
+                {unavailable.includes(name) ? " (not available in the Library)" : ""}
+              </li>
+            ))}
+          </ul>
+          {more > 0 && <p>and {more} more</p>}
+        </>
+      }
+    >
+      <Badge variant="warning">
+        <TriangleAlert aria-hidden="true" />
+        {missing.length} missing
+      </Badge>
+    </ReasonTooltip>
   );
 }
 
@@ -91,11 +92,33 @@ export function InstallMissingButton({
   context: MissingContext;
 }) {
   const { installable } = describe(missing, context);
+  return (
+    <InstallButton
+      label={`Install missing animations of ${playlist}`}
+      tooltip={`Install ${plural(installable.length, "animation")} from the Library`}
+      installable={installable}
+      context={context}
+    />
+  );
+}
+
+/** Sends `installable` from the Library; nothing when it is empty. The tooltip says why while installing is blocked. */
+function InstallButton({
+  label,
+  tooltip,
+  installable,
+  context,
+}: {
+  label: string;
+  tooltip: string;
+  installable: Published[];
+  context: MissingContext;
+}) {
   if (installable.length === 0) return null;
   return (
     <IconButton
-      label={`Install missing animations of ${playlist}`}
-      tooltip={context.blocked ?? `Install ${plural(installable.length)} from the Library`}
+      label={label}
+      tooltip={context.blocked ?? tooltip}
       icon={Download}
       disabled={context.blocked !== null}
       onClick={() => context.onInstall(installable)}
@@ -108,14 +131,12 @@ export function InstallAnimation({ animation, context }: { animation: string; co
   const { installable, unavailable } = describe([animation], context);
   if (unavailable.length > 0)
     return <span className="text-xs text-muted-foreground">Not available in the Library</span>;
-  if (installable.length === 0) return null;
   return (
-    <IconButton
+    <InstallButton
       label={`Install ${animation}`}
-      tooltip={context.blocked ?? "Install from the Library"}
-      icon={Download}
-      disabled={context.blocked !== null}
-      onClick={() => context.onInstall(installable)}
+      tooltip="Install from the Library"
+      installable={installable}
+      context={context}
     />
   );
 }
@@ -135,8 +156,8 @@ export function ActiveMissingNote({
     <Alert variant="warning" data-testid="active-missing">
       <AlertDescription className="flex flex-col gap-2 text-foreground">
         <p>
-          The active playlist <code>{playlist}</code> is missing {plural(missing.length)}: <Names names={missing} />.
-          The board skips them.
+          The active playlist <code>{playlist}</code> is missing {plural(missing.length, "animation")}:{" "}
+          <Names names={missing} />. The board skips them.
         </p>
         {unavailable.length > 0 && (
           <p>

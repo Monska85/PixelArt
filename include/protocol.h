@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The command protocol of docs/protocol/protocol-v1.md: framing, commands and
 // uploads. The core takes one line and returns one reply line, so any
 // transport can drive it. The serial transport reads the board's USB serial

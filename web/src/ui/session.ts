@@ -1,12 +1,13 @@
 // The connection to a board or to the simulator, shared by the whole app.
 
 import { useSyncExternalStore } from "react";
+import { createEmitter } from "./emitter";
 import { BoardClient, BoardError, abortUpload, listFiles, type BoardInfo, type Kind } from "../protocol";
 import { FileListReader, KINDS, NO_LISTS, type FileLists } from "./fileLists";
 import { SerialTransport, serialApi } from "../protocol/serial";
 import type { Transport } from "../protocol/transport";
-import { WebSocketTransport } from "../protocol/websocket";
-import { loadSimulatorAddress } from "./storage";
+import { DEFAULT_SIMULATOR_URL, WebSocketTransport } from "../protocol/websocket";
+import { readStored, SIMULATOR_KEY } from "./storage";
 
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "lost";
 
@@ -49,7 +50,7 @@ function uploadsBlocked(info: BoardInfo): string | null {
 
 class Session {
   private snapshot: Snapshot = IDLE;
-  private listeners = new Set<() => void>();
+  private readonly changes = createEmitter();
   private transport: Transport | null = null;
   private interrupted = false;
   private attempt = 0;
@@ -62,16 +63,13 @@ class Session {
     (files) => this.set({ files }),
   );
 
-  subscribe = (listener: () => void): (() => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  };
+  subscribe = this.changes.subscribe;
 
   getSnapshot = (): Snapshot => this.snapshot;
 
   private set(patch: Partial<Snapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };
-    for (const listener of this.listeners) listener();
+    this.changes.emit();
   }
 
   /** Remembers that an upload was cut by a lost connection: put_abort goes out after the next connection. */
@@ -89,7 +87,9 @@ class Session {
 
   /** Connects again the way the lost connection was made: a board asks for its port again, the simulator reuses its address. */
   reconnect(): Promise<void> {
-    return this.snapshot.via === "board" ? this.connectBoard() : this.connectSimulator(loadSimulatorAddress());
+    return this.snapshot.via === "board"
+      ? this.connectBoard()
+      : this.connectSimulator(readStored(SIMULATOR_KEY) || DEFAULT_SIMULATOR_URL);
   }
 
   private async connect(via: "board" | "simulator", open: () => Promise<Transport>): Promise<void> {
@@ -138,10 +138,9 @@ class Session {
 
   /** Reads `info` again: the storage used, and a restart of the board. False when it could not be read. */
   async refreshInfo(): Promise<boolean> {
-    const client = this.snapshot.client;
-    if (!client || this.snapshot.state !== "connected") return false;
+    if (this.snapshot.state !== "connected") return false;
     try {
-      this.set({ info: await client.handshake() });
+      this.set({ info: await this.snapshot.client!.handshake() });
       return true;
     } catch {
       // A lost connection is reported through onLost.
@@ -154,7 +153,7 @@ class Session {
    * removes files of those kinds. A failed read leaves the list "unknown", never the old one.
    */
   async refreshFiles(kinds: readonly Kind[]): Promise<void> {
-    if (!this.snapshot.client || this.snapshot.state !== "connected") return;
+    if (this.snapshot.state !== "connected") return;
     await this.reader.refresh(kinds);
   }
 

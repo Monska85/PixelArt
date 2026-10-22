@@ -5,7 +5,8 @@ import { NO_SAVES, type Saves } from "../../editor/saves";
 import { writeJson } from "../../yaml/writeJson";
 import { navigatedSince } from "../navigation";
 import { idFromFileName, prepareUpload, readPicked } from "../files";
-import type { Opening, Origin } from "./store";
+import type { DraftOrigin } from "./drafts";
+import type { Opening } from "./store";
 
 export type Opened = { ok: true; opening: Opening } | { ok: false; message: string };
 
@@ -60,7 +61,7 @@ export function readAnimationBytes(
  * since `mark` (taken when they asked, before the download), the document is still opened in the store but the
  * view stays where the user is.
  */
-export async function showInEditor(opening: Opening, from: Origin, mark: number): Promise<void> {
+export async function showInEditor(opening: Opening, from: DraftOrigin, mark: number): Promise<void> {
   // The editor's store holds the YAML library: it is loaded here, or at start-up, never with the first paint.
   const { editorStore } = await import("./store");
   const result = await editorStore.request({ ...opening, from });

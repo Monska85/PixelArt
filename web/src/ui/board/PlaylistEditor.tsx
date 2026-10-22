@@ -17,7 +17,7 @@ import { Select } from "../components/select";
 import { WidePanel } from "../components/sheet";
 import { Switch } from "../components/switch";
 import { toast } from "../components/toast";
-import { formatSize } from "../format";
+import { formatSize, plural } from "../format";
 import { session } from "../session";
 import { singleFileResult } from "../queue/summary";
 import { blockedOrBusy } from "../upload";
@@ -25,6 +25,7 @@ import { useUploadQueue } from "../queue/useUploadQueue";
 import { InstallAnimation, type MissingContext } from "./MissingAnimations";
 import { contentKey, documentFromModel, newItemKey, type EditorItem, type PlaylistModel } from "./playlistModel";
 import { useReorder } from "./useReorder";
+import { ID_RULE } from "../common/UploadDialogs";
 
 /** The repeat a typed text stands for: a whole number from 1 to 1000, or null. */
 function parseRepeat(text: string): number | null {
@@ -99,8 +100,6 @@ interface Props {
 
 /** The per-item buttons that keep a keyboard user's focus when items move or go away. */
 type ItemButton = "up" | "down" | "remove";
-
-const ID_RULE = "Lowercase letters, digits, _ and -, starting with a letter or digit, at most 32 characters.";
 
 /** The playlist editor, in a wide panel above the lists (the whole screen on a phone). */
 export function PlaylistEditor({
@@ -179,7 +178,7 @@ export function PlaylistEditor({
   };
   const remove = (key: number, index: number): void => {
     const rest = model.items.filter((i) => i.key !== key);
-    const left = rest.length === 0 ? "No items left" : `${rest.length} ${rest.length === 1 ? "item" : "items"} left`;
+    const left = rest.length === 0 ? "No items left" : `${plural(rest.length, "item")} left`;
     setAnnouncement(`${itemName(key)} removed. ${left}.`);
     setModel({ ...model, items: rest });
     focusAfterRender(() => afterRemoval(rest, index));

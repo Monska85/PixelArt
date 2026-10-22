@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "strict_json.h"
 
 #include <pixel_codec.h>
@@ -247,13 +249,38 @@ bool check_strict_json(const char *json, size_t length, int max_depth, const cha
   return true;
 }
 
-std::string strict_json_error(const char *json, size_t length, int max_depth)
+bool parse_document(const char *json, size_t length, size_t max_size, int max_depth, JsonDocument &doc,
+                    const char *&code, std::string &message)
 {
+  if (length > max_size)
+  {
+    code = "limit_exceeded";
+    message = "file larger than " + std::to_string(max_size / 1024) + " KiB";
+    return false;
+  }
+  code = "structure";
   const char *reason = nullptr;
   size_t offset = 0;
-  if (check_strict_json(json, length, max_depth, reason, offset))
-    return "";
-  return std::string("not valid JSON: ") + reason + " (byte " + std::to_string(offset) + ")";
+  if (!check_strict_json(json, length, max_depth, reason, offset))
+  {
+    message = std::string("not valid JSON: ") + reason + " (byte " + std::to_string(offset) + ")";
+    return false;
+  }
+  DeserializationError parse_error = deserializeJson(doc, json, length, DeserializationOption::NestingLimit(max_depth));
+  if (parse_error)
+  {
+    message = std::string("not valid JSON: ") + parse_error.c_str();
+    return false;
+  }
+  return true;
+}
+
+bool is_allowed_key(JsonString key, std::initializer_list<const char *> allowed)
+{
+  for (const char *name : allowed)
+    if (key == name)
+      return true;
+  return false;
 }
 
 size_t utf8_code_points(const char *text)

@@ -1,11 +1,8 @@
 import type { Page } from "@playwright/test";
 import { decodeLine, encodeLine } from "../src/protocol/framing";
-import type { Simulator } from "../e2e/fixtures";
+import type { Simulator } from "./fixtures";
 
-/** What the pages see as the time, so a time in the page never moves a reference image. */
-export const FIXED_TIME = new Date("2026-01-15T10:30:00Z");
-
-export interface BoardWatch {
+interface BoardWatch {
   /**
    * Keeps the reply to the next request of this command until `release`. The replies to its retries (the app asks
    * again with the same seq after 2 seconds) are dropped, so the state lasts however slow the run is.

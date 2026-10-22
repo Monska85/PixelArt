@@ -1,19 +1,10 @@
 import { existsSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Dialog, Page } from "@playwright/test";
-import { connectSimulator, expect, test } from "./fixtures";
+import { connectSimulator, expect, file, stored, test, text } from "./fixtures";
 
-const file = (name: string): string => fileURLToPath(new URL(`./files/${name}`, import.meta.url));
 const editorLink = (page: Page) => page.getByRole("link", { name: "Editor", exact: true });
 const state = (page: Page) => page.getByTestId("save-state");
 const TIME = "\\d\\d:\\d\\d";
-
-async function text(page: Page, label: string, value: string): Promise<void> {
-  const field = page.getByLabel(label, { exact: true });
-  await field.fill(value);
-  await field.press("Enter");
-}
 
 /** Uploads the document under the ID, which the first save asks for. */
 async function uploadAs(page: Page, id: string): Promise<void> {
@@ -101,7 +92,7 @@ test("a file that is no longer on the connected board is not shown as saved to i
   await text(page, "Name", "Gone Soon");
   await uploadAs(page, "e2e_gone");
   await expect(state(page)).toHaveText(new RegExp(`^Saved to board as e2e_gone at ${TIME}$`));
-  rmSync(join(simulator.dataDir, "animations", "e2e_gone.json"));
+  rmSync(stored(simulator, "animations", "e2e_gone"));
   // The check reads the board's files again when the view opens.
   await page.getByRole("link", { name: "Board" }).click();
   await editorLink(page).click();
@@ -179,7 +170,7 @@ test("leaving the page asks after the saved file is deleted from the Board view"
   await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("e2e_elsewhere", { exact: true })).toHaveCount(0);
-  expect(existsSync(join(simulator.dataDir, "animations", "e2e_elsewhere.json"))).toBe(false);
+  expect(existsSync(stored(simulator, "animations", "e2e_elsewhere"))).toBe(false);
 
   const dialogs: Dialog[] = [];
   page.on("dialog", (dialog) => {
@@ -270,7 +261,7 @@ test("Delete warns when the editor holds the only saved copy, and Download YAML 
   await expect(dialog.getByTestId("only-copy")).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "Download YAML first" })).toHaveCount(0);
   await dialog.getByRole("button", { name: "Delete", exact: true }).click();
-  await expect.poll(() => existsSync(join(simulator.dataDir, "animations", "star.json"))).toBe(false);
+  await expect.poll(() => existsSync(stored(simulator, "animations", "star"))).toBe(false);
 });
 
 test("Delete everything warns the same way", async ({ page, simulator }) => {

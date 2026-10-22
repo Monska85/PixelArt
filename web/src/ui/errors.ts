@@ -17,18 +17,21 @@ export interface ShownError {
 
 let nextId = 1;
 
+/** An error to show, with an ID no other shown error has. */
+export function shownError(
+  context: string,
+  code: string,
+  message: string,
+  extra: Partial<Omit<ShownError, "id">> = {},
+): ShownError {
+  return { id: nextId++, context, code, message, diagnostics: [], ...extra };
+}
+
 export function toShownError(context: string, error: unknown): ShownError {
   if (error instanceof BoardError)
-    return { id: nextId++, context, code: error.code, message: error.message, diagnostics: error.diagnostics };
-  if (error instanceof UploadCancelled)
-    return { id: nextId++, context, code: "cancelled", message: "Cancelled.", diagnostics: [] };
-  return {
-    id: nextId++,
-    context,
-    code: "error",
-    message: error instanceof Error ? error.message : "Something went wrong.",
-    diagnostics: [],
-  };
+    return shownError(context, error.code, error.message, { diagnostics: error.diagnostics });
+  if (error instanceof UploadCancelled) return shownError(context, "cancelled", "Cancelled.");
+  return shownError(context, "error", error instanceof Error ? error.message : "Something went wrong.");
 }
 
 /** The text of an error in a place that has room for one line: the code, then the message. */

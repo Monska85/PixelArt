@@ -222,6 +222,8 @@ interface ColorProps {
   testId?: string;
 }
 
+const COLOR_HINT = "A palette name or a #rrggbb value.";
+
 /** A color: a palette name or a hex value typed in, or picked with the color picker. */
 export function ColorField({ doc, label, value, onCommit, optional, testId }: ColorProps) {
   const [draft, setDraft] = useDraft(value);
@@ -229,16 +231,14 @@ export function ColorField({ doc, label, value, onCommit, optional, testId }: Co
   const hex = resolveColor(doc, value);
   const names = [...(asObject(doc.get("palette"))?.keys() ?? [])];
   const problem =
-    draft === value || (optional && draft === "") || resolveColor(doc, draft) !== null
-      ? null
-      : "A palette name or a #rrggbb value.";
+    draft === value || (optional && draft === "") || resolveColor(doc, draft) !== null ? null : COLOR_HINT;
   const commit = (): void => {
     if (draft === value) return;
     if (problem) setDraft(value);
     else onCommit(draft, false);
   };
   return (
-    <Field label={label} error={problem} hint="A palette name or a #rrggbb value.">
+    <Field label={label} error={problem} hint={COLOR_HINT}>
       {(control) => (
         <span className="flex items-center gap-2">
           <Swatch doc={doc} color={value} />

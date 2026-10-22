@@ -8,7 +8,7 @@ import { IconButton } from "./icon-button";
  * The column that holds side panels. On a wide screen it sits next to the list that opened the panel, in its own
  * grid column; on a phone it is a panel fixed to the bottom of the screen. It renders nothing without panels.
  */
-export function SidePanelColumn({ children, className }: { children: ReactNode; className?: string }) {
+export function SidePanelColumn({ children }: { children: ReactNode }) {
   return (
     <aside
       aria-label="Side panel"
@@ -16,7 +16,6 @@ export function SidePanelColumn({ children, className }: { children: ReactNode; 
         "flex min-w-0 flex-col gap-4",
         "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[80dvh] max-lg:overflow-y-auto max-lg:rounded-t-xl max-lg:border max-lg:border-border max-lg:bg-card max-lg:shadow-lg",
         "lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto",
-        className,
       )}
     >
       {children}
@@ -28,8 +27,6 @@ interface PanelProps extends Omit<ComponentProps<"div">, "title"> {
   title: string;
   /** Called by Escape and by the close button. */
   onClose: () => void;
-  /** What keyboard focus goes to when the panel opens. The title when absent. */
-  initialFocus?: () => HTMLElement | null;
   footer?: ReactNode;
   /** True while the panel covers the page: focus stays in it and the page behind is hidden from screen readers. */
   modal?: boolean;
@@ -39,16 +36,7 @@ interface PanelProps extends Omit<ComponentProps<"div">, "title"> {
  * A panel on Radix Dialog without the modal part: the list next to it stays usable. Focus goes to the title when it
  * opens and back to the control that opened it when it closes.
  */
-export function SidePanel({
-  title,
-  onClose,
-  initialFocus,
-  footer,
-  modal = false,
-  className,
-  children,
-  ...props
-}: PanelProps) {
+export function SidePanel({ title, onClose, footer, modal = false, className, children, ...props }: PanelProps) {
   const heading = useRef<HTMLHeadingElement>(null);
   // Taken during the first render: by the time Radix moves focus into the panel, the opener is already known.
   const [opener] = useState(() => document.activeElement);
@@ -64,7 +52,7 @@ export function SidePanel({
         aria-describedby={undefined}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          (initialFocus?.() ?? heading.current)?.focus();
+          heading.current?.focus();
         }}
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}

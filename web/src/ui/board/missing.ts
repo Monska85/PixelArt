@@ -7,7 +7,7 @@ export function missingAnimations(named: readonly string[], stored: ReadonlySet<
   return named.filter((name) => !stored.has(name));
 }
 
-export interface MissingSplit {
+interface MissingSplit {
   /** Published in the Library: the queue can send them. */
   installable: Published[];
   /** Published nowhere: the Library cannot bring them. */
@@ -44,18 +44,15 @@ export function missingByPlaylist(
 }
 
 /** How many missing names a tooltip or note spells out before it says "and N more". */
-export const MISSING_NAMES_SHOWN = 10;
+const MISSING_NAMES_SHOWN = 10;
 
-/** The first `limit` names and how many were left out. */
-export function capNames(
-  names: readonly string[],
-  limit: number = MISSING_NAMES_SHOWN,
-): { shown: string[]; more: number } {
-  return { shown: names.slice(0, limit), more: Math.max(0, names.length - limit) };
+/** The first MISSING_NAMES_SHOWN names and how many were left out. */
+export function capNames(names: readonly string[]): { shown: string[]; more: number } {
+  return { shown: names.slice(0, MISSING_NAMES_SHOWN), more: Math.max(0, names.length - MISSING_NAMES_SHOWN) };
 }
 
-/** Names joined for a sentence: at most `limit`, then "and N more". */
-export function nameList(names: readonly string[], limit: number = MISSING_NAMES_SHOWN): string {
-  const { shown, more } = capNames(names, limit);
+/** Names joined for a sentence: at most MISSING_NAMES_SHOWN, then "and N more". */
+export function nameList(names: readonly string[]): string {
+  const { shown, more } = capNames(names);
   return more > 0 ? `${shown.join(", ")} and ${more} more` : shown.join(", ");
 }

@@ -1,19 +1,18 @@
-import { DEFAULT_SIMULATOR_URL } from "../protocol/websocket";
-
-const KEY = "pixelart.simulator";
-
 // Browser storage can be missing or blocked: it is a convenience, never a requirement.
-export function loadSimulatorAddress(): string {
+
+export const SIMULATOR_KEY = "pixelart.simulator";
+
+export function readStored(key: string): string | null {
   try {
-    return localStorage.getItem(KEY) || DEFAULT_SIMULATOR_URL;
+    return localStorage.getItem(key);
   } catch {
-    return DEFAULT_SIMULATOR_URL;
+    return null;
   }
 }
 
-export function saveSimulatorAddress(address: string): void {
+export function writeStored(key: string, value: string): void {
   try {
-    localStorage.setItem(KEY, address);
+    localStorage.setItem(key, value);
   } catch {
     // Not remembered.
   }

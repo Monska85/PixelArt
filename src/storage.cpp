@@ -1,15 +1,4 @@
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "storage.h"
 
@@ -53,20 +42,6 @@ bool is_open_for_writing(const fs::path &file)
 
 bool begin() { return true; }
 
-ReadResult read(const std::string &path, Buffer &out, size_t max_size)
-{
-  Reader file;
-  switch (file.open(path))
-  {
-  case ReadResult::Ok:
-    return file.read_all(out, max_size);
-  case ReadResult::Missing:
-    return ReadResult::Missing;
-  default:
-    return ReadResult::Unreadable;
-  }
-}
-
 std::vector<std::string> list(const std::string &folder)
 {
   std::vector<std::string> names;
@@ -81,7 +56,7 @@ std::vector<std::string> list(const std::string &folder)
 
 namespace
 {
-size_t capacity_bytes = 1441792;
+size_t capacity_bytes = DEFAULT_CAPACITY;
 } // namespace
 
 bool exists(const std::string &path)
@@ -158,11 +133,6 @@ struct Writer::Impl
 
 size_t open_writers() { return open_files().size(); }
 
-Writer::Writer() = default;
-Writer::~Writer() = default;
-Writer::Writer(Writer &&) noexcept = default;
-Writer &Writer::operator=(Writer &&) noexcept = default;
-
 bool Writer::open(const std::string &path)
 {
   close();
@@ -194,9 +164,6 @@ struct Reader::Impl
 {
   std::ifstream in;
 };
-
-Reader::Reader() = default;
-Reader::~Reader() = default;
 
 ReadResult Reader::open(const std::string &path)
 {
@@ -262,20 +229,6 @@ void make_parents(const std::string &path)
 
 bool begin() { return LittleFS.begin(true, MOUNT_POINT); }
 
-ReadResult read(const std::string &path, Buffer &out, size_t max_size)
-{
-  Reader file;
-  switch (file.open(path))
-  {
-  case ReadResult::Ok:
-    return file.read_all(out, max_size);
-  case ReadResult::Missing:
-    return ReadResult::Missing;
-  default:
-    return ReadResult::Unreadable;
-  }
-}
-
 // Lists names without opening the files, which costs one open per file.
 std::vector<std::string> list(const std::string &folder)
 {
@@ -327,11 +280,6 @@ struct Writer::Impl
   File file;
 };
 
-Writer::Writer() = default;
-Writer::~Writer() = default;
-Writer::Writer(Writer &&) noexcept = default;
-Writer &Writer::operator=(Writer &&) noexcept = default;
-
 bool Writer::open(const std::string &path)
 {
   close();
@@ -360,9 +308,6 @@ struct Reader::Impl
 {
   File file;
 };
-
-Reader::Reader() = default;
-Reader::~Reader() = default;
 
 ReadResult Reader::open(const std::string &path)
 {
@@ -402,6 +347,21 @@ ReadResult read_all_failure = ReadResult::Ok;
 
 void set_read_all_failure(ReadResult result) { read_all_failure = result; }
 #endif
+
+ReadResult read(const std::string &path, Buffer &out, size_t max_size)
+{
+  Reader file;
+  ReadResult opened = file.open(path);
+  return opened == ReadResult::Ok ? file.read_all(out, max_size) : opened;
+}
+
+Writer::Writer() = default;
+Writer::~Writer() = default;
+Writer::Writer(Writer &&) noexcept = default;
+Writer &Writer::operator=(Writer &&) noexcept = default;
+
+Reader::Reader() = default;
+Reader::~Reader() = default;
 
 ReadResult Reader::read_all(Buffer &out, size_t max_size)
 {

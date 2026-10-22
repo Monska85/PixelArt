@@ -11,7 +11,7 @@ import {
 import { initialState, reduce } from "../src/editor/state";
 import { summaryReport } from "../src/ui/queue/summary";
 import type { QueueFile, QueueSummary } from "../src/queue/plan";
-import { writeJson } from "../src/yaml";
+import { writeJson } from "../src/yaml/writeJson";
 
 const named = (name: string): Doc => setTopField(newAnimation(), "name", name);
 // 08:42 UTC; the header writes the local clock, so the tests build the expected text the same way.

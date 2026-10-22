@@ -6,7 +6,8 @@ import { cn } from "../components/cn";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/popover";
 import { TruncatedText } from "../common/TruncatedText";
 import { formatSize } from "../format";
-import { SERIAL_SUPPORTED, session, useSession, type ConnectionState } from "../session";
+import { session, useSession, type ConnectionState } from "../session";
+import { ConnectBoardButton } from "./ConnectBoardButton";
 import { SimulatorForm } from "./SimulatorForm";
 
 const LABELS: Record<ConnectionState, string> = {
@@ -27,11 +28,9 @@ const boardName = (info: BoardInfo): string => info.board || "unknown board";
 
 /** The state of the connection as a dot and a word (never color alone), and when connected the board and its firmware. */
 export function ConnectionChip() {
-  const { state, via, info } = useSession();
+  const { state, info } = useSession();
   const [open, setOpen] = useState(false);
   const close = (): void => setOpen(false);
-  const serial = SERIAL_SUPPORTED();
-  const busy = state === "connecting";
   const known = state === "connected" || state === "lost" ? info : null;
 
   return (
@@ -88,13 +87,7 @@ export function ConnectionChip() {
         )}
         {(state === "disconnected" || state === "connecting") && (
           <>
-            <Button
-              disabled={busy || !serial}
-              loading={busy && via === "board"}
-              onClick={() => void session.connectBoard().finally(close)}
-            >
-              Connect board
-            </Button>
+            <ConnectBoardButton onDone={close}>Connect board</ConnectBoardButton>
             <div className="flex flex-col gap-3 border-t border-border pt-4">
               <p className="text-sm font-medium">Use the simulator</p>
               <SimulatorForm onDone={close} />

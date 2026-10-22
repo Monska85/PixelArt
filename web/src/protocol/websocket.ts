@@ -8,15 +8,21 @@ export const DEFAULT_SIMULATOR_URL = "ws://127.0.0.1:8765";
 const CONNECT_TRIES = 5;
 const RETRY_DELAY_MS = 200;
 
-/** The address to connect to, or an error message. Only ws:// addresses are accepted. */
-export function checkSimulatorUrl(text: string): { ok: true; url: string } | { ok: false; message: string } {
+// The hosts the Content Security Policy in index.html lets the page connect to.
+const LOOPBACK_HOSTS = ["127.0.0.1", "localhost"];
+
+/** The address to connect to, or an error message. Only ws:// addresses on a loopback host are accepted. */
+function checkSimulatorUrl(text: string): { ok: true; url: string } | { ok: false; message: string } {
   try {
     const url = new URL(text.trim());
-    if (url.protocol === "ws:" && url.hostname !== "") return { ok: true, url: url.toString() };
+    if (url.protocol === "ws:" && LOOPBACK_HOSTS.includes(url.hostname)) return { ok: true, url: url.toString() };
   } catch {
     // Falls through to the message.
   }
-  return { ok: false, message: `The address must look like ${DEFAULT_SIMULATOR_URL}` };
+  return {
+    ok: false,
+    message: `The address must look like ${DEFAULT_SIMULATOR_URL}: only ws:// on 127.0.0.1 or localhost is allowed`,
+  };
 }
 
 export class WebSocketTransport implements Transport {
@@ -62,7 +68,7 @@ export class WebSocketTransport implements Transport {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
       }
     }
-    throw new Error(`Cannot connect to ${checked.url}. Is the simulator running (make serve)?`.trim());
+    throw new Error(`Cannot connect to ${checked.url}. Is the simulator running (make serve)?`);
   }
 
   async send(line: string): Promise<void> {

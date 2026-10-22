@@ -1,0 +1,44 @@
+{
+  "description": "settings_set with brightness null gets bad_request and changes nothing, even with a valid playlist",
+  "files": {
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR b46cd0ce {\"seq\":1,\"cmd\":\"settings_set\",\"brightness\":null}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 047c7214 {\"seq\":2,\"cmd\":\"settings_set\",\"brightness\":null,\"playlist\":\"christmas\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ccc5b064 {\"seq\":3,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default"
+        }
+      }
+    }
+  ]
+}

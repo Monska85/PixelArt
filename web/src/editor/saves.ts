@@ -1,7 +1,7 @@
 // Where the editor's document is saved: the two real copies (a file on a board, a YAML file on the computer) and
 // what the header says about them (docs/web/web-app-v1.md#where-the-work-is-saved). Pure, so it runs in the tests.
 
-export type CopyKind = "board" | "download" | "file";
+type CopyKind = "board" | "download" | "file";
 
 /** One copy of the document outside the browser, remembered with the content it had. */
 export interface SavedCopy {
@@ -24,7 +24,7 @@ export interface Saves {
 
 export const NO_SAVES: Saves = { board: null, file: null };
 
-export const copiesOf = (saves: Saves): SavedCopy[] =>
+const copiesOf = (saves: Saves): SavedCopy[] =>
   [saves.board, saves.file].filter((copy): copy is SavedCopy => copy !== null);
 
 /** Whether some copy has exactly this content. */
@@ -61,9 +61,9 @@ function isCopy(value: unknown): value is SavedCopy {
 export type BoardFiles =
   { entries: Array<{ id: string; sha256: string | null }>; staleSince: number | null } | "unknown" | null;
 
-export type SaveStateKind = "draft" | "board" | "download" | "file" | "changed" | "not-on-board" | "unchecked";
+type SaveStateKind = "draft" | "board" | "download" | "file" | "changed" | "not-on-board" | "unchecked";
 
-export interface SaveState {
+interface SaveState {
   kind: SaveStateKind;
   /** The sentence for the header. */
   text: string;

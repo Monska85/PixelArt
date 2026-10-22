@@ -1,0 +1,49 @@
+{
+  "description": "the where and message of a diagnostic are cut after 160 characters: an unknown field with a 200-character name",
+  "steps": [
+    {
+      "send": "@PR 33eb470b {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"long\",\"size\":352,\"sha256\":\"1a338490c7ed3040cf63108d26e4ca3e7224ec299e233d8b5a2994a59dabf1aa\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR ba126fba {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IkRvdCIsImNhbnZhcyI6eyJ3aWR0aCI6MTYsImhlaWdodCI6MTZ9LCJzcHJpdGVzIjp7ImRvdCI6eyJwb2ludHMiOltbNyw3LCIjZmYwMDAwIl1dfX0sInRpbWVsaW5lIjpbeyJzaG93IjpbImRvdCJdfV0sImtra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2trIjoxfQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 352
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<at most 160 characters>",
+            "message": "<at most 160 characters>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "animations/long.json": null,
+        "upload.tmp": null
+      }
+    }
+  ]
+}

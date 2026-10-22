@@ -1,8 +1,7 @@
 import { setTopField, type Doc } from "../../editor/doc";
-import { JsonNumber } from "../../engine/json";
-import { EditorCard } from "./EditorCard";
+import { JsonNumber } from "../../engine";
+import { EditorCard, type Edit } from "./EditorCard";
 import { ColorField, NumberField, TextField } from "./Fields";
-import type { Edit } from "./types";
 
 const text = (doc: Doc, key: string): string => {
   const value = doc.get(key);

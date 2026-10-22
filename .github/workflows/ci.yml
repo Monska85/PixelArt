@@ -7,16 +7,41 @@ on:
     branches: [main]
   pull_request:
 
-# A newer run of the same pull request, or of main, cancels the one still running.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# The job only reads the repository and uploads an artifact
+# The jobs only read the repository and upload artifacts
 permissions:
   contents: read
 
 jobs:
+  # actionlint checks the workflows, and the run: blocks with the runner's shellcheck
+  actionlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # The release archive of rhysd/actionlint, checked against its SHA-256. Dependabot does not update it: change
+      # both values together, the hash from actionlint_<version>_checksums.txt of the same release.
+      - name: Lint the workflows
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -eu
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$archive"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -75,15 +100,9 @@ jobs:
         if: failure() && steps.smoke.conclusion == 'failure'
         run: cat "$RUNNER_TEMP/simulator.log" || true
 
-      # The release site holds the web app too, so it needs Node
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Build the firmware for every board, the web app and the release site, check its manifest against the JSON Schema
-        run: make release-site
+      # The web job builds the web app; tools/test_release.py covers the merge of the two sites
+      - name: Build the firmware for every board and the firmware release site, check its manifest against the JSON Schema
+        run: make release-firmware
 
       - name: Render previews of every animation
         run: .pio/build/native/program --out sim-out
@@ -102,36 +121,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: ./.github/actions/setup
         with:
-          python-version: "3.12"
-
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Cache PlatformIO toolchains and libraries
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.platformio
-          key: platformio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'lib/*/library.json') }}
+          node: true
 
       # The end-to-end tests run against the simulator, and the YAML tests compare with the converted files
       - name: Build the simulator and convert the animations and playlists
         run: |
-          pip install platformio pyyaml
           python3 tools/pixelart.py build
           pio run -e native
 
       - name: Install the web app's dependencies
         working-directory: web
         run: npm ci
-
-      - name: Type check
-        working-directory: web
-        run: npm run typecheck
 
       - name: Lint
         working-directory: web
@@ -153,9 +155,23 @@ jobs:
         working-directory: web
         run: npm run size
 
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('./web/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Playwright browsers
+        id: browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-shell-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # The tests run the headless shell only. The runner image already has the system libraries Chromium needs, so
+      # apt is not run: Playwright's install-deps adds only optional fonts, and Ubuntu's mirror can take minutes for them.
       - name: Install Chromium for the end-to-end tests
+        if: steps.browsers.outputs.cache-hit != 'true'
         working-directory: web
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --only-shell chromium
 
       - name: Run the end-to-end tests and the layout checks against the simulator
         id: e2e

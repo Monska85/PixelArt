@@ -1,5 +1,5 @@
 import { ToastProvider } from "@radix-ui/react-toast";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useSyncExternalStore } from "react";
 import { ErrorBoundary } from "./common/ErrorBoundary";
 import { TooltipProvider } from "./components/tooltip";
 import { Toaster } from "./components/toaster";
@@ -17,7 +17,12 @@ const OpeningDialog = lazy(() => import("./editor/OpeningDialog").then((m) => ({
 
 const viewFromHash = (): string => {
   const id = window.location.hash.replace(/^#/, "");
-  return VIEWS.some((view) => view.id === id) ? id : (VIEWS[0]?.id ?? "");
+  return VIEWS.some((view) => view.id === id) ? id : VIEWS[0]!.id;
+};
+
+const subscribeHash = (onChange: () => void): (() => void) => {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
 };
 
 /** The state of a session list as attributes on the shell, for tests that wait for a read to land. */
@@ -30,12 +35,7 @@ function listAttributes(kind: "animations" | "playlists", list: BoardFileList) {
 
 export function App() {
   const { files } = useSession();
-  const [current, setCurrent] = useState(viewFromHash);
-  useEffect(() => {
-    const onHash = (): void => setCurrent(viewFromHash());
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
+  const current = useSyncExternalStore(subscribeHash, viewFromHash);
   // After a navigation that asked for it, focus the new view's heading, or the content when it has none yet.
   useEffect(() => {
     if (!takeFocusRequest()) return;
@@ -59,7 +59,7 @@ export function App() {
   }, []);
   // The theme follows the operating system while the choice is System.
   useEffect(() => theme.start(), []);
-  const view = VIEWS.find((v) => v.id === current) ?? VIEWS[0];
+  const view = VIEWS.find((v) => v.id === current) ?? VIEWS[0]!;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -75,7 +75,7 @@ export function App() {
         >
           Skip to the content
         </a>
-        <TopBar views={VIEWS} current={view?.id ?? ""} />
+        <TopBar views={VIEWS} current={view.id} />
         <main
           id="main"
           className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 focus:outline-none"
@@ -83,8 +83,8 @@ export function App() {
           {...listAttributes("playlists", files.playlist)}
         >
           <ConnectionAlerts />
-          <ErrorBoundary key={view?.id} canDiscardDraft={view?.id === "editor"}>
-            {view?.render()}
+          <ErrorBoundary key={view.id} canDiscardDraft={view.id === "editor"}>
+            {view.render()}
           </ErrorBoundary>
         </main>
         <Suspense fallback={null}>

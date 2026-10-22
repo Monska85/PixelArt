@@ -5,13 +5,6 @@ import type { BoardFileList } from "../fileLists";
 import { useSession } from "../session";
 import { useLatest } from "../useLatest";
 
-export interface BoardData {
-  /** The stored files as the session keeps them: loading, unknown (the read failed) or known. */
-  animations: BoardFileList;
-  playlists: BoardFileList;
-  settings: Settings | null;
-}
-
 /** The entries of a list that is known, or null: callers must not read "not known" as "empty". */
 export const entriesOf = (list: BoardFileList): Entry[] | null => (list.status === "known" ? list.entries : null);
 
@@ -58,7 +51,7 @@ export function useBoardData(client: BoardClient, restarts: number, onError: (er
   }, [client, restarts, round, report]);
 
   return {
-    data: { ...files, settings } satisfies BoardData,
+    data: { ...files, settings },
     /** The settings could not be read and are not known: the view offers `reload` to read them again. */
     settingsUnreadable: unreadable && settings === null,
     reload: () => setRound((n) => n + 1),

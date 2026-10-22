@@ -3,7 +3,7 @@
 // needs, in which order files go, and what became of them. The caller reads the board and sends the files.
 
 import { isArray, isObject, parseStrictJson, PLAYLIST_JSON_DEPTH, type Diagnostic } from "../engine";
-import type { Entry, Kind } from "../protocol";
+import { sameSha, type Entry, type Kind, type WireDiagnostic } from "../protocol";
 import type { Manifest, Published } from "../release/manifest";
 
 /** A file that passed the app's own check and is ready to go. */
@@ -24,7 +24,7 @@ export interface StoredFiles {
   playlist: Entry[];
 }
 
-export type PlanStatus = "missing" | "identical" | "different";
+type PlanStatus = "missing" | "identical" | "different";
 
 export interface PlanEntry {
   file: QueueFile;
@@ -54,8 +54,7 @@ export function planAgainstBoard(files: QueueFile[], stored: StoredFiles): PlanE
   return files.map((file) => {
     const entry = stored[file.kind].find((e) => e.id === file.id) ?? null;
     if (!entry) return { file, status: "missing", stored: null };
-    const same = entry.sha256 !== null && entry.sha256.toLowerCase() === file.sha256;
-    return { file, status: same ? "identical" : "different", stored: entry };
+    return { file, status: sameSha(entry, file.sha256) ? "identical" : "different", stored: entry };
   });
 }
 
@@ -150,8 +149,9 @@ export function sendOrder<T extends { file: QueueFile }>(entries: T[]): T[] {
 }
 
 export type SendOutcome =
-  | { status: "done"; warnings: Array<{ severity: string; code: string; where: string; message: string }> }
+  | { status: "done"; warnings: WireDiagnostic[] }
   | { status: "cancelled" }
+  /** `error` is a BoardError or another Error: show it with toShownError. */
   | { status: "failed"; error: unknown };
 
 export interface QueueSummary {

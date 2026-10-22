@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 /*
- * Theme tokens. Light is the base; dark applies for `data-theme="dark"` and, before the script has set an explicit
- * theme, when the operating system prefers dark. Every text and control pair meets WCAG AA (4.5:1 for text, 3:1 for
- * the borders of fields), disabled and muted text included.
+ * Theme tokens. Light is the base; dark applies for `data-theme="dark"`, which public/theme-init.js sets before the
+ * first paint. Every text and control pair meets WCAG AA (4.5:1 for text, 3:1 for the borders of fields), disabled and
+ * muted text included.
  */
 :root {
   color-scheme: light;
@@ -18,7 +18,6 @@
   --primary: #1d4ed8;
   --primary-foreground: #ffffff;
   --secondary: #e4e4e7;
-  --secondary-foreground: #18181b;
   --accent: #e4e4e7;
   --accent-foreground: #18181b;
   --destructive: #b91c1c;
@@ -46,7 +45,6 @@
   --primary: #60a5fa;
   --primary-foreground: #09090b;
   --secondary: #27272a;
-  --secondary-foreground: #fafafa;
   --accent: #27272a;
   --accent-foreground: #fafafa;
   --destructive: #f87171;
@@ -61,36 +59,6 @@
   --overlay: rgb(0 0 0 / 70%);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    color-scheme: dark;
-    --background: #09090b;
-    --card: #18181b;
-    --foreground: #fafafa;
-    --muted: #27272a;
-    --muted-foreground: #a1a1aa;
-    --border: #3f3f46;
-    --input: #71717a;
-    --ring: #60a5fa;
-    --primary: #60a5fa;
-    --primary-foreground: #09090b;
-    --secondary: #27272a;
-    --secondary-foreground: #fafafa;
-    --accent: #27272a;
-    --accent-foreground: #fafafa;
-    --destructive: #f87171;
-    --destructive-foreground: #09090b;
-    --destructive-soft: #2a1215;
-    --success: #4ade80;
-    --success-soft: #0f2417;
-    --warning: #facc15;
-    --warning-soft: #2a2208;
-    --info: #60a5fa;
-    --info-soft: #0f1b33;
-    --overlay: rgb(0 0 0 / 70%);
-  }
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-card: var(--card);
@@ -103,7 +71,6 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -119,10 +86,7 @@
   --font-sans: system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
   --animate-fade-in: fade-in 150ms ease-out;
-  --animate-fade-out: fade-out 100ms ease-in;
   --animate-slide-up: slide-up 200ms ease-out;
-  --animate-slide-down: slide-down 150ms ease-in;
-  --animate-slide-in-right: slide-in-right 200ms ease-out;
   --animate-toast-in: toast-in 200ms ease-out;
   --animate-toast-out: fade-out 100ms ease-in;
   --animate-spin-slow: spin 1s linear infinite;
@@ -144,20 +108,6 @@
   from {
     opacity: 0;
     transform: translateY(1rem);
-  }
-}
-
-@keyframes slide-down {
-  to {
-    opacity: 0;
-    transform: translateY(1rem);
-  }
-}
-
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(1rem);
   }
 }
 

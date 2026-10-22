@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Simulator internals shared by the sim_*.cpp modules. Not part of the
 // public API: sketches and tests use sim.h.
 
@@ -25,7 +27,6 @@ struct Options
 {
   uint64_t max_us = 600ULL * 1000 * 1000; // 10 virtual minutes
   size_t max_frames = 20000;
-  unsigned long seed = 1;
   bool realtime = false;
   bool ansi = false;
   bool live = false; // keep running, redraw in place, show serial below the matrix
@@ -61,8 +62,16 @@ State &state();
 // sim.cpp
 void finish_frames();
 
-// sim_ws.cpp
+// sim_bridge.cpp: the WebSocket served by tools/ws_bridge.py in a child process.
+// ws_start() reports why the bridge cannot start; once it runs, a bridge that
+// ends stops the run.
+bool ws_start(const char *program, unsigned port, const std::vector<std::string> &extra_origins, std::string &error);
+void ws_stop();
 void ws_send_line(const std::string &line);
+// Waits up to `limit` (rounded up to a whole millisecond) for a request and returns at once when
+// one arrives. The request reaches the serial input early, but the sketch only sees it when the
+// caller returns.
+void ws_wait(std::chrono::microseconds limit);
 
 // sim_panel.cpp
 void build_strip_map();

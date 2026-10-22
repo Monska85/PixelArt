@@ -22,6 +22,10 @@ class FakePort implements SerialPortLike {
   /** close() stays pending until this is called; null closes at once. */
   finishClose: (() => void) | null = null;
   closeHangs = false;
+  /** What the last open() and setSignals() were given, and every line written without a board. */
+  openOptions: unknown = null;
+  signals: unknown = null;
+  written: string[] = [];
   private source: ReadableStreamDefaultController<Uint8Array> | null = null;
 
   constructor(
@@ -30,8 +34,9 @@ class FakePort implements SerialPortLike {
     private readonly board: FakeBoard | null = null,
   ) {}
 
-  async open(): Promise<void> {
+  async open(options: unknown): Promise<void> {
     this.log.push(`${this.name} open`);
+    this.openOptions = options;
     const error = this.openErrors.shift();
     if (error) throw error;
     if (this.isOpen) throw new DOMException("The port is already open.", "InvalidStateError");
@@ -44,7 +49,9 @@ class FakePort implements SerialPortLike {
     this.writable = new WritableStream({
       write: (chunk) => {
         if (this.writesHang) return new Promise(() => {});
-        void this.board?.send(new TextDecoder().decode(chunk).trimEnd());
+        const line = new TextDecoder().decode(chunk);
+        if (this.board) void this.board.send(line.trimEnd());
+        else this.written.push(line);
       },
     });
     if (this.board)
@@ -67,7 +74,19 @@ class FakePort implements SerialPortLike {
     this.writable = null;
   }
 
-  async setSignals(): Promise<void> {}
+  async setSignals(signals: unknown): Promise<void> {
+    this.signals = signals;
+  }
+
+  /** Bytes from the device. */
+  receive(text: string): void {
+    this.source?.enqueue(new TextEncoder().encode(text));
+  }
+
+  /** The readable ends, as when the port is closed from the other side. */
+  end(): void {
+    this.source?.close();
+  }
 
   /** The device goes away: the readable errors, as Chrome does when the USB device disappears. */
   vanish(): void {
@@ -76,6 +95,13 @@ class FakePort implements SerialPortLike {
 }
 
 describe("opening a serial port", () => {
+  it("opens at 115,200 baud with an 8 KiB buffer and keeps DTR and RTS low", async () => {
+    const port = new FakePort("port", []);
+    await SerialTransport.open(port);
+    expect(port.openOptions).toEqual({ baudRate: 115200, bufferSize: 8192 });
+    expect(port.signals).toEqual({ dataTerminalReady: false, requestToSend: false });
+  });
+
   it("shows what the browser said after the friendly hint, and does not retry other errors", async () => {
     const log: string[] = [];
     const port = new FakePort("port", log);
@@ -94,6 +120,7 @@ describe("opening a serial port", () => {
     expect(log).toEqual(["port open", "port close", "port open"]);
     await transport.close();
     expect(port.isOpen).toBe(false);
+    await expect(transport.send("x")).rejects.toThrow(/closed/);
   });
 
   it("reports a port that is still open after the second try", async () => {
@@ -112,6 +139,30 @@ describe("opening a serial port", () => {
     await expect(SerialTransport.open(port)).rejects.toThrow(PORT_BUSY);
     expect(log).toEqual(["port open", "port close"]);
     expect(port.isOpen).toBe(false);
+  });
+});
+
+describe("a serial port in use", () => {
+  it("delivers lines and sends them with a newline", async () => {
+    const port = new FakePort("port", []);
+    const transport = await SerialTransport.open(port);
+    const lines: string[] = [];
+    transport.onLine = (line) => lines.push(new TextDecoder().decode(line));
+    port.receive("hel");
+    port.receive("lo\r\nwor");
+    port.receive("ld\n");
+    await vi.waitFor(() => expect(lines).toEqual(["hello", "world"]));
+    await transport.send("@PR x");
+    expect(port.written).toEqual(["@PR x\n"]);
+  });
+
+  it("tells when the port ends", async () => {
+    const port = new FakePort("port", []);
+    const transport = await SerialTransport.open(port);
+    let closed = false;
+    transport.onClose = () => (closed = true);
+    port.end();
+    await vi.waitFor(() => expect(closed).toBe(true));
   });
 });
 
