@@ -23,14 +23,14 @@ class PartitionTableTest(unittest.TestCase):
         return path
 
     def test_reads_entries_and_stops_at_the_md5_entry(self):
-        path = self.table(entry("app0", 0, 0x10, 0x10000, 0x140000), entry("spiffs", 1, 0x82, 0x290000, 0x160000))
+        path = self.table(entry("app0", 0, 0x10, 0x10000, 0x1A0000), entry("spiffs", 1, 0x82, 0x350000, 0xB0000))
         entries = release.read_partitions(path)
-        self.assertEqual(entries[0], ("app0", 0, 0x10, 0x10000, 0x140000))
-        self.assertEqual(release.find_partition(entries, 1, 0x82, "file system")[3], 0x290000)
+        self.assertEqual(entries[0], ("app0", 0, 0x10, 0x10000, 0x1A0000))
+        self.assertEqual(release.find_partition(entries, 1, 0x82, "file system")[3], 0x350000)
         self.assertEqual(len(entries), 2)
 
     def test_missing_partition_is_reported(self):
-        entries = release.read_partitions(self.table(entry("app0", 0, 0x10, 0x10000, 0x140000)))
+        entries = release.read_partitions(self.table(entry("app0", 0, 0x10, 0x10000, 0x1A0000)))
         with self.assertRaises(release.ReleaseError):
             release.find_partition(entries, 1, 0x82, "file system")
 
@@ -43,7 +43,7 @@ class WebToolsManifestTest(unittest.TestCase):
     firmware = [
         {"board": b, "part": p, "file": f"firmware/{b}/{p}-1.0.0.bin", "offset": o}
         for b in release.BOARDS
-        for p, o in (("app", 65536), ("bootloader", 0), ("filesystem", 2686976), ("factory", 0))
+        for p, o in (("app", 65536), ("bootloader", 0), ("filesystem", 3473408), ("factory", 0))
     ]
 
     def test_update_has_no_file_system_and_paths_are_relative_to_firmware(self):

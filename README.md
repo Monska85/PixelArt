@@ -44,6 +44,10 @@ You can find the 3D model files to print a frame for the 16x16 LEDs matrix [here
 
 The animations start as soon as the upload finishes. To see the serial output, run `make monitor` (or `pio device monitor -e esp32c3`). A board with the firmware but no animations shows a dim question mark.
 
+### Flash layout
+
+The firmware builds with Arduino-ESP32 3.3.12 (ESP-IDF 5.5.5), through PlatformIO platform `espressif32` 8.0.0. Every board uses the table in `partitions.csv`: two firmware slots of 1.625 MB (`0x1A0000`) each, a file system of 704 KB (`0xB0000`) for animations and playlists, and the settings memory. The coredump partition is gone. A board flashed before this layout needs one **Install from scratch**, which erases its animations and settings. Later updates keep them.
+
 ### If the upload fails
 
 - **"Could not open port" or no board found:** check the cable and plug the board straight into the computer, without a hub or dock. The board must show up as a USB serial device: `/dev/ttyACM*` on Linux, `/dev/cu.usbmodem*` on macOS, a COM port on Windows.

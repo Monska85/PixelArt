@@ -21,7 +21,7 @@ export class FakeBoard implements Transport {
   files: Record<"animation" | "playlist", Map<string, Uint8Array>> = { animation: new Map(), playlist: new Map() };
   settings = { brightness: 100, playlist: "default" };
   /** What `info` reports as storage. */
-  storage = { total: 1441792, used: 8192 };
+  storage = { total: 720896, used: 8192 };
   bootId = 111;
   chunk = 512;
   page = 8;

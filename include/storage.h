@@ -62,7 +62,7 @@ size_t used_bytes();
 #ifdef PIXELART_SIM
 // Capacity of the simulated file system, by default the size of the board's
 // data partition.
-constexpr size_t DEFAULT_CAPACITY = 1441792;
+constexpr size_t DEFAULT_CAPACITY = 720896;
 void set_capacity(size_t bytes);
 #endif
 
