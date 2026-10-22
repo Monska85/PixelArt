@@ -261,17 +261,19 @@ GitHub Pages, at <https://monska85.github.io/PixelArt/>, holds the latest releas
 Two repository settings cannot be changed from the code, and a maintainer must set them once:
 
 - **Settings, Pages, Source:** `GitHub Actions`.
-- **Settings, Secrets and variables, Actions, Repository secrets:** `RELEASE_PLEASE_TOKEN`, the token release-please acts with (see below).
+- **Settings, Environments, `release`, Environment secrets:** `RELEASE_PLEASE_TOKEN`, the token release-please acts with (see below).
 
 ### The release-please token
 
-release-please opens and updates the release pull requests, creates the tags and the GitHub Releases with the repository secret `RELEASE_PLEASE_TOKEN`, not with the workflow's default token: pull requests opened by the default token start no workflows, so CI and the required `pr-title` check would never run on them and they could not be merged. Every other job of the workflows keeps the default token with the least permissions it needs.
+release-please opens and updates the release pull requests, creates the tags and the GitHub Releases with the secret `RELEASE_PLEASE_TOKEN`, not with the workflow's default token: pull requests opened by the default token start no workflows, so CI and the required `pr-title` check would never run on them and they could not be merged. Every other job of the workflows keeps the default token with the least permissions it needs.
 
+- **Where it lives:** an environment secret of the `release` environment. The environment's deployment branch policy allows only the `main` branch, with no required reviewers, no wait timer and no bypass for administrators. Only the `release-please` job of the release workflow uses the environment, so a workflow run on any other branch, a dry run from the Actions tab included, cannot read the token. A repository secret with the same name must not exist: every job and every branch could read it.
+- **Setting it:** `gh secret set RELEASE_PLEASE_TOKEN --env release`, which asks for the value, or Settings, Environments, `release`, Environment secrets, Add environment secret.
 - **Kind:** a fine-grained personal access token whose repository access is only this repository.
 - **Permissions:** Contents, Pull requests and Issues, each read and write (Issues covers the labels release-please puts on its pull requests). Metadata read-only is added by GitHub. Nothing else.
 - **Expiry:** fine-grained tokens expire on the date chosen when the token is created (at most one year). GitHub emails the token's owner a week before.
 - **When it is missing or expired:** the release workflow stops at its first release-please step: a missing secret fails with "RELEASE_PLEASE_TOKEN is missing", an expired or revoked token with an authentication error from release-please. Nothing falls back to the default token, and nothing is released until the token is renewed.
-- **Renewing it:** on GitHub, open Settings, Developer settings, Personal access tokens, Fine-grained tokens, choose the token and **Regenerate token** (same repository and permissions, a new expiry), or create a new one with the access above. Then replace the value of the `RELEASE_PLEASE_TOKEN` secret in the repository's Settings, Secrets and variables, Actions, and run the release workflow again (Actions, Release, Run workflow, with `dry_run` off) or push to `main`.
+- **Renewing it:** on GitHub, open Settings, Developer settings, Personal access tokens, Fine-grained tokens, choose the token and **Regenerate token** (same repository and permissions, a new expiry), or create a new one with the access above. Then replace the value of the environment secret with `gh secret set RELEASE_PLEASE_TOKEN --env release` (or in Settings, Environments, `release`), and run the release workflow again from `main` (Actions, Release, Run workflow, with `dry_run` off) or push to `main`.
 
 The repository setting **Allow GitHub Actions to create and approve pull requests** is not needed for releases, since the default token no longer opens pull requests.
 
