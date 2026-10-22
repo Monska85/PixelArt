@@ -267,9 +267,19 @@ GitHub Pages, at <https://monska85.github.io/PixelArt/>, holds the latest releas
 Two repository settings cannot be changed from the code, and a maintainer must set them once:
 
 - **Settings, Pages, Source:** `GitHub Actions`.
-- **Settings, Actions, General, Workflow permissions:** turn on `Allow GitHub Actions to create and approve pull requests`, so release-please can open its pull requests.
+- **Settings, Secrets and variables, Actions, Repository secrets:** `RELEASE_PLEASE_TOKEN`, the token release-please acts with (see below).
 
-Checks do not run on the release pull requests, because pull requests opened by the default workflow token do not trigger workflows. The release workflow runs them again before it publishes anything. For the same reason a check that the `main` ruleset requires, such as `pr-title`, never reports on them: before requiring one, give release-please a token that triggers workflows (a GitHub App or a fine-grained token), give the release pull requests a ruleset bypass, or close and reopen each release pull request by hand so the checks run.
+### The release-please token
+
+release-please opens and updates the release pull requests, creates the tags and the GitHub Releases with the repository secret `RELEASE_PLEASE_TOKEN`, not with the workflow's default token: pull requests opened by the default token start no workflows, so CI and the required `pr-title` check would never run on them and they could not be merged. Every other job of the workflows keeps the default token with the least permissions it needs.
+
+- **Kind:** a fine-grained personal access token whose repository access is only this repository.
+- **Permissions:** Contents, Pull requests and Issues, each read and write (Issues covers the labels release-please puts on its pull requests). Metadata read-only is added by GitHub. Nothing else.
+- **Expiry:** fine-grained tokens expire on the date chosen when the token is created (at most one year). GitHub emails the token's owner a week before.
+- **When it is missing or expired:** the release workflow stops at its first release-please step: a missing secret fails with "RELEASE_PLEASE_TOKEN is missing", an expired or revoked token with an authentication error from release-please. Nothing falls back to the default token, and nothing is released until the token is renewed.
+- **Renewing it:** on GitHub, open Settings, Developer settings, Personal access tokens, Fine-grained tokens, choose the token and **Regenerate token** (same repository and permissions, a new expiry), or create a new one with the access above. Then replace the value of the `RELEASE_PLEASE_TOKEN` secret in the repository's Settings, Secrets and variables, Actions, and run the release workflow again (Actions, Release, Run workflow, with `dry_run` off) or push to `main`.
+
+The repository setting **Allow GitHub Actions to create and approve pull requests** is not needed for releases, since the default token no longer opens pull requests.
 
 If a build or a publish job fails after a release was created, open the failed workflow run in the Actions tab and choose "Re-run failed jobs". Do not push to `main` to retry: a new push finds the release already created, reports `release_created` as false and builds nothing. The re-run keeps the outputs of the run, so it builds and publishes the same release, and the deployment of the site follows. The deployment waits until every build and publish job of the run has succeeded.
 
