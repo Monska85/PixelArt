@@ -14,6 +14,10 @@ Rules for coding agents working on this repository. `CLAUDE.md` is a symbolic li
 - Without a board, the change says explicitly that the stack was not measured. Never skip the measurement silently.
 - The debug code and the test files used for a measurement are never committed.
 
+## History
+
+- `v0/` holds the original Arduino sketch and its README as history. Never edit, format, move or delete anything in it, and keep every tool from building, linting or formatting it.
+
 ## Writing
 
 - Documentation is plain prose, without em dashes.

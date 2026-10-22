@@ -315,6 +315,7 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 | `scripts/`                   | PlatformIO build scripts, including the firmware version, which uses `tools/fw_version.py`                                               |
 | `release-please-config.json` | Release automation settings for the firmware and the web app, with `.release-please-manifest.json` and `version.txt`                     |
 | `docs/`, `schema/`           | Specifications of the formats, the protocol and the web app, their JSON Schemas, and architecture decision records (`docs/adr/`)         |
+| `v0/`                        | The original Arduino IDE sketch and its README, kept unchanged for history, see [History](#history)                                      |
 
 ### Continuous integration
 
@@ -335,3 +336,7 @@ The firmware parses, validates and plays files on the board's loop task, whose s
 5. Afterwards, remove the debug code, flash the normal firmware and the files with `make upload`, set the settings back, and delete the test files, which belong outside the repository.
 
 Compare the numbers before and after the change, case by case.
+
+## History
+
+The project started as a single Arduino IDE sketch. That sketch and its original README are kept in [`v0/`](v0/README.md), byte for byte, as the starting point of this project. They are not maintained and not built, and no tool of this repository formats or checks them.
