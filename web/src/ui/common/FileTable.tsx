@@ -19,7 +19,7 @@ export interface FileRowData {
   actions: ReactNode;
 }
 
-export interface FileColumn {
+interface FileColumn {
   label: string;
   /** Tailwind width class of the column on a wide screen. */
   width: string;
@@ -33,11 +33,6 @@ const PHONE_GRID: Record<number, { grid: string; name: string; actions: string }
     grid: "max-sm:grid-cols-[repeat(2,max-content)_1fr_auto]",
     name: "max-sm:col-span-3",
     actions: "max-sm:col-start-4",
-  },
-  3: {
-    grid: "max-sm:grid-cols-[repeat(3,max-content)_1fr_auto]",
-    name: "max-sm:col-span-4",
-    actions: "max-sm:col-start-5",
   },
 };
 

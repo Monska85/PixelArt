@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // What differs between the board and the simulator: the clock, free memory,
 // randomness and the build identity.
 
@@ -16,7 +18,7 @@ uint64_t now_us();
 // Lets time pass while a frame waits for its deadline, for at most `us`
 // microseconds. The board returns after about a millisecond so the caller
 // can poll the serial port; the simulator runs the virtual clock to the end,
-// except with a WebSocket, where it returns after 2 ms to poll the sockets.
+// except with a WebSocket, where it returns after 2 ms to read the requests.
 void wait_us(uint64_t us);
 
 // Free heap in bytes and the largest block that can be allocated. The

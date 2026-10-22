@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Physical panel wiring: where each LED of the strip sits on the grid.
 //
 // The same mapping exists in three places, keep them in sync:

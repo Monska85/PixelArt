@@ -1,11 +1,9 @@
 import * as DropdownPrimitive from "@radix-ui/react-dropdown-menu";
-import { Check } from "lucide-react";
 import type { ComponentProps } from "react";
 import { cn } from "./cn";
 
 export const DropdownMenu = DropdownPrimitive.Root;
 export const DropdownMenuTrigger = DropdownPrimitive.Trigger;
-export const DropdownMenuRadioGroup = DropdownPrimitive.RadioGroup;
 
 export function DropdownMenuContent({
   className,
@@ -38,25 +36,6 @@ export function DropdownMenuItem({
   ...props
 }: ComponentProps<typeof DropdownPrimitive.Item> & { destructive?: boolean }) {
   return <DropdownPrimitive.Item className={cn(ITEM, destructive && "text-destructive", className)} {...props} />;
-}
-
-export function DropdownMenuRadioItem({
-  className,
-  children,
-  ...props
-}: ComponentProps<typeof DropdownPrimitive.RadioItem>) {
-  return (
-    <DropdownPrimitive.RadioItem className={cn(ITEM, "pr-8", className)} {...props}>
-      {children}
-      <DropdownPrimitive.ItemIndicator className="absolute right-2 inline-flex">
-        <Check aria-hidden="true" />
-      </DropdownPrimitive.ItemIndicator>
-    </DropdownPrimitive.RadioItem>
-  );
-}
-
-export function DropdownMenuLabel({ className, ...props }: ComponentProps<typeof DropdownPrimitive.Label>) {
-  return <DropdownPrimitive.Label className={cn("px-2 py-1.5 text-xs text-muted-foreground", className)} {...props} />;
 }
 
 export function DropdownMenuSeparator({ className, ...props }: ComponentProps<typeof DropdownPrimitive.Separator>) {

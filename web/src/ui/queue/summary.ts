@@ -4,15 +4,14 @@ import type { Diagnostic } from "../../engine";
 import { BoardError, type WireDiagnostic } from "../../protocol";
 import type { QueueFile, QueueSummary } from "../../queue/plan";
 import type { Refusal, RunResult } from "../../queue/run";
-import { toShownError, shownMessage, type ShownError } from "../errors";
-import { formatSize } from "../format";
+import { shownError, toShownError, shownMessage, type ShownError } from "../errors";
+import { formatSize, plural } from "../format";
+import { BUSY_MESSAGE } from "../upload";
 
 type Verb = "Uploaded" | "Installed";
 
-const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
-
 /** "3 animations", "1 playlist", "2 animations and 1 playlist". */
-export function describeCounts(files: QueueFile[]): string {
+function describeCounts(files: QueueFile[]): string {
   const animations = files.filter((f) => f.kind === "animation").length;
   const playlists = files.length - animations;
   return [animations > 0 && plural(animations, "animation"), playlists > 0 && plural(playlists, "playlist")]
@@ -22,7 +21,7 @@ export function describeCounts(files: QueueFile[]): string {
 
 const ids = (files: QueueFile[]): string => files.map((f) => f.id).join(", ");
 
-export interface SummaryReport {
+interface SummaryReport {
   toast: { title: string; description?: string; tone: "success" | "info" | "error" };
   /** The alert that stays until dismissed, or null when the toast says everything. */
   detail: {
@@ -40,7 +39,7 @@ export function summaryReport(summary: QueueSummary, verb: Verb): SummaryReport 
   const { uploaded, skipped, failed, notAttempted, cancelled } = summary;
   const noun = verb === "Uploaded" ? "Upload" : "Install";
   const lower = verb === "Uploaded" ? "uploaded" : "installed";
-  const failure = failed ? toShownError(`${noun}`, failed.error) : null;
+  const failure = failed && toShownError(noun, failed.error);
 
   let toast: SummaryReport["toast"];
   if (failed && failure)
@@ -90,7 +89,7 @@ export function summaryReport(summary: QueueSummary, verb: Verb): SummaryReport 
   const needsDetail = failed !== null || cancelled || notAttempted.length > 0 || total > 1;
   let message = "Done.";
   if (failed)
-    message = `The ${lower === "uploaded" ? "upload" : "installation"} stopped at the first failure. Run it again to continue: files the board already has are skipped.`;
+    message = `The ${verb === "Uploaded" ? "upload" : "installation"} stopped at the first failure. Run it again to continue: files the board already has are skipped.`;
   else if (cancelled) message = "Cancelled. Run it again to continue: files the board already has are skipped.";
 
   const warnings: SummaryReport["warnings"] = [];
@@ -115,36 +114,20 @@ export function summaryReport(summary: QueueSummary, verb: Verb): SummaryReport 
   };
 }
 
-let nextProblem = 1;
-
-/** A problem of the queue's own, with a fresh ID. */
-export function queueProblem(
-  context: string,
-  code: string,
-  message: string,
-  shown: Partial<ShownError> = {},
-): ShownError {
-  return { id: Date.now() + nextProblem++, context, code, message, diagnostics: [], ...shown };
-}
-
 /** What the user is told when the queue sent nothing and gave a reason. */
 export function refusalProblem(refusal: Refusal): ShownError {
   switch (refusal.reason) {
     case "busy":
-      return queueProblem(
-        "Uploading",
-        "upload_busy",
-        "Another upload is still running. Wait for it to finish or cancel it.",
-      );
+      return shownError("Uploading", "upload_busy", BUSY_MESSAGE);
     case "not_connected":
-      return queueProblem("Uploading", "not_connected", "Connect a board or the simulator to send files.");
+      return shownError("Uploading", "not_connected", "Connect a board or the simulator to send files.");
     case "read_failed":
       return toShownError("Reading the board", refusal.error);
     case "failed":
       return toShownError("Uploading", refusal.error);
     case "no_space": {
       const { needed, free, short } = refusal.space;
-      return queueProblem(
+      return shownError(
         "Not enough space on the board",
         "no_space",
         `The files need ${formatSize(needed)}, and the board has ${formatSize(free)} free. ` +
@@ -159,7 +142,7 @@ export function refusalProblem(refusal: Refusal): ShownError {
 export type QueueOutcome =
   Exclude<RunResult, { status: "refused" }> | { status: "refused"; refusal: Refusal; shown: ShownError };
 
-export type SingleResult =
+type SingleResult =
   | { status: "stored"; identical: boolean; warnings: WireDiagnostic[] }
   /** `cancelled`: the upload was aborted. `declined`: the user answered Cancel to a question. `kept`: the board's file was kept. */
   | { status: "stopped"; reason: "cancelled" | "declined" | "kept" }

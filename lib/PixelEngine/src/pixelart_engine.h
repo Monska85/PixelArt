@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Engine for pixelart/1 animation files: parsing, validation and playback.
 // The format is specified in docs/format/pixelart-v1.md. The engine has no
 // Arduino dependency, so the firmware, the simulator and the tests share it.
@@ -88,8 +90,6 @@ public:
   bool load(const char *json, size_t length, std::vector<Diagnostic> &diagnostics);
 
   bool loaded() const { return loaded_; }
-  const std::string &name() const { return name_; }
-  uint32_t version() const { return version_; }
   // Percentage of the board brightness, 1 to 100.
   uint8_t brightness() const { return brightness_; }
 
@@ -162,11 +162,9 @@ private:
   // else the part sprite's home position.
   Pos part_position(const Part &part) const { return part.has_at ? part.at : sprites_[part.sprite].at; }
 
-  void clear();
+  void clear() { *this = Animation(); }
 
   bool loaded_ = false;
-  std::string name_;
-  uint32_t version_ = 1;
   uint8_t brightness_ = DEFAULT_BRIGHTNESS_PERCENT;
   bool has_background_ = false;
   uint8_t background_ = 0;

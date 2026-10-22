@@ -1,7 +1,5 @@
 dist
 node_modules
-test-results
-test-results-screenshots
-playwright-report
-playwright-report-screenshots
+test-results*
+playwright-report*
 package-lock.json

@@ -7,24 +7,23 @@ import type { Manifest, Published, PublishedKind } from "../../release/manifest"
 import { entriesOf, useBoardFiles } from "../board/useBoardData";
 import { RunningUpload } from "../common/ActivityPanel";
 import { BlockedNote } from "../common/BlockedNote";
-import { ErrorList } from "../common/ErrorList";
+import { ErrorList, useErrorList } from "../common/ErrorList";
 import { EmptyList, FileTable, FileTabs, type FileRowData, type ListKind } from "../common/FileTable";
 import { ListUnreadable } from "../common/ListUnreadable";
 import { LoadingNote } from "../common/LoadingNote";
-import { PageHeader } from "../common/Page";
+import { ManifestPending, PageHeader } from "../common/Page";
 import { PanelLayout } from "../common/PanelLayout";
 import { PreviewPanel, type PreviewData } from "../common/PreviewPanel";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
-import { Card } from "../components/card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";
+import { ReasonTooltip } from "../components/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../components/dropdown-menu";
 import { IconButton } from "../components/icon-button";
 import { type BoardFileList } from "../fileLists";
 import { readAnimationBytes, showInEditor } from "../editor/open";
 import { navigationMark } from "../navigation";
 import { useLatest } from "../useLatest";
-import { toShownError, type ShownError } from "../errors";
+import { shownError, toShownError, type ShownError } from "../errors";
 import { session, useSession } from "../session";
 import { useUploadQueue } from "../queue/useUploadQueue";
 import { blockedOrBusy, uploadBlockedReason } from "../upload";
@@ -35,23 +34,17 @@ export function LibraryView() {
   const connection = useSession();
   const { state, client } = connection;
   const blocked = uploadBlockedReason(connection, "install");
-  if (manifest.status === "loading")
+  if (manifest.status !== "ready")
     return (
-      <div className="flex flex-col gap-4">
-        <PageHeader title="Library" description="Animations and playlists published with the firmware." />
-        <LoadingNote>Reading the published release...</LoadingNote>
-      </div>
-    );
-  if (manifest.status === "none")
-    return (
-      <div className="flex flex-col gap-4">
-        <PageHeader title="Library" description="Animations and playlists published with the firmware." />
-        <Card data-testid="library-empty">
-          <EmptyList title="Nothing is published yet">
-            No animations or playlists are available here. They appear once a release is published.
-          </EmptyList>
-        </Card>
-      </div>
+      <ManifestPending
+        title="Library"
+        description="Animations and playlists published with the firmware."
+        loading={manifest.status === "loading"}
+        loadingText="Reading the published release..."
+        emptyTitle="Nothing is published yet"
+        emptyTestId="library-empty"
+        emptyText="No animations or playlists are available here. They appear once a release is published."
+      />
     );
   if (!client || state === "disconnected" || state === "connecting")
     return <Library manifest={manifest.manifest} board={null} blocked={blocked} />;
@@ -65,8 +58,7 @@ interface ConnectedProps {
 }
 
 function Connected({ manifest, client, blocked }: ConnectedProps) {
-  const [errors, setErrors] = useState<ShownError[]>([]);
-  const report = (error: ShownError): void => setErrors((list) => [error, ...list].slice(0, 10));
+  const { errors, report, dismiss } = useErrorList();
   const data = useBoardFiles(report);
   return (
     <Library
@@ -75,7 +67,7 @@ function Connected({ manifest, client, blocked }: ConnectedProps) {
       blocked={blocked}
       errors={errors}
       onError={report}
-      onDismiss={(id) => setErrors((list) => list.filter((e) => e.id !== id))}
+      onDismiss={dismiss}
     />
   );
 }
@@ -97,25 +89,19 @@ interface LibraryProps {
   onDismiss?: (id: number) => void;
 }
 
-const STATE_LABELS: Record<LibraryState, string> = {
-  unknown: "",
-  missing: "Not on the board",
-  same: "Same",
-  different: "Different",
-};
+const STATE_BADGES = {
+  missing: { label: "Not on the board", variant: "outline", icon: CircleDashed },
+  same: { label: "Same", variant: "success", icon: Check },
+  different: { label: "Different", variant: "warning", icon: GitCompare },
+} as const;
 
 function StateBadge({ state, id }: { state: LibraryState; id: string }) {
   if (state === "unknown") return null;
-  const look = {
-    missing: { variant: "outline", icon: CircleDashed },
-    same: { variant: "success", icon: Check },
-    different: { variant: "warning", icon: GitCompare },
-  } as const;
-  const { variant, icon: Icon } = look[state];
+  const { label, variant, icon: Icon } = STATE_BADGES[state];
   return (
     <Badge variant={variant} data-testid={`state-${id}`}>
       <Icon aria-hidden="true" />
-      {STATE_LABELS[state]}
+      {label}
     </Badge>
   );
 }
@@ -129,9 +115,7 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
   const queue = useUploadQueue({
     client: board?.client ?? null,
     onProblem: (problem) => reported.current?.(problem),
-    onFinished: () => {
-      void session.refreshInfo();
-    },
+    onFinished: () => void session.refreshInfo(),
   });
 
   const stored = (kind: PublishedKind): Entry[] | null =>
@@ -161,14 +145,7 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
       const bytes = await downloadPublished("animation", entry);
       const opened = readAnimationBytes(bytes, entry.id, `The published animation ${entry.id}`);
       if (opened.ok) void showInEditor(opened.opening, "library", mark);
-      else
-        reported.current?.({
-          id: Date.now() + Math.random(),
-          context: `Opening ${entry.id}`,
-          code: "not_editable",
-          message: opened.message,
-          diagnostics: [],
-        });
+      else reported.current?.(shownError(`Opening ${entry.id}`, "not_editable", opened.message));
     } catch (error) {
       reported.current?.(toShownError(`Opening ${entry.id}`, error));
     } finally {
@@ -311,19 +288,7 @@ function InstallAllMenu({
       <ChevronDown aria-hidden="true" />
     </Button>
   );
-  if (disabled)
-    return reason ? (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span tabIndex={0} role="group" aria-label={reason}>
-            {trigger}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>{reason}</TooltipContent>
-      </Tooltip>
-    ) : (
-      trigger
-    );
+  if (disabled) return reason ? <ReasonTooltip reason={reason}>{trigger}</ReasonTooltip> : trigger;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>

@@ -11,8 +11,9 @@ import { downloadHeld, useHeldId } from "../editor/holding";
 import { toShownError, type ShownError } from "../errors";
 import { withUploadLock } from "../upload";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { ErrorAlert, ShownErrorAlert } from "./ErrorAlert";
+import { CodeChip, ErrorAlert, ShownErrorAlert } from "./ErrorAlert";
 import { FirmwareLink } from "./BlockedNote";
+import { plural } from "../format";
 
 interface Counts {
   animations: number;
@@ -51,8 +52,6 @@ const WORDING = {
 } as const;
 
 const wording = (reset: boolean) => WORDING[reset ? "reset" : "keep"];
-
-const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** "30 animations and 1 playlist", with the kinds that have none left out. */
 function describe(animations: number, playlists: number): string {
@@ -212,47 +211,30 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
   }
 
   let shown: ReactNode = null;
-  if (notice?.type === "old")
+  if (notice?.type === "old" || notice?.type === "old-reset") {
+    const old =
+      notice.type === "old"
+        ? {
+            title: "The firmware of this board cannot delete everything",
+            testId: "delete-all-old",
+            text: "This firmware does not know the command. Update the firmware, then try again.",
+          }
+        : {
+            title: "The firmware of this board cannot reset the settings",
+            testId: "delete-all-old-reset",
+            text: notice.settingsOnly
+              ? "Nothing was changed. This firmware cannot reset the settings: update the firmware."
+              : "Nothing was deleted. This firmware can delete everything but cannot reset the settings at the same time. Update the firmware, or delete everything without resetting the settings.",
+          };
     shown = (
-      <ErrorAlert
-        title="The firmware of this board cannot delete everything"
-        variant="warning"
-        onDismiss={() => setNotice(null)}
-        testId="delete-all-old"
-      >
+      <ErrorAlert title={old.title} variant="warning" onDismiss={() => setNotice(null)} testId={old.testId}>
         <p>
-          This firmware does not know the command. Update the firmware, then try again.
-          {!onFirmwareView && (
-            <>
-              {" "}
-              <FirmwareLink />
-            </>
-          )}
+          {old.text}
+          {!onFirmwareView && <FirmwareLink />}
         </p>
       </ErrorAlert>
     );
-  else if (notice?.type === "old-reset")
-    shown = (
-      <ErrorAlert
-        title="The firmware of this board cannot reset the settings"
-        variant="warning"
-        onDismiss={() => setNotice(null)}
-        testId="delete-all-old-reset"
-      >
-        <p>
-          {notice.settingsOnly
-            ? "Nothing was changed. This firmware cannot reset the settings: update the firmware."
-            : "Nothing was deleted. This firmware can delete everything but cannot reset the settings at the same time. Update the firmware, or delete everything without resetting the settings."}
-          {!onFirmwareView && (
-            <>
-              {" "}
-              <FirmwareLink />
-            </>
-          )}
-        </p>
-      </ErrorAlert>
-    );
-  else if (notice?.type === "storage")
+  } else if (notice?.type === "storage")
     shown = (
       <ErrorAlert
         title="Delete everything stopped"
@@ -266,8 +248,8 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
         }
       >
         <p>
-          <code className="rounded bg-muted px-1 py-0.5 text-foreground">storage_error</code> {notice.message} Files
-          removed before the failure stay removed. Running it again removes the rest
+          <CodeChip>storage_error</CodeChip> {notice.message} Files removed before the failure stay removed. Running it
+          again removes the rest
           {wording(notice.resetSettings).again}.
         </p>
       </ErrorAlert>

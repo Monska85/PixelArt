@@ -3,6 +3,8 @@ import { BoardClient, sha256Hex } from "../src/protocol";
 import type { QueueFile } from "../src/queue/plan";
 import { runQueue, type Notice, type RunDeps, type RunResult } from "../src/queue/run";
 import type { Manifest } from "../src/release/manifest";
+import { shownError, toShownError } from "../src/ui/errors";
+import { refusalProblem } from "../src/ui/queue/summary";
 import { sendQueue } from "../src/ui/upload";
 import { FakeBoard } from "./fakeBoard";
 import { text } from "./helpers";
@@ -251,5 +253,22 @@ describe("running the queue", () => {
     board.override = (r) => (r.cmd === "put_end" ? { ok: false, error: "storage_error" } : undefined);
     const summary = summaryOf(await runQueue(deps, [await file("animation", "a", animation("A"))]));
     expect(summary.failed).toMatchObject({ file: { id: "a" } });
+  });
+});
+
+describe("shown errors", () => {
+  it("get different IDs when built in the same millisecond", () => {
+    vi.useFakeTimers({ now: 1000, toFake: ["Date"] });
+    try {
+      const ids = [
+        shownError("Opening playlist p", "not_editable", "x").id,
+        shownError("Opening playlist p", "not_editable", "x").id,
+        toShownError("Uploading", new Error("y")).id,
+        refusalProblem({ reason: "busy" }).id,
+      ];
+      expect(new Set(ids).size).toBe(ids.length);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

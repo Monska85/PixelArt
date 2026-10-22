@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Runs the conformance suite in conformance/ against the C++ engine.
 // Run with: pio test -e native_test (or make test)
 
@@ -7,24 +9,17 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
 #include <set>
-#include <sstream>
 #include <string>
 #include <vector>
 
+#include "pixelart_test.h"
+
 namespace fs = std::filesystem;
 using pixelart::Rgb;
+using pixelart_test::read_file;
 
 static const fs::path SUITE = fs::path(PIXELART_PROJECT_DIR) / "conformance";
-
-static std::string read_file(const fs::path &path)
-{
-  std::ifstream in(path, std::ios::binary);
-  std::stringstream ss;
-  ss << in.rdbuf();
-  return ss.str();
-}
 
 static std::vector<fs::path> cases(const char *kind)
 {

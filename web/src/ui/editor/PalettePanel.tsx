@@ -17,9 +17,9 @@ import { Button } from "../components/button";
 import { cn } from "../components/cn";
 import { IconButton } from "../components/icon-button";
 import { Input } from "../components/input";
-import { EditorCard, Hint } from "./EditorCard";
+import { EditorCard, Hint, type Edit } from "./EditorCard";
 import { Swatch, TextField } from "./Fields";
-import type { Edit } from "./types";
+import { plural } from "../format";
 
 interface Props {
   doc: Doc;
@@ -124,7 +124,7 @@ export function PalettePanel({ doc, edit, current, onCurrent }: Props) {
           <p>
             {uses === 0
               ? `The color ${deleting} is not used.`
-              : `The color ${deleting} is used ${uses} time${uses === 1 ? "" : "s"}. Each use becomes its hex value.`}
+              : `The color ${deleting} is used ${plural(uses, "time")}. Each use becomes its hex value.`}
           </p>
         </ConfirmDialog>
       )}

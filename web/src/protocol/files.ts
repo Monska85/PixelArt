@@ -1,15 +1,18 @@
 // What the board stores: listing, download, upload, delete, settings
 // (docs/protocol/protocol-v1.md#commands) with the recovery of tools/pixelart.py.
 
+import { FILE_LIMITS } from "../engine/types";
 import {
   BoardError,
   errorFromReply,
+  PUT_END_TIMEOUT_MS,
   type BoardClient,
   type Kind,
-  type Reply,
   type WireDiagnostic,
   parseDiagnostics,
 } from "./client";
+import type { Body } from "./framing";
+import { isCount, isRecord } from "./guards";
 
 export interface Entry {
   id: string;
@@ -19,6 +22,10 @@ export interface Entry {
   version: number | null;
 }
 
+/** Whether the stored file has this lowercase hexadecimal SHA-256. */
+export const sameSha = (entry: Entry, sha256: string): boolean =>
+  entry.sha256 !== null && entry.sha256.toLowerCase() === sha256;
+
 export interface Settings {
   brightness: number;
   playlist: string;
@@ -27,11 +34,8 @@ export interface Settings {
 /** The settings of a board that was never set up, and after `delete_all` with `settings`. */
 export const DEFAULT_SETTINGS: Readonly<Settings> = { brightness: 100, playlist: "default" };
 
-const TRIES = 5;
+const MAX_RESUMES = 5;
 const UPLOAD_ATTEMPTS = 2;
-const FILE_LIMITS: Record<Kind, number> = { animation: 64 * 1024, playlist: 16 * 1024 };
-
-const isCount = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
 
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource));
@@ -52,9 +56,8 @@ export function fromBase64(text: string): Uint8Array {
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
-function parseEntry(value: unknown): Entry | null {
-  if (typeof value !== "object" || value === null) return null;
-  const e = value as Record<string, unknown>;
+function parseEntry(e: unknown): Entry | null {
+  if (!isRecord(e)) return null;
   if (typeof e.id !== "string" || !isCount(e.size)) return null;
   return {
     id: e.id,
@@ -66,14 +69,14 @@ function parseEntry(value: unknown): Entry | null {
 }
 
 /** More entries than any board can store: a hostile board with ever-larger ids would page forever. */
-export const MAX_LISTED_ENTRIES = 4096;
+const MAX_LISTED_ENTRIES = 4096;
 
 /** Every stored file of one kind, page by page. */
 export async function listFiles(client: BoardClient, kind: Kind): Promise<Entry[]> {
   const out: Entry[] = [];
   let after: string | null = null;
   for (;;) {
-    const reply: Reply = await client.command("list", after === null ? { kind } : { kind, after });
+    const reply: Body = await client.command("list", after === null ? { kind } : { kind, after });
     const entries = (Array.isArray(reply.entries) ? reply.entries : [])
       .map(parseEntry)
       .filter((e): e is Entry => e !== null);
@@ -97,6 +100,7 @@ class Changed extends BoardError {
 async function downloadOnce(client: BoardClient, kind: Kind, id: string, known?: Entry): Promise<Uint8Array> {
   const entry = known ?? (await listFiles(client, kind)).find((e) => e.id === id);
   if (!entry) throw new BoardError("not_found", `no ${kind} '${id}' on the board`);
+  if (entry.sha256 === null) throw new BoardError("protocol", `the board lists no SHA-256 for ${kind} '${id}'`);
   const limit = Math.min(client.info?.limits[kind] ?? FILE_LIMITS[kind], FILE_LIMITS[kind]);
   if (entry.size > limit)
     throw new BoardError(
@@ -108,15 +112,14 @@ async function downloadOnce(client: BoardClient, kind: Kind, id: string, known?:
   for (;;) {
     const reply = await client.command("get", { kind, id, offset: have, length: client.chunkSize });
     const part = fromBase64(typeof reply.data === "string" ? reply.data : "");
-    if (have + part.length > entry.size) throw new Changed("the file changed while it was read");
-    if (reply.size !== entry.size) throw new Changed("the file changed while it was read");
+    if (have + part.length > entry.size || reply.size !== entry.size)
+      throw new Changed("the file changed while it was read");
     data.set(part, have);
     have += part.length;
     if (have === entry.size) break;
     if (part.length === 0) throw new BoardError("protocol", "the board returned no data before the end of the file");
   }
-  if (entry.sha256 === null || (await sha256Hex(data)) !== entry.sha256)
-    throw new Changed("the downloaded file does not match its SHA-256");
+  if ((await sha256Hex(data)) !== entry.sha256) throw new Changed("the downloaded file does not match its SHA-256");
   return data;
 }
 
@@ -143,7 +146,7 @@ export async function deleteFile(client: BoardClient, kind: Kind, id: string): P
   await client.command("delete", { kind, id });
 }
 
-export interface DeleteAllResult {
+interface DeleteAllResult {
   playlists: number;
   animations: number;
   /** The settings after the reset, when the settings were reset. */
@@ -151,7 +154,7 @@ export interface DeleteAllResult {
 }
 
 /** Removing many files takes the board a while: the same wait as for `put_end`. */
-export const DELETE_ALL_TIMEOUT_MS = 10_000;
+const DELETE_ALL_TIMEOUT_MS = PUT_END_TIMEOUT_MS;
 
 /**
  * Removes every playlist and animation and, with `resetSettings`, then puts the settings back to their defaults. A
@@ -169,9 +172,8 @@ export async function deleteAll(client: BoardClient, { resetSettings = false } =
   return { ...removed, settings: parseSettings(reply) };
 }
 
-function parseSettings(reply: Reply): Settings {
-  const s =
-    typeof reply.settings === "object" && reply.settings !== null ? (reply.settings as Record<string, unknown>) : {};
+function parseSettings(reply: Body): Settings {
+  const s = isRecord(reply.settings) ? reply.settings : {};
   return {
     brightness: isCount(s.brightness) ? s.brightness : 0,
     playlist: typeof s.playlist === "string" ? s.playlist : "",
@@ -199,7 +201,7 @@ class UploadGone extends BoardError {
   }
 }
 
-export interface UploadOptions {
+interface UploadOptions {
   signal?: AbortSignal;
   /** Bytes acknowledged by the board so far. */
   onProgress?: (done: number, total: number) => void;
@@ -222,7 +224,7 @@ async function bootChanged(client: BoardClient): Promise<boolean> {
   }
 }
 
-function fail(reply: Reply): never {
+function fail(reply: Body): never {
   if (reply.error === "no_upload") throw new UploadGone(errorFromReply(reply).message);
   throw errorFromReply(reply);
 }
@@ -243,11 +245,16 @@ async function uploadOnce(
     const chunk = data.subarray(offset, offset + client.chunkSize);
     const reply = await client.request("put_chunk", { offset, data: toBase64(chunk) });
     if (reply.ok === true) {
-      offset = typeof reply.received === "number" && reply.received > offset ? reply.received : offset + chunk.length;
-      options.onProgress?.(Math.min(offset, data.length), data.length);
+      if (!isCount(reply.received) || reply.received <= offset || reply.received > data.length)
+        throw new BoardError(
+          "protocol",
+          `the board reported ${String(reply.received)} bytes received at offset ${offset}`,
+        );
+      offset = reply.received;
+      options.onProgress?.(offset, data.length);
     } else if (
       reply.error === "bad_offset" &&
-      resumes < TRIES &&
+      resumes < MAX_RESUMES &&
       isCount(reply.expected) &&
       reply.expected <= data.length
     ) {
@@ -259,7 +266,7 @@ async function uploadOnce(
     }
   }
   if (options.signal?.aborted) throw new UploadCancelled();
-  const reply = await client.request("put_end", {}, client.putEndTimeout);
+  const reply = await client.request("put_end", {}, PUT_END_TIMEOUT_MS);
   if (reply.ok !== true) {
     if (reply.error !== "no_upload" && reply.error !== "invalid_file" && (await bootChanged(client)))
       throw new UploadGone("the board restarted");

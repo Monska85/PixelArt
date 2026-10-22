@@ -8,7 +8,7 @@ import { isSaves, NO_SAVES, type Saves } from "../../editor/saves";
 
 // A draft is the editor's own data and can be nested deeper than the engine accepts (wrapping into a loop
 // again and again), so reading it back allows more depth; the engine still reports the depth error.
-export const DRAFT_JSON_DEPTH = 128;
+const DRAFT_JSON_DEPTH = 128;
 
 /** The document of a stored draft, or null when the text is not a JSON object. */
 export function parseDraftDocument(json: string): JsonObject | null {

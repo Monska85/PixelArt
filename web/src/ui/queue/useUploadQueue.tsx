@@ -7,17 +7,13 @@ import { downloadPublished } from "../../release/library";
 import { type Manifest, type Published, type PublishedKind } from "../../release/manifest";
 import { useUploadDialogs } from "../common/UploadDialogs";
 import { toast } from "../components/toast";
-import { toShownError, type ShownError } from "../errors";
-import { idFromFileName, inspectFile, readPicked, suggestId, validateFile } from "../files";
+import { shownError, toShownError, type ShownError } from "../errors";
+import { SUPPORTED_FILE, idFromFileName, inspectFile, readPicked, suggestId, validateFile } from "../files";
 import { session } from "../session";
 import { sendQueue, useUploadRunning } from "../upload";
-import { queueProblem, refusalProblem, summaryReport, type QueueOutcome } from "./summary";
+import { refusalProblem, summaryReport, type QueueOutcome } from "./summary";
 
-const SUPPORTED = /\.(json|ya?ml)$/i;
-
-const isSupportedFile = (name: string): boolean => SUPPORTED.test(name);
-
-export interface QueueOptions {
+interface QueueOptions {
   /**
    * The published release to take missing animations from. `undefined` reads it when a playlist needs it, `null`
    * says there is none (the editor's single animation never needs it).
@@ -42,8 +38,6 @@ interface Hook {
   onFinished: () => void;
 }
 
-export type { QueueOutcome };
-
 export interface UploadQueue {
   /** Render once, anywhere in the view. */
   dialogs: ReactNode;
@@ -58,6 +52,8 @@ export interface UploadQueue {
   ) => Promise<QueueOutcome | null>;
   /** Files the caller already checked. */
   uploadPrepared: (files: QueueFile[], options?: QueueOptions) => Promise<QueueOutcome>;
+  /** Asks for an ID, through the queue's own dialogs. */
+  askId: ReturnType<typeof useUploadDialogs>["askId"];
 }
 
 /**
@@ -109,7 +105,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
           onProblem(
             error !== undefined
               ? toShownError(context, error)
-              : queueProblem(context, code ?? "error", message ?? "", { diagnostics: diagnostics ?? [], warning }),
+              : shownError(context, code ?? "error", message ?? "", { diagnostics: diagnostics ?? [], warning }),
           ),
         storage: async () => {
           if (!(await session.refreshInfo())) throw new Error("The board did not report its free space.");
@@ -137,7 +133,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
     toast(message);
     if (detail)
       onProblem(
-        queueProblem(detail.title, "summary", detail.message, {
+        shownError(detail.title, "summary", detail.message, {
           lines: detail.lines,
           diagnostics: detail.diagnostics,
           info: !detail.failed,
@@ -145,7 +141,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
       );
     for (const [origin, diagnostics] of warnings)
       onProblem(
-        queueProblem(`Uploading ${origin}`, "warnings", "The file was uploaded with warnings.", {
+        shownError(`Uploading ${origin}`, "warnings", "The file was uploaded with warnings.", {
           diagnostics,
           warning: true,
         }),
@@ -156,7 +152,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
     exclusive(options.quiet, (client) => run(client, files, options));
 
   async function uploadFiles(picked: File[]): Promise<QueueOutcome | null> {
-    const list = picked.filter((file) => isSupportedFile(file.name));
+    const list = picked.filter((file) => SUPPORTED_FILE.test(file.name));
     if (list.length === 0) return null;
     return exclusive(false, async (client) => {
       const files: QueueFile[] = [];
@@ -165,7 +161,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
         try {
           bytes = await readPicked(file);
         } catch (error) {
-          onProblem(queueProblem(`Uploading ${file.name}`, "refused", toShownError("Reading the file", error).message));
+          onProblem(shownError(`Uploading ${file.name}`, "refused", toShownError("Reading the file", error).message));
           continue;
         }
         const id = await chooseId(file.name);
@@ -176,7 +172,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
         const inspected = await inspectFile(file.name, bytes);
         if (!inspected.ok) {
           onProblem(
-            queueProblem(`Uploading ${file.name}`, inspected.status, inspected.message, {
+            shownError(`Uploading ${file.name}`, inspected.status, inspected.message, {
               diagnostics: inspected.diagnostics,
             }),
           );
@@ -215,7 +211,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
           const checked = validateFile(kind as Kind, bytes);
           if (!checked.ok) {
             onProblem(
-              queueProblem(where, "rejected", "The published file has errors and was not installed.", {
+              shownError(where, "rejected", "The published file has errors and was not installed.", {
                 diagnostics: checked.diagnostics,
               }),
             );
@@ -231,5 +227,5 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
     });
   }
 
-  return { dialogs, busy: busy || uploading, uploadFiles, install, uploadPrepared };
+  return { dialogs, busy: busy || uploading, uploadFiles, install, uploadPrepared, askId };
 }

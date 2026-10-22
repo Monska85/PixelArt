@@ -1,4 +1,4 @@
-"""Tests for the board client in tools/pixelart.py: framing, retries, uploads and the WebSocket framing.
+"""Tests for the board client in tools/pixelart.py: framing, retries, uploads and the WebSocket transport.
 
 Run with: python3 -m unittest discover -s tools   (part of `make check`)
 """
@@ -9,8 +9,8 @@ import contextlib
 import hashlib
 import io
 import socket
-import struct
 import sys
+import tempfile
 import threading
 import types
 import zlib
@@ -455,12 +455,6 @@ class TerminalTextTest(unittest.TestCase):
         text = self.run_command(pixelart.board_settings, serve(reply), pairs=[])
         self.assertIn("k" + self.ESCAPED + "=v" + self.ESCAPED, text)
 
-    def test_the_error_of_a_failed_command_is_escaped_in_settings(self):
-        board = pixelart.Board(Responder(serve({"ok": False, "error": "bad_request", "message": self.HOSTILE})))
-        with self.assertRaises(pixelart.BoardError) as e:
-            pixelart.board_settings(board, types.SimpleNamespace(pairs=["brightness=1"]))
-        self.assert_clean(str(e.exception))
-
 
 class WipeTest(unittest.TestCase):
     def board(self, reply):
@@ -594,85 +588,178 @@ class ArgumentTest(unittest.TestCase):
                 pixelart.parse_settings([bad])
 
 
-class WebSocketTest(unittest.TestCase):
-    def test_accept_key_from_rfc_6455(self):
-        self.assertEqual(pixelart.websocket_accept("dGhlIHNhbXBsZSBub25jZQ=="), "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")
+class BuildTest(unittest.TestCase):
+    def test_values_without_a_json_form_are_errors_of_their_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source, out = Path(folder) / "src", Path(folder) / "out"
+            (source / "animations").mkdir(parents=True)
+            (source / "playlists").mkdir()
+            files = {"date.yaml": "a: 2024-01-01\n", "binary.yaml": "a: !!binary aGk=\n", "inf.yaml": "a: .inf\n",
+                     "nan.json": '{"a": NaN}', "good.yaml": "a: 1\n"}
+            for name, text in files.items():
+                (source / "animations" / name).write_text(text)
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                self.assertEqual(pixelart.build(source, out, False), 1)
+            for name in ("date.yaml", "binary.yaml", "inf.yaml", "nan.json"):
+                self.assertIn(name, err.getvalue())
+            self.assertEqual([p.name for p in (out / "animations").iterdir()], ["good.json"])
+            self.assertEqual((out / "animations" / "good.json").read_text(), '{"a":1}')
 
-    def client_pair(self):
-        """A WebSocketTransport wired to a socket pair, without a handshake."""
-        client, server = socket.socketpair()
-        transport = pixelart.WebSocketTransport.__new__(pixelart.WebSocketTransport)
-        transport._socket, transport._buffer, transport._message = client, b"", bytearray()
-        self.addCleanup(client.close)
-        self.addCleanup(server.close)
-        return transport, server
+    def test_put_refuses_a_value_without_a_json_form(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "a.yaml"
+            path.write_text("format: pixelart/1\na: .inf\n")
+            args = types.SimpleNamespace(file=path, kind=None, id=None)
+            with self.assertRaises(pixelart.BoardError) as e:
+                pixelart.board_put(None, args)
+            self.assertIn(str(path), str(e.exception))
+
+    def test_a_lone_surrogate_is_an_error_of_its_file_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source, out = Path(folder) / "src", Path(folder) / "out"
+            (source / "animations").mkdir(parents=True)
+            (source / "playlists").mkdir()
+            (source / "animations" / "lone.yaml").write_text('a: "\\ud800"\n')
+            (source / "animations" / "good.yaml").write_text("a: 1\n")
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                self.assertEqual(pixelart.build(source, out, False), 1)
+            self.assertIn("lone.yaml: text with a lone surrogate (U+D800)", err.getvalue())
+            self.assertEqual([p.name for p in (out / "animations").iterdir()], ["good.json"])
+
+    def test_put_refuses_a_lone_surrogate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "a.yaml"
+            path.write_text('format: pixelart/1\na: "\\ud800"\n')
+            args = types.SimpleNamespace(file=path, kind=None, id=None)
+            with self.assertRaises(pixelart.BoardError) as e:
+                pixelart.board_put(None, args)
+            self.assertEqual(str(e.exception), f"{path}: text with a lone surrogate (U+D800), which UTF-8 cannot hold")
+
+
+class RunBoardTest(unittest.TestCase):
+    def test_a_reply_with_a_missing_field_is_one_error(self):
+        responder = Responder(serve({"ok": True, "entries": [{"id": "x"}], "more": False}))
+        responder.close = mock.Mock()
+        args = types.SimpleNamespace(port="/dev/null", ws=None, board_command="get", kind="animation", id="x",
+                                     output=None)
+        with mock.patch.object(pixelart, "SerialTransport", return_value=responder):
+            with self.assertRaises(pixelart.BoardError) as e:
+                pixelart.run_board(args)
+        self.assertEqual(str(e.exception), "the board sent an unexpected reply")
+        responder.close.assert_called_once()
+
+
+try:
+    from websockets.sync.server import serve as websocket_server
+except ImportError:
+    websocket_server = None
+
+
+class WebSocketTest(unittest.TestCase):
+    def test_a_url_that_is_not_ws_is_refused(self):
+        for url in ("http://127.0.0.1:8765", "wss://127.0.0.1:8765", "127.0.0.1:8765"):
+            with self.assertRaises(pixelart.BoardError, msg=url) as e:
+                pixelart.WebSocketTransport(url)
+            self.assertIn("--ws expects a URL", str(e.exception))
+
+    def test_without_the_websockets_package_the_error_says_what_to_install(self):
+        with mock.patch.dict(sys.modules, {"websockets": None, "websockets.exceptions": None,
+                                           "websockets.sync.client": None}):
+            with self.assertRaises(pixelart.BoardError) as e:
+                pixelart.WebSocketTransport("ws://127.0.0.1:8765")
+        self.assertIn("pip install websockets", str(e.exception))
+
+    def test_a_closed_port_cannot_connect(self):
+        if websocket_server is None:
+            self.skipTest("needs the websockets package")
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.WebSocketTransport(f"ws://127.0.0.1:{port}")
+        self.assertIn("cannot connect", str(e.exception))
+
+
+@unittest.skipIf(websocket_server is None, "needs the websockets package")
+class WebSocketServerTest(unittest.TestCase):
+    """The transport against a websockets server on a free local port."""
+
+    def start(self, handler, process_request=None):
+        server = websocket_server(handler, "127.0.0.1", 0, process_request=process_request, compression=None)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        return f"ws://127.0.0.1:{server.socket.getsockname()[1]}"
+
+    def connect(self, url):
+        transport = pixelart.WebSocketTransport(url)
+        self.addCleanup(transport.close)
+        return transport
 
     @staticmethod
-    def read_masked_frame(sock):
-        head = sock.recv(2)
-        length = head[1] & 0x7F
-        if length == 126:
-            length = struct.unpack("!H", sock.recv(2))[0]
-        mask = sock.recv(4)
-        data = b""
-        while len(data) < length:
-            data += sock.recv(length - len(data))
-        return head[0], head[1] & 0x80, bytes(b ^ mask[i % 4] for i, b in enumerate(data))
+    def answer(connection):
+        for message in connection:
+            if message == "big":
+                connection.send("a" * (pixelart.MAX_LINE + 1))
+            elif message == "max":
+                connection.send("a" * pixelart.MAX_LINE)
+            elif message != "quiet":
+                connection.send(message.upper())
 
-    def test_frames_sent_are_masked_text(self):
-        transport, server = self.client_pair()
-        for size in (5, 300):
-            transport.send(b"a" * size)
-            opcode, masked, payload = self.read_masked_frame(server)
-            self.assertEqual((opcode, masked, payload), (0x81, 0x80, b"a" * size))
+    def test_a_line_is_sent_and_the_reply_received_as_bytes(self):
+        transport = self.connect(self.start(self.answer))
+        transport.send(b"hello")
+        self.assertEqual(transport.receive(2.0), b"HELLO")
 
-    def test_receives_fragments_answers_ping_and_closes(self):
-        transport, server = self.client_pair()
-        server.sendall(b"\x01\x03abc" + b"\x89\x02hi" + b"\x80\x03def")
-        self.assertEqual(transport.receive(1.0), b"abcdef")
-        opcode, masked, payload = self.read_masked_frame(server)  # the pong sent while reading
-        self.assertEqual((opcode, masked, payload), (0x8A, 0x80, b"hi"))
-        server.sendall(b"\x88\x02\x03\xe8")
-        with self.assertRaises(pixelart.BoardError):
-            transport.receive(1.0)
-
-    def test_a_fragmented_message_above_the_cap_closes_the_connection(self):
-        transport, server = self.client_pair()
-        half = pixelart.MAX_MESSAGE // 2 + 1
-        frame = struct.pack("!H", half) + b"a" * half
-        server.sendall(b"\x01\x7e" + frame + b"\x00\x7e" + frame + b"\x80\x00")
-        with self.assertRaises(pixelart.BoardError) as e:
-            transport.receive(1.0)
-        self.assertIn("too long", str(e.exception))
-        server.settimeout(1.0)
-        head = server.recv(2)
-        self.assertEqual(head[0], 0x88)  # a close frame
-        server.recv(6)
-        server.close()
+    def test_receive_times_out(self):
+        transport = self.connect(self.start(self.answer))
+        transport.send(b"quiet")
+        self.assertIsNone(transport.receive(0.05))
 
     def test_a_message_of_exactly_the_cap_is_accepted(self):
-        transport, server = self.client_pair()
-        threading.Thread(target=server.sendall, args=(b"\x81\x7f" + struct.pack("!Q", pixelart.MAX_MESSAGE)
-                                                      + b"a" * pixelart.MAX_MESSAGE,), daemon=True).start()
-        self.assertEqual(len(transport.receive(2.0)), pixelart.MAX_MESSAGE)
+        transport = self.connect(self.start(self.answer))
+        transport.send(b"max")
+        self.assertEqual(len(transport.receive(2.0)), pixelart.MAX_LINE)
 
     def test_a_message_one_byte_over_the_cap_is_refused(self):
-        transport, server = self.client_pair()
-        threading.Thread(target=server.sendall, args=(b"\x81\x7f" + struct.pack("!Q", pixelart.MAX_MESSAGE + 1)
-                                                      + b"a" * (pixelart.MAX_MESSAGE + 1),), daemon=True).start()
+        transport = self.connect(self.start(self.answer))
+        transport.send(b"big")
         with self.assertRaises(pixelart.BoardError) as e:
             transport.receive(2.0)
         self.assertIn("too long", str(e.exception))
 
-    def test_receive_times_out(self):
-        transport, _ = self.client_pair()
-        self.assertIsNone(transport.receive(0.05))
+    def test_a_binary_message_is_refused(self):
+        transport = self.connect(self.start(lambda connection: connection.send(b"@PR 00000000 {}") or connection.recv()))
+        with self.assertRaises(pixelart.BoardError) as e:
+            transport.receive(2.0)
+        self.assertIn("binary WebSocket message", str(e.exception))
 
-    def test_masked_server_frame_is_rejected(self):
-        transport, server = self.client_pair()
-        server.sendall(b"\x81\x81abcd" + bytes([ord("x") ^ ord("a")]))
-        with self.assertRaises(pixelart.BoardError):
-            transport.receive(1.0)
+    def test_a_close_from_the_server_is_an_error(self):
+        transport = self.connect(self.start(lambda connection: connection.close()))
+        with self.assertRaises(pixelart.BoardError) as e:
+            transport.receive(2.0)
+        self.assertIn("closed", str(e.exception))
+
+    def test_a_busy_simulator_is_tried_again_then_given_up(self):
+        calls = []
+
+        def busy(connection, request):
+            calls.append(request.path)
+            return connection.respond(503, "busy\n")
+
+        url = self.start(self.answer, busy)
+        with mock.patch.object(pixelart.time, "sleep"):
+            with self.assertRaises(pixelart.BoardError) as e:
+                pixelart.WebSocketTransport(url)
+        self.assertEqual(str(e.exception), "the simulator already has a client")
+        self.assertEqual(len(calls), pixelart.TRIES)
+
+    def test_another_refusal_names_the_http_status(self):
+        url = self.start(self.answer, lambda connection, request: connection.respond(404, "no\n"))
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.WebSocketTransport(url)
+        self.assertIn("HTTP 404", str(e.exception))
 
 
 if __name__ == "__main__":

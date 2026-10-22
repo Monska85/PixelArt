@@ -1,15 +1,17 @@
 // Lines of the command protocol: "@PR <crc> <json>" (docs/protocol/protocol-v1.md#lines).
 
 import { crc32, crc32Hex } from "./crc32";
+import { isRecord } from "./guards";
 
 export type Body = Record<string, unknown>;
 
 const encoder = new TextEncoder();
+const decoder = new TextDecoder("utf-8", { fatal: true });
 const MARKER = encoder.encode("@PR ");
 
 /** JSON for a request: every character outside ASCII is a \uXXXX escape, so bytes equal characters. */
-export function requestJson(body: Body): string {
-  return JSON.stringify(body).replace(/[\u0080-￿]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+function requestJson(body: Body): string {
+  return JSON.stringify(body).replace(/[\u0080-\uFFFF]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
 }
 
 /** The protocol line for a request body, without the newline. */
@@ -35,9 +37,9 @@ export function decodeLine(line: Uint8Array): Body | null {
   if (crc32(payload) !== declared) return null;
   let body: unknown;
   try {
-    body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(payload));
+    body = JSON.parse(decoder.decode(payload));
   } catch {
     return null;
   }
-  return typeof body === "object" && body !== null && !Array.isArray(body) ? (body as Body) : null;
+  return isRecord(body) ? body : null;
 }

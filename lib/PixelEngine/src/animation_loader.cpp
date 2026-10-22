@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Parsing and validation of pixelart/1 documents.
 // Structural rules mirror schema/pixelart-1.schema.json; the other rules are
 // the ones listed in docs/format/pixelart-v1.md#validation.
@@ -166,10 +168,7 @@ bool Loader::check_keys(JsonObjectConst object, std::initializer_list<const char
   bool ok = true;
   for (JsonPairConst kv : object)
   {
-    bool known = false;
-    for (const char *key : allowed)
-      known = known || kv.key() == key;
-    if (!known)
+    if (!is_allowed_key(kv.key(), allowed))
     {
       error("structure", key_path(where, kv.key().c_str()), std::string("unknown field \"") + kv.key().c_str() + "\"");
       ok = false;
@@ -836,25 +835,13 @@ void Loader::final_warnings()
 bool Loader::run(const char *json, size_t length)
 {
   a_.clear();
-  if (length > MAX_FILE_SIZE)
-  {
-    error("limit_exceeded", "", "file larger than " + std::to_string(MAX_FILE_SIZE / 1024) + " KiB");
-    return false;
-  }
-
   constexpr int MAX_JSON_DEPTH = 32;
-  const std::string strict_error = strict_json_error(json, length, MAX_JSON_DEPTH);
-  if (!strict_error.empty())
-  {
-    error("structure", "", strict_error);
-    return false;
-  }
   JsonDocument doc;
-  DeserializationError parse_error =
-      deserializeJson(doc, json, length, DeserializationOption::NestingLimit(MAX_JSON_DEPTH));
-  if (parse_error)
+  const char *code = nullptr;
+  std::string message;
+  if (!parse_document(json, length, MAX_FILE_SIZE, MAX_JSON_DEPTH, doc, code, message))
   {
-    error("structure", "", std::string("not valid JSON: ") + parse_error.c_str());
+    error(code, "", message);
     return false;
   }
   JsonObjectConst root = doc.as<JsonObjectConst>();
@@ -878,11 +865,11 @@ bool Loader::run(const char *json, size_t length)
     if (root[key].isNull())
       error("structure", key, std::string("missing required field \"") + key + "\"");
 
-  if (!root["name"].isNull() && get_string(root["name"], 128, false, "name"))
-    a_.name_ = root["name"].as<const char *>();
+  if (!root["name"].isNull())
+    get_string(root["name"], 128, false, "name");
   long value;
-  if (!root["version"].isNull() && get_int(root["version"], 1, 0x7fffffff, "version", value))
-    a_.version_ = (uint32_t)value;
+  if (!root["version"].isNull())
+    get_int(root["version"], 1, 0x7fffffff, "version", value);
   if (!root["author"].isNull())
     get_string(root["author"], 128, true, "author");
   if (!root["description"].isNull())
@@ -932,23 +919,6 @@ bool Loader::run(const char *json, size_t length)
   final_warnings();
   a_.loaded_ = true;
   return true;
-}
-
-void Animation::clear()
-{
-  loaded_ = false;
-  name_.clear();
-  version_ = 1;
-  brightness_ = DEFAULT_BRIGHTNESS_PERCENT;
-  has_background_ = false;
-  background_ = 0;
-  colors_.clear();
-  sprites_.clear();
-  refs_.clear();
-  recolors_.clear();
-  items_.clear();
-  children_.clear();
-  root_first_ = root_size_ = 0;
 }
 
 bool Animation::load(const char *json, size_t length, std::vector<Diagnostic> &diagnostics)

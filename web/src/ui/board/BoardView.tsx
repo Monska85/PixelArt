@@ -4,7 +4,7 @@ import { downloadFile, sha256Hex, type BoardClient } from "../../protocol";
 import { BlockedNote } from "../common/BlockedNote";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useDeleteEverything } from "../common/DeleteEverything";
-import { ErrorList } from "../common/ErrorList";
+import { ErrorList, useErrorList } from "../common/ErrorList";
 import { FileTabs, type ListKind } from "../common/FileTable";
 import { LoadingNote } from "../common/LoadingNote";
 import { PageHeader } from "../common/Page";
@@ -15,7 +15,7 @@ import { cn } from "../components/cn";
 import { readAnimationBytes, showInEditor } from "../editor/open";
 import { KINDS } from "../fileLists";
 import { navigationMark } from "../navigation";
-import { toShownError, type ShownError } from "../errors";
+import { shownError, toShownError } from "../errors";
 import { session, useSession } from "../session";
 import { useManifest } from "../useManifest";
 import { ConnectCard } from "../shell/ConnectCard";
@@ -65,11 +65,10 @@ interface ConnectedProps {
 
 function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   const { uploadsBlocked } = useSession();
-  const [errors, setErrors] = useState<ShownError[]>([]);
+  const { errors, report, dismiss } = useErrorList();
   const editor = usePlaylistEditor();
   const [list, setList] = useState<ListKind>("animation");
   const [preview, setPreview] = useState<PreviewData | null>(null);
-  const report = (error: ShownError): void => setErrors((current) => [error, ...current].slice(0, 10));
   const { data, reload, settingsUnreadable, setSettings } = useBoardData(client, restarts, report);
   const animations = entriesOf(data.animations);
   const playlists = entriesOf(data.playlists);
@@ -107,14 +106,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   async function edit(id: string): Promise<void> {
     try {
       const model = await openStoredPlaylist(client, id);
-      if (typeof model === "string")
-        report({
-          id: Date.now(),
-          context: `Opening playlist ${id}`,
-          code: "not_editable",
-          message: model,
-          diagnostics: [],
-        });
+      if (typeof model === "string") report(shownError(`Opening playlist ${id}`, "not_editable", model));
       else editor.requestOpen(model);
     } catch (error) {
       report(toShownError(`Opening playlist ${id}`, error));
@@ -128,7 +120,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
       const bytes = await downloadFile(client, "animation", id);
       const opened = readAnimationBytes(bytes, id, `The board's animation ${id}`, { sha256: await sha256Hex(bytes) });
       if (opened.ok) void showInEditor(opened.opening, "board", mark);
-      else report({ id: Date.now(), context, code: "not_editable", message: opened.message, diagnostics: [] });
+      else report(shownError(context, "not_editable", opened.message));
     } catch (error) {
       report(toShownError(context, error));
     }
@@ -187,7 +179,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
       {blocked && blocked === uploadsBlocked && <BlockedNote reason={blocked} />}
       <RunningUpload />
       {wipe.notice}
-      <ErrorList errors={errors} onDismiss={(id) => setErrors((current) => current.filter((e) => e.id !== id))} />
+      <ErrorList errors={errors} onDismiss={dismiss} />
       {editor.editing && (
         <Suspense fallback={<LoadingNote>Opening the playlist editor...</LoadingNote>}>
           <PlaylistEditor

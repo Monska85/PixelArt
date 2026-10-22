@@ -1,10 +1,16 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Strict JSON check run before ArduinoJson parses a file. ArduinoJson accepts
 // more than RFC 8259 (comments, single quotes, unquoted keys, a leading +, and
 // more), and the format requires strict JSON, so this scan rejects the rest.
+// Also the parsing steps shared by the animation and playlist loaders.
 
 #pragma once
 
+#include <ArduinoJson.h>
+
 #include <cstddef>
+#include <initializer_list>
 #include <string>
 
 namespace pixelart
@@ -18,9 +24,14 @@ namespace pixelart
 // returns false and sets `reason` and `offset` (the byte where it was found).
 bool check_strict_json(const char *json, size_t length, int max_depth, const char *&reason, size_t &offset);
 
-// The same check, with the message of a `structure` diagnostic as the result.
-// Returns an empty string when the document is accepted.
-std::string strict_json_error(const char *json, size_t length, int max_depth);
+// The steps both loaders start with: the size limit, the strict check above
+// and the parse, with the same nesting limit. On failure it returns false and
+// sets the code and message of the one diagnostic to report at the root.
+bool parse_document(const char *json, size_t length, size_t max_size, int max_depth, JsonDocument &doc,
+                    const char *&code, std::string &message);
+
+// True when `key` is one of `allowed`.
+bool is_allowed_key(JsonString key, std::initializer_list<const char *> allowed);
 
 // Number of code points of a UTF-8 string: the bytes that are not continuation bytes.
 size_t utf8_code_points(const char *text);

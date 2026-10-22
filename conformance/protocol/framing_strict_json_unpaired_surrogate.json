@@ -1,0 +1,25 @@
+{
+  "description": "a request with an escaped surrogate that is not part of a pair gets bad_frame",
+  "steps": [
+    {
+      "send": "@PR 2adb5da5 {\"seq\":1,\"cmd\":\"info\",\"x\":\"\\ud800\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 6518a37f {\"seq\":1,\"cmd\":\"info\",\"x\":\"\\udc00\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    }
+  ]
+}

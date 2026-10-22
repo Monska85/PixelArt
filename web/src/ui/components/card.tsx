@@ -26,7 +26,3 @@ export function CardDescription({ className, ...props }: ComponentProps<"p">) {
 export function CardContent({ className, ...props }: ComponentProps<"div">) {
   return <div className={cn("flex flex-col gap-4 p-4 sm:p-6", className)} {...props} />;
 }
-
-export function CardFooter({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("flex flex-wrap items-center gap-2 p-4 pt-0 sm:p-6 sm:pt-0", className)} {...props} />;
-}

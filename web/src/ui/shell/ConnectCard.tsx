@@ -2,18 +2,16 @@ import { ChevronRight, Usb } from "lucide-react";
 import { useState } from "react";
 import { SERIAL_UNSUPPORTED } from "../../protocol/serial";
 import { Alert, AlertDescription } from "../components/alert";
-import { Button } from "../components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/card";
 import { cn } from "../components/cn";
-import { SERIAL_SUPPORTED, session, useSession } from "../session";
+import { SERIAL_SUPPORTED } from "../session";
+import { ConnectBoardButton } from "./ConnectBoardButton";
 import { SimulatorForm } from "./SimulatorForm";
 
 /** Shown by the Board view while nothing is connected: Connect board, and the simulator folded under it. */
 export function ConnectCard() {
-  const { state, via } = useSession();
   const [simulator, setSimulator] = useState(false);
   const serial = SERIAL_SUPPORTED();
-  const busy = state === "connecting";
   return (
     <Card aria-labelledby="connect-title">
       <CardHeader>
@@ -27,14 +25,10 @@ export function ConnectCard() {
           </Alert>
         )}
         <div>
-          <Button
-            disabled={busy || !serial}
-            loading={busy && via === "board"}
-            onClick={() => void session.connectBoard()}
-          >
+          <ConnectBoardButton>
             <Usb aria-hidden="true" />
             Connect board
-          </Button>
+          </ConnectBoardButton>
         </div>
         <div className="flex flex-col gap-3 border-t border-border pt-4">
           <button

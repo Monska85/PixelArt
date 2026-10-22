@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Access to the board's file system: LittleFS on the board, a folder on the
 // computer in the simulator (--data). Paths start from the root, for example
 // "/animations/santa.json".
@@ -58,8 +60,9 @@ size_t total_bytes();
 size_t used_bytes();
 
 #ifdef PIXELART_SIM
-// Capacity of the simulated file system (default 1,441,792 bytes, the size of
-// the board's data partition).
+// Capacity of the simulated file system, by default the size of the board's
+// data partition.
+constexpr size_t DEFAULT_CAPACITY = 1441792;
 void set_capacity(size_t bytes);
 #endif
 

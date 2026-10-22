@@ -2,7 +2,7 @@
 // resolves numbers and booleans a little differently (`1e3`, `1.0e3` and `y`),
 // so the reader applies these rules to the text of every plain scalar.
 
-export type Plain =
+type Plain =
   | { kind: "null" }
   | { kind: "bool"; value: boolean }
   | { kind: "int"; value: bigint }

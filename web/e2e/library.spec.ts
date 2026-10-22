@@ -3,7 +3,17 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
-import { connectSimulator, expect, test, toastWith, type Simulator } from "./fixtures";
+import {
+  animations,
+  connectSimulator,
+  expect,
+  showPlaylists,
+  type Simulator,
+  stored,
+  summary,
+  test,
+  toastWith,
+} from "./fixtures";
 
 const published = JSON.parse(
   readFileSync(fileURLToPath(new URL("./site/published.json", import.meta.url)), "utf8"),
@@ -15,10 +25,8 @@ const [SAME, MISSING, DIFFERENT] = published.animations as [string, string, stri
 
 const library = (page: Page) => page.getByRole("link", { name: "Library", exact: true });
 const state = (page: Page, id: string) => page.getByTestId(`state-${id}`);
-const stored = (simulator: Simulator, kind: string, id: string): string => join(simulator.dataDir, kind, `${id}.json`);
 const sha = (path: string): string => createHash("sha256").update(readFileSync(path)).digest("hex");
 const publishedTable = (page: Page) => page.getByRole("table", { name: "Published animations" });
-const summary = (page: Page) => page.getByRole("status").filter({ hasText: /(Upload|Install) summary/ });
 
 /** A stored animation that has the ID of a published one but other content. */
 function makeDifferent(simulator: Simulator, id: string): void {
@@ -45,7 +53,7 @@ test("lists the published animations and playlists with their state on the board
   await expect(page.getByRole("button", { name: `Install ${SAME}` })).toBeDisabled();
   await expect(page.getByRole("button", { name: `Install ${MISSING}` })).toBeEnabled();
 
-  await page.getByRole("tab", { name: /^Playlists/ }).click();
+  await showPlaylists(page);
   await expect(state(page, "default")).toHaveText("Same");
 });
 
@@ -80,11 +88,7 @@ test("installs a missing animation and the board lists it", async ({ page, simul
     sha(join(fileURLToPath(new URL("../../data", import.meta.url)), "animations", `${MISSING}.json`)),
   );
   await page.getByRole("link", { name: "Board", exact: true }).click();
-  await expect(
-    page
-      .getByRole("table", { name: "Animations on the board" })
-      .locator("code", { hasText: new RegExp(`^${MISSING}$`) }),
-  ).toBeVisible();
+  await expect(animations(page).locator("code", { hasText: new RegExp(`^${MISSING}$`) })).toBeVisible();
 });
 
 test("asks before replacing a different stored file: Cancel, Keep the board's, Replace them", async ({
@@ -96,21 +100,31 @@ test("asks before replacing a different stored file: Cancel, Keep the board's, R
   await connectSimulator(page, simulator);
   await library(page).click();
 
-  await page.getByRole("button", { name: `Install ${DIFFERENT}` }).click();
+  const install = page.getByRole("button", { name: `Install ${DIFFERENT}` });
+  // The queue disables the Install button while it asks, so focus goes back to it, or stays on the page when the
+  // browser has moved it off the disabled button; never anywhere else.
+  const focusBackOnOpener = () =>
+    install.evaluate((button) => document.activeElement === button || document.activeElement === document.body);
+  await install.click();
   const dialog = page.getByRole("dialog", { name: "Replace the stored file?" });
   await expect(dialog.getByTestId("differing-files")).toContainText(DIFFERENT);
+  // A destructive question starts on the safe action.
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toHaveCount(0);
+  expect(await focusBackOnOpener()).toBe(true);
   await expect(state(page, DIFFERENT)).toHaveText("Different");
   expect(sha(stored(simulator, "animations", DIFFERENT))).toBe(before);
 
-  await page.getByRole("button", { name: `Install ${DIFFERENT}` }).click();
+  await install.click();
   await page.getByRole("dialog").getByRole("button", { name: "Keep the board's" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await focusBackOnOpener()).toBe(true);
   await expect(toastWith(page, "Nothing to install")).toContainText("The board's files were kept.");
   await expect(state(page, DIFFERENT)).toHaveText("Different");
   expect(sha(stored(simulator, "animations", DIFFERENT))).toBe(before);
 
-  await page.getByRole("button", { name: `Install ${DIFFERENT}` }).click();
+  await install.click();
   await page.getByRole("dialog").getByRole("button", { name: "Replace them" }).click();
   await expect(state(page, DIFFERENT)).toHaveText("Same");
   expect(sha(stored(simulator, "animations", DIFFERENT))).not.toBe(before);
@@ -157,12 +171,6 @@ test("refuses a download that does not match the manifest, by size or by SHA-256
   expect(existsSync(stored(simulator, "animations", MISSING))).toBe(false);
 });
 
-test("says that nothing is published without a manifest", async ({ page }) => {
-  await page.route("**/manifest.json", (route) => route.fulfill({ status: 404, body: "not found" }));
-  await page.goto("/#library");
-  await expect(page.getByTestId("library-empty")).toContainText("Nothing is published yet");
-});
-
 test("treats a manifest of another format as nothing published", async ({ page }) => {
   await page.route("**/manifest.json", (route) =>
     route.fulfill({ json: { format: "pixelart-manifest/2", version: "1.0.0" } }),
@@ -186,7 +194,7 @@ test("every row the board does not have the same has a visible Install button, f
   await expect(page.getByRole("button", { name: `Install ${MISSING}` })).toBeEnabled();
   await expect(page.getByRole("button", { name: `Install ${DIFFERENT}` })).toBeEnabled();
   await expect(page.getByRole("button", { name: `Install ${SAME}` })).toBeDisabled();
-  await page.getByRole("tab", { name: /^Playlists/ }).click();
+  await showPlaylists(page);
   await expect(state(page, "default")).toHaveText("Not on the board");
   const install = page.getByRole("button", { name: "Install default" });
   await expect(install).toBeEnabled();

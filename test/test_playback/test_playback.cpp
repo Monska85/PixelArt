@@ -1,14 +1,14 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Protocol traffic while the board plays: playback stays on schedule, and
 // brightness, playlist and upload changes reach it at the times the protocol
 // specification gives. Run with: pio test -e native_test (or make test)
 
 #include <ArduinoJson.h>
-#include <pixel_codec.h>
 #include <sim.h>
 #include <unity.h>
 
 #include <filesystem>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -20,14 +20,13 @@
 
 namespace fs = std::filesystem;
 using pixelart_test::dot_animation;
+using pixelart_test::green;
+using pixelart_test::put_begin;
+using pixelart_test::put_chunk;
+using pixelart_test::red;
+using pixelart_test::REPO_DATA;
 using pixelart_test::request;
-using pixelart_test::sha256_hex;
 using pixelart_test::TempData;
-
-static const std::string REPO_DATA = std::string(PIXELART_PROJECT_DIR) + "/data";
-
-static uint8_t red(uint32_t c) { return c >> 16; }
-static uint8_t green(uint32_t c) { return c >> 8; }
 
 static std::string playlist_of(std::initializer_list<const char *> animations)
 {
@@ -237,10 +236,7 @@ static void test_uploading_a_playlist_waits_for_the_current_animation()
   setup();
 
   const std::string uploaded = playlist_of({"b", "b"});
-  sim::serial_input(request(1, R"("cmd":"put_begin","kind":"playlist","id":"default","size":)" +
-                                   std::to_string(uploaded.size()) + R"(,"sha256":")" + sha256_hex(uploaded) + "\"") +
-                    request(2, R"("cmd":"put_chunk","offset":0,"data":")" +
-                                   pixelart::base64_encode(uploaded.data(), uploaded.size()) + "\"") +
+  sim::serial_input(put_begin(1, "playlist", "default", uploaded) + put_chunk(2, uploaded) +
                     request(3, R"("cmd":"put_end")"));
   play_from_storage();
   TEST_ASSERT_EQUAL_STRING("aaa", shown().c_str());
@@ -258,10 +254,7 @@ static void test_an_uploaded_animation_applies_when_the_playlist_reaches_it()
 
   // b is replaced while a plays: the pass goes on with a, then plays the new b.
   const std::string uploaded = dot_animation("#00ff00", 5, 100);
-  sim::serial_input(request(1, R"("cmd":"put_begin","kind":"animation","id":"b","size":)" +
-                                   std::to_string(uploaded.size()) + R"(,"sha256":")" + sha256_hex(uploaded) + "\"") +
-                    request(2, R"("cmd":"put_chunk","offset":0,"data":")" +
-                                   pixelart::base64_encode(uploaded.data(), uploaded.size()) + "\"") +
+  sim::serial_input(put_begin(1, "animation", "b", uploaded) + put_chunk(2, uploaded) +
                     request(3, R"("cmd":"put_end")"));
   play_from_storage();
   TEST_ASSERT_EQUAL_STRING("aaabbbbb", shown().c_str());
@@ -273,13 +266,11 @@ static void test_an_idle_upload_ends_while_the_board_plays()
   data.write("animations/a.json", dot_animation("#ff0000", 6, 4000)); // 24 seconds
   setup();
   const std::string file = dot_animation("#00ff00", 2, 100);
-  sim::serial_input(
-      request(1, R"("cmd":"put_begin","kind":"animation","id":"b","size":)" + std::to_string(file.size()) +
-                     R"(,"sha256":")" + sha256_hex(file) + "\"") +
-      request(2, R"("cmd":"put_chunk","offset":0,"data":")" + pixelart::base64_encode(file.data(), 20) + "\""));
+  sim::serial_input(put_begin(1, "animation", "b", file) + put_chunk(2, file.substr(0, 20)));
   play_stored_animation("a");
 
   TEST_ASSERT_FALSE(protocol::upload_active());
+  TEST_ASSERT_EQUAL(0, storage::open_writers());
   TEST_ASSERT_FALSE(fs::exists(data.root / "upload.tmp"));
   TEST_ASSERT_FALSE(fs::exists(data.root / "animations/b.json"));
   TEST_ASSERT_EQUAL(6, sim::frames().size());
@@ -290,8 +281,7 @@ static void test_an_upload_is_open_while_chunks_arrive()
   TempData data("playback");
   setup();
   const std::string file = dot_animation("#00ff00", 2, 100);
-  sim::serial_input(request(1, R"("cmd":"put_begin","kind":"animation","id":"b","size":)" +
-                                   std::to_string(file.size()) + R"(,"sha256":")" + sha256_hex(file) + "\""));
+  sim::serial_input(put_begin(1, "animation", "b", file));
   protocol::poll();
   TEST_ASSERT_TRUE(protocol::upload_active());
   sim::serial_input(request(2, R"("cmd":"put_abort")"));

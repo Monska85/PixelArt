@@ -2,26 +2,39 @@
 // Every state runs in layout.spec.ts, where `check` runs the layout checks of layout.ts. The states named in CURATED
 // (views.spec.ts) also run there, where `check` compares the page with its reference image. Adding a state here adds
 // its layout checks; add its name to CURATED only for the one main state of a view, draw its images with
-// `make web-screenshots-update`, and update the image count in web/README.md and docs/web/web-app-v1.md. Every state is
+// `make web-screenshots-update`, and update the image count in web/README.md. Every state is
 // its own test with its own simulator, so one that breaks does not hide the others.
 
 import { readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { expect, test as base, toastWith, connectSimulator, type Simulator } from "../e2e/fixtures";
+import {
+  animations,
+  animationYaml,
+  connectSimulator,
+  expect,
+  file,
+  openConnectCard,
+  pick,
+  playlistYaml,
+  settled,
+  showPlaylists,
+  type Simulator,
+  stored,
+  test as base,
+  toastWith,
+  upload,
+} from "../e2e/fixtures";
 import type { Page } from "@playwright/test";
 import { connectScripted, scriptedBoard } from "../e2e/scripted";
-import { FIXED_TIME, watchBoard } from "./board";
+import { watchBoard } from "../e2e/board";
 
-const file = (name: string): string => fileURLToPath(new URL(`../e2e/files/${name}`, import.meta.url));
-
-export const SIZES = [
+const SIZES = [
   { width: 1280, height: 800 },
   { width: 375, height: 812 },
 ];
 export const THEMES = ["light", "dark"] as const;
 
-export interface Context {
+interface Context {
   page: Page;
   simulator: Simulator;
   /** The check of the state: the layout checks, or a comparison with its reference image. */
@@ -30,7 +43,7 @@ export interface Context {
   allowConsoleErrors: () => void;
 }
 
-export type State = (context: Context) => Promise<void>;
+type State = (context: Context) => Promise<void>;
 
 /** Puts a fixed firmware version between the page and the simulator and connects to it. */
 async function connected(page: Page, simulator: Simulator, options?: Parameters<typeof watchBoard>[2]) {
@@ -38,8 +51,6 @@ async function connected(page: Page, simulator: Simulator, options?: Parameters<
   await connectSimulator(page, simulator);
   return board;
 }
-
-const stored = (simulator: Simulator, kind: string, id: string): string => join(simulator.dataDir, kind, `${id}.json`);
 
 /** ball differs from the published one, bear is not on the board: the three states of the Library. */
 function libraryStates(simulator: Simulator): void {
@@ -65,11 +76,9 @@ async function go(page: Page, view: string, heading: string): Promise<void> {
   await expect(page.getByRole("heading", { name: heading, level: 2, exact: true })).toBeVisible();
 }
 
-const settled = (page: Page) => expect(page.getByTestId("diagnostics")).toHaveAttribute("aria-busy", "false");
 const row = (page: Page, id: string) =>
   page.locator("tr", { has: page.locator("code", { hasText: new RegExp(`^${id}$`) }) });
 const more = (page: Page, id: string) => page.getByRole("button", { name: `More actions for ${id}` });
-const playlistsTab = (page: Page) => page.getByRole("tab", { name: /^Playlists/ });
 const installers = (page: Page) => expect(page.locator("esp-web-install-button")).toHaveCount(2);
 
 async function editFromBoard(page: Page, id: string): Promise<void> {
@@ -77,14 +86,6 @@ async function editFromBoard(page: Page, id: string): Promise<void> {
   await expect(page.getByTestId("editor-back")).toBeVisible();
   await settled(page);
 }
-
-const animationYaml = (name: string): string =>
-  `format: pixelart/1\nname: ${name}\ncanvas: { width: 16, height: 16 }\nsprites:\n  dot:\n    points: [[7, 7, "#ff0000"]]\ntimeline:\n  - show: [dot]\n`;
-const playlistYaml = (...ids: string[]): string =>
-  `format: pixelart-playlist/1\nname: Mix\ncanvas: { width: 16, height: 16 }\nitems:\n${ids.map((id) => `  - animation: ${id}\n`).join("")}`;
-const upload = (name: string, text: string) => ({ name, mimeType: "application/yaml", buffer: Buffer.from(text) });
-const pick = (page: Page, ...files: Array<ReturnType<typeof upload>>) =>
-  page.locator("#upload-input").setInputFiles(files);
 
 /** Download YAML is a button on a wide screen and an item of the More menu on a phone. */
 async function downloadYaml(page: Page): Promise<void> {
@@ -105,8 +106,11 @@ async function uploadHeld(page: Page, label: string, step?: string): Promise<voi
   await expect(activity).toContainText(/^[\s\S]*0 B of \d+(\.\d+)? [KM]?B/);
 }
 
+/** What the pages see as the time, so a time in the page never moves a reference image. */
+const FIXED_TIME = new Date("2026-01-15T10:30:00Z");
+
 /** States that only exist below 640 px, where the navigation is a menu button. */
-export const NARROW_ONLY = new Set(["nav-menu"]);
+const NARROW_ONLY = new Set(["nav-menu"]);
 
 export const states = {
   // Not connected
@@ -122,20 +126,15 @@ export const states = {
     await check();
   },
   "board-address-error": async ({ page, check }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Use the simulator" }).click();
-    await page.getByLabel("Simulator address").fill("ws://127.0.0.1:1");
-    await page.getByRole("button", { name: "Connect simulator" }).click();
-    await expect(page.getByTestId("connection-message")).toBeVisible();
+    await openConnectCard(page, "ws://127.0.0.1:1");
+    await expect(page.getByTestId("connection-message")).toContainText("Cannot connect");
+    await expect(page.getByTestId("connection-state")).toHaveText("Not connected");
     await check();
   },
   "board-connecting": async ({ page, simulator, check }) => {
     const board = await watchBoard(page, simulator);
     board.hold("info");
-    await page.goto("/");
-    await page.getByRole("button", { name: "Use the simulator" }).click();
-    await page.getByLabel("Simulator address").fill(simulator.address);
-    await page.getByRole("button", { name: "Connect simulator" }).click();
+    await openConnectCard(page, simulator.address);
     await expect(page.getByRole("button", { name: "Connect simulator" })).toHaveAttribute("aria-busy", "true");
     await check();
   },
@@ -178,7 +177,7 @@ export const states = {
   // Board view, connected
   "board-connected": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await expect(page.getByRole("table", { name: "Animations on the board" })).toBeVisible();
+    await expect(animations(page)).toBeVisible();
     await check();
   },
   "chip-connected": async ({ page, simulator, check }) => {
@@ -189,7 +188,7 @@ export const states = {
   },
   "board-playlists": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await playlistsTab(page).click();
+    await showPlaylists(page);
     await expect(row(page, "default")).toBeVisible();
     await check();
   },
@@ -220,14 +219,14 @@ export const states = {
   },
   "board-playlist-editor": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await playlistsTab(page).click();
+    await showPlaylists(page);
     await page.getByRole("button", { name: "Edit default" }).click();
     await expect(page.getByRole("heading", { name: "Edit playlist default" })).toBeFocused();
     await check();
   },
   "board-playlist-editor-moving": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await playlistsTab(page).click();
+    await showPlaylists(page);
     await page.getByRole("button", { name: "Edit default" }).click();
     await expect(page.getByRole("heading", { name: "Edit playlist default" })).toBeFocused();
     // An item dragged with the mouse one place down, still held: it is marked while it moves.
@@ -243,7 +242,7 @@ export const states = {
   "board-missing-animations": async ({ page, simulator, check }) => {
     missingAnimations(simulator);
     await connected(page, simulator);
-    await playlistsTab(page).click();
+    await showPlaylists(page);
     const badge = page.getByTestId("missing-default");
     await expect(badge).toHaveText("2 missing");
     await badge.focus();
@@ -253,7 +252,7 @@ export const states = {
   "board-playlist-editor-missing": async ({ page, simulator, check }) => {
     missingAnimations(simulator);
     await connected(page, simulator);
-    await playlistsTab(page).click();
+    await showPlaylists(page);
     await page.getByRole("button", { name: "Edit default" }).click();
     await expect(page.getByRole("heading", { name: "Edit playlist default" })).toBeFocused();
     await expect(page.getByTestId(/^item-missing-/)).toHaveCount(2);
@@ -270,20 +269,20 @@ export const states = {
   },
   "board-upload-id-dialog": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await page.locator("#upload-input").setInputFiles(file("Bad Name.yaml"));
+    await pick(page, file("Bad Name.yaml"));
     await expect(page.getByRole("dialog", { name: "Choose an ID" })).toBeVisible();
     await check();
   },
   "board-upload-progress": async ({ page, simulator, check }) => {
     const board = await connected(page, simulator);
     board.hold("put_begin");
-    await page.locator("#upload-input").setInputFiles(file("dot.yaml"));
+    await pick(page, file("dot.yaml"));
     await uploadHeld(page, "Uploading animation dot", "File 1 of 1");
     await check();
   },
   "board-upload-done": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await page.locator("#upload-input").setInputFiles(file("dot.yaml"));
+    await pick(page, file("dot.yaml"));
     await expect(toastWith(page, "Uploaded animation dot")).toBeVisible();
     await expect(row(page, "dot")).toBeVisible();
     await check();
@@ -291,11 +290,7 @@ export const states = {
   "board-upload-replace-dialog": async ({ page, simulator, check }) => {
     await connected(page, simulator);
     const document = JSON.parse(readFileSync(stored(simulator, "animations", "star"), "utf8")) as { name: string };
-    await page.locator("#upload-input").setInputFiles({
-      name: "star.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify({ ...document, name: "Star (new)" })),
-    });
+    await pick(page, upload("star.json", JSON.stringify({ ...document, name: "Star (new)" })));
     await expect(page.getByRole("dialog", { name: "Replace the stored file?" })).toBeVisible();
     await check();
   },
@@ -338,8 +333,13 @@ export const states = {
     await page.getByRole("button", { name: "More", exact: true }).click();
     await page.getByRole("menuitem", { name: "Delete everything" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Delete 1 file" }).click();
-    await expect(page.getByTestId("delete-all-old")).toBeVisible();
+    const notice = page.getByTestId("delete-all-old");
+    await expect(notice).toContainText("does not know the command");
+    expect(board.files.animation.size).toBe(1);
     await check();
+    // At both widths, where the navigation is a bar or a menu: the link opens the Firmware view.
+    await notice.getByRole("link", { name: "Open the Firmware view" }).click();
+    await expect(page.getByRole("heading", { name: "Firmware", level: 2, exact: true })).toBeVisible();
   },
   "board-delete-everything-old-reset": async ({ page, check }) => {
     const board = await scriptedBoard(page);
@@ -350,7 +350,13 @@ export const states = {
     await page.getByRole("menuitem", { name: "Delete everything" }).click();
     await page.getByRole("dialog").getByRole("checkbox", { name: "Also reset the settings" }).check();
     await page.getByRole("dialog").getByRole("button", { name: "Delete 1 file and reset the settings" }).click();
-    await expect(page.getByTestId("delete-all-old-reset")).toBeVisible();
+    const notice = page.getByTestId("delete-all-old-reset");
+    await expect(notice).toContainText("Nothing was deleted");
+    await expect(notice.getByRole("link", { name: "Open the Firmware view" })).toBeVisible();
+    expect(board.requests.filter((r) => r.cmd === "delete_all")).toEqual([
+      expect.objectContaining({ cmd: "delete_all", settings: true }),
+    ]);
+    expect(board.files.animation.size).toBe(1);
     await check();
   },
   "board-delete-everything-storage-error": async ({ page, check }) => {
@@ -377,16 +383,8 @@ export const states = {
     const ball = JSON.parse(readFileSync(stored(simulator, "animations", "ball"), "utf8")) as { name: string };
     await pick(
       page,
-      {
-        name: "star.json",
-        mimeType: "application/json",
-        buffer: Buffer.from(JSON.stringify({ ...star, name: "Star (new)" })),
-      },
-      {
-        name: "ball.json",
-        mimeType: "application/json",
-        buffer: Buffer.from(JSON.stringify({ ...ball, name: "Ball (new)" })),
-      },
+      upload("star.json", JSON.stringify({ ...star, name: "Star (new)" })),
+      upload("ball.json", JSON.stringify({ ...ball, name: "Ball (new)" })),
       upload("fresh.yaml", animationYaml("Fresh")),
     );
     await expect(page.getByRole("dialog", { name: "Replace 2 stored files?" })).toBeVisible();
@@ -434,7 +432,7 @@ export const states = {
   },
   "board-upload-diagnostics": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await page.locator("#upload-input").setInputFiles([file("bad.yaml"), file("other.json")]);
+    await pick(page, file("bad.yaml"), file("other.json"));
     await expect(page.getByRole("alert")).toHaveCount(2);
     await check();
   },
@@ -447,6 +445,8 @@ export const states = {
     await expect(page.getByTestId("brightness-value")).toBeVisible();
     simulator.stop();
     await expect(page.getByTestId("lost-alert")).toBeVisible();
+    await expect(page.getByTestId("connection-state")).toHaveText("Lost");
+    await expect(page.getByRole("alert").filter({ hasText: "Connection lost. Reconnect to continue." })).toBeVisible();
     await check();
   },
   "board-loading": async ({ page, simulator, check }) => {
@@ -475,7 +475,7 @@ export const states = {
   "board-empty-playlists": async ({ page, simulator, check }) => {
     emptyBoard(simulator);
     await connected(page, simulator);
-    await playlistsTab(page).click();
+    await showPlaylists(page);
     await expect(page.getByText("No playlists on this board")).toBeVisible();
     await check();
   },
@@ -572,7 +572,7 @@ export const states = {
   "library-no-manifest": async ({ page, check }) => {
     await page.route("**/manifest.json", (route) => route.fulfill({ status: 404, body: "not found" }));
     await page.goto("/#library");
-    await expect(page.getByTestId("library-empty")).toBeVisible();
+    await expect(page.getByTestId("library-empty")).toContainText("Nothing is published yet");
     await check();
   },
 
@@ -621,7 +621,8 @@ export const states = {
   "firmware-no-manifest": async ({ page, check }) => {
     await page.route("**/manifest.json", (route) => route.fulfill({ status: 404, body: "not found" }));
     await page.goto("/#firmware");
-    await expect(page.getByTestId("firmware-empty")).toBeVisible();
+    await expect(page.getByTestId("firmware-empty")).toContainText("No firmware release is published yet");
+    await expect(page.locator("esp-web-install-button")).toHaveCount(0);
     await check();
   },
   "firmware-no-web-serial": async ({ page, check }) => {
@@ -630,7 +631,8 @@ export const states = {
       delete Navigator.prototype.serial;
     });
     await page.goto("/#firmware");
-    await expect(page.getByText(/needs Web Serial/)).toHaveCount(1);
+    await expect(page.getByText(/needs Web Serial, which only desktop Chrome, Edge, Opera/)).toHaveCount(1);
+    await expect(page.locator("esp-web-install-button")).toHaveCount(0);
     await check();
   },
 

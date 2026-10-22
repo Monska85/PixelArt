@@ -1,10 +1,7 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
-import { connectSimulator, expect, openFromLibrary, test, type Simulator } from "./fixtures";
+import { animations, connectSimulator, expect, file, openFromLibrary, type Simulator, stored, test } from "./fixtures";
 
-const file = (name: string): string => fileURLToPath(new URL(`./files/${name}`, import.meta.url));
 const name = (page: Page) => page.getByLabel("Name", { exact: true });
 const source = (page: Page) => page.getByTestId("editor-source");
 const back = (page: Page, view: string) => page.getByRole("button", { name: `Back to ${view}` });
@@ -46,15 +43,13 @@ test("the editor offers a way back to the Board and shows the upload on return",
   await expect(page.getByTestId("save-outcome")).toContainText("Uploaded animation snowflake_again");
   await expect(page).toHaveURL(/#editor$/);
   await expect(back(page, "Board")).toBeVisible();
-  expect(existsSync(join(simulator.dataDir, "animations", "snowflake_again.json"))).toBe(true);
+  expect(existsSync(stored(simulator, "animations", "snowflake_again"))).toBe(true);
 
   await back(page, "Board").click();
   await expect(page).toHaveURL(/#board$/);
   await expect(page.getByRole("heading", { name: "Board", exact: true })).toBeFocused();
   await expect(page.getByRole("tab", { name: /^Animations/ })).toBeVisible();
-  await expect(
-    page.getByRole("table", { name: "Animations on the board" }).locator("tr", { hasText: "snowflake_again" }),
-  ).toBeVisible();
+  await expect(animations(page).locator("tr", { hasText: "snowflake_again" })).toBeVisible();
 });
 
 test("the editor offers a way back to the Library, and none from the menu or a file", async ({ page }) => {
@@ -214,35 +209,35 @@ test("a reload on the editor never lets the draft replace what was opened", asyn
 
 test("the file lists are tabs that work with the keyboard", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  const animations = page.getByRole("tab", { name: /^Animations/ });
-  const playlists = page.getByRole("tab", { name: /^Playlists/ });
-  await expect(animations).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("table", { name: "Animations on the board" })).toBeVisible();
+  const animationsTab = page.getByRole("tab", { name: /^Animations/ });
+  const playlistsTab = page.getByRole("tab", { name: /^Playlists/ });
+  await expect(animationsTab).toHaveAttribute("aria-selected", "true");
+  await expect(animations(page)).toBeVisible();
   await expect(page.getByRole("table", { name: "Playlists on the board" })).toBeHidden();
 
-  await animations.focus();
+  await animationsTab.focus();
   await page.keyboard.press("ArrowRight");
-  await expect(playlists).toBeFocused();
-  await expect(playlists).toHaveAttribute("aria-selected", "true");
+  await expect(playlistsTab).toBeFocused();
+  await expect(playlistsTab).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("table", { name: "Playlists on the board" })).toBeVisible();
-  await expect(page.getByRole("table", { name: "Animations on the board" })).toBeHidden();
+  await expect(animations(page)).toBeHidden();
   await page.keyboard.press("ArrowRight");
-  await expect(animations).toBeFocused();
+  await expect(animationsTab).toBeFocused();
   await page.keyboard.press("End");
-  await expect(playlists).toBeFocused();
+  await expect(playlistsTab).toBeFocused();
   await page.keyboard.press("Home");
-  await expect(animations).toBeFocused();
+  await expect(animationsTab).toBeFocused();
   await page.keyboard.press("ArrowLeft");
-  await expect(playlists).toBeFocused();
-  await expect(playlists).toHaveAttribute("tabindex", "0");
-  await expect(animations).toHaveAttribute("tabindex", "-1");
+  await expect(playlistsTab).toBeFocused();
+  await expect(playlistsTab).toHaveAttribute("tabindex", "0");
+  await expect(animationsTab).toHaveAttribute("tabindex", "-1");
 });
 
 for (const width of [1280, 320]) {
   test(`a size stays on one line at ${width} px`, async ({ page, simulator }) => {
     await page.setViewportSize({ width, height: 800 });
     await connectSimulator(page, simulator);
-    const sizes = page.getByRole("table", { name: "Animations on the board" }).locator("[data-testid^=size-]");
+    const sizes = animations(page).locator("[data-testid^=size-]");
     await expect(sizes.first()).toBeVisible();
     const count = await sizes.count();
     expect(count).toBeGreaterThan(20);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { documentFromModel, modelFromBytes } from "../src/ui/board/playlistModel";
-import { jsonBytes } from "../src/yaml";
+import { jsonBytes } from "../src/yaml/writeJson";
 import { text } from "./helpers";
 
 const stored = text(

@@ -3,26 +3,24 @@
 // views do not load the editor's store, which holds the YAML library.
 
 import { useSyncExternalStore } from "react";
+import { createEmitter } from "../emitter";
 
 let heldId: string | null = null;
 let download: (() => boolean) | null = null;
-const listeners = new Set<() => void>();
+const changes = createEmitter();
 
 /** The editor says which board file is the only saved copy of its document, or null. */
 export function publishHolding(id: string | null, downloader: () => boolean): void {
   download = downloader;
   if (id === heldId) return;
   heldId = id;
-  for (const listener of listeners) listener();
+  changes.emit();
 }
 
 /** Downloads the editor's YAML. False when the editor could not (its YAML tab has an error). */
 export const downloadHeld = (): boolean => download?.() ?? false;
 
-export const subscribeHeld = (listener: () => void): (() => void) => {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-};
+export const subscribeHeld = changes.subscribe;
 
 export const getHeldId = (): string | null => heldId;
 

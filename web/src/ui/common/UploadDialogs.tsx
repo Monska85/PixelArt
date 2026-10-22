@@ -3,21 +3,17 @@ import { isValidId } from "../../engine";
 import type { PlanEntry, Resolution } from "../../queue/plan";
 import type { DifferingChoice } from "../../queue/run";
 import { Button } from "../components/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/dialog";
 import { Input } from "../components/input";
 import { formatSize } from "../format";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Field } from "./Field";
-import { takeOpener } from "./focusReturn";
-
-export type { DifferingChoice };
 
 type Prompt =
   | { type: "id"; intro: string; suggestion: string; resolve: (id: string | null) => void }
   | { type: "differing"; entries: PlanEntry[]; resolve: (choice: DifferingChoice | null) => void }
   | { type: "missing"; missing: Resolution["missing"]; resolve: (go: boolean) => void };
 
-const ID_RULE = "Lowercase letters, digits, _ and -, starting with a letter or digit, at most 32 characters.";
+export const ID_RULE = "Lowercase letters, digits, _ and -, starting with a letter or digit, at most 32 characters.";
 
 function IdDialog({
   intro,
@@ -67,53 +63,33 @@ function DifferingDialog({
   entries: PlanEntry[];
   onResolve: (choice: DifferingChoice | null) => void;
 }) {
-  const safe = useRef<HTMLButtonElement>(null);
-  const [opener] = useState(takeOpener);
   return (
-    <Dialog open onOpenChange={(open) => !open && onResolve(null)}>
-      <DialogContent
-        aria-describedby={undefined}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          safe.current?.focus();
-        }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>
-            {entries.length === 1 ? "Replace the stored file?" : `Replace ${entries.length} stored files?`}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-3 text-sm text-muted-foreground">
-          <p>The board stores different versions of these files. Replacing them overwrites the board&apos;s copies.</p>
-          <ul className="flex max-h-60 flex-col gap-1 overflow-y-auto" data-testid="differing-files">
-            {entries.map(({ file, stored }) => (
-              <li key={`${file.kind}/${file.id}`} className="flex flex-wrap items-baseline gap-x-2">
-                <code className="text-foreground">{file.id}</code>
-                <span>
-                  {file.kind}, {stored ? `${formatSize(stored.size)} on the board, ` : ""}
-                  {formatSize(file.bytes.length)} new
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <DialogFooter>
-          <Button ref={safe} variant="outline" onClick={() => onResolve(null)}>
-            Cancel
-          </Button>
-          <Button variant="outline" onClick={() => onResolve("keep")}>
-            Keep the board&apos;s
-          </Button>
-          <Button variant="destructive" onClick={() => onResolve("replace")}>
-            Replace them
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      destructive
+      title={entries.length === 1 ? "Replace the stored file?" : `Replace ${entries.length} stored files?`}
+      confirmLabel="Replace them"
+      extraAction={
+        <Button variant="outline" onClick={() => onResolve("keep")}>
+          Keep the board&apos;s
+        </Button>
+      }
+      onCancel={() => onResolve(null)}
+      onConfirm={() => onResolve("replace")}
+    >
+      {/* A div, not a p: ConfirmDialog gives paragraphs a taller line height. */}
+      <div>The board stores different versions of these files. Replacing them overwrites the board&apos;s copies.</div>
+      <ul className="flex max-h-60 flex-col gap-1 overflow-y-auto" data-testid="differing-files">
+        {entries.map(({ file, stored }) => (
+          <li key={`${file.kind}/${file.id}`} className="flex flex-wrap items-baseline gap-x-2">
+            <code className="text-foreground">{file.id}</code>
+            <span>
+              {file.kind}, {stored ? `${formatSize(stored.size)} on the board, ` : ""}
+              {formatSize(file.bytes.length)} new
+            </span>
+          </li>
+        ))}
+      </ul>
+    </ConfirmDialog>
   );
 }
 

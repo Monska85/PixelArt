@@ -1,15 +1,4 @@
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "platform.h"
 
@@ -43,8 +32,8 @@ const char *firmware_version() { return PIXELART_VERSION; }
 
 uint64_t now_us() { return sim::now_us(); }
 
-// With a WebSocket the wait runs in short steps, each followed by a poll of
-// the sockets. The total virtual time is the same as in one step.
+// With a WebSocket the wait runs in short steps, each followed by a read of
+// the requests. The total virtual time is the same as in one step.
 constexpr uint64_t WS_STEP_US = 2000;
 
 void wait_us(uint64_t us)
@@ -62,8 +51,7 @@ size_t free_heap() { return 0; }
 
 size_t max_alloc() { return 0; }
 
-// Not the seeded random(): --seed must keep animations reproducible, and the
-// boot_id must differ on every run.
+// The boot_id must differ on every run.
 uint32_t random32()
 {
   static std::random_device device;

@@ -23,7 +23,7 @@ The unit tests read `../conformance`, and the YAML tests compare with `../data`,
 
 ## End-to-end tests
 
-1. Build the simulator (`make sim-build`) and the board files (`make data`).
+1. Build the simulator (`make sim-build`) and the board files (`make data`). The simulator's WebSocket needs `python3` with the `websockets` package (`pip install websockets`).
 2. Install the browser once: `npx playwright install chromium`.
 3. `npm run build && npm run e2e`.
 
@@ -33,13 +33,13 @@ The built app is served by `e2e/serve-site.mjs` with a fixture release next to i
 
 Every view and its main states are scripted once, in `screenshots/states.ts`, and checked two ways:
 
-- **Layout checks**, for every state, at 1,280 and 375 px wide (`screenshots/layout.spec.ts`, run by `npm run e2e` and `make web-e2e` on the host): the page does not scroll sideways and nothing sticks out of the window or of the box that clips it, every control has an accessible name, the cells of a table row are centred on one line (except the Diagnostics table, whose messages start at the top) and the last action of every row ends at the same place, and a playlist item's mark sits under its animation field. Each state also asserts what it shows (a dialog, a progress panel, an error). A failure names the element that moved. `e2e/layout-checks.spec.ts` shows each rule failing on a small page that breaks it. To add a state, see the comment at the top of `screenshots/states.ts`.
+- **Layout checks**, for every state, at 1,280 and 375 px wide (`screenshots/layout.spec.ts`, run by `npm run e2e` and `make web-e2e` on the host): the page does not scroll sideways and nothing sticks out of the window or of the box that clips it, every control has an accessible name, the cells of a table row are centred on one line (except the Diagnostics table, whose messages start at the top) and the last action of every row ends at the same place, and a playlist item's mark sits under its animation field, aligned with its left edge. Each state also asserts what it shows (a dialog, a progress panel, an error). A failure names the element that moved. `e2e/layout-checks.spec.ts` shows each rule failing on a small page that breaks it. To add a state, see the comment at the top of `screenshots/states.ts`.
 - **Reference images**, for one main state per view (`screenshots/views.spec.ts`): the Board view (both tabs), the Library, Firmware and Editor views, the playlist editor, a confirmation dialog and the connection chip's panel, at 1,280 and 375 px, in the light and the dark theme, 32 images in `screenshots/baselines/`. A difference of more than 20 pixels fails. Text is only drawn the same way by the same browser build and fonts, so this part runs inside the official Playwright container, never directly:
 
 - `make web-screenshots` builds the app and compares. A failure leaves the expected, actual and diff images in `test-results-screenshots/`.
 - `make web-screenshots-update` draws the reference images again. Look at the new images before committing them: a changed image is a changed layout.
 
-Docker is needed. The container is the Playwright image of the pinned `@playwright/test` version (`mcr.microsoft.com/playwright:v<version>-noble`; CI names it by digest). The repository is mounted into it, and the simulator that `make sim-build` made is started from inside the container for each test, so it must be a Linux program: on Linux that is the default build. On another system, set `PIXELART_SIM` to a Linux build of the simulator. The suite has its own board files (`screenshots/board-files/`) and published release (`screenshots/site-published.json`), and fixes the clock, the time zone and the firmware version the pages see, so only a change of the app moves a picture. The reference images are drawn on x86-64.
+Docker is needed. The container is the Playwright image of the pinned `@playwright/test` version (`mcr.microsoft.com/playwright:v<version>-noble`; CI names it by digest). The repository is mounted into it, and the simulator that `make sim-build` made is started from inside the container for each test, so it must be a Linux program: on Linux that is the default build. On another system, set `PIXELART_SIM` to a Linux build of the simulator. The container's Python has no `websockets` package, so the script mounts the one of the host's `python3` (or `PIXELART_PYTHON`, which `make` and `just` set to their Python) for the simulator's WebSocket bridge. The suite has its own board files (`screenshots/board-files/`) and published release (`screenshots/site-published.json`), and fixes the clock, the time zone and the firmware version the pages see, so only a change of the app moves a picture. The reference images are drawn on x86-64.
 
 The functional tests in `e2e/` stay separate: `make web-e2e` runs them on the host and does not need Docker.
 

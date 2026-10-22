@@ -4,6 +4,7 @@ import {
   BoardError,
   CONNECTION_LOST,
   NO_REPLY,
+  PUT_END_TIMEOUT_MS,
   TRIES,
   crc32,
   decodeLine,
@@ -148,7 +149,7 @@ describe("client", () => {
   it("waits 10 seconds for put_end", async () => {
     board.fault = (_i, r) => (r.cmd === "put_end" ? "drop" : undefined);
     await client.command("put_begin", { kind: "animation", id: "a", size: 0, sha256: "0".repeat(64) });
-    const result = client.request("put_end", {}, client.putEndTimeout).catch((e: unknown) => e);
+    const result = client.request("put_end", {}, PUT_END_TIMEOUT_MS).catch((e: unknown) => e);
     await vi.advanceTimersByTimeAsync(9999);
     expect(board.requests.filter((r) => r.cmd === "put_end")).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1);
@@ -350,6 +351,15 @@ describe("files", () => {
     expect(new TextDecoder().decode(await downloadFile(client, "animation", "dot"))).toContain("Other");
   });
 
+  it("reports a protocol error at once when the board lists no SHA-256", async () => {
+    board.files.animation.set("dot", animation("Dot"));
+    board.override = (r) =>
+      r.cmd === "list" ? { ok: true, kind: "animation", entries: [{ id: "dot", size: 1 }], more: false } : undefined;
+    await expect(downloadFile(client, "animation", "dot")).rejects.toMatchObject({ code: "protocol" });
+    expect(board.requests.filter((r) => r.cmd === "list")).toHaveLength(1);
+    expect(board.requests.some((r) => r.cmd === "get")).toBe(false);
+  });
+
   it("reports an error when the file keeps changing", async () => {
     board.files.animation.set("dot", animation("Dot", `,"description":"${"y".repeat(200)}"`));
     board.override = (r) => (r.cmd === "get" ? { ok: true, size: 5, offset: r.offset, data: "AAAA" } : undefined);
@@ -452,6 +462,23 @@ describe("files", () => {
       const offsets = board.requests.filter((r) => r.cmd === "put_chunk").map((r) => r.offset);
       expect(offsets.slice(0, 2)).toEqual([0, 128]);
     });
+
+    it.each([[undefined], [-1], [1.5], ["64"], [0], [data.length + 1]])(
+      "fails on a put_chunk reply with received %s and aborts",
+      async (received) => {
+        let chunks = 0;
+        // A second chunk is an error, so an upload that accepted the reply fails here instead of looping forever
+        board.override = (r) =>
+          r.cmd !== "put_chunk"
+            ? undefined
+            : chunks++ === 0
+              ? { ok: true, received }
+              : { ok: false, error: "storage_error", message: "a second chunk" };
+        await expect(uploadFile(client, "animation", "dot", data)).rejects.toMatchObject({ code: "protocol" });
+        expect(board.requests.filter((r) => r.cmd === "put_chunk")).toHaveLength(1);
+        expect(board.requests.at(-1)?.cmd).toBe("put_abort");
+      },
+    );
 
     it("restarts from put_begin once on no_upload", async () => {
       let dropped = false;

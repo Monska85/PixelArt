@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The board's settings (docs/protocol/protocol-v1.md#settings_get-settings_set).
 // On the board they live in NVS, outside the file system that holds the
 // animations. The simulator keeps them in memory for the length of a run.

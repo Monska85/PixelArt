@@ -3,8 +3,6 @@ import type { ComponentProps } from "react";
 import { cn } from "./cn";
 
 export const Dialog = DialogPrimitive.Root;
-export const DialogTrigger = DialogPrimitive.Trigger;
-export const DialogClose = DialogPrimitive.Close;
 
 /** Centered on a wide screen, at the bottom and full width on a phone. */
 export function DialogContent({ className, children, ...props }: ComponentProps<typeof DialogPrimitive.Content>) {
@@ -42,8 +40,4 @@ export function DialogFooter({ className, ...props }: ComponentProps<"div">) {
 
 export function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
   return <DialogPrimitive.Title className={cn("text-lg font-semibold leading-snug", className)} {...props} />;
-}
-
-export function DialogDescription({ className, ...props }: ComponentProps<typeof DialogPrimitive.Description>) {
-  return <DialogPrimitive.Description className={cn("text-sm text-muted-foreground", className)} {...props} />;
 }

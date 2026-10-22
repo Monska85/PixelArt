@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Checksums and encoding used by the command protocol: CRC-32 (zlib), SHA-256,
 // standard base64 and the UTF-8 sequence rule. Plain C++ with no Arduino
 // dependency, so the firmware, the simulator and the tests share one
@@ -20,11 +22,9 @@ uint32_t crc32(const void *data, size_t size, uint32_t crc = 0);
 class Sha256
 {
 public:
-  Sha256() { reset(); }
-  void reset();
+  Sha256();
   void update(const void *data, size_t size);
-  // Finishes the hash and returns it as 64 lowercase hexadecimal digits. The
-  // object must be reset before it is used again.
+  // Finishes the hash and returns it as 64 lowercase hexadecimal digits.
   std::string hex_digest();
 
 private:

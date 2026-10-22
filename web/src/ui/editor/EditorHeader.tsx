@@ -15,7 +15,7 @@ import { jsonBytes, writeJson } from "../../yaml/writeJson";
 import { sha256Hex, type WireDiagnostic } from "../../protocol";
 import { deriveSaveState } from "../../editor/saves";
 import type { QueueFile } from "../../queue/plan";
-import { newAnimation, setTopField, type Doc } from "../../editor/doc";
+import { newAnimation, setTopField } from "../../editor/doc";
 import type { EditorState } from "../../editor/state";
 import { Alert, AlertDescription } from "../components/alert";
 import { Badge } from "../components/badge";
@@ -28,19 +28,18 @@ import { DiagnosticsTable } from "../common/DiagnosticsTable";
 import { ErrorAlert } from "../common/ErrorAlert";
 import { PageHeader } from "../common/Page";
 import { RunningUpload } from "../common/ActivityPanel";
-import { useUploadDialogs } from "../common/UploadDialogs";
-import { rememberNoteDismissed, noteDismissed } from "./note";
 import { shownMessage } from "../errors";
 import { suggestId } from "../files";
 import { singleFileResult } from "../queue/summary";
 import { useUploadQueue } from "../queue/useUploadQueue";
 import { formatSize } from "../format";
 import { session, useSession } from "../session";
+import { readStored, writeStored } from "../storage";
 import { CANCELLED_MESSAGE, SKIPPED_MESSAGE, blockedOrBusy, uploadBlockedReason } from "../upload";
-import { useSaveStateBoardFiles } from "./boardFiles";
+import { boardFilesOf } from "./boardFiles";
 import { TextField } from "./Fields";
 import { readAnimationFile } from "./open";
-import { editorStore } from "./store";
+import { documentName, editorStore } from "./store";
 
 interface Outcome {
   /** A result, something the user chose, or a problem. */
@@ -48,11 +47,6 @@ interface Outcome {
   message: string;
   diagnostics: Array<Diagnostic | WireDiagnostic>;
 }
-
-const nameOf = (doc: Doc): string => {
-  const name = doc.get("name");
-  return typeof name === "string" ? name : "";
-};
 
 interface Props {
   state: EditorState;
@@ -69,7 +63,6 @@ interface Props {
 export function EditorHeader({ state, children, onOpenError }: Props) {
   const connection = useSession();
   const { client } = connection;
-  const { dialogs, askId } = useUploadDialogs();
   const queue = useUploadQueue({
     client,
     // A file left out or a warning on the way: shown as this document's result, not in a list of the view.
@@ -86,7 +79,10 @@ export function EditorHeader({ state, children, onOpenError }: Props) {
   // The ID is chosen the first time the document is saved.
   async function ensureId(): Promise<string | null> {
     if (state.id && isValidId(state.id)) return state.id;
-    const chosen = await askId("The ID is the file name of the animation", suggestId(nameOf(state.doc)));
+    const chosen = await queue.askId(
+      "The ID is the file name of the animation",
+      suggestId(documentName(state.doc, "")),
+    );
     if (chosen) editorStore.dispatch({ type: "setId", id: chosen });
     return chosen;
   }
@@ -211,7 +207,7 @@ export function EditorHeader({ state, children, onOpenError }: Props) {
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
         <TextField
           label="Name"
-          value={nameOf(state.doc)}
+          value={documentName(state.doc, "")}
           maxLength={128}
           className="w-full max-w-md"
           hint={
@@ -272,7 +268,6 @@ export function EditorHeader({ state, children, onOpenError }: Props) {
             <p>{outcome.message}</p>
           </ErrorAlert>
         ))}
-      {dialogs}
       {queue.dialogs}
       {discarding && (
         <ConfirmDialog
@@ -295,7 +290,7 @@ export function EditorHeader({ state, children, onOpenError }: Props) {
 
 /** Where the document lives: the header always says whether it is only a draft in this browser. */
 function SaveStatePill({ state }: { state: EditorState }) {
-  const files = useSaveStateBoardFiles();
+  const files = boardFilesOf(useSession());
   // The board may have changed without this app (another computer, a reset): opening the Editor checks it again.
   useEffect(() => void session.refreshFiles(["animation"]), []);
   const saved = useMemo(
@@ -324,9 +319,13 @@ function SaveStatePill({ state }: { state: EditorState }) {
   );
 }
 
+const NOTE_KEY = "pixelart.editorNote";
+// When storage is blocked the note shows again next time, not again in this visit.
+let noteDismissedThisVisit = false;
+
 /** Said once per browser: the draft is not a backup. */
 function FirstUseNote() {
-  const [hidden, setHidden] = useState(noteDismissed);
+  const [hidden, setHidden] = useState(() => noteDismissedThisVisit || readStored(NOTE_KEY) === "1");
   if (hidden) return null;
   return (
     <Alert variant="info" data-testid="editor-note">
@@ -341,7 +340,8 @@ function FirstUseNote() {
             variant="outline"
             size="sm"
             onClick={() => {
-              rememberNoteDismissed();
+              noteDismissedThisVisit = true;
+              writeStored(NOTE_KEY, "1");
               setHidden(true);
             }}
           >

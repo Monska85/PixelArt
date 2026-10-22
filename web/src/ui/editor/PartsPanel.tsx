@@ -1,13 +1,11 @@
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { addPart, movePart, readParts, removePart, setPart, spriteNames, spriteOf, type Doc } from "../../editor/doc";
 import { Field } from "../common/Field";
 import { Button } from "../components/button";
-import { IconButton } from "../components/icon-button";
 import { Select } from "../components/select";
-import { EditorCard, Hint } from "./EditorCard";
+import { EditorCard, Hint, ReorderButtons, SpriteSelect, type Edit } from "./EditorCard";
 import { PosField } from "./Fields";
-import type { Edit } from "./types";
 
 interface Props {
   doc: Doc;
@@ -33,18 +31,12 @@ export function PartsPanel({ doc, edit, composite }: Props) {
           >
             <Field label={`Sprite of part ${index + 1}`} className="min-w-40 flex-1">
               {(control) => (
-                <Select
-                  {...control}
+                <SpriteSelect
+                  control={control}
                   value={part.sprite}
+                  names={others}
                   onChange={(e) => edit((d) => setPart(d, composite, index, { ...part, sprite: e.target.value }))}
-                >
-                  {!others.includes(part.sprite) && <option value={part.sprite}>{part.sprite}</option>}
-                  {others.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </Select>
+                />
               )}
             </Field>
             <PosField
@@ -52,29 +44,13 @@ export function PartsPanel({ doc, edit, composite }: Props) {
               value={part.at}
               onChange={(at) => edit((d) => setPart(d, composite, index, { ...part, at }))}
             />
-            <span className="ml-auto flex items-center gap-1">
-              <IconButton
-                label={`Move up part ${index + 1}`}
-                tooltip="Move up"
-                icon={ArrowUp}
-                disabled={index === 0}
-                onClick={() => edit((d) => movePart(d, composite, index, -1))}
-              />
-              <IconButton
-                label={`Move down part ${index + 1}`}
-                tooltip="Move down"
-                icon={ArrowDown}
-                disabled={index === parts.length - 1}
-                onClick={() => edit((d) => movePart(d, composite, index, 1))}
-              />
-              <IconButton
-                label={`Remove part ${index + 1}`}
-                tooltip="Remove"
-                icon={Trash2}
-                className="text-destructive"
-                onClick={() => edit((d) => removePart(d, composite, index))}
-              />
-            </span>
+            <ReorderButtons
+              noun="part"
+              index={index}
+              count={parts.length}
+              onMove={(delta) => edit((d) => movePart(d, composite, index, delta))}
+              onRemove={() => edit((d) => removePart(d, composite, index))}
+            />
           </li>
         ))}
       </ol>

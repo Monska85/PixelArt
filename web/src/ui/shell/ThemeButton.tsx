@@ -11,10 +11,7 @@ const CYCLE: Array<{ value: ThemeChoice; label: string; icon: LucideIcon }> = [
 /** One icon button: it shows the current theme and each click moves on, System then Dark then Light then System. */
 export function ThemeButton() {
   const choice = useTheme();
-  const index = Math.max(
-    0,
-    CYCLE.findIndex((c) => c.value === choice),
-  );
+  const index = CYCLE.findIndex((c) => c.value === choice);
   const current = CYCLE[index]!;
   const next = CYCLE[(index + 1) % CYCLE.length]!;
   const text = `Theme: ${current.label}. Click for ${next.label}.`;

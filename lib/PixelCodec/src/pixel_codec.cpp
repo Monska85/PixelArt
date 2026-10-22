@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "pixel_codec.h"
 
 #include <cstring>
@@ -61,7 +63,7 @@ uint32_t crc32(const void *data, size_t size, uint32_t crc)
   return ~crc;
 }
 
-void Sha256::reset()
+Sha256::Sha256()
 {
   static const uint32_t initial[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                                       0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};

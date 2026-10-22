@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { newAnimation, setTopField, type Doc } from "../src/editor/doc";
 import type { BoardFiles } from "../src/editor/saves";
-import { writeJson } from "../src/yaml";
+import { writeJson } from "../src/yaml/writeJson";
 import * as drafts from "../src/ui/editor/drafts";
 import { EditorStore, hasUnsavedWork, RESTORE_WAIT_MS, type Opening } from "../src/ui/editor/store";
 import * as holding from "../src/ui/editor/holding";

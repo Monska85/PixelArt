@@ -3,19 +3,20 @@ import { Button } from "../components/button";
 import { Input } from "../components/input";
 import { Field } from "../common/Field";
 import { session, useSession } from "../session";
-import { loadSimulatorAddress, saveSimulatorAddress } from "../storage";
+import { DEFAULT_SIMULATOR_URL } from "../../protocol/websocket";
+import { readStored, SIMULATOR_KEY, writeStored } from "../storage";
 
 /** The address of the simulator and the button that connects to it. */
 export function SimulatorForm({ onDone }: { onDone?: () => void }) {
   const { state, via } = useSession();
-  const [address, setAddress] = useState(loadSimulatorAddress);
+  const [address, setAddress] = useState(() => readStored(SIMULATOR_KEY) || DEFAULT_SIMULATOR_URL);
   const connecting = state === "connecting";
   return (
     <form
       className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault();
-        saveSimulatorAddress(address);
+        writeStored(SIMULATOR_KEY, address);
         void session.connectSimulator(address).finally(onDone);
       }}
     >

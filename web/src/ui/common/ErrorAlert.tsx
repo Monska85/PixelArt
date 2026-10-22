@@ -5,6 +5,11 @@ import { Alert, AlertDescription, AlertTitle } from "../components/alert";
 import { IconButton } from "../components/icon-button";
 import { DiagnosticsTable, type ShownDiagnostic } from "./DiagnosticsTable";
 
+/** An error code inside a sentence. */
+export function CodeChip({ children }: { children: ReactNode }) {
+  return <code className="rounded bg-muted px-1 py-0.5 text-foreground">{children}</code>;
+}
+
 interface Props {
   title: string;
   /** The text under the title. */
@@ -61,7 +66,7 @@ export function ShownErrorAlert({ error, onDismiss }: { error: ShownError; onDis
           error.code !== "warnings" &&
           error.code !== "summary" && (
             <>
-              <code className="rounded bg-muted px-1 py-0.5 text-foreground">{error.code}</code>{" "}
+              <CodeChip>{error.code}</CodeChip>{" "}
             </>
           )}
         {error.message}

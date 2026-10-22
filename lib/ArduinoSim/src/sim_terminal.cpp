@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Terminal rendering: truecolor ANSI frames, redrawn in place in real-time
 // and live modes.
 

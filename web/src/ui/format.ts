@@ -6,3 +6,6 @@ export function formatSize(bytes: number): string {
   if (kb < 1023.95) return `${kb.toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+/** A count and its noun: `1 file`, `2 files`. */
+export const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
