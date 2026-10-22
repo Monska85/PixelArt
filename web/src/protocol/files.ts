@@ -100,6 +100,7 @@ class Changed extends BoardError {
 async function downloadOnce(client: BoardClient, kind: Kind, id: string, known?: Entry): Promise<Uint8Array> {
   const entry = known ?? (await listFiles(client, kind)).find((e) => e.id === id);
   if (!entry) throw new BoardError("not_found", `no ${kind} '${id}' on the board`);
+  if (entry.sha256 === null) throw new BoardError("protocol", `the board lists no SHA-256 for ${kind} '${id}'`);
   const limit = Math.min(client.info?.limits[kind] ?? FILE_LIMITS[kind], FILE_LIMITS[kind]);
   if (entry.size > limit)
     throw new BoardError(
@@ -118,8 +119,7 @@ async function downloadOnce(client: BoardClient, kind: Kind, id: string, known?:
     if (have === entry.size) break;
     if (part.length === 0) throw new BoardError("protocol", "the board returned no data before the end of the file");
   }
-  if (entry.sha256 === null || (await sha256Hex(data)) !== entry.sha256)
-    throw new Changed("the downloaded file does not match its SHA-256");
+  if ((await sha256Hex(data)) !== entry.sha256) throw new Changed("the downloaded file does not match its SHA-256");
   return data;
 }
 
@@ -245,8 +245,13 @@ async function uploadOnce(
     const chunk = data.subarray(offset, offset + client.chunkSize);
     const reply = await client.request("put_chunk", { offset, data: toBase64(chunk) });
     if (reply.ok === true) {
-      offset = typeof reply.received === "number" && reply.received > offset ? reply.received : offset + chunk.length;
-      options.onProgress?.(Math.min(offset, data.length), data.length);
+      if (!isCount(reply.received) || reply.received <= offset || reply.received > data.length)
+        throw new BoardError(
+          "protocol",
+          `the board reported ${String(reply.received)} bytes received at offset ${offset}`,
+        );
+      offset = reply.received;
+      options.onProgress?.(offset, data.length);
     } else if (
       reply.error === "bad_offset" &&
       resumes < MAX_RESUMES &&

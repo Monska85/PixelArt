@@ -10,7 +10,7 @@ The web app talks to boards with the [command protocol](../protocol/protocol-v1.
 
 - **Address.** GitHub Pages, at `https://monska85.github.io/PixelArt/`, at the root of the same site as the published firmware and animations. See [Publishing](#publishing).
 - **Browsers.** Connecting to a board and installing firmware need Web Serial, which only desktop Chromium browsers have: Chrome, Edge, Opera and others built on Chromium. In other browsers (Firefox, Safari, phones) the app still connects to the simulator and still edits and previews animations; the board and firmware buttons are replaced by a message that names the browsers that work.
-- **Development.** `make web-dev` starts the app on `http://localhost:5173` with live reload. `make serve` starts the simulator with the command protocol on `ws://127.0.0.1:8765`, so the whole app works without a board; it accepts the app's origins, see [WebSocket](../protocol/protocol-v1.md#websocket-simulator).
+- **Development.** `make web-dev` starts the app on `http://localhost:5173` with live reload. `make serve` starts the simulator with the command protocol on `ws://127.0.0.1:8765` (it needs Python with the `websockets` package), so the whole app works without a board; it accepts the app's origins, see [WebSocket](../protocol/protocol-v1.md#websocket-simulator).
 
 The app is a single page with four views, reached from a bar at the top: **Board**, **Library**, **Firmware** and **Editor**. The address keeps the view in its fragment (`#board`, `#library`, `#firmware`, `#editor`), so reloading the page stays on the same view.
 
@@ -113,7 +113,7 @@ The connection chip of the [app shell](#user-interface) is always visible. It sh
 ### Transports
 
 - **Board (USB).** "Connect board" asks the browser for a serial port (`navigator.serial.requestPort()`), then opens it at 115,200 baud with `bufferSize` 8,192 and keeps DTR and RTS low, so opening the port does not reset the board. Incoming bytes arrive in arbitrary pieces; a stream transform splits them into lines at `\n` and drops a `\r` before it. Lines longer than 16 KiB are dropped up to the next newline.
-- **Simulator (WebSocket).** "Connect simulator" opens a WebSocket to the address in the field next to the button, `ws://127.0.0.1:8765` by default. The address is remembered in the browser. Each text message is one line. Chrome may ask the user to allow the page to reach devices on the local network the first time a page from the internet connects to `127.0.0.1`; the app says so next to the button.
+- **Simulator (WebSocket).** "Connect simulator" opens a WebSocket to the address in the field next to the button, `ws://127.0.0.1:8765` by default. Only `ws://` addresses on `127.0.0.1` or `localhost` are accepted, the hosts the [Content Security Policy](#security) allows; any other address gets an error at once. The address is remembered in the browser. Each text message is one line. Chrome may ask the user to allow the page to reach devices on the local network the first time a page from the internet connects to `127.0.0.1`; the app says so next to the button.
 
 Both transports deliver lines to the same protocol client. Lines that do not start with `@PR ` are ignored, as are lines with a bad CRC. Board lines with an `event` field and no `seq` are ignored, since protocol 1 defines no events.
 

@@ -90,7 +90,7 @@ A case is one JSON object:
 - `settings` (optional): the settings the board starts with, `brightness` and `playlist`.
 - `steps`: what happens, in order. Each step has exactly one of these keys:
   - `send`: one line of text sent to the serial port, followed by a newline. The optional key `eol` replaces the newline, for example with `"\r\n"`. The line is sent as written: protocol requests spell out the whole line, marker and CRC included.
-  - `expect`: the next reply line from the board. Its CRC must be right, and its JSON must equal this object, with the same keys. The string `"<any>"` matches any value, for what a case cannot know: the firmware version, `boot_id`, memory, used storage, and the text of messages.
+  - `expect`: the next reply line from the board. Its CRC must be right, and its JSON must equal this object, with the same keys. The string `"<any>"` matches any value, for what a case cannot know: the firmware version, `boot_id`, memory, used storage, and the text of messages. The string `"<at most N characters>"` matches any text of at most N characters (code points), for a text the specification limits but does not fix.
   - `expect_nothing`: the board has sent nothing that is still unread.
   - `advance_ms`: lets this many milliseconds of virtual time pass, with no traffic.
   - `reboot`: restarts the board. The files stay, the settings go back to their defaults, and any upload is gone.

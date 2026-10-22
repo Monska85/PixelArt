@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Strict JSON check run before ArduinoJson parses a file. ArduinoJson accepts
 // more than RFC 8259 (comments, single quotes, unquoted keys, a leading +, and
 // more), and the format requires strict JSON, so this scan rejects the rest.

@@ -351,6 +351,15 @@ describe("files", () => {
     expect(new TextDecoder().decode(await downloadFile(client, "animation", "dot"))).toContain("Other");
   });
 
+  it("reports a protocol error at once when the board lists no SHA-256", async () => {
+    board.files.animation.set("dot", animation("Dot"));
+    board.override = (r) =>
+      r.cmd === "list" ? { ok: true, kind: "animation", entries: [{ id: "dot", size: 1 }], more: false } : undefined;
+    await expect(downloadFile(client, "animation", "dot")).rejects.toMatchObject({ code: "protocol" });
+    expect(board.requests.filter((r) => r.cmd === "list")).toHaveLength(1);
+    expect(board.requests.some((r) => r.cmd === "get")).toBe(false);
+  });
+
   it("reports an error when the file keeps changing", async () => {
     board.files.animation.set("dot", animation("Dot", `,"description":"${"y".repeat(200)}"`));
     board.override = (r) => (r.cmd === "get" ? { ok: true, size: 5, offset: r.offset, data: "AAAA" } : undefined);
@@ -453,6 +462,23 @@ describe("files", () => {
       const offsets = board.requests.filter((r) => r.cmd === "put_chunk").map((r) => r.offset);
       expect(offsets.slice(0, 2)).toEqual([0, 128]);
     });
+
+    it.each([[undefined], [-1], [1.5], ["64"], [0], [data.length + 1]])(
+      "fails on a put_chunk reply with received %s and aborts",
+      async (received) => {
+        let chunks = 0;
+        // A second chunk is an error, so an upload that accepted the reply fails here instead of looping forever
+        board.override = (r) =>
+          r.cmd !== "put_chunk"
+            ? undefined
+            : chunks++ === 0
+              ? { ok: true, received }
+              : { ok: false, error: "storage_error", message: "a second chunk" };
+        await expect(uploadFile(client, "animation", "dot", data)).rejects.toMatchObject({ code: "protocol" });
+        expect(board.requests.filter((r) => r.cmd === "put_chunk")).toHaveLength(1);
+        expect(board.requests.at(-1)?.cmd).toBe("put_abort");
+      },
+    );
 
     it("restarts from put_begin once on no_upload", async () => {
       let dropped = false;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Engine for pixelart/1 animation files: parsing, validation and playback.
 // The format is specified in docs/format/pixelart-v1.md. The engine has no
 // Arduino dependency, so the firmware, the simulator and the tests share it.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Virtual clock, frame recorder and serial capture: the hooks the Arduino and
 // NeoPixel shims call while the sketch runs.
 
@@ -50,7 +52,6 @@ uint32_t Frame::at(int x, int y) const
 const std::vector<Frame> &frames() { return state().frames; }
 const std::vector<SerialLine> &serial() { return state().serial; }
 uint64_t now_us() { return state().clock_us; }
-unsigned long seed() { return state().opts.seed; }
 const std::string &data_dir() { return state().opts.data_dir; }
 void set_data_dir(const std::string &dir) { state().opts.data_dir = dir; }
 
@@ -135,12 +136,13 @@ void sync_wall_clock()
     std::this_thread::sleep_until(target);
     return;
   }
-  // Always one pass, so the sockets are serviced even when the run is behind the wall clock.
+  // Always one pass, so requests are read even when the run is behind the wall clock.
   // The target is absolute: a wake-up that overshoots by under 1 ms does not accumulate.
   do
   {
     const auto left = target - std::chrono::steady_clock::now();
-    ws_wait(std::max(std::chrono::duration_cast<std::chrono::microseconds>(left), std::chrono::microseconds(0)));
+    detail::ws_wait(
+        std::max(std::chrono::duration_cast<std::chrono::microseconds>(left), std::chrono::microseconds(0)));
   } while (std::chrono::steady_clock::now() < target);
 }
 

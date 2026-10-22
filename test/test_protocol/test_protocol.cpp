@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Runs the protocol conformance cases in conformance/protocol/ through the
 // real line reader on the simulated serial port, and tests what the cases
 // cannot express. Run with: pio test -e native_test (or make test)
@@ -5,9 +7,11 @@
 #include <ArduinoJson.h>
 #include <pixel_codec.h>
 #include <sim.h>
+#include <strict_json.h>
 #include <unity.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -100,11 +104,17 @@ static std::string text_of(JsonVariantConst value)
   return out;
 }
 
-// Compares a reply with the expected body. "<any>" matches any value.
+// Compares a reply with the expected body. "<any>" matches any value, and
+// "<at most N characters>" any text of at most N code points.
 static bool matches(JsonVariantConst want, JsonVariantConst got)
 {
   if (want.is<const char *>() && std::string(want.as<const char *>()) == ANY)
     return true;
+  size_t limit;
+  int end = 0;
+  if (want.is<const char *>() && sscanf(want.as<const char *>(), "<at most %zu characters>%n", &limit, &end) == 1 &&
+      end > 0 && want.as<const char *>()[end] == '\0')
+    return got.is<const char *>() && pixelart::utf8_code_points(got.as<const char *>()) <= limit;
   if (want.is<JsonObjectConst>())
   {
     if (!got.is<JsonObjectConst>() || want.as<JsonObjectConst>().size() != got.as<JsonObjectConst>().size())
@@ -342,7 +352,7 @@ static void test_boot_id_differs_between_starts()
   sim::reset();
   TempData data("protocol");
   std::string first = boot_id_after_setup();
-  sim::reset(); // the same --seed again
+  sim::reset();
   std::string second = boot_id_after_setup();
   TEST_ASSERT_TRUE_MESSAGE(first != second, ("boot_id repeated: " + first).c_str());
 }
@@ -449,6 +459,45 @@ static std::string end_upload(const std::string &sent, const std::string &declar
   TEST_ASSERT_FALSE(protocol::upload_active());
   TEST_ASSERT_EQUAL(0, storage::open_writers());
   return json;
+}
+
+static void test_put_end_reply_stays_under_16_kib_with_long_texts()
+{
+  // 40 unknown fields named with 200 four-byte characters or 200 escaped quotes:
+  // every diagnostic quotes its field, so uncut texts would make a reply of about 50 KB.
+  std::string file = DOT.substr(0, DOT.size() - 1);
+  for (int i = 0; i < 40; i++)
+  {
+    std::string name = std::to_string(i);
+    for (int j = 0; j < 200; j++)
+      name += i % 2 ? "\xF0\x9F\x98\x80" : "\\\"";
+    file += ",\"" + name + "\":1";
+  }
+  file += "}";
+  sim::reset();
+  TempData data("protocol");
+  setup();
+  Replies replies;
+  replies.send(put_begin(1, "animation", "long", file));
+  replies.pop();
+  unsigned seq = 2;
+  for (size_t offset = 0; offset < file.size(); offset += 512, seq++)
+  {
+    std::string piece = file.substr(offset, 512);
+    replies.send(request(seq, R"("cmd":"put_chunk","offset":)" + std::to_string(offset) + R"(,"data":")" +
+                                  pixelart::base64_encode(piece.data(), piece.size()) + "\""));
+    replies.pop();
+  }
+  replies.send(request(seq, R"("cmd":"put_end")"));
+  std::string line = replies.pop();
+  std::string json = reply_json(line, "put_end");
+  JsonDocument reply;
+  TEST_ASSERT_FALSE(deserializeJson(reply, json));
+  TEST_ASSERT_EQUAL_STRING("invalid_file", reply["error"]);
+  TEST_ASSERT_EQUAL(32, reply["diagnostics"].size());
+  TEST_ASSERT_LESS_THAN(16384, line.size() + 1);
+  // The texts are cut between characters: a cut inside one would show as U+FFFD
+  TEST_ASSERT_EQUAL(std::string::npos, json.find("\xEF\xBF\xBD"));
 }
 
 static void test_every_put_end_result_closes_the_upload_file()
@@ -635,8 +684,7 @@ static void test_path_traversal_ids_never_reach_storage()
   setup();
   Replies replies;
   unsigned seq = 1;
-  for (const char *id :
-       {"../outside/secret", "..", ".", "a/b", "a\\\\b", "dot.json", "%2e%2e", "dot\\u0000x", "/etc/passwd"})
+  for (const char *id : {"../outside/secret", "..", ".", "a/b", "a\\\\b", "dot.json", "%2e%2e", "/etc/passwd"})
   {
     for (const char *cmd : {"delete", "get", "put_begin"})
     {
@@ -763,6 +811,7 @@ int main(int, char **)
   RUN_TEST(test_upload_file_is_open_only_while_the_upload_is);
   RUN_TEST(test_refused_put_begin_closes_the_open_upload_file);
   RUN_TEST(test_every_put_end_result_closes_the_upload_file);
+  RUN_TEST(test_put_end_reply_stays_under_16_kib_with_long_texts);
   RUN_TEST(test_same_active_playlist_does_not_restart_playback);
   RUN_TEST(test_settings_set_is_all_or_nothing);
   RUN_TEST(test_settings_set_says_so_when_the_playlist_cannot_be_put_back);

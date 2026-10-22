@@ -1,0 +1,15 @@
+{
+  "description": "a request with a raw control character inside a string gets bad_frame",
+  "steps": [
+    {
+      "send": "@PR 106b6e96 {\"seq\":1,\"cmd\":\"info\",\"x\":\"a\tb\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    }
+  ]
+}

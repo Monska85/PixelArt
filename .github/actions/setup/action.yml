@@ -1,10 +1,7 @@
 name: Setup
-description: Python with PlatformIO and the converter's packages, the PlatformIO cache and, when asked, Node for the web app.
+description: Python with the pinned tools of requirements-ci.txt, the PlatformIO cache and, when asked, Node for the web app.
 
 inputs:
-  packages:
-    description: The Python packages to install
-    default: platformio pyyaml jsonschema
   node:
     description: Also set up Node with the npm cache of the web app
     default: "false"
@@ -16,7 +13,7 @@ runs:
       with:
         python-version: "3.12"
         cache: pip
-        cache-dependency-path: platformio.ini
+        cache-dependency-path: requirements-ci.txt
 
     - name: Cache PlatformIO toolchains and libraries
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -26,7 +23,7 @@ runs:
 
     - name: Install tools
       shell: bash
-      run: pip install ${{ inputs.packages }}
+      run: pip install -r requirements-ci.txt
 
     - if: inputs.node == 'true'
       uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0

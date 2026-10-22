@@ -122,8 +122,8 @@ web-build: web/node_modules ## Build the web app into web/dist
 web-size: web-build ## Fail when the JavaScript the web app loads at start is over its budget (190 KB gzip)
 	cd web && npm run size
 
-web-test: data web/node_modules ## Type check, lint and run the web app's unit tests and the conformance suite
-	cd web && npm run typecheck && npm run lint && npm test
+web-test: data web/node_modules ## Type check, lint, check the formatting and run the web app's unit tests and the conformance suite
+	cd web && npm run typecheck && npm run lint && npm run format:check && npm test
 
 web-e2e: data sim-build web-build ## Run the web app's end-to-end tests and layout checks against the simulator (first: cd web && npx playwright install chromium)
 	cd web && npm run e2e

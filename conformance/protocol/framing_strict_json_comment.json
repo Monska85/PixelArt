@@ -1,0 +1,15 @@
+{
+  "description": "a request with a comment gets bad_frame",
+  "steps": [
+    {
+      "send": "@PR b9404995 {\"seq\":1,/*c*/\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    }
+  ]
+}

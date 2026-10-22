@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Minimal Arduino core for the native (host) simulator.
 // Covers the API used by Adafruit GFX/NeoMatrix and the sketch.
 // Time is virtual: delay() advances a simulated clock instead of sleeping.
@@ -30,10 +32,6 @@ using std::min;
 void delay(unsigned long ms);
 void delayMicroseconds(unsigned int us);
 void yield();
-
-long random(long max);
-long random(long min, long max);
-void randomSeed(unsigned long seed);
 
 class HardwareSerial : public Print
 {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Shared by the native test suites (test/test_*): a throwaway storage folder
 // that undoes every simulator hook, file and color helpers, and the helpers to
 // build protocol requests.

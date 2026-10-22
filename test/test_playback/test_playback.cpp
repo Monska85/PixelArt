@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Protocol traffic while the board plays: playback stays on schedule, and
 // brightness, playlist and upload changes reach it at the times the protocol
 // specification gives. Run with: pio test -e native_test (or make test)

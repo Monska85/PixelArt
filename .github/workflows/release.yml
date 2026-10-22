@@ -21,8 +21,9 @@ permissions:
 
 jobs:
   # The quick checks on the commit that release-please would release: a main
-  # that fails them never gets a tag or a GitHub Release. The build job runs
-  # its own checks again on the tagged commit.
+  # that fails them never gets a tag or a GitHub Release. release-please
+  # normally tags this same commit, so the build job runs the checks again only
+  # on a workflow_dispatch run or when the tag points to another commit.
   check:
     if: github.event_name == 'push' || (inputs.dry_run == false && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
@@ -101,7 +102,16 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: ./.github/actions/checks
+      # On a push, the check job already ran the checks on this run's commit, which is
+      # normally the one release-please tagged. A tag on another commit is checked here.
+      - id: tagged
+        run: echo "checked=$([ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - if: github.event_name == 'workflow_dispatch' || steps.tagged.outputs.checked != 'true'
+        uses: ./.github/actions/checks
+
+      - if: github.event_name != 'workflow_dispatch' && steps.tagged.outputs.checked == 'true'
+        uses: ./.github/actions/setup
 
       - name: Build the firmware release site
         run: make release-firmware

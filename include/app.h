@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Plays the animations stored on the board, following the playlist rules of
 // docs/format/playlist-v1.md#how-the-board-chooses-what-to-play.
 

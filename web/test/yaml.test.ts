@@ -62,6 +62,9 @@ describe("YAML 1.1 rules", () => {
       '{"a":"caf\u00e9 \\"q\\" \\\\ \\n \\t \\u0001 \u007f"}',
     );
   });
+  it("writes a lone surrogate as an escape and a surrogate pair as it is", () => {
+    expect(toJson('a: "\\ud800 \\udc00 \\ud83d\\ude00"')).toBe('{"a":"\\ud800 \\udc00 \u{1f600}"}');
+  });
   it("keeps the order of the keys of the text", () => {
     expect(toJson("z: 1\n1x: 2\na: 3")).toBe('{"z":1,"1x":2,"a":3}');
   });

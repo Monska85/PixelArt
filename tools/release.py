@@ -3,9 +3,10 @@
 
   tools/release.py version
       Print the firmware version of this checkout (PIXELART_VERSION, else git).
-  tools/release.py build [--out site] [--version X] [--schema]
+  tools/release.py build [--out site] [--schema]
       Collect the files of every board from the PlatformIO build folders and
-      write the site. Run `make release-firmware` to build everything first.
+      the converted files in data/, and write the site. Run
+      `make release-firmware` to build everything first.
   tools/release.py assemble --out DIR [--firmware DIR] [--web DIR]
       Merge a firmware site (the output of `build`) and a built web app into the
       site GitHub Pages serves. Used by the release workflow and `make release-site`.
@@ -398,8 +399,6 @@ def main():
     commands.add_parser("version", help="print the firmware version of this checkout")
     build = commands.add_parser("build", help="assemble the release site from the build folders")
     build.add_argument("--out", default="site", help="site folder, replaced if it exists (default: site)")
-    build.add_argument("--version", help="release version (default: PIXELART_VERSION or git, as the firmware)")
-    build.add_argument("--data", default=str(ROOT / "data"), help="folder made by `tools/pixelart.py build`")
     build.add_argument("--schema", action="store_true", help="check manifest.json against the JSON Schema")
     assemble = commands.add_parser("assemble", help="merge a firmware site and a web app into one site")
     assemble.add_argument("--out", required=True, help="site folder, replaced if it is site/ or a site built by this tool")
@@ -413,7 +412,7 @@ def main():
         elif args.command == "assemble":
             assemble_site(args.out, args.firmware, args.web)
         else:
-            build_site(args.out, args.version or describe_version(), args.data, args.schema)
+            build_site(args.out, describe_version(), ROOT / "data", args.schema)
     except ReleaseError as e:
         sys.exit(f"release: {e}")
 

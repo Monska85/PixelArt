@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Parsing and validation of pixelart-playlist/1 documents.
 // Structural rules mirror schema/playlist-1.schema.json.
 

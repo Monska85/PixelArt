@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Small subset of the Arduino String class, backed by std::string.
 
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Parsing and validation of pixelart/1 documents.
 // Structural rules mirror schema/pixelart-1.schema.json; the other rules are
 // the ones listed in docs/format/pixelart-v1.md#validation.

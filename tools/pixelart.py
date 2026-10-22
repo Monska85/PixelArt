@@ -25,18 +25,15 @@ protocol of docs/protocol/protocol-v1.md. COMMAND is one of:
 
 The serial port can be open in one program only: close the serial monitor first.
 
-Needs Python 3.8+ and PyYAML.
+Needs Python 3.9+ and PyYAML. --ws needs the websockets package, version 15 or later.
 """
 
 import argparse
 import base64
 import hashlib
 import json
-import os
 import re
 import secrets
-import socket
-import struct
 import sys
 import time
 import unicodedata
@@ -84,7 +81,7 @@ def load_source(path):
 
 def compact_json(document):
     """The JSON text of a board file, as `build` writes it and `board put` sends it."""
-    return json.dumps(document, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(document, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
 
 
 def build(source, out, use_schema):
@@ -115,7 +112,9 @@ def build(source, out, use_schema):
             ids[name] = path
             try:
                 document = load_source(path)
-            except (yaml.YAMLError, json.JSONDecodeError) as e:
+                # Dates, binary values, .inf and .nan have no JSON form
+                text = compact_json(document)
+            except (yaml.YAMLError, TypeError, ValueError) as e:
                 print(f"{path}: {e}", file=sys.stderr)
                 errors += 1
                 continue
@@ -129,7 +128,7 @@ def build(source, out, use_schema):
                     continue
             target = out / kind / f"{name}.json"
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(compact_json(document), encoding="utf-8")
+            target.write_text(text, encoding="utf-8")
             written += 1
     print(f"pixelart: wrote {written} files to {out}" + (f", {errors} failed" if errors else ""))
     return 1 if errors else 0
@@ -147,7 +146,6 @@ MAX_LINE = 64 * 1024
 DEFAULT_CHUNK = 512
 KIND_FOLDERS = {"animations": "animation", "playlists": "playlist"}
 KIND_FORMATS = {"pixelart/1": "animation", "pixelart-playlist/1": "playlist"}
-WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 # The board's own limits (docs/protocol/protocol-v1.md, limits): the most a client accepts when the board names none.
 FILE_LIMITS = {"animation": 64 * 1024, "playlist": 16 * 1024}
 # Control (Cc), format (Cf, which holds the bidirectional overrides and zero-width marks), line and paragraph
@@ -272,159 +270,69 @@ class SerialTransport:
 
 
 class WebSocketTransport:
-    """A minimal RFC 6455 client: handshake, masked text frames, ping/pong, close."""
+    """The simulator's WebSocket, through the websockets package: one text message per protocol line."""
 
     def __init__(self, url, connect_timeout=5.0):
         parts = urllib.parse.urlsplit(url)
         if parts.scheme != "ws" or not parts.hostname:
             raise BoardError(f"--ws expects a URL like ws://127.0.0.1:8765, got '{url}'")
+        try:
+            from websockets.exceptions import InvalidStatus, WebSocketException
+            from websockets.sync.client import connect
+        except ImportError:
+            raise BoardError("--ws needs the websockets package, version 15 or later (pip install websockets)")
         host, port = parts.hostname, parts.port or 80
-        path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
-        self._buffer = b""
-        self._message = bytearray()
-        self._socket = None
         # The simulator serves one client at a time and frees the slot a moment after a close.
         for _ in range(TRIES):
             try:
-                self._socket = socket.create_connection((host, port), timeout=connect_timeout)
+                # No proxy, no compression and no keepalive pings: the simulator speaks plain RFC 6455.
+                # Entered by hand: websockets 17 deprecates a connection opened outside a with block.
+                self._ws = connect(url, open_timeout=connect_timeout, close_timeout=1.0, max_size=MAX_LINE,
+                                   compression=None, ping_interval=None, proxy=None).__enter__()
+                return
+            except InvalidStatus as e:
+                status = e.response.status_code
+                if status != 503:
+                    raise BoardError(f"the server refused the WebSocket connection (HTTP {status})")
+                time.sleep(0.2)
             except OSError as e:
                 raise BoardError(f"cannot connect to {host}:{port}: {e} (is `make serve` running?)")
-            status = self._handshake(f"{host}:{port}", path)
-            if status != 503:
-                break
-            self._socket.close()
-            time.sleep(0.2)
-        else:
-            raise BoardError("the simulator already has a client")
-        if status != 101:
-            self._socket.close()
-            raise BoardError(f"the server refused the WebSocket connection (HTTP {status})")
-
-    def _handshake(self, authority, path):
-        key = base64.b64encode(os.urandom(16)).decode("ascii")
-        request = (f"GET {path} HTTP/1.1\r\nHost: {authority}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-                   f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n")
-        self._socket.sendall(request.encode("ascii"))
-        data = b""
-        while b"\r\n\r\n" not in data:
-            if len(data) > 16384:
-                raise BoardError("the server's answer to the WebSocket handshake is too long")
-            chunk = self._socket.recv(4096)
-            if not chunk:
-                raise BoardError("the server closed the connection during the WebSocket handshake")
-            data += chunk
-        head, _, self._buffer = data.partition(b"\r\n\r\n")
-        lines = head.decode("latin-1").split("\r\n")
-        match = re.match(r"HTTP/1\.1 (\d{3})", lines[0])
-        if not match:
-            raise BoardError("the server did not answer with HTTP")
-        status = int(match.group(1))
-        if status == 101:
-            headers = {}
-            for line in lines[1:]:
-                name, _, value = line.partition(":")
-                headers[name.strip().lower()] = value.strip()
-            expected = websocket_accept(key)
-            if headers.get("sec-websocket-accept") != expected or headers.get("upgrade", "").lower() != "websocket":
-                raise BoardError("the server's WebSocket handshake answer is wrong")
-        return status
-
-    def _send_frame(self, opcode, payload):
-        mask = os.urandom(4)
-        length = len(payload)
-        if length < 126:
-            header = struct.pack("!BB", 0x80 | opcode, 0x80 | length)
-        elif length <= 0xFFFF:
-            header = struct.pack("!BBH", 0x80 | opcode, 0x80 | 126, length)
-        else:
-            header = struct.pack("!BBQ", 0x80 | opcode, 0x80 | 127, length)
-        masked = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
-        self._socket.sendall(header + mask + masked)
+            except WebSocketException as e:
+                raise BoardError(f"the WebSocket handshake failed: {e}")
+        raise BoardError("the simulator already has a client")
 
     def send(self, line):
-        self._send_frame(0x1, line)
+        from websockets.exceptions import WebSocketException
 
-    def _next_frame(self):
-        """(fin, opcode, payload) of the next complete frame in the buffer, or None."""
-        buf = self._buffer
-        if len(buf) < 2:
-            return None
-        fin, opcode = bool(buf[0] & 0x80), buf[0] & 0x0F
-        if buf[1] & 0x80:
-            raise BoardError("the server sent a masked WebSocket frame")
-        length, pos = buf[1] & 0x7F, 2
-        if length == 126:
-            if len(buf) < 4:
-                return None
-            length, pos = struct.unpack("!H", buf[2:4])[0], 4
-        elif length == 127:
-            if len(buf) < 10:
-                return None
-            length, pos = struct.unpack("!Q", buf[2:10])[0], 10
-        if length > 1024 * 1024:
-            raise BoardError("the server sent a WebSocket frame that is too long")
-        if len(buf) < pos + length:
-            return None
-        payload = buf[pos : pos + length]
-        self._buffer = buf[pos + length :]
-        return fin, opcode, payload
+        try:
+            self._ws.send(line.decode("utf-8"))
+        except WebSocketException as e:
+            raise _connection_error(e)
 
     def receive(self, timeout):
         """The next text message, or None when none arrives within `timeout` seconds."""
-        deadline = time.monotonic() + timeout
-        while True:
-            frame = self._next_frame()
-            if frame is not None:
-                fin, opcode, payload = frame
-                if opcode == 0x9:
-                    self._send_frame(0xA, payload)
-                elif opcode == 0x8:
-                    self._send_frame(0x8, payload[:2])
-                    raise BoardError("the server closed the WebSocket connection")
-                elif opcode in (0x0, 0x1):
-                    self._message += payload
-                    if len(self._message) > MAX_LINE:
-                        self._close_with(1009)
-                        raise BoardError("the server sent a WebSocket message that is too long")
-                    if fin:
-                        message, self._message = bytes(self._message), bytearray()
-                        return message
-                continue
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                return None
-            self._socket.settimeout(remaining)
-            try:
-                chunk = self._socket.recv(65536)
-            except socket.timeout:
-                return None
-            except OSError as e:
-                raise BoardError(f"the WebSocket connection failed: {e}")
-            if not chunk:
-                raise BoardError("the server closed the connection")
-            self._buffer += chunk
+        from websockets.exceptions import WebSocketException
 
-    def _close_with(self, status):
         try:
-            self._send_frame(0x8, struct.pack("!H", status))
-        except OSError:
-            pass
-        self._socket.close()
+            return self._ws.recv(timeout=timeout, decode=False)
+        except TimeoutError:
+            return None
+        except WebSocketException as e:
+            raise _connection_error(e)
 
     def close(self):
-        try:
-            self._send_frame(0x8, struct.pack("!H", 1000))
-            self._socket.settimeout(1.0)
-            while self._socket.recv(4096):  # the server's close frame, then the end of the stream
-                pass
-        except OSError:
-            pass
-        finally:
-            self._socket.close()
+        self._ws.close()
 
 
-def websocket_accept(key):
-    return base64.b64encode(hashlib.sha1((key + WS_GUID).encode("ascii")).digest()).decode("ascii")
+def _connection_error(error):
+    """The BoardError for a WebSocket failure after the handshake."""
+    from websockets.exceptions import ConnectionClosed
+
+    if isinstance(error, ConnectionClosed):
+        if error.sent is not None and error.sent.code == 1009:
+            return BoardError("the server sent a WebSocket message that is too long")
+        return BoardError("the server closed the WebSocket connection")
+    return BoardError(f"the WebSocket connection failed: {error}")
 
 
 class Board:
@@ -662,7 +570,9 @@ def board_put(board, args):
     path = args.file
     try:
         document = load_source(path)
-    except (OSError, yaml.YAMLError, ValueError) as e:
+        # The same bytes `build` writes, so the board holds what `make data` would produce.
+        data = compact_json(document).encode("utf-8")
+    except (OSError, yaml.YAMLError, TypeError, ValueError) as e:
         raise BoardError(f"{path}: {e}")
     kind = args.kind or infer_kind(path, document)
     if kind is None:
@@ -670,8 +580,6 @@ def board_put(board, args):
     file_id = args.id or path.stem
     if not ID_PATTERN.match(file_id):
         raise BoardError(f"invalid ID '{file_id}': use lowercase letters, digits, _ and -, at most 32 characters (--id)")
-    # The same bytes `build` writes, so the board holds what `make data` would produce.
-    data = compact_json(document).encode("utf-8")
     try:
         warnings = upload(board, kind, file_id, data)
     except BoardError as e:
@@ -784,6 +692,9 @@ def run_board(args):
     transport = SerialTransport(args.port) if args.port else WebSocketTransport(args.ws)
     try:
         return BOARD_COMMANDS[args.board_command](Board(transport), args)
+    except (KeyError, TypeError, ValueError) as e:
+        # A reply with a missing or wrongly typed field: one message instead of a traceback
+        raise BoardError("the board sent an unexpected reply") from e
     finally:
         transport.close()
 

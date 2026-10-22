@@ -15,7 +15,7 @@ import { cn } from "../components/cn";
 import { readAnimationBytes, showInEditor } from "../editor/open";
 import { KINDS } from "../fileLists";
 import { navigationMark } from "../navigation";
-import { toShownError } from "../errors";
+import { shownError, toShownError } from "../errors";
 import { session, useSession } from "../session";
 import { useManifest } from "../useManifest";
 import { ConnectCard } from "../shell/ConnectCard";
@@ -106,14 +106,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   async function edit(id: string): Promise<void> {
     try {
       const model = await openStoredPlaylist(client, id);
-      if (typeof model === "string")
-        report({
-          id: Date.now(),
-          context: `Opening playlist ${id}`,
-          code: "not_editable",
-          message: model,
-          diagnostics: [],
-        });
+      if (typeof model === "string") report(shownError(`Opening playlist ${id}`, "not_editable", model));
       else editor.requestOpen(model);
     } catch (error) {
       report(toShownError(`Opening playlist ${id}`, error));
@@ -127,7 +120,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
       const bytes = await downloadFile(client, "animation", id);
       const opened = readAnimationBytes(bytes, id, `The board's animation ${id}`, { sha256: await sha256Hex(bytes) });
       if (opened.ok) void showInEditor(opened.opening, "board", mark);
-      else report({ id: Date.now(), context, code: "not_editable", message: opened.message, diagnostics: [] });
+      else report(shownError(context, "not_editable", opened.message));
     } catch (error) {
       report(toShownError(context, error));
     }

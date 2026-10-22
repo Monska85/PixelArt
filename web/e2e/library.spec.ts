@@ -100,21 +100,31 @@ test("asks before replacing a different stored file: Cancel, Keep the board's, R
   await connectSimulator(page, simulator);
   await library(page).click();
 
-  await page.getByRole("button", { name: `Install ${DIFFERENT}` }).click();
+  const install = page.getByRole("button", { name: `Install ${DIFFERENT}` });
+  // The queue disables the Install button while it asks, so focus goes back to it, or stays on the page when the
+  // browser has moved it off the disabled button; never anywhere else.
+  const focusBackOnOpener = () =>
+    install.evaluate((button) => document.activeElement === button || document.activeElement === document.body);
+  await install.click();
   const dialog = page.getByRole("dialog", { name: "Replace the stored file?" });
   await expect(dialog.getByTestId("differing-files")).toContainText(DIFFERENT);
+  // A destructive question starts on the safe action.
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toHaveCount(0);
+  expect(await focusBackOnOpener()).toBe(true);
   await expect(state(page, DIFFERENT)).toHaveText("Different");
   expect(sha(stored(simulator, "animations", DIFFERENT))).toBe(before);
 
-  await page.getByRole("button", { name: `Install ${DIFFERENT}` }).click();
+  await install.click();
   await page.getByRole("dialog").getByRole("button", { name: "Keep the board's" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await focusBackOnOpener()).toBe(true);
   await expect(toastWith(page, "Nothing to install")).toContainText("The board's files were kept.");
   await expect(state(page, DIFFERENT)).toHaveText("Different");
   expect(sha(stored(simulator, "animations", DIFFERENT))).toBe(before);
 
-  await page.getByRole("button", { name: `Install ${DIFFERENT}` }).click();
+  await install.click();
   await page.getByRole("dialog").getByRole("button", { name: "Replace them" }).click();
   await expect(state(page, DIFFERENT)).toHaveText("Same");
   expect(sha(stored(simulator, "animations", DIFFERENT))).not.toBe(before);

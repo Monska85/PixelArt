@@ -25,7 +25,7 @@ You can find the 3D model files to print a frame for the 16x16 LEDs matrix [here
 1. **Wire the board to the matrix** as described in [Wiring](#wiring).
 2. **Install the tools:**
    - [PlatformIO Core](https://docs.platformio.org/en/latest/core/installation/index.html). On Linux, also install the [udev rules](https://docs.platformio.org/en/latest/core/installation/udev-rules.html), so you can flash the board without root.
-   - Python 3 with [PyYAML](https://pypi.org/project/PyYAML/) (`pip install pyyaml`), which converts the animations for the board.
+   - Python 3.9 or later with [PyYAML](https://pypi.org/project/PyYAML/) (`pip install pyyaml`), which converts the animations for the board.
 3. **Get the code:**
 
    ```sh
@@ -104,7 +104,7 @@ An animation can play softer than the board's brightness setting with the option
 
 ## Commands
 
-Run `make help` to list every target. Each one is a thin wrapper around `tools/pixelart.py`, a `pio` command or an `npm` script, which you can also run directly. The `justfile` has most of them too, as `just <name>` (`just` lists them): `BOARD=x` is `just <name> x`, `ANIM=x` is `--anim x` and `WS=1` is `--ws`.
+Run `make help` to list every target. Each one is a thin wrapper around `tools/pixelart.py`, a `pio` command or an `npm` script, which you can also run directly. The `justfile` has the same commands with the same steps, as `just <name>` (`just` lists them): `BOARD=x` is `just <name> x`, `ANIM=x` is `--anim x` and `WS=1` is `--ws`.
 
 `ANIM=name[,name]` limits `sim`, `sim-open`, `sim-play`, `emulate` and `serve` to those animations (`emulate` plays them in a loop), `BOARD=esp32` or `BOARD=esp32s3` builds and flashes another board than the ESP32-C3 SuperMini, and `WS=1` adds the WebSocket to `emulate`, as `make serve` does.
 
@@ -146,7 +146,7 @@ Run `make help` to list every target. Each one is a thin wrapper around `tools/p
 | `make release-site`           | Build every board and the web app into `site/`, the site Pages shows, see [Releases](#releases)                              |
 | `make web-dev`                | Start the web app on `http://localhost:5173` with live reload                                                                |
 | `make web-build`              | Build the web app into `web/dist`                                                                                            |
-| `make web-test`               | Type check, lint and run the web app's unit tests and the conformance suite                                                  |
+| `make web-test`               | Type check, lint, check the formatting and run the web app's unit tests and the conformance suite                            |
 | `make web-size`               | Fail when the JavaScript the web app loads at start is over its budget                                                       |
 | `make web-e2e`                | Run the web app's end-to-end tests and the layout checks of every view against the simulator                                 |
 | `make web-screenshots`        | Compare one main state per view with its reference image, in the Playwright container (needs Docker)                         |
@@ -164,7 +164,7 @@ python3 tools/pixelart.py board --port /dev/ttyACM0 info          # a board over
 python3 tools/pixelart.py board --ws ws://127.0.0.1:8765 info     # the simulator (make serve)
 ```
 
-Use `--port DEVICE` for a board and `--ws URL` for the simulator. The serial option needs `pyserial`, which PlatformIO already installs; with another Python, run `pip install pyserial`. The commands are the same for both:
+Use `--port DEVICE` for a board and `--ws URL` for the simulator. The serial option needs `pyserial`, which PlatformIO already installs; with another Python, run `pip install pyserial`. The WebSocket option needs the `websockets` package, version 15 or later (`pip install websockets`). The commands are the same for both:
 
 | Command                                      | What it does                                                                                      |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -221,11 +221,11 @@ The simulator models the physical panel wiring (16x16, strip starting top-left, 
 
 ### WebSocket
 
-`make serve` starts the emulation with the command protocol on `ws://127.0.0.1:8765`, so a client can be developed without a board. Choose another port with `ARGS="--ws 9000"`, and allow another web page origin with `ARGS="--ws-origin https://example.org"`. The option is `--ws [PORT]` in the simulator itself, and it works with `--live` or `--realtime` only, because the clients need a clock that runs. The rules (local connections only, one client at a time, the origin check, no authentication, uploads changing the data folder) are in [WebSocket (simulator)](docs/protocol/protocol-v1.md#websocket-simulator).
+`make serve` starts the emulation with the command protocol on `ws://127.0.0.1:8765`, so a client can be developed without a board. Choose another port with `ARGS="--ws 9000"`, and allow another web page origin with `ARGS="--ws-origin https://example.org"`. The option is `--ws [PORT]` in the simulator itself, and it works with `--live` or `--realtime` only, because the clients need a clock that runs. The simulator starts `tools/ws_bridge.py` to serve the WebSocket, so `make serve`, `--ws` and the web app's end-to-end tests need `python3` with the `websockets` package, version 15 or later (`pip install websockets`). Set `PIXELART_PYTHON` to use another Python, and `PIXELART_WS_BRIDGE` to the bridge's path when the simulator program is not in the repository's `.pio/build/native/`. The rules (local connections only, one client at a time, the origin check, no authentication, uploads changing the data folder) are in [WebSocket (simulator)](docs/protocol/protocol-v1.md#websocket-simulator).
 
 ### Simulator limits
 
-The simulator does not emulate the ESP32 itself. Timing, memory use, WiFi and other ESP32-only APIs are not covered: `make build-all` checks that the code compiles for each board, and the real board is the final check. GPIO reads always return `LOW` and `random()` is seeded with a fixed value (`--seed` changes it), so runs are repeatable. The one exception is the `boot_id` that `info` reports: it is random on every run, as on the board.
+The simulator does not emulate the ESP32 itself. Timing, memory use, WiFi and other ESP32-only APIs are not covered: `make build-all` checks that the code compiles for each board, and the real board is the final check. GPIO reads always return `LOW`, so runs are repeatable. The one exception is the `boot_id` that `info` reports: it is random on every run, as on the board.
 
 ## Contributing
 
@@ -252,7 +252,7 @@ The firmware and the web app are released separately, each with its own version,
 | Web app  | The `web/` folder                          | `web-vX.Y.Z` | `web/CHANGELOG.md` |
 
 1. Every push to `main` updates two release pull requests, one per package, each with the next version and its changelog entries: `feat` commits go under Added, `fix` under Fixed, and `perf` and `refactor` under Changed. Other types are left out of the changelog. While a version is below 1.0.0, a breaking change raises the minor number. A commit that changes only `web/` is part of the web release only. A commit that changes `web/` and other files is part of both.
-2. Merging the firmware pull request creates the `vX.Y.Z` tag and the GitHub Release. The release workflow (`.github/workflows/release.yml`) runs the quick checks on every push to `main` before release-please runs, so a `main` that fails them gets no release. After the release exists, the workflow checks out the tag, runs the checks again, builds the firmware of every board and the animations, and attaches `pixelart-site-<version>.zip` and the factory image of each board to the GitHub Release.
+2. Merging the firmware pull request creates the `vX.Y.Z` tag and the GitHub Release. The release workflow (`.github/workflows/release.yml`) runs the quick checks on every push to `main` before release-please runs, so a `main` that fails them gets no release. After the release exists, the workflow checks out the tag, normally the commit it just checked (it runs the checks again when the tag points to another commit), builds the firmware of every board and the animations, and attaches `pixelart-site-<version>.zip` and the factory image of each board to the GitHub Release.
 3. Merging the web pull request creates the `web-vX.Y.Z` tag and its GitHub Release. The workflow checks out the tag, builds the web app and attaches `pixelart-web-<version>.zip`, the built app.
 4. After either release, the workflow publishes GitHub Pages. A Pages deployment replaces the whole site, so the workflow downloads the latest firmware archive and the latest web archive from the GitHub Releases, merges them into one folder and deploys it. When one of the two has never been released, the site holds the other alone. A file name present in both archives fails the deployment.
 
@@ -300,10 +300,11 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 | `src/sim_main.cpp`           | Entry point of the host simulator (only built by the `native` env)                                                                       |
 | `lib/PixelEngine/`           | The animation engine: parsing, validation and playback of the file formats, shared by all builds                                         |
 | `lib/PixelCodec/`            | CRC-32, SHA-256, base64 and UTF-8 helpers used by the protocol                                                                           |
-| `lib/ArduinoSim/`            | Host Arduino core, simulated NeoPixel driver, simulator and its protocol WebSocket server (`assets/player.html` is the HTML player)      |
+| `lib/ArduinoSim/`            | Host Arduino core, simulated NeoPixel driver and simulator (`assets/player.html` is the HTML player)                                     |
 | `conformance/`               | Test cases every implementation of the animation format must pass                                                                        |
 | `test/`                      | Tests that run on the simulator (`native_test` env)                                                                                      |
 | `tools/pixelart.py`          | Converts animations and playlists from YAML to the board's JSON, and talks to a board or the simulator                                   |
+| `tools/ws_bridge.py`         | Serves the simulator's command protocol on a WebSocket, started by the simulator's `--ws`                                                |
 | `tools/test_*.py`            | Unit tests of the tools, run by `make check`                                                                                             |
 | `tools/fw_version.py`        | The firmware version rules, shared by `tools/release.py` and the PlatformIO version script                                               |
 | `tools/release.py`           | Builds the firmware release site (parts, ESP Web Tools manifests, animations, playlists, `manifest.json`) and merges it with the web app |
@@ -317,8 +318,20 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 
 ### Continuous integration
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and on every push to `main`, once per change: a newer run of the same pull request or of `main` cancels the one still running. It converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests, drives the simulator's WebSocket with `tools/pixelart.py board` (info, upload, list, download, delete and a rejected file), builds every board, the web app and the merged release site (checking its manifest against the JSON Schema), and attaches a rendered preview of every animation to each run. A second job, `web`, lints the web app, checks its formatting, runs its unit tests, builds it (which type checks it), checks the size of the JavaScript it loads at start, runs its end-to-end tests and the layout checks in Chromium against the simulator, and compares the reference images in the Playwright container. CI does not check C++ formatting yet: run `make format-check` locally. `.github/workflows/release.yml` publishes releases, see [Releases](#releases). Dependabot opens a weekly pull request to update the pinned actions and the web app's npm dependencies.
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and on every push to `main`, once per change: a newer run of the same pull request or of `main` cancels the one still running. It checks the C++ formatting, converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests, drives the simulator's WebSocket with `tools/pixelart.py board` (info, upload, list, download, delete and a rejected file), builds every board and the firmware release site (checking its manifest against the JSON Schema), and attaches a rendered preview of every animation to each run. A second job, `web`, lints the web app, checks its formatting, runs its unit tests, builds it (which type checks it), checks the size of the JavaScript it loads at start, runs its end-to-end tests and the layout checks in Chromium against the simulator, and compares the reference images in the Playwright container. `.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
 
 ### Code style
 
-C++ sources follow `.clang-format`. Run `make format` before committing; `make check` fails on unformatted code. Formatting needs `clang-format`.
+C++ sources follow `.clang-format`. Run `make format` before committing; `make check` fails on unformatted code. Formatting needs `clang-format`. CI uses the version pinned in `requirements-ci.txt` (`pip install clang-format==23.1.3`), since other versions can format differently.
+
+### Loop task stack
+
+The firmware parses, validates and plays files on the board's loop task, whose stack is small. To measure how much of it a change uses, on a real board:
+
+1. Add temporary debug output, never committed: from code that runs on the loop task (for example `protocol::poll()`), print `uxTaskGetStackHighWaterMark(NULL)` about once a second. On the ESP32 the value is in bytes and is the smallest free stack since boot.
+2. Flash that build with `make upload-firmware`.
+3. For each case, reset the board, upload the test file with `tools/pixelart.py board put`, then run `board ls`, which parses every stored file. Only one program can open the serial port at a time, so open it only after the tool has exited, with a program that does not reset the board when it opens the port, and read the value printed: it is the smallest since the reset. Resetting before each case keeps the numbers independent; the debug lines share the port with the protocol, whose clients ignore them.
+4. Use as test inputs a shipped animation, the deepest file the format accepts (nesting every construct to its limit), files nested deeper than the format allows but within the JSON nesting limit, and one file over the JSON nesting limit.
+5. Afterwards, remove the debug code, flash the normal firmware and the files with `make upload`, set the settings back, and delete the test files, which belong outside the repository.
+
+Compare the numbers before and after the change, case by case.

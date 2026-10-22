@@ -23,7 +23,7 @@ import { type BoardFileList } from "../fileLists";
 import { readAnimationBytes, showInEditor } from "../editor/open";
 import { navigationMark } from "../navigation";
 import { useLatest } from "../useLatest";
-import { toShownError, type ShownError } from "../errors";
+import { shownError, toShownError, type ShownError } from "../errors";
 import { session, useSession } from "../session";
 import { useUploadQueue } from "../queue/useUploadQueue";
 import { blockedOrBusy, uploadBlockedReason } from "../upload";
@@ -145,14 +145,7 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
       const bytes = await downloadPublished("animation", entry);
       const opened = readAnimationBytes(bytes, entry.id, `The published animation ${entry.id}`);
       if (opened.ok) void showInEditor(opened.opening, "library", mark);
-      else
-        reported.current?.({
-          id: Date.now() + Math.random(),
-          context: `Opening ${entry.id}`,
-          code: "not_editable",
-          message: opened.message,
-          diagnostics: [],
-        });
+      else reported.current?.(shownError(`Opening ${entry.id}`, "not_editable", opened.message));
     } catch (error) {
       reported.current?.(toShownError(`Opening ${entry.id}`, error));
     } finally {

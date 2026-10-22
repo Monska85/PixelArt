@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // PNG output: one image per frame, or a sheet with many frames side by side.
 // Uses uncompressed deflate blocks, so it needs no external library.
 

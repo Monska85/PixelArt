@@ -1,5 +1,5 @@
 name: Checks
-description: Converts the animations, validates them and runs every test suite. Needs the repository checked out. The firmware version is read from git tags, so full history is needed only where the real version matters, as in the release site build.
+description: Checks the C++ formatting, converts the animations, validates them and runs every test suite. Needs the repository checked out. The firmware version is read from git tags, so full history is needed only where the real version matters, as in the release site build.
 
 inputs:
   node:
@@ -12,6 +12,11 @@ runs:
     - uses: ./.github/actions/setup
       with:
         node: ${{ inputs.node }}
+
+    # clang-format is pinned in requirements-ci.txt, so CI formats like a local `make format`
+    - name: Check the formatting of the C++ sources
+      shell: bash
+      run: make format-check
 
     - name: Convert animations and playlists, check them against the JSON Schemas
       shell: bash

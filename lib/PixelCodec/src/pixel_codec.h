@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Checksums and encoding used by the command protocol: CRC-32 (zlib), SHA-256,
 // standard base64 and the UTF-8 sequence rule. Plain C++ with no Arduino
 // dependency, so the firmware, the simulator and the tests share one

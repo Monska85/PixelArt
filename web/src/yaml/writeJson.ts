@@ -1,5 +1,6 @@
 // JSON text byte-equal to Python's json.dumps(doc, separators=(",", ":"),
-// ensure_ascii=False), which `tools/pixelart.py build` uses for the board's files.
+// ensure_ascii=False), which `tools/pixelart.py build` uses for the board's files. JSON.stringify
+// escapes strings the same way, except that it writes a lone surrogate as an escape.
 
 import { JsonNumber, type JsonValue } from "../engine";
 
@@ -25,21 +26,6 @@ export function pythonFloat(x: number): string {
   return `${sign}${digits[0]}${fraction}e${exponent < 0 ? "-" : "+"}${magnitude}`;
 }
 
-const ESCAPES: Record<string, string> = {
-  '"': '\\"',
-  "\\": "\\\\",
-  "\n": "\\n",
-  "\r": "\\r",
-  "\t": "\\t",
-  "\b": "\\b",
-  "\f": "\\f",
-};
-
-function jsonString(text: string): string {
-  // eslint-disable-next-line no-control-regex -- json.dumps escapes exactly these characters
-  return `"${text.replace(/["\\\u0000-\u001f]/g, (c) => ESCAPES[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`)}"`;
-}
-
 export function jsonNumber(n: JsonNumber): string {
   return n.integer ? (n.text ?? String(n.value)) : pythonFloat(n.value);
 }
@@ -47,10 +33,10 @@ export function jsonNumber(n: JsonNumber): string {
 export function writeJson(value: JsonValue): string {
   if (value === null) return "null";
   if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "string") return jsonString(value);
+  if (typeof value === "string") return JSON.stringify(value);
   if (value instanceof JsonNumber) return jsonNumber(value);
   if (Array.isArray(value)) return `[${value.map(writeJson).join(",")}]`;
-  return `{${[...value].map(([k, v]) => `${jsonString(k)}:${writeJson(v)}`).join(",")}}`;
+  return `{${[...value].map(([k, v]) => `${JSON.stringify(k)}:${writeJson(v)}`).join(",")}}`;
 }
 
 /** The bytes the board stores for a document. */

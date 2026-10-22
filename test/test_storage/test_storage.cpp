@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The storage layer on the simulator: the file rules the board's file system
 // imposes, and the listing and reading calls the protocol builds on.
 // Run with: pio test -e native_test (or make test)

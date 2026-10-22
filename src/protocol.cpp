@@ -1,15 +1,4 @@
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "protocol.h"
 
@@ -17,9 +6,9 @@
 #include <ArduinoJson.h>
 #include <pixel_codec.h>
 #include <pixelart_engine.h>
+#include <strict_json.h>
 
 #include <algorithm>
-#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -42,6 +31,8 @@ constexpr size_t CRC_DIGITS = 8;
 constexpr size_t MAX_NESTING = 4;
 constexpr size_t MAX_SHA256_DIGITS = 64;
 constexpr size_t MAX_LIST_NAME = 128;
+constexpr size_t MAX_DIAGNOSTIC_TEXT = 160;
+constexpr size_t MAX_DIAGNOSTIC_BYTES = 192;
 constexpr size_t MAX_BYTES_PER_POLL = 512;
 const char *TEMP_FILE = "/upload.tmp";
 const char OUT_OF_MEMORY_MESSAGE[] = "not enough free memory to validate the file";
@@ -160,55 +151,18 @@ std::string error_frame(const char *code, const char *message)
 
 std::string bad_frame(const char *message) { return error_frame("bad_frame", message); }
 
-// Checks that `text` is exactly one JSON object followed by nothing but
-// whitespace: the parser stops after the first value and would not notice
-// anything after it.
-bool is_single_object(const std::string &text)
+// Checks that `text` is one strict JSON object, with the same rules as a file
+// (strict_json.h), nesting at most MAX_NESTING levels.
+bool is_strict_object(const std::string &text)
 {
-  size_t i = 0;
-  while (i < text.size() && isspace((unsigned char)text[i]))
-    i++;
-  if (i == text.size() || text[i] != '{')
-    return false;
-  int depth = 0;
-  bool in_string = false;
-  for (; i < text.size(); i++)
-  {
-    char c = text[i];
-    if (in_string)
-    {
-      if (c == '\\')
-        i++;
-      else if (c == '"')
-        in_string = false;
-    }
-    else if (c == '"')
-      in_string = true;
-    else if (c == '{' || c == '[')
-      depth++;
-    else if (c == '}' || c == ']')
-    {
-      if (--depth == 0)
-      {
-        for (i++; i < text.size(); i++)
-          if (!isspace((unsigned char)text[i]))
-            return false;
-        return true;
-      }
-    }
-  }
-  return false;
+  const char *reason;
+  size_t offset;
+  size_t first = text.find_first_not_of(" \t\n\r");
+  return first != std::string::npos && text[first] == '{' &&
+         pixelart::check_strict_json(text.data(), text.size(), MAX_NESTING, reason, offset);
 }
 
 // ---- Fields of a request ----
-
-// The whole text, including anything after a NUL character: a text is never
-// cut short silently.
-std::string text_value(JsonVariantConst value)
-{
-  JsonString text = value.as<JsonString>();
-  return std::string(text.c_str(), text.size());
-}
 
 // Fails on a field the command does not define.
 Status allow_only(JsonObjectConst request, std::initializer_list<const char *> names)
@@ -233,7 +187,7 @@ Status get_text(JsonObjectConst request, const char *key, bool required, std::st
     return required ? fail("bad_request", std::string("missing field \"") + key + "\"") : Status{};
   if (!value.is<const char *>())
     return fail("bad_request", std::string("\"") + key + "\" must be text");
-  out = text_value(value);
+  out = value.as<std::string>();
   return {};
 }
 
@@ -270,7 +224,7 @@ Status get_kind(JsonObjectConst request, Kind &kind)
 
 Status check_id(const std::string &id, const char *field)
 {
-  if (id.find('\0') != std::string::npos || !pixelart::is_valid_id(id.c_str()))
+  if (!pixelart::is_valid_id(id.c_str()))
     return fail("invalid_id", std::string("\"") + field + "\" is not a valid ID");
   return {};
 }
@@ -295,6 +249,28 @@ bool is_lower_hex(const std::string &text, size_t digits)
   return true;
 }
 
+// A diagnostic text cut after MAX_DIAGNOSTIC_TEXT characters, or sooner when it
+// would take more than MAX_DIAGNOSTIC_BYTES once written in JSON, never inside a
+// character: 32 diagnostics then keep a reply under 16 KiB whatever the file holds.
+std::string diagnostic_text(const std::string &text)
+{
+  size_t characters = 0, written = 0, start = 0;
+  for (size_t i = 0; i < text.size(); i++)
+  {
+    unsigned char c = text[i];
+    if ((c & 0xC0) != 0x80)
+    {
+      start = i;
+      if (++characters > MAX_DIAGNOSTIC_TEXT)
+        return text.substr(0, i);
+    }
+    written += c == '"' || c == '\\' ? 2 : c < 0x20 ? 6 : 1; // a control character escapes to at most 6 bytes
+    if (written > MAX_DIAGNOSTIC_BYTES)
+      return text.substr(0, start);
+  }
+  return text;
+}
+
 void add_diagnostics(JsonArray out, const std::vector<pixelart::Diagnostic> &diagnostics)
 {
   for (const pixelart::Diagnostic &d : diagnostics)
@@ -304,8 +280,8 @@ void add_diagnostics(JsonArray out, const std::vector<pixelart::Diagnostic> &dia
     JsonObject item = out.add<JsonObject>();
     item["severity"] = d.severity == pixelart::Severity::Error ? "error" : "warning";
     item["code"] = d.code;
-    item["where"] = d.where;
-    item["message"] = d.message;
+    item["where"] = diagnostic_text(d.where);
+    item["message"] = diagnostic_text(d.message);
   }
 }
 
@@ -818,18 +794,18 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
     return s;
   JsonVariantConst brightness = request["brightness"];
   JsonVariantConst playlist = request["playlist"];
-  if (brightness.isNull() && playlist.isNull())
+  if (brightness.isUnbound() && playlist.isUnbound())
     return fail("bad_request", "give at least one setting");
 
-  // Check everything before changing anything.
-  if (!brightness.isNull() && !(brightness.is<uint32_t>() && brightness.as<uint32_t>() <= 255))
+  // Check everything before changing anything. A field given as null is of the wrong type.
+  if (!brightness.isUnbound() && !brightness.is<uint8_t>())
     return fail("bad_request", "brightness must be a whole number from 0 to 255");
   std::string id;
-  if (!playlist.isNull())
+  if (!playlist.isUnbound())
   {
     if (!playlist.is<const char *>())
       return fail("bad_request", "playlist must be text");
-    id = text_value(playlist);
+    id = playlist.as<std::string>();
     if (Status s = check_id(id, "playlist"); s.code)
       return s;
     if (!storage::exists(playlist_file(id)))
@@ -837,11 +813,11 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
   }
 
   std::optional<std::string> new_playlist;
-  if (!playlist.isNull())
+  if (!playlist.isUnbound())
     new_playlist = id;
   std::optional<uint8_t> new_brightness;
-  if (!brightness.isNull())
-    new_brightness = (uint8_t)brightness.as<uint32_t>();
+  if (!brightness.isUnbound())
+    new_brightness = brightness.as<uint8_t>();
   if (const char *failure = save_settings(new_playlist, new_brightness))
     return fail("storage_error", failure);
   add_settings(reply);
@@ -872,7 +848,7 @@ const Command COMMANDS[] = {
 std::string run_request(const std::string &json, uint32_t crc)
 {
   JsonDocument request;
-  if (!is_single_object(json) ||
+  if (!is_strict_object(json) ||
       deserializeJson(request, json.data(), json.size(), DeserializationOption::NestingLimit(MAX_NESTING)))
     return bad_frame("the JSON is broken, is not an object or nests too deeply");
   JsonObjectConst object = request.as<JsonObjectConst>();
@@ -889,7 +865,7 @@ std::string run_request(const std::string &json, uint32_t crc)
   reply["seq"] = seq.as<uint32_t>();
   reply["ok"] = true;
   Status status = fail("unknown_command", "this firmware does not know the command");
-  const std::string name = text_value(cmd);
+  const std::string name = cmd.as<std::string>();
   for (const Command &command : COMMANDS)
     if (name == command.name)
       status = command.run(object, reply);

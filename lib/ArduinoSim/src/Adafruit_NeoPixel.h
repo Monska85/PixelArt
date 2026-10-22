@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Simulated Adafruit_NeoPixel: the part of the real library's API that
 // NeoMatrix and the sketch use, but show() hands the pixel buffer to the
 // simulator instead of driving a pin. Pixels are stored in wire order with

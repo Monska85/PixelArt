@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "strict_json.h"
 
 #include <pixel_codec.h>

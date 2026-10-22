@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Arduino Print base class for the native simulator.
 
 #pragma once

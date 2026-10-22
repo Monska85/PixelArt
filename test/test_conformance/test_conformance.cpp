@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Runs the conformance suite in conformance/ against the C++ engine.
 // Run with: pio test -e native_test (or make test)
 

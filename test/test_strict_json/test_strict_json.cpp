@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The strict JSON pre-scan: grammar, UTF-8 boundaries, escapes and depth.
 // Run with: pio test -e native_test (or make test)
 

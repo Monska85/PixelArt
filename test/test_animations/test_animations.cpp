@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Runs the firmware's playback on the simulator: animations and playlists
 // read from storage, the fallbacks of docs/format/playlist-v1.md, and the LED
 // output. Run with: pio test -e native_test (or make test)

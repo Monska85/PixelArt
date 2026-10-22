@@ -26,10 +26,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The release site holds the web app too, so it needs Node
       - uses: ./.github/actions/checks
-        with:
-          node: true
 
       - name: Smoke test the command line client against the simulator
         id: smoke
@@ -77,8 +74,9 @@ jobs:
         if: failure() && steps.smoke.conclusion == 'failure'
         run: cat "$RUNNER_TEMP/simulator.log" || true
 
-      - name: Build the firmware for every board, the web app and the release site, check its manifest against the JSON Schema
-        run: make release-site
+      # The web job builds the web app; tools/test_release.py covers the merge of the two sites
+      - name: Build the firmware for every board and the firmware release site, check its manifest against the JSON Schema
+        run: make release-firmware
 
       - name: Render previews of every animation
         run: .pio/build/native/program --out sim-out
@@ -99,7 +97,6 @@ jobs:
 
       - uses: ./.github/actions/setup
         with:
-          packages: platformio pyyaml
           node: true
 
       # The end-to-end tests run against the simulator, and the YAML tests compare with the converted files

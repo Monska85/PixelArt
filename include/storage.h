@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Access to the board's file system: LittleFS on the board, a folder on the
 // computer in the simulator (--data). Paths start from the root, for example
 // "/animations/santa.json".

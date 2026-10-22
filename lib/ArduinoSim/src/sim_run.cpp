@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command line entry point: parses the options, runs the sketch and writes
 // the outputs.
 
@@ -31,7 +33,8 @@ Selection:
   --anim NAME[,NAME]   run setup() then only these animations, instead of loop()
   --loops N            how many times to run loop() or the selected scenes (default 1, 0 = forever)
   --ws [PORT]          serve the command protocol over a WebSocket on 127.0.0.1 (default port 8765),
-                       with --live or --realtime; uploads change the --data folder
+                       with --live or --realtime; uploads change the --data folder. Starts
+                       tools/ws_bridge.py with python3 (PIXELART_PYTHON), which needs websockets
   --ws-origin ORIGIN   also accept this Origin (repeatable). Always accepted: no Origin,
                        http://localhost and http://127.0.0.1 (any port), https://monska85.github.io
   --live               emulate the board: run forever in real time, redraw the matrix in the
@@ -54,7 +57,6 @@ Hardware:
   --panel WxH          physical panel size (default 16x16)
   --layout SPEC        how the strip snakes through the panel, NeoMatrix terms
                        (default top,left,columns,zigzag)
-  --seed N             random() seed (default 1)
 )";
 
 // Most frames sheet.png holds; --range selects the others.
@@ -197,8 +199,6 @@ bool parse_args(int argc, char **argv, RunConfig &cfg)
       if (!detail::parse_layout(value(), panel.layout))
         usage_error("--layout expects e.g. top,left,columns,zigzag");
     }
-    else if (arg == "--seed")
-      opts.seed = number();
     else
       usage_error("unknown option '" + arg + "' (see --help)");
   }
@@ -351,7 +351,7 @@ int run(int argc, char **argv, const SceneProvider &provider)
   if (s.opts.ws)
   {
     std::string error;
-    if (!ws_listen(s.opts.ws_port, s.opts.ws_origins, error))
+    if (!detail::ws_start(argv[0], s.opts.ws_port, s.opts.ws_origins, error))
     {
       fprintf(stderr, "sim: %s\n", error.c_str());
       return 1;
@@ -361,7 +361,7 @@ int run(int argc, char **argv, const SceneProvider &provider)
     fputs("\x1b[2J", stdout);
   if (s.opts.ws)
   {
-    std::string note = "WebSocket: ws://127.0.0.1:" + std::to_string(ws_port());
+    std::string note = "WebSocket: ws://127.0.0.1:" + std::to_string(s.opts.ws_port);
     if (s.opts.live)
       s.live_log.push_back(note); // the live display owns the terminal
     else
@@ -369,7 +369,7 @@ int run(int argc, char **argv, const SceneProvider &provider)
   }
 
   std::string stop_reason = play(plan, cfg.loops);
-  ws_stop();
+  detail::ws_stop();
   detail::finish_frames();
   print_summary(stop_reason);
   return cfg.write_files ? write_outputs(cfg) : 0;

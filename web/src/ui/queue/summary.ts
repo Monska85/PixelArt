@@ -4,7 +4,7 @@ import type { Diagnostic } from "../../engine";
 import { BoardError, type WireDiagnostic } from "../../protocol";
 import type { QueueFile, QueueSummary } from "../../queue/plan";
 import type { Refusal, RunResult } from "../../queue/run";
-import { toShownError, shownMessage, type ShownError } from "../errors";
+import { shownError, toShownError, shownMessage, type ShownError } from "../errors";
 import { formatSize, plural } from "../format";
 import { BUSY_MESSAGE } from "../upload";
 
@@ -114,32 +114,20 @@ export function summaryReport(summary: QueueSummary, verb: Verb): SummaryReport 
   };
 }
 
-let nextProblem = 1;
-
-/** A problem of the queue's own, with a fresh ID. */
-export function queueProblem(
-  context: string,
-  code: string,
-  message: string,
-  shown: Partial<ShownError> = {},
-): ShownError {
-  return { id: Date.now() + nextProblem++, context, code, message, diagnostics: [], ...shown };
-}
-
 /** What the user is told when the queue sent nothing and gave a reason. */
 export function refusalProblem(refusal: Refusal): ShownError {
   switch (refusal.reason) {
     case "busy":
-      return queueProblem("Uploading", "upload_busy", BUSY_MESSAGE);
+      return shownError("Uploading", "upload_busy", BUSY_MESSAGE);
     case "not_connected":
-      return queueProblem("Uploading", "not_connected", "Connect a board or the simulator to send files.");
+      return shownError("Uploading", "not_connected", "Connect a board or the simulator to send files.");
     case "read_failed":
       return toShownError("Reading the board", refusal.error);
     case "failed":
       return toShownError("Uploading", refusal.error);
     case "no_space": {
       const { needed, free, short } = refusal.space;
-      return queueProblem(
+      return shownError(
         "Not enough space on the board",
         "no_space",
         `The files need ${formatSize(needed)}, and the board has ${formatSize(free)} free. ` +
