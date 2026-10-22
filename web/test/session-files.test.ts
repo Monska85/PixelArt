@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { newAnimation, setTopField } from "../src/editor/doc";
 import { deleteFile, sha256Hex } from "../src/protocol";
-import { writeJson } from "../src/yaml";
+import { writeJson } from "../src/yaml/writeJson";
 import { EditorStore, hasUnsavedWork } from "../src/ui/editor/store";
 import { boardFilesOf } from "../src/ui/editor/boardFiles";
 import { session } from "../src/ui/session";

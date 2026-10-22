@@ -2,21 +2,24 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
-import { watchBoard } from "../screenshots/board";
-import { connectSimulator, expect, test, toastWith, type Simulator } from "./fixtures";
+import { watchBoard } from "./board";
+import {
+  animations,
+  animationYaml,
+  connectSimulator,
+  expect,
+  pick,
+  playlistYaml,
+  showPlaylists,
+  type Simulator,
+  stored,
+  summary,
+  test,
+  toastWith,
+  upload,
+} from "./fixtures";
 import { connectScripted, scriptedBoard } from "./scripted";
 
-const animationYaml = (name: string): string =>
-  `format: pixelart/1\nname: ${name}\ncanvas: { width: 16, height: 16 }\nsprites:\n  dot:\n    points: [[7, 7, "#ff0000"]]\ntimeline:\n  - show: [dot]\n`;
-const playlistYaml = (...ids: string[]): string =>
-  `format: pixelart-playlist/1\nname: Mix\ncanvas: { width: 16, height: 16 }\nitems:\n${ids.map((id) => `  - animation: ${id}\n`).join("")}`;
-
-const upload = (name: string, text: string) => ({ name, mimeType: "application/yaml", buffer: Buffer.from(text) });
-const stored = (simulator: Simulator, kind: string, id: string): string => join(simulator.dataDir, kind, `${id}.json`);
-const pick = (page: Page, ...files: Array<ReturnType<typeof upload>>) =>
-  page.locator("#upload-input").setInputFiles(files);
-const summary = (page: Page) => page.getByRole("status").filter({ hasText: /(Upload|Install) summary/ });
-const animations = (page: Page) => page.getByRole("table", { name: "Animations on the board" });
 const row = (page: Page, id: string) =>
   animations(page).locator("tr", { has: page.locator("code", { hasText: new RegExp(`^${id}$`) }) });
 
@@ -146,7 +149,7 @@ test("installing a playlist from the Library brings the animations it names", as
   rmSync(stored(simulator, "animations", "wreath"));
   await connectSimulator(page, simulator);
   await page.getByRole("link", { name: "Library", exact: true }).click();
-  await page.getByRole("tab", { name: /^Playlists/ }).click();
+  await showPlaylists(page);
   await page.getByRole("button", { name: "Install default" }).click();
   await expect(toastWith(page, "Installed 2 animations and 1 playlist")).toBeVisible();
   await expect(summary(page)).toContainText("Installed: wreath, snowflake, default");

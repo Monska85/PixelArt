@@ -2,6 +2,8 @@
 // public/theme-init.js sets it before the first paint, this module keeps it right afterwards.
 
 import { useSyncExternalStore } from "react";
+import { createEmitter } from "./emitter";
+import { readStored, writeStored } from "./storage";
 
 export type ThemeChoice = "system" | "dark" | "light";
 
@@ -12,22 +14,18 @@ const isChoice = (value: unknown): value is ThemeChoice => value === "system" ||
 
 // Browser storage can be missing or blocked: the choice then lasts until the page closes, and starts on System.
 function readChoice(): ThemeChoice {
-  try {
-    const stored = localStorage.getItem(KEY);
-    return isChoice(stored) ? stored : "system";
-  } catch {
-    return "system";
-  }
+  const stored = readStored(KEY);
+  return isChoice(stored) ? stored : "system";
 }
 
 class Theme {
   private choice: ThemeChoice = readChoice();
-  private listeners = new Set<() => void>();
+  private readonly changes = createEmitter();
   private query: MediaQueryList | null = null;
 
   /** Applies the choice to the document and follows the operating system while the choice is System. */
   start(): void {
-    if (this.query || typeof window.matchMedia !== "function") return this.apply();
+    if (this.query) return this.apply();
     this.query = window.matchMedia(DARK_QUERY);
     this.query.addEventListener("change", () => this.apply());
     this.apply();
@@ -38,22 +36,15 @@ class Theme {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   }
 
-  subscribe = (listener: () => void): (() => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  };
+  subscribe = this.changes.subscribe;
 
   getSnapshot = (): ThemeChoice => this.choice;
 
   set(choice: ThemeChoice): void {
     this.choice = choice;
-    try {
-      localStorage.setItem(KEY, choice);
-    } catch {
-      // Not remembered.
-    }
+    writeStored(KEY, choice);
     this.apply();
-    for (const listener of this.listeners) listener();
+    this.changes.emit();
   }
 }
 

@@ -41,6 +41,11 @@ const cases: Array<{ rule: string; html: string; problem: RegExp }> = [
     html: `<ol><li><select aria-label="Animation" style="margin-left:80px"><option>ball</option></select><span data-testid="item-missing-1">Not stored</span></li></ol>`,
     problem: /Not stored\\?" is \d+ px off its animation field/,
   },
+  {
+    rule: "a playlist mark beside its field",
+    html: `<ol><li><select aria-label="Animation"><option>ball</option></select><span data-testid="item-missing-1" style="position:absolute;left:0;top:0">Not stored</span></li></ol>`,
+    problem: /Not stored\\?" is not under its animation field/,
+  },
 ];
 
 for (const { rule, html, problem } of cases)

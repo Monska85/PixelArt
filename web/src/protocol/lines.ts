@@ -53,7 +53,7 @@ export class LineSplitter {
     this.pending = [];
     this.length = 0;
     const end = whole[whole.length - 1] === 0x0d ? whole.length - 1 : whole.length;
-    return end > this.maxLine ? null : whole.slice(0, end);
+    return end > this.maxLine ? null : whole.subarray(0, end);
   }
 }
 

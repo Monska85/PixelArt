@@ -46,10 +46,9 @@ upload-data: data ## Flash only the animations and playlists, keeping the firmwa
 monitor: ## Open the serial monitor
 	pio device monitor -e $(BOARD)
 
-flash: data ## Flash the firmware and the animations, then open the serial monitor
-	pio run -e $(BOARD) -t upload
-	pio run -e $(BOARD) -t uploadfs
-	pio device monitor -e $(BOARD)
+flash: ## Flash the firmware and the animations, then open the serial monitor
+	$(MAKE) --no-print-directory upload
+	$(MAKE) --no-print-directory monitor
 
 mirror: data ## Flash with the frame mirror on, then watch the matrix live in the terminal
 	PLATFORMIO_BUILD_FLAGS=-DPIXELART_MIRROR pio run -e $(BOARD) -t upload
@@ -126,20 +125,16 @@ web-size: web-build ## Fail when the JavaScript the web app loads at start is ov
 web-test: data web/node_modules ## Type check, lint and run the web app's unit tests and the conformance suite
 	cd web && npm run typecheck && npm run lint && npm test
 
-web-e2e: data sim-build web/node_modules ## Run the web app's end-to-end tests and layout checks against the simulator (first: cd web && npx playwright install chromium)
-	cd web && npm run build && npm run e2e
+web-e2e: data sim-build web-build ## Run the web app's end-to-end tests and layout checks against the simulator (first: cd web && npx playwright install chromium)
+	cd web && npm run e2e
 
-web-screenshots: data sim-build web/node_modules ## Compare one main state per view with its reference image, inside the Playwright container (needs Docker)
-	cd web && npm run build
+web-screenshots: data sim-build web-build ## Compare one main state per view with its reference image, inside the Playwright container (needs Docker)
 	web/scripts/run-screenshots.sh compare
 
-web-screenshots-update: data sim-build web/node_modules ## Draw the reference images of the screenshot suite again, inside the Playwright container (needs Docker)
-	cd web && npm run build
+web-screenshots-update: data sim-build web-build ## Draw the reference images of the screenshot suite again, inside the Playwright container (needs Docker)
 	web/scripts/run-screenshots.sh update
 
-check: data sim-build ## Check formatting and animations, run the tests and build every board
-	@clang-format --dry-run --Werror $(CPP_SOURCES)
-	$(SIM) --validate
+check: format-check validate ## Check formatting and animations, run every test suite (simulator, tools, web app) and build every board
 	$(PYTHON) -m unittest discover -s tools
 	pio test -e native_test
 	pio run -e esp32c3 -e esp32 -e esp32s3
@@ -147,4 +142,4 @@ check: data sim-build ## Check formatting and animations, run the tests and buil
 
 clean: ## Remove build outputs, data/ and simulator output
 	pio run -t clean -e native -e native_test -e esp32c3 -e esp32 -e esp32s3
-	rm -rf data $(OUT) $(SITE) web/dist web/test-results
+	rm -rf data $(OUT) $(SITE) web/dist web/test-results* web/playwright-report*

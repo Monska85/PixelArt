@@ -1,7 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadAnimation, loadPlaylist } from "../src/engine";
-import { jsonBytes, pythonFloat, readYaml, writeJson, writeYaml } from "../src/yaml";
+import { readYaml } from "../src/yaml/read";
+import { jsonBytes, pythonFloat, writeJson } from "../src/yaml/writeJson";
+import { writeYaml } from "../src/yaml/writeYaml";
 import { REPO } from "./helpers";
 
 const read = (source: string) => {

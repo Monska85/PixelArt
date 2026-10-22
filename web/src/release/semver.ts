@@ -1,6 +1,6 @@
 // Semantic Versioning 2.0.0 precedence (https://semver.org/#spec-item-11).
 
-export interface SemVer {
+interface SemVer {
   major: string;
   minor: string;
   patch: string;

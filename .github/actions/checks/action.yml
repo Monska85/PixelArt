@@ -1,22 +1,17 @@
 name: Checks
 description: Converts the animations, validates them and runs every test suite. Needs the repository checked out. The firmware version is read from git tags, so full history is needed only where the real version matters, as in the release site build.
 
+inputs:
+  node:
+    description: Also set up Node, for the steps after the checks that build or test the web app
+    default: "false"
+
 runs:
   using: composite
   steps:
-    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+    - uses: ./.github/actions/setup
       with:
-        python-version: "3.12"
-
-    - name: Cache PlatformIO toolchains and libraries
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-      with:
-        path: ~/.platformio
-        key: platformio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'lib/*/library.json') }}
-
-    - name: Install tools
-      shell: bash
-      run: pip install platformio pyyaml jsonschema
+        node: ${{ inputs.node }}
 
     - name: Convert animations and playlists, check them against the JSON Schemas
       shell: bash

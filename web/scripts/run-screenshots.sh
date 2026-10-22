@@ -16,8 +16,8 @@ set -eu
 mode=${1:-compare}
 [ $# -eq 0 ] || shift
 case "$mode" in
-  compare) flags="" ;;
-  update) flags="--update-snapshots" ;;
+  compare) script=screenshots ;;
+  update) script=screenshots:update ;;
   *) echo "usage: $0 compare|update [playwright options]" >&2; exit 2 ;;
 esac
 
@@ -39,7 +39,6 @@ if [ "$(head -c 4 "$sim" | od -An -tx1 | tr -d ' \n')" != "7f454c46" ]; then
   exit 1
 fi
 
-# shellcheck disable=SC2086 # $flags is empty or one option
 exec docker run --rm --init --ipc=host \
   --user "$(id -u):$(id -g)" \
   -e HOME=/tmp \
@@ -49,4 +48,4 @@ exec docker run --rm --init --ipc=host \
   -v "$sim:/pixelart-sim:ro" \
   -w /work/web \
   "$image" \
-  npx playwright test --config playwright.screenshots.config.ts $flags "$@"
+  npm run "$script" -- "$@"

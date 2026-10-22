@@ -1,7 +1,7 @@
 // JSON text byte-equal to Python's json.dumps(doc, separators=(",", ":"),
 // ensure_ascii=False), which `tools/pixelart.py build` uses for the board's files.
 
-import { JsonNumber, type JsonValue } from "../engine/json";
+import { JsonNumber, type JsonValue } from "../engine";
 
 /** Python's repr(float), which json.dumps uses, with its Infinity and NaN names. */
 export function pythonFloat(x: number): string {
@@ -35,7 +35,7 @@ const ESCAPES: Record<string, string> = {
   "\f": "\\f",
 };
 
-export function jsonString(text: string): string {
+function jsonString(text: string): string {
   // eslint-disable-next-line no-control-regex -- json.dumps escapes exactly these characters
   return `"${text.replace(/["\\\u0000-\u001f]/g, (c) => ESCAPES[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`)}"`;
 }

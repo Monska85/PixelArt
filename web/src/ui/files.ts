@@ -16,7 +16,7 @@ import type { Kind } from "../protocol";
 const MAX_PICKED_BYTES = 1024 * 1024;
 
 /** A file name made only of characters that are safe on every system. */
-export function safeFileName(name: string): string {
+function safeFileName(name: string): string {
   return name.replace(/[^A-Za-z0-9_.-]/g, "_").slice(0, 64) || "file";
 }
 
@@ -44,7 +44,7 @@ export async function readPicked(file: File): Promise<Uint8Array> {
   return new Uint8Array(await file.arrayBuffer());
 }
 
-export type Prepared = { ok: true; bytes: Uint8Array; document: JsonValue } | { ok: false; message: string };
+type Prepared = { ok: true; bytes: Uint8Array; document: JsonValue } | { ok: false; message: string };
 
 /**
  * The JSON bytes to upload for a picked file: YAML is converted, JSON is kept byte for byte. The YAML reader is a
@@ -52,14 +52,12 @@ export type Prepared = { ok: true; bytes: Uint8Array; document: JsonValue } | { 
  */
 export async function prepareUpload(fileName: string, bytes: Uint8Array): Promise<Prepared> {
   if (/\.ya?ml$/i.test(fileName)) {
-    const text = (() => {
-      try {
-        return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-      } catch {
-        return null;
-      }
-    })();
-    if (text === null) return { ok: false, message: "The YAML file is not valid UTF-8 text." };
+    let text: string;
+    try {
+      text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      return { ok: false, message: "The YAML file is not valid UTF-8 text." };
+    }
     const { readYaml } = await import("../yaml/read");
     const read = readYaml(text);
     if (!read.ok)
@@ -73,8 +71,11 @@ export async function prepareUpload(fileName: string, bytes: Uint8Array): Promis
 
 const KINDS: Record<string, Kind> = { "pixelart/1": "animation", "pixelart-playlist/1": "playlist" };
 
+/** The name of a file the app reads: JSON or YAML. */
+export const SUPPORTED_FILE = /\.(json|ya?ml)$/i;
+
 /** The ID of a file: its name without the extension, lower-cased. */
-export const idFromFileName = (name: string): string => name.replace(/\.(json|ya?ml)$/i, "").toLowerCase();
+export const idFromFileName = (name: string): string => name.replace(SUPPORTED_FILE, "").toLowerCase();
 
 /** A valid ID close to a file name, offered to the user. */
 export function suggestId(name: string): string {
@@ -85,19 +86,15 @@ export function suggestId(name: string): string {
     .slice(0, 32);
 }
 
-/** The `format` of a document as text for a message, whatever its type. */
-function describeFormat(value: unknown): string {
-  return typeof value === "string" ? `"${value}"` : value === undefined ? "missing" : "not a text";
-}
-
 /** Which kind of file a document is, from its `format`. */
 export function detectKind(document: JsonValue): { ok: true; kind: Kind } | { ok: false; message: string } {
   const format = isObject(document) ? document.get("format") : undefined;
   const kind = typeof format === "string" ? KINDS[format] : undefined;
   if (kind) return { ok: true, kind };
+  const described = typeof format === "string" ? `"${format}"` : format === undefined ? "missing" : "not a text";
   return {
     ok: false,
-    message: `The format of this file is ${describeFormat(format)}, which is neither "pixelart/1" nor "pixelart-playlist/1".`,
+    message: `The format of this file is ${described}, which is neither "pixelart/1" nor "pixelart-playlist/1".`,
   };
 }
 
@@ -108,7 +105,7 @@ export function validateFile(kind: Kind, bytes: Uint8Array): { ok: boolean; diag
   return { ok: !rejected, diagnostics: result.diagnostics };
 }
 
-export type Inspected =
+type Inspected =
   | { ok: true; kind: Kind; bytes: Uint8Array; diagnostics: Diagnostic[] }
   | {
       ok: false;

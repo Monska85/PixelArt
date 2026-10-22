@@ -25,9 +25,12 @@ static void test_simulator_refuses_to_read_or_rename_a_file_a_writer_holds_open(
   TEST_ASSERT_TRUE(writer.write("abc", 3));
   storage::Buffer out;
   TEST_ASSERT_TRUE(storage::read("/animations/held.json", out, 100) == storage::ReadResult::Unreadable);
+  storage::Reader file;
+  TEST_ASSERT_TRUE(file.open("/animations/held.json") == storage::ReadResult::Unreadable);
   TEST_ASSERT_FALSE(storage::rename("/animations/held.json", "/animations/moved.json"));
 
   writer.close();
+  TEST_ASSERT_TRUE(file.open("/animations/held.json") == storage::ReadResult::Ok);
   TEST_ASSERT_TRUE(storage::read("/animations/held.json", out, 100) == storage::ReadResult::Ok);
   TEST_ASSERT_EQUAL(3, out.size);
   TEST_ASSERT_TRUE(storage::rename("/animations/held.json", "/animations/moved.json"));
@@ -97,18 +100,6 @@ static void test_a_folder_is_missing_for_read_and_open_and_is_not_removed()
   TEST_ASSERT_TRUE(fs::is_directory(data.root / "animations" / "x.json"));
 }
 
-static void test_reader_open_refuses_a_file_a_writer_holds_open()
-{
-  sim::reset();
-  TempData data("reader-open");
-  storage::Writer writer;
-  TEST_ASSERT_TRUE(writer.open("/animations/held.json"));
-  storage::Reader file;
-  TEST_ASSERT_TRUE(file.open("/animations/held.json") == storage::ReadResult::Unreadable);
-  writer.close();
-  TEST_ASSERT_TRUE(file.open("/animations/held.json") == storage::ReadResult::Ok);
-}
-
 int main()
 {
   UNITY_BEGIN();
@@ -117,6 +108,5 @@ int main()
   RUN_TEST(test_reader_read_all_reports_what_storage_read_reports);
   RUN_TEST(test_exists_size_and_remove_of_a_missing_file);
   RUN_TEST(test_a_folder_is_missing_for_read_and_open_and_is_not_removed);
-  RUN_TEST(test_reader_open_refuses_a_file_a_writer_holds_open);
   return UNITY_END();
 }

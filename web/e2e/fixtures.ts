@@ -94,13 +94,52 @@ export async function openConnection(page: Page): Promise<void> {
   await page.getByTestId("connection-state").click();
 }
 
-/** Opens the app and connects it to the simulator, through the connect card of the Board view. */
-export async function connectSimulator(page: Page, simulator: Simulator): Promise<void> {
+/** Opens the app and asks the connect card of the Board view to connect to the simulator at `address`. */
+export async function openConnectCard(page: Page, address: string): Promise<void> {
   await page.goto("/");
   await page.getByRole("button", { name: "Use the simulator" }).click();
-  await page.getByLabel("Simulator address").fill(simulator.address);
+  await page.getByLabel("Simulator address").fill(address);
   await page.getByRole("button", { name: "Connect simulator" }).click();
+}
+
+/** Opens the app and connects it to the simulator, through the connect card of the Board view. */
+export async function connectSimulator(page: Page, simulator: Simulator): Promise<void> {
+  await openConnectCard(page, simulator.address);
   await expect(page.getByTestId("connection-state")).toHaveText("Connected");
+}
+
+/** A file of e2e/files/. */
+export const file = (name: string): string => fileURLToPath(new URL(`./files/${name}`, import.meta.url));
+
+/** Where the simulator stores a file of `kind` ("animations" or "playlists"). */
+export const stored = (simulator: Simulator, kind: string, id: string): string =>
+  join(simulator.dataDir, kind, `${id}.json`);
+
+export const animationYaml = (name: string): string =>
+  `format: pixelart/1\nname: ${name}\ncanvas: { width: 16, height: 16 }\nsprites:\n  dot:\n    points: [[7, 7, "#ff0000"]]\ntimeline:\n  - show: [dot]\n`;
+export const playlistYaml = (...ids: string[]): string =>
+  `format: pixelart-playlist/1\nname: Mix\ncanvas: { width: 16, height: 16 }\nitems:\n${ids.map((id) => `  - animation: ${id}\n`).join("")}`;
+/** A YAML or JSON file, by its extension, for a file input. */
+export const upload = (name: string, text: string) => ({
+  name,
+  mimeType: name.endsWith(".json") ? "application/json" : "application/yaml",
+  buffer: Buffer.from(text),
+});
+/** Picks files with the Board view's Upload files input: paths, or files made with `upload`. */
+export const pick = (page: Page, ...files: string[] | Array<ReturnType<typeof upload>>) =>
+  page.locator("#upload-input").setInputFiles(files);
+
+export const summary = (page: Page) => page.getByRole("status").filter({ hasText: /(Upload|Install) summary/ });
+export const animations = (page: Page) => page.getByRole("table", { name: "Animations on the board" });
+export const showPlaylists = (page: Page) => page.getByRole("tab", { name: /^Playlists/ }).click();
+/** The editor has validated the document it shows. */
+export const settled = (page: Page) => expect(page.getByTestId("diagnostics")).toHaveAttribute("aria-busy", "false");
+
+/** Types a value into the editor field `label` and commits it with Enter. */
+export async function text(page: Page, label: string, value: string): Promise<void> {
+  const field = page.getByLabel(label, { exact: true });
+  await field.fill(value);
+  await field.press("Enter");
 }
 
 /**

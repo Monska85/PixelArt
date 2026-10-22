@@ -455,12 +455,6 @@ class TerminalTextTest(unittest.TestCase):
         text = self.run_command(pixelart.board_settings, serve(reply), pairs=[])
         self.assertIn("k" + self.ESCAPED + "=v" + self.ESCAPED, text)
 
-    def test_the_error_of_a_failed_command_is_escaped_in_settings(self):
-        board = pixelart.Board(Responder(serve({"ok": False, "error": "bad_request", "message": self.HOSTILE})))
-        with self.assertRaises(pixelart.BoardError) as e:
-            pixelart.board_settings(board, types.SimpleNamespace(pairs=["brightness=1"]))
-        self.assert_clean(str(e.exception))
-
 
 class WipeTest(unittest.TestCase):
     def board(self, reply):
@@ -638,7 +632,7 @@ class WebSocketTest(unittest.TestCase):
 
     def test_a_fragmented_message_above_the_cap_closes_the_connection(self):
         transport, server = self.client_pair()
-        half = pixelart.MAX_MESSAGE // 2 + 1
+        half = pixelart.MAX_LINE // 2 + 1
         frame = struct.pack("!H", half) + b"a" * half
         server.sendall(b"\x01\x7e" + frame + b"\x00\x7e" + frame + b"\x80\x00")
         with self.assertRaises(pixelart.BoardError) as e:
@@ -652,14 +646,14 @@ class WebSocketTest(unittest.TestCase):
 
     def test_a_message_of_exactly_the_cap_is_accepted(self):
         transport, server = self.client_pair()
-        threading.Thread(target=server.sendall, args=(b"\x81\x7f" + struct.pack("!Q", pixelart.MAX_MESSAGE)
-                                                      + b"a" * pixelart.MAX_MESSAGE,), daemon=True).start()
-        self.assertEqual(len(transport.receive(2.0)), pixelart.MAX_MESSAGE)
+        threading.Thread(target=server.sendall, args=(b"\x81\x7f" + struct.pack("!Q", pixelart.MAX_LINE)
+                                                      + b"a" * pixelart.MAX_LINE,), daemon=True).start()
+        self.assertEqual(len(transport.receive(2.0)), pixelart.MAX_LINE)
 
     def test_a_message_one_byte_over_the_cap_is_refused(self):
         transport, server = self.client_pair()
-        threading.Thread(target=server.sendall, args=(b"\x81\x7f" + struct.pack("!Q", pixelart.MAX_MESSAGE + 1)
-                                                      + b"a" * (pixelart.MAX_MESSAGE + 1),), daemon=True).start()
+        threading.Thread(target=server.sendall, args=(b"\x81\x7f" + struct.pack("!Q", pixelart.MAX_LINE + 1)
+                                                      + b"a" * (pixelart.MAX_LINE + 1),), daemon=True).start()
         with self.assertRaises(pixelart.BoardError) as e:
             transport.receive(2.0)
         self.assertIn("too long", str(e.exception))

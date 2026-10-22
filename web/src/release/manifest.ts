@@ -1,8 +1,9 @@
 // The release manifest (docs/format/manifest-v1.md) as the web app reads it.
 
-import { isValidId } from "../engine";
+import { FILE_LIMITS, isValidId } from "../engine";
+import { isCount, isRecord } from "../protocol/guards";
 
-export const MANIFEST_FORMAT = "pixelart-manifest/1";
+const MANIFEST_FORMAT = "pixelart-manifest/1";
 
 export type PublishedKind = "animation" | "playlist";
 
@@ -22,15 +23,12 @@ export interface Manifest {
 }
 
 /** The most a board stores per file (docs/protocol/protocol-v1.md); a larger published file cannot be installed. */
-export const MAX_FILE_BYTES: Record<PublishedKind, number> = { animation: 64 * 1024, playlist: 16 * 1024 };
+export const MAX_FILE_BYTES: Record<PublishedKind, number> = FILE_LIMITS;
 
 const FOLDER: Record<PublishedKind, string> = { animation: "animations", playlist: "playlists" };
 
 /** Relative to the page, as the manifest's own paths are relative to the manifest. */
 export const publishedPath = (kind: PublishedKind, id: string): string => `./${FOLDER[kind]}/${id}.json`;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 function parseEntries(value: unknown, kind: PublishedKind): Published[] {
   if (!Array.isArray(value)) return [];
@@ -48,7 +46,7 @@ function parseEntries(value: unknown, kind: PublishedKind): Published[] {
     out.push({
       id,
       name: typeof name === "string" && name !== "" ? name : null,
-      version: typeof version === "number" && Number.isInteger(version) && version >= 0 ? version : null,
+      version: isCount(version) ? version : null,
       size,
       sha256,
     });
@@ -96,7 +94,7 @@ export async function readCapped(response: Response, limit: number): Promise<Uin
     return all.length > limit ? null : all;
   }
   const reader = response.body.getReader();
-  const parts: Uint8Array[] = [];
+  const parts: Uint8Array<ArrayBuffer>[] = [];
   let total = 0;
   for (;;) {
     const { done, value } = await reader.read();
@@ -108,11 +106,5 @@ export async function readCapped(response: Response, limit: number): Promise<Uin
     }
     parts.push(value);
   }
-  const out = new Uint8Array(total);
-  let at = 0;
-  for (const part of parts) {
-    out.set(part, at);
-    at += part.length;
-  }
-  return out;
+  return new Uint8Array(await new Blob(parts).arrayBuffer());
 }

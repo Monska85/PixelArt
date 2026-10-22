@@ -142,7 +142,7 @@ web-test: data web-install
 web-e2e: data sim-build web-install
     cd web && npm run build && npm run e2e
 
-# Check formatting and animations, run the tests and build every board
+# Check formatting and animations, run every test suite (simulator, tools, web app) and build every board
 check: data sim-build
     find src include test lib \( -name '*.cpp' -o -name '*.h' \) -exec clang-format --dry-run --Werror {} +
     {{sim}} --validate
@@ -154,4 +154,4 @@ check: data sim-build
 # Remove build outputs, data/ and simulator output
 clean:
     pio run -t clean -e native -e native_test -e esp32c3 -e esp32 -e esp32s3
-    rm -rf data {{out}} {{site}} web/dist web/test-results
+    rm -rf data {{out}} {{site}} web/dist web/test-results* web/playwright-report*

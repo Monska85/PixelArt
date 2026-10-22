@@ -36,8 +36,8 @@ constexpr size_t MAX_OUTPUT_BUFFER = 256 * 1024;
 // flooding client waits in TCP instead of growing the queue.
 constexpr size_t MAX_PENDING_INPUT = 4096;
 constexpr size_t MAX_REFUSED = 8;
-constexpr auto HANDSHAKE_TIMEOUT = std::chrono::seconds(5);
-constexpr auto CLOSE_TIMEOUT = std::chrono::seconds(1);
+constexpr auto HANDSHAKE_TIMEOUT = std::chrono::milliseconds(PIXELART_WS_HANDSHAKE_MS);
+constexpr auto CLOSE_TIMEOUT = std::chrono::milliseconds(PIXELART_WS_CLOSE_MS);
 const char *GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 const char *DEFAULT_ORIGIN = "https://monska85.github.io";
@@ -798,6 +798,9 @@ void ws_poll()
     service_client(s);
 }
 
+namespace
+{
+
 // When ws_wait() must wake for a deadline: the client's while it is not open, and every refused socket's.
 Clock::time_point wake_deadline(const Server &s, Clock::time_point wake)
 {
@@ -837,6 +840,8 @@ Pollset build_pollset(const Server &s)
   }
   return p;
 }
+
+} // namespace
 
 void ws_wait(std::chrono::microseconds limit)
 {

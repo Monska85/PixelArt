@@ -13,7 +13,7 @@ export function replyLine(body: Body): Uint8Array {
   return encoder.encode(`@PR ${crc32Hex(encoder.encode(payload))} ${payload}`);
 }
 
-export type Fault = "drop" | "bad_frame" | "corrupt" | undefined;
+type Fault = "drop" | "bad_frame" | "corrupt" | undefined;
 
 export class FakeBoard implements Transport {
   onLine: ((line: Uint8Array) => void) | null = null;

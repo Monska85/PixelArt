@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo } from "react";
 import {
   addFrame,
   addLoop,
@@ -25,7 +25,7 @@ import {
   type Path,
   type RefKey,
 } from "../../editor/doc";
-import { isObject, type JsonObject, type JsonValue } from "../../engine/json";
+import { isObject, type JsonObject, type JsonValue } from "../../engine";
 import { ArrowDown, ArrowUp, Copy, Plus, Repeat, Trash2, Undo2 } from "lucide-react";
 import { Field } from "../common/Field";
 import { Button } from "../components/button";
@@ -34,9 +34,8 @@ import { cn } from "../components/cn";
 import { IconButton } from "../components/icon-button";
 import { Label } from "../components/label";
 import { Select } from "../components/select";
-import { ButtonRow, EditorCard, Hint } from "./EditorCard";
+import { ButtonRow, EditorCard, Hint, ReorderButtons, SpriteSelect, type Edit } from "./EditorCard";
 import { ColorField, NumberField, PosField } from "./Fields";
-import type { Edit } from "./types";
 
 interface Props {
   doc: Doc;
@@ -115,7 +114,6 @@ export function TimelinePanel({ doc, edit, selected, onSelect }: Props) {
   const timeline = asList(doc.get("timeline")) ?? [];
   const item = selected ? itemAt(doc, selected) : undefined;
   const selectedKey = item && selected ? keyOf(selected) : null;
-  const select = useCallback((path: Path) => onSelect(path), [onSelect]);
 
   const parent = (): Path => (selected && item ? selected.slice(0, -1) : []);
   const after = (): number | undefined => (selected && item ? selected[selected.length - 1] : undefined);
@@ -134,7 +132,7 @@ export function TimelinePanel({ doc, edit, selected, onSelect }: Props) {
       {timeline.length === 0 && <Hint>The timeline is empty.</Hint>}
       <ol className="flex flex-col" data-testid="timeline">
         {timeline.map((child, i) => (
-          <Node key={i} item={child} path={[i]} selectedKey={selectedKey} onSelect={select} />
+          <Node key={i} item={child} path={[i]} selectedKey={selectedKey} onSelect={onSelect} />
         ))}
       </ol>
       <ButtonRow>
@@ -228,6 +226,7 @@ function ItemForm({ doc, edit, path, item }: { doc: Doc; edit: Edit; path: Path;
   const shown = readShow(item);
   const sprites = spriteNames(doc);
   const pairs = readRecolor(item);
+  const recolor = (next: Array<[string, string]>): void => edit((d) => setRecolor(d, path, next));
   const palette = paletteEntries(doc);
   const unusedFrom = palette.find((p) => !pairs.some(([from]) => from === p.name))?.name;
 
@@ -276,14 +275,12 @@ function ItemForm({ doc, edit, path, item }: { doc: Doc; edit: Edit; path: Path;
           >
             <Field label="Sprite" className="min-w-36">
               {(control) => (
-                <Select {...control} value={ref.sprite} onChange={(e) => field(index, "sprite", e.target.value)}>
-                  {!sprites.includes(ref.sprite) && <option value={ref.sprite}>{ref.sprite}</option>}
-                  {sprites.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </Select>
+                <SpriteSelect
+                  control={control}
+                  value={ref.sprite}
+                  names={sprites}
+                  onChange={(e) => field(index, "sprite", e.target.value)}
+                />
               )}
             </Field>
             <PosField label="At" value={ref.at} testId={`show-${index}-at`} onChange={(v) => field(index, "at", v)} />
@@ -339,29 +336,13 @@ function ItemForm({ doc, edit, path, item }: { doc: Doc; edit: Edit; path: Path;
               testId={`show-${index}-pivot`}
               onChange={(v) => field(index, "pivot", v)}
             />
-            <span className="ml-auto flex items-center gap-1">
-              <IconButton
-                label={`Move up entry ${index + 1}`}
-                tooltip="Move up"
-                icon={ArrowUp}
-                disabled={index === 0}
-                onClick={() => edit((d) => moveShowEntry(d, path, index, -1))}
-              />
-              <IconButton
-                label={`Move down entry ${index + 1}`}
-                tooltip="Move down"
-                icon={ArrowDown}
-                disabled={index === shown.length - 1}
-                onClick={() => edit((d) => moveShowEntry(d, path, index, 1))}
-              />
-              <IconButton
-                label={`Remove entry ${index + 1}`}
-                tooltip="Remove"
-                icon={Trash2}
-                className="text-destructive"
-                onClick={() => edit((d) => removeShowEntry(d, path, index))}
-              />
-            </span>
+            <ReorderButtons
+              noun="entry"
+              index={index}
+              count={shown.length}
+              onMove={(delta) => edit((d) => moveShowEntry(d, path, index, delta))}
+              onRemove={() => edit((d) => removeShowEntry(d, path, index))}
+            />
           </li>
         ))}
       </ol>
@@ -385,44 +366,20 @@ function ItemForm({ doc, edit, path, item }: { doc: Doc; edit: Edit; path: Path;
               doc={doc}
               label={`Replace color ${index + 1}`}
               value={from}
-              onCommit={(value) =>
-                edit((d) =>
-                  setRecolor(
-                    d,
-                    path,
-                    pairs.map((p, i): [string, string] => (i === index ? [value, p[1]] : p)),
-                  ),
-                )
-              }
+              onCommit={(value) => recolor(pairs.map((p, i): [string, string] => (i === index ? [value, p[1]] : p)))}
             />
             <ColorField
               doc={doc}
               label={`With color ${index + 1}`}
               value={to}
-              onCommit={(value) =>
-                edit((d) =>
-                  setRecolor(
-                    d,
-                    path,
-                    pairs.map((p, i): [string, string] => (i === index ? [p[0], value] : p)),
-                  ),
-                )
-              }
+              onCommit={(value) => recolor(pairs.map((p, i): [string, string] => (i === index ? [p[0], value] : p)))}
             />
             <IconButton
               label={`Remove pair ${index + 1}`}
               tooltip="Remove"
               icon={Trash2}
               className="text-destructive"
-              onClick={() =>
-                edit((d) =>
-                  setRecolor(
-                    d,
-                    path,
-                    pairs.filter((_, i) => i !== index),
-                  ),
-                )
-              }
+              onClick={() => recolor(pairs.filter((_, i) => i !== index))}
             />
           </li>
         ))}
@@ -432,12 +389,10 @@ function ItemForm({ doc, edit, path, item }: { doc: Doc; edit: Edit; path: Path;
           variant="outline"
           disabled={unusedFrom === undefined}
           onClick={() =>
-            edit((d) =>
-              setRecolor(d, path, [
-                ...pairs,
-                [unusedFrom as string, palette.find((p) => p.name !== unusedFrom)?.name ?? (unusedFrom as string)],
-              ]),
-            )
+            recolor([
+              ...pairs,
+              [unusedFrom as string, palette.find((p) => p.name !== unusedFrom)?.name ?? (unusedFrom as string)],
+            ])
           }
         >
           <Plus aria-hidden="true" />

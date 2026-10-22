@@ -1,6 +1,6 @@
 // The animation library: what is published, and how it compares with what a board stores.
 
-import { sha256Hex, type Entry } from "../protocol";
+import { sameSha, sha256Hex, type Entry } from "../protocol";
 import { MAX_FILE_BYTES, publishedPath, readCapped, type Published, type PublishedKind } from "./manifest";
 
 /**
@@ -15,7 +15,7 @@ export function libraryState(published: Published, stored: Entry[] | null): Libr
   if (stored === null) return "unknown";
   const entry = stored.find((e) => e.id === published.id);
   if (!entry) return "missing";
-  return entry.sha256 !== null && entry.sha256.toLowerCase() === published.sha256 ? "same" : "different";
+  return sameSha(entry, published.sha256) ? "same" : "different";
 }
 
 /** The published file, checked against the size and SHA-256 of the manifest. Throws a readable error otherwise. */

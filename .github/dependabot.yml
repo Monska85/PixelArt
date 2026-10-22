@@ -5,6 +5,7 @@ updates:
     directories:
       - "/"
       - "/.github/actions/checks"
+      - "/.github/actions/setup"
     schedule:
       interval: weekly
     groups:

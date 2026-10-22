@@ -12,19 +12,6 @@ static std::mt19937 &rng()
   return gen;
 }
 
-// Each clock read advances time by 1us so busy-wait loops on millis() end.
-unsigned long millis()
-{
-  sim::advance_us(1);
-  return (unsigned long)(sim::now_us() / 1000);
-}
-
-unsigned long micros()
-{
-  sim::advance_us(1);
-  return (unsigned long)sim::now_us();
-}
-
 void delay(unsigned long ms) { sim::advance_us((uint64_t)ms * 1000); }
 void delayMicroseconds(unsigned int us) { sim::advance_us(us); }
 void yield() {}
@@ -49,22 +36,8 @@ void randomSeed(unsigned long seed)
     rng().seed(seed);
 }
 
-long map(long x, long in_min, long in_max, long out_min, long out_max)
-{
-  if (in_max == in_min)
-    return out_min;
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
-void pinMode(uint8_t, uint8_t) {}
-void digitalWrite(uint8_t, uint8_t) {}
-int digitalRead(uint8_t) { return LOW; }
-int analogRead(uint8_t) { return 0; }
-void analogWrite(uint8_t, int) {}
-
 int HardwareSerial::available() { return (int)sim::serial_input_size(); }
-int HardwareSerial::read() { return sim::serial_input_read(true); }
-int HardwareSerial::peek() { return sim::serial_input_read(false); }
+int HardwareSerial::read() { return sim::serial_input_read(); }
 
 size_t HardwareSerial::write(uint8_t c)
 {

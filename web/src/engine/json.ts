@@ -30,7 +30,7 @@ export type JsonValue = null | boolean | string | JsonNumber | JsonArray | JsonO
 export const ANIMATION_JSON_DEPTH = 32;
 export const PLAYLIST_JSON_DEPTH = 10;
 
-export type JsonResult = { ok: true; value: JsonValue } | { ok: false; reason: string };
+type JsonResult = { ok: true; value: JsonValue } | { ok: false; reason: string };
 
 const INT64_MIN = -(2n ** 63n);
 const INT64_MAX = 2n ** 63n - 1n;
@@ -209,15 +209,13 @@ class Reader {
     if (!found) throw new Failure("invalid number");
     const token = found[0];
     this.pos += token.length;
-    if (found[1] === undefined && found[2] === undefined) {
-      // -0 is the integer 0. Integers outside int64 are not integers for the formats.
-      const inRange = token.length < 19 || (BigInt(token) >= INT64_MIN && BigInt(token) <= INT64_MAX);
-      if (inRange) {
-        const value = Number(token) + 0;
-        return new JsonNumber(value, true, token.length > 15 ? BigInt(token).toString() : undefined);
-      }
-      return new JsonNumber(Number(token), false);
-    }
+    // -0 is the integer 0. Integers outside int64 are not integers for the formats.
+    if (
+      found[1] === undefined &&
+      found[2] === undefined &&
+      (token.length < 19 || (BigInt(token) >= INT64_MIN && BigInt(token) <= INT64_MAX))
+    )
+      return new JsonNumber(Number(token) + 0, true, token.length > 15 ? BigInt(token).toString() : undefined);
     return new JsonNumber(Number(token), false);
   }
 }
@@ -247,14 +245,6 @@ export function isInteger(value: JsonValue | undefined): value is JsonNumber {
 
 /** Number of Unicode code points, the unit of the formats' text limits. */
 export function codePointLength(text: string): number {
-  let count = 0;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
-      const next = text.charCodeAt(i + 1);
-      if (next >= 0xdc00 && next <= 0xdfff) i++;
-    }
-    count++;
-  }
-  return count;
+  // The string iterator yields a surrogate pair as one item, and a lone surrogate as one item too.
+  return [...text].length;
 }

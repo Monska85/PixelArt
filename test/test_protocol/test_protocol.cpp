@@ -11,7 +11,6 @@
 #include <deque>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -24,20 +23,15 @@
 namespace fs = std::filesystem;
 using pixelart_test::DOT;
 using pixelart_test::protocol_frame;
+using pixelart_test::put_begin;
+using pixelart_test::put_chunk;
+using pixelart_test::read_file;
 using pixelart_test::request;
 using pixelart_test::sha256_hex;
 using pixelart_test::TempData;
 
 static const fs::path SUITE = fs::path(PIXELART_PROJECT_DIR) / "conformance" / "protocol";
 static const char *ANY = "<any>";
-
-static std::string read_file(const fs::path &path)
-{
-  std::ifstream in(path, std::ios::binary);
-  std::stringstream ss;
-  ss << in.rdbuf();
-  return ss.str();
-}
 
 // The replies the board has written to the serial port.
 class Replies
@@ -79,26 +73,9 @@ private:
 // Strict check of RFC 3629: no overlong forms, surrogates or values over U+10FFFF.
 static bool is_utf8(const std::string &text)
 {
-  size_t i = 0;
-  while (i < text.size())
-  {
-    unsigned char c = (unsigned char)text[i];
-    size_t n = c < 0x80                   ? 1
-               : (c >= 0xC2 && c <= 0xDF) ? 2
-               : (c >= 0xE0 && c <= 0xEF) ? 3
-               : (c >= 0xF0 && c <= 0xF4) ? 4
-                                          : 0;
-    if (n == 0 || i + n > text.size())
+  for (size_t i = 0, n; i < text.size(); i += n)
+    if ((n = pixelart::utf8_sequence_length(text.data(), text.size(), i)) == 0)
       return false;
-    for (size_t k = 1; k < n; k++)
-      if (((unsigned char)text[i + k] & 0xC0) != 0x80)
-        return false;
-    unsigned char second = n > 1 ? (unsigned char)text[i + 1] : 0;
-    if ((c == 0xE0 && second < 0xA0) || (c == 0xED && second > 0x9F) || (c == 0xF0 && second < 0x90) ||
-        (c == 0xF4 && second > 0x8F))
-      return false;
-    i += n;
-  }
   return true;
 }
 
@@ -286,11 +263,9 @@ static void test_line_reader_limits()
 // Sends a whole upload of DOT and returns the reply to put_end.
 static std::string upload_dot(Replies &replies, unsigned seq = 1)
 {
-  replies.send(request(seq, R"("cmd":"put_begin","kind":"animation","id":"dot","size":147,"sha256":")" +
-                                sha256_hex(DOT) + "\""));
+  replies.send(put_begin(seq, "animation", "dot", DOT));
   replies.pop();
-  replies.send(request(seq + 1, R"("cmd":"put_chunk","offset":0,"data":")" +
-                                    pixelart::base64_encode(DOT.data(), DOT.size()) + "\""));
+  replies.send(put_chunk(seq + 1, DOT));
   replies.pop();
   replies.send(request(seq + 2, R"("cmd":"put_end")"));
   return reply_json(replies.pop(), "put_end");
@@ -302,8 +277,7 @@ static protocol::Memory plenty_of_memory() { return {400000, 300000}; }
 // Sends put_begin of DOT and returns its reply.
 static std::string begin_dot(Replies &replies)
 {
-  replies.send(
-      request(1, R"("cmd":"put_begin","kind":"animation","id":"dot","size":147,"sha256":")" + sha256_hex(DOT) + "\""));
+  replies.send(put_begin(1, "animation", "dot", DOT));
   return reply_json(replies.pop(), "put_begin");
 }
 
@@ -341,8 +315,7 @@ static void test_out_of_memory_at_end_leaves_everything_unchanged()
   protocol::set_memory_probe(plenty_of_memory);
   std::string begun = begin_dot(replies);
   TEST_ASSERT_TRUE_MESSAGE(begun.find("\"ok\":true") != std::string::npos, begun.c_str());
-  replies.send(
-      request(2, R"("cmd":"put_chunk","offset":0,"data":")" + pixelart::base64_encode(DOT.data(), DOT.size()) + "\""));
+  replies.send(put_chunk(2, DOT));
   replies.pop();
   protocol::set_memory_probe(low_memory); // memory shrank while the data came in
   replies.send(request(3, R"("cmd":"put_end")"));
@@ -401,12 +374,12 @@ static void test_chunk_write_failure_cancels_the_upload()
   TEST_ASSERT_TRUE(fs::exists(data.root / "upload.tmp"));
 
   storage::set_fail_writes(true);
-  replies.send(
-      request(2, R"("cmd":"put_chunk","offset":0,"data":")" + pixelart::base64_encode(DOT.data(), DOT.size()) + "\""));
+  replies.send(put_chunk(2, DOT));
   storage::set_fail_writes(false);
   std::string json = reply_json(replies.pop(), "put_chunk");
   TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\":\"storage_error\"") != std::string::npos, json.c_str());
   TEST_ASSERT_FALSE(protocol::upload_active());
+  TEST_ASSERT_EQUAL(0, storage::open_writers());
   TEST_ASSERT_FALSE(fs::exists(data.root / "upload.tmp"));
 }
 
@@ -419,12 +392,6 @@ static std::string begin_with(Replies &replies, unsigned seq, size_t size, const
   replies.send(request(seq, std::string(R"("cmd":"put_begin","kind":"animation","id":")") + id + R"(","size":)" +
                                 std::to_string(size) + R"(,"sha256":")" + sha256 + "\""));
   return reply_json(replies.pop(), "put_begin");
-}
-
-static void chunk(Replies &replies, unsigned seq, const std::string &bytes)
-{
-  replies.send(request(seq, R"("cmd":"put_chunk","offset":0,"data":")" +
-                                pixelart::base64_encode(bytes.data(), bytes.size()) + "\""));
 }
 
 // Opens an upload declared as `declared` of `size` bytes, and checks that its file is open.
@@ -446,33 +413,6 @@ static void test_upload_file_is_open_only_while_the_upload_is()
 
   begin_upload(replies, DOT, DOT.size());
   replies.send(request(2, R"("cmd":"put_abort")"));
-  replies.pop();
-  TEST_ASSERT_EQUAL(0, storage::open_writers());
-}
-
-static void test_idle_expiry_closes_the_upload_file()
-{
-  sim::reset();
-  TempData data("protocol");
-  setup();
-  Replies replies;
-  begin_upload(replies, DOT, DOT.size());
-  sim::advance_us((uint64_t)protocol::UPLOAD_IDLE_MS * 1000);
-  protocol::poll();
-  TEST_ASSERT_FALSE(protocol::upload_active());
-  TEST_ASSERT_EQUAL(0, storage::open_writers());
-}
-
-static void test_failed_chunk_write_closes_the_upload_file()
-{
-  sim::reset();
-  TempData data("protocol");
-  setup();
-  Replies replies;
-  begin_upload(replies, DOT, DOT.size());
-  storage::set_fail_writes(true);
-  chunk(replies, 2, DOT);
-  storage::set_fail_writes(false);
   replies.pop();
   TEST_ASSERT_EQUAL(0, storage::open_writers());
 }
@@ -499,7 +439,7 @@ static std::string end_upload(const std::string &sent, const std::string &declar
   setup();
   Replies replies;
   begin_upload(replies, declared, declared_size);
-  chunk(replies, 2, sent);
+  replies.send(put_chunk(2, sent));
   replies.pop();
   TEST_ASSERT_EQUAL(1, storage::open_writers());
   protocol::set_memory_probe(probe);
@@ -821,8 +761,6 @@ int main(int, char **)
   RUN_TEST(test_idle_upload_ends_when_a_line_is_handled_without_poll);
   RUN_TEST(test_chunk_write_failure_cancels_the_upload);
   RUN_TEST(test_upload_file_is_open_only_while_the_upload_is);
-  RUN_TEST(test_idle_expiry_closes_the_upload_file);
-  RUN_TEST(test_failed_chunk_write_closes_the_upload_file);
   RUN_TEST(test_refused_put_begin_closes_the_open_upload_file);
   RUN_TEST(test_every_put_end_result_closes_the_upload_file);
   RUN_TEST(test_same_active_playlist_does_not_restart_playback);

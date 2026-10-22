@@ -2,7 +2,7 @@
 // and coordinate pairs, every text that is not a plain word in double quotes
 // (so every hex color is quoted).
 
-import { JsonNumber, type JsonValue } from "../engine/json";
+import { JsonNumber, type JsonValue } from "../engine";
 import { jsonNumber } from "./writeJson";
 
 const WIDTH = 100;

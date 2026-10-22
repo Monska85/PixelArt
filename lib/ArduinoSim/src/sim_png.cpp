@@ -5,33 +5,14 @@
 #include <cstring>
 #include <fstream>
 
+#include <pixel_codec.h>
+
 #include "sim_internal.h"
 
 namespace sim::detail
 {
 namespace
 {
-
-uint32_t crc32(const uint8_t *data, size_t len)
-{
-  static uint32_t table[256];
-  static bool init = false;
-  if (!init)
-  {
-    for (uint32_t n = 0; n < 256; n++)
-    {
-      uint32_t c = n;
-      for (int k = 0; k < 8; k++)
-        c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
-      table[n] = c;
-    }
-    init = true;
-  }
-  uint32_t crc = 0xFFFFFFFFu;
-  for (size_t i = 0; i < len; i++)
-    crc = table[(crc ^ data[i]) & 0xff] ^ (crc >> 8);
-  return ~crc;
-}
 
 void put32(std::string &s, uint32_t v)
 {
@@ -44,9 +25,9 @@ void put32(std::string &s, uint32_t v)
 void png_chunk(std::string &out, const char *type, const std::string &data)
 {
   put32(out, (uint32_t)data.size());
-  std::string body = std::string(type, 4) + data;
-  out += body;
-  put32(out, crc32((const uint8_t *)body.data(), body.size()));
+  out.append(type, 4);
+  out += data;
+  put32(out, pixelart::crc32(data.data(), data.size(), pixelart::crc32(type, 4)));
 }
 
 // zlib stream made of stored (uncompressed) deflate blocks.

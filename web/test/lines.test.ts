@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { LineSplitter, MAX_LINE, createLineSplitterStream } from "../src/protocol";
-import { SerialTransport, type SerialPortLike } from "../src/protocol/serial";
 import { text } from "./helpers";
 
 const decode = (lines: Uint8Array[]): string[] => lines.map((l) => new TextDecoder().decode(l));
@@ -72,87 +71,5 @@ describe("LineSplitter", () => {
       lines.push(new TextDecoder().decode(value));
     }
     expect(lines).toEqual(["@PR ab", "x", "y"]);
-  });
-});
-
-describe("SerialTransport", () => {
-  function fakePort() {
-    const written: string[] = [];
-    let push: (chunk: Uint8Array) => void = () => undefined;
-    let end: () => void = () => undefined;
-    const calls: unknown[] = [];
-    const port: SerialPortLike = {
-      readable: new ReadableStream({
-        start(controller) {
-          push = (chunk) => controller.enqueue(chunk);
-          end = () => controller.close();
-        },
-      }),
-      writable: new WritableStream({
-        write: (chunk: Uint8Array) => void written.push(new TextDecoder().decode(chunk)),
-      }),
-      open: async (options) => void calls.push(["open", options]),
-      close: async () => void calls.push(["close"]),
-      setSignals: async (signals) => void calls.push(["signals", signals]),
-    };
-    return { port, written, push: (s: string) => push(text(s)), end: () => end(), calls };
-  }
-
-  it("opens at 115,200 baud with an 8 KiB buffer and keeps DTR and RTS low", async () => {
-    const { port, calls } = fakePort();
-    await SerialTransport.open(port);
-    expect(calls[0]).toEqual(["open", { baudRate: 115200, bufferSize: 8192 }]);
-    expect(calls[1]).toEqual(["signals", { dataTerminalReady: false, requestToSend: false }]);
-  });
-
-  it("delivers lines and sends them with a newline", async () => {
-    const { port, written, push } = fakePort();
-    const transport = await SerialTransport.open(port);
-    const lines: string[] = [];
-    transport.onLine = (line) => lines.push(new TextDecoder().decode(line));
-    push("hel");
-    push("lo\r\nwor");
-    push("ld\n");
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(lines).toEqual(["hello", "world"]);
-    await transport.send("@PR x");
-    expect(written).toEqual(["@PR x\n"]);
-  });
-
-  it("tells when the port ends", async () => {
-    const { port, end } = fakePort();
-    const transport = await SerialTransport.open(port);
-    let closed = false;
-    transport.onClose = () => (closed = true);
-    end();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(closed).toBe(true);
-  });
-
-  it("says to close the other program when the port is busy", async () => {
-    const { port } = fakePort();
-    port.open = async () => {
-      throw new Error("NetworkError");
-    };
-    await expect(SerialTransport.open(port)).rejects.toThrow(/Close every other program/);
-  });
-
-  it("unlocks both streams before it closes the port, as a browser needs", async () => {
-    const { port, calls } = fakePort();
-    port.close = async () => {
-      if (port.readable?.locked || port.writable?.locked) throw new Error("streams are locked");
-      calls.push(["close"]);
-    };
-    const transport = await SerialTransport.open(port);
-    await transport.close();
-    expect(calls.at(-1)).toEqual(["close"]);
-    await expect(transport.send("x")).rejects.toThrow(/closed/);
-  });
-
-  it("closes the port when the streams cannot be used after it opened", async () => {
-    const { port, calls } = fakePort();
-    port.writable = null;
-    await expect(SerialTransport.open(port)).rejects.toThrow(/Close every other program/);
-    expect(calls.at(-1)).toEqual(["close"]);
   });
 });

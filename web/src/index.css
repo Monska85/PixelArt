@@ -18,7 +18,6 @@
   --primary: #1d4ed8;
   --primary-foreground: #ffffff;
   --secondary: #e4e4e7;
-  --secondary-foreground: #18181b;
   --accent: #e4e4e7;
   --accent-foreground: #18181b;
   --destructive: #b91c1c;
@@ -46,7 +45,6 @@
   --primary: #60a5fa;
   --primary-foreground: #09090b;
   --secondary: #27272a;
-  --secondary-foreground: #fafafa;
   --accent: #27272a;
   --accent-foreground: #fafafa;
   --destructive: #f87171;
@@ -75,7 +73,6 @@
     --primary: #60a5fa;
     --primary-foreground: #09090b;
     --secondary: #27272a;
-    --secondary-foreground: #fafafa;
     --accent: #27272a;
     --accent-foreground: #fafafa;
     --destructive: #f87171;
@@ -103,7 +100,6 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -119,10 +115,7 @@
   --font-sans: system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
   --animate-fade-in: fade-in 150ms ease-out;
-  --animate-fade-out: fade-out 100ms ease-in;
   --animate-slide-up: slide-up 200ms ease-out;
-  --animate-slide-down: slide-down 150ms ease-in;
-  --animate-slide-in-right: slide-in-right 200ms ease-out;
   --animate-toast-in: toast-in 200ms ease-out;
   --animate-toast-out: fade-out 100ms ease-in;
   --animate-spin-slow: spin 1s linear infinite;
@@ -144,20 +137,6 @@
   from {
     opacity: 0;
     transform: translateY(1rem);
-  }
-}
-
-@keyframes slide-down {
-  to {
-    opacity: 0;
-    transform: translateY(1rem);
-  }
-}
-
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(1rem);
   }
 }
 

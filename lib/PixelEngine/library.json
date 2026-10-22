@@ -5,6 +5,7 @@
   "frameworks": "*",
   "platforms": "*",
   "dependencies": {
-    "bblanchon/ArduinoJson": "^7.4.3"
+    "bblanchon/ArduinoJson": "^7.4.3",
+    "PixelCodec": "*"
   }
 }

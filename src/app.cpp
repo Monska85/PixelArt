@@ -25,8 +25,6 @@
 namespace
 {
 
-const char *ANIMATIONS_FOLDER = "/animations";
-const char *PLAYLISTS_FOLDER = "/playlists";
 const char *JSON_SUFFIX = ".json";
 constexpr uint32_t NO_ANIMATIONS_MS = 2000;
 // Distinct problems remembered by report_once; beyond this they are not
@@ -139,7 +137,7 @@ void draw(const pixelart::Frame &frame, uint8_t percent)
     {
       pixelart::Rgb c = frame.pixels[y][x];
       if (c)
-        matrix.drawPixel(x, y, rgb565(c >> 16, c >> 8, c));
+        matrix.drawPixel(x, y, Adafruit_NeoMatrix::Color(c >> 16, c >> 8, c));
     }
   matrix.show();
   wait(frame.ms);
@@ -153,7 +151,7 @@ void show_no_animations()
   restart_schedule();
   matrix.fillScreen(0);
   for (const auto &p : QUESTION_MARK)
-    matrix.drawPixel(p[0], p[1], rgb565(96, 96, 96));
+    matrix.drawPixel(p[0], p[1], Adafruit_NeoMatrix::Color(96, 96, 96));
   matrix.show();
   wait(NO_ANIMATIONS_MS);
 }

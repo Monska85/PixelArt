@@ -8,16 +8,12 @@ import { type Manifest, type Published, type PublishedKind } from "../../release
 import { useUploadDialogs } from "../common/UploadDialogs";
 import { toast } from "../components/toast";
 import { toShownError, type ShownError } from "../errors";
-import { idFromFileName, inspectFile, readPicked, suggestId, validateFile } from "../files";
+import { SUPPORTED_FILE, idFromFileName, inspectFile, readPicked, suggestId, validateFile } from "../files";
 import { session } from "../session";
 import { sendQueue, useUploadRunning } from "../upload";
 import { queueProblem, refusalProblem, summaryReport, type QueueOutcome } from "./summary";
 
-const SUPPORTED = /\.(json|ya?ml)$/i;
-
-const isSupportedFile = (name: string): boolean => SUPPORTED.test(name);
-
-export interface QueueOptions {
+interface QueueOptions {
   /**
    * The published release to take missing animations from. `undefined` reads it when a playlist needs it, `null`
    * says there is none (the editor's single animation never needs it).
@@ -42,8 +38,6 @@ interface Hook {
   onFinished: () => void;
 }
 
-export type { QueueOutcome };
-
 export interface UploadQueue {
   /** Render once, anywhere in the view. */
   dialogs: ReactNode;
@@ -58,6 +52,8 @@ export interface UploadQueue {
   ) => Promise<QueueOutcome | null>;
   /** Files the caller already checked. */
   uploadPrepared: (files: QueueFile[], options?: QueueOptions) => Promise<QueueOutcome>;
+  /** Asks for an ID, through the queue's own dialogs. */
+  askId: ReturnType<typeof useUploadDialogs>["askId"];
 }
 
 /**
@@ -156,7 +152,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
     exclusive(options.quiet, (client) => run(client, files, options));
 
   async function uploadFiles(picked: File[]): Promise<QueueOutcome | null> {
-    const list = picked.filter((file) => isSupportedFile(file.name));
+    const list = picked.filter((file) => SUPPORTED_FILE.test(file.name));
     if (list.length === 0) return null;
     return exclusive(false, async (client) => {
       const files: QueueFile[] = [];
@@ -231,5 +227,5 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
     });
   }
 
-  return { dialogs, busy: busy || uploading, uploadFiles, install, uploadPrepared };
+  return { dialogs, busy: busy || uploading, uploadFiles, install, uploadPrepared, askId };
 }

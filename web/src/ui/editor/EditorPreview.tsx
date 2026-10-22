@@ -21,11 +21,18 @@ interface Shown {
   path: readonly number[];
 }
 
-function startFrame(animation: Animation, selected: Path | null): Shown | null {
-  const n = (selected && firstFrameOf(animation, selected)) || 1;
+/** Frame `n` of the animation, or null past its end. */
+function shownAt(animation: Animation, n: number): Shown | null {
   const at = frameAt(animation, n);
   return at ? { n, ...at } : null;
 }
+
+const startFrame = (animation: Animation, selected: Path | null): Shown | null =>
+  shownAt(animation, (selected && firstFrameOf(animation, selected)) || 1);
+
+/** The frame after `current`, back to the first after the last. */
+const step = (current: Shown, animation: Animation): Shown | null =>
+  shownAt(animation, current.n + 1) ?? shownAt(animation, 1);
 
 /** Plays the animation with play, pause and step, and says which timeline item made the frame. */
 export function EditorPreview({ animation, selected }: Props) {
@@ -47,13 +54,6 @@ export function EditorPreview({ animation, selected }: Props) {
   useEffect(() => {
     if (shown) drawFrame(canvas.current, shown.frame);
   }, [shown]);
-
-  const step = (current: Shown, anim: Animation): Shown | null => {
-    const next = frameAt(anim, current.n + 1);
-    if (next) return { n: current.n + 1, ...next };
-    const first = frameAt(anim, 1);
-    return first ? { n: 1, ...first } : null;
-  };
 
   useEffect(() => {
     if (!playing || !shown || !animation) return;

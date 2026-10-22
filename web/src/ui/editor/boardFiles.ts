@@ -1,5 +1,5 @@
 import type { BoardFiles } from "../../editor/saves";
-import { useSession, type Snapshot } from "../session";
+import type { Snapshot } from "../session";
 
 /**
  * The connected board's animations as the save state needs them: null while no board is connected, "unknown" while
@@ -14,8 +14,4 @@ export function boardFilesOf({ state, files }: Snapshot): BoardFiles {
     entries: list.entries.map((e) => ({ id: e.id, sha256: e.sha256 })),
     staleSince: list.staleSince,
   };
-}
-
-export function useSaveStateBoardFiles(): BoardFiles {
-  return boardFilesOf(useSession());
 }

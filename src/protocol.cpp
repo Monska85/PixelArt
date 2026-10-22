@@ -44,8 +44,6 @@ constexpr size_t MAX_SHA256_DIGITS = 64;
 constexpr size_t MAX_LIST_NAME = 128;
 constexpr size_t MAX_BYTES_PER_POLL = 512;
 const char *TEMP_FILE = "/upload.tmp";
-const char *PLAYLISTS_DIR = "/playlists";
-const char *ANIMATIONS_DIR = "/animations";
 const char OUT_OF_MEMORY_MESSAGE[] = "not enough free memory to validate the file";
 
 // Memory a file needs for validation: one block for the file, and the parsed
@@ -579,7 +577,6 @@ Status cmd_put_begin(JsonObjectConst request, JsonDocument &)
   Upload fresh;
   if (!fresh.writer.open(TEMP_FILE))
   {
-    fresh.writer.close();
     storage::remove(TEMP_FILE);
     return fail("storage_error", "the temporary file cannot be created");
   }
@@ -784,17 +781,13 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   if (Status s = allow_only(request, {"settings"}); s.code)
     return s;
   // A missing field means false; any value but true or false, null included, is refused.
-  bool reset = false;
-  for (JsonPairConst field : request)
-    if (field.key() == "settings")
-    {
-      if (!field.value().is<bool>())
-        return fail("bad_request", "settings must be true or false");
-      reset = field.value().as<bool>();
-    }
+  JsonVariantConst settings_field = request["settings"];
+  if (!settings_field.isUnbound() && !settings_field.is<bool>())
+    return fail("bad_request", "settings must be true or false");
+  bool reset = settings_field.as<bool>();
   cancel_upload();
   size_t playlists = 0, animations = 0;
-  bool done = remove_all_files(PLAYLISTS_DIR, playlists) && remove_all_files(ANIMATIONS_DIR, animations);
+  bool done = remove_all_files(PLAYLISTS_FOLDER, playlists) && remove_all_files(ANIMATIONS_FOLDER, animations);
   if (playlists > 0)
     request_playlist_reload();
   if (!done)

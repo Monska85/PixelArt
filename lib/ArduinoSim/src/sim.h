@@ -53,7 +53,6 @@ struct Panel
 
 const std::vector<Frame> &frames();
 const std::vector<SerialLine> &serial();
-const Panel &panel();
 uint64_t now_us();
 unsigned long seed();
 
@@ -65,8 +64,8 @@ void set_data_dir(const std::string &dir);
 // consumed by Serial.read().
 void serial_input(const std::string &bytes);
 size_t serial_input_size();
-// Next input byte (removed from the queue when `consume`), or -1 when empty.
-int serial_input_read(bool consume);
+// Next input byte (removed from the queue), or -1 when empty.
+int serial_input_read();
 
 // WebSocket transport for the command protocol (sim_ws.cpp), for real-time
 // runs. Each text message from the client is one protocol line queued as
@@ -74,6 +73,14 @@ int serial_input_read(bool consume);
 // ws_listen() binds 127.0.0.1 only (port 0 picks a free port: see ws_port())
 // and accepts the origins of docs/protocol/protocol-v1.md plus `extra_origins`.
 // ws_poll() never blocks: call it often.
+// A connection is dropped when its handshake, or its closing, takes longer than
+// these milliseconds. The native tests build with shorter values.
+#ifndef PIXELART_WS_HANDSHAKE_MS
+#define PIXELART_WS_HANDSHAKE_MS 5000
+#endif
+#ifndef PIXELART_WS_CLOSE_MS
+#define PIXELART_WS_CLOSE_MS 1000
+#endif
 bool ws_listen(unsigned port, const std::vector<std::string> &extra_origins, std::string &error);
 void ws_poll();
 // Waits up to `limit` (rounded up to a whole millisecond) for the sockets to need service, serves

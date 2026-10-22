@@ -19,7 +19,6 @@ export default defineConfig({
   // Every test starts its own simulator on its own port.
   workers: 2,
   fullyParallel: true,
-  retries: 0,
   timeout: 60_000,
   reporter: process.env.CI
     ? [["list"], ["html", { open: "never", outputFolder: "playwright-report-screenshots" }]]
@@ -44,11 +43,9 @@ export default defineConfig({
     command: "node e2e/serve-site.mjs",
     env: {
       PORT: String(PORT),
-      PIXELART_DATA: here("./screenshots/board-files"),
       PIXELART_PUBLISHED: here("./screenshots/site-published.json"),
     },
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: false,
     timeout: 30_000,
   },
 });

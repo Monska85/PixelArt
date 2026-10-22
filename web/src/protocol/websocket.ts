@@ -9,7 +9,7 @@ const CONNECT_TRIES = 5;
 const RETRY_DELAY_MS = 200;
 
 /** The address to connect to, or an error message. Only ws:// addresses are accepted. */
-export function checkSimulatorUrl(text: string): { ok: true; url: string } | { ok: false; message: string } {
+function checkSimulatorUrl(text: string): { ok: true; url: string } | { ok: false; message: string } {
   try {
     const url = new URL(text.trim());
     if (url.protocol === "ws:" && url.hostname !== "") return { ok: true, url: url.toString() };
@@ -62,7 +62,7 @@ export class WebSocketTransport implements Transport {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
       }
     }
-    throw new Error(`Cannot connect to ${checked.url}. Is the simulator running (make serve)?`.trim());
+    throw new Error(`Cannot connect to ${checked.url}. Is the simulator running (make serve)?`);
   }
 
   async send(line: string): Promise<void> {

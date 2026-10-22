@@ -4,6 +4,7 @@ import {
   BoardError,
   CONNECTION_LOST,
   NO_REPLY,
+  PUT_END_TIMEOUT_MS,
   TRIES,
   crc32,
   decodeLine,
@@ -148,7 +149,7 @@ describe("client", () => {
   it("waits 10 seconds for put_end", async () => {
     board.fault = (_i, r) => (r.cmd === "put_end" ? "drop" : undefined);
     await client.command("put_begin", { kind: "animation", id: "a", size: 0, sha256: "0".repeat(64) });
-    const result = client.request("put_end", {}, client.putEndTimeout).catch((e: unknown) => e);
+    const result = client.request("put_end", {}, PUT_END_TIMEOUT_MS).catch((e: unknown) => e);
     await vi.advanceTimersByTimeAsync(9999);
     expect(board.requests.filter((r) => r.cmd === "put_end")).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1);

@@ -1,17 +1,22 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
-import { connectSimulator, expect, openFromLibrary, test } from "./fixtures";
+import {
+  animations,
+  connectSimulator,
+  expect,
+  file,
+  openFromLibrary,
+  settled,
+  stored,
+  test,
+  text,
+  upload,
+} from "./fixtures";
 
-const file = (name: string): string => fileURLToPath(new URL(`./files/${name}`, import.meta.url));
 const editorLink = (page: Page) => page.getByRole("link", { name: "Editor" });
 const yamlTab = (page: Page) => page.getByRole("tab", { name: "YAML" });
 const visualTab = (page: Page) => page.getByRole("tab", { name: "Visual" });
 const diagnostics = (page: Page) => page.getByTestId("diagnostics");
-
-/** Waits until the engine has checked the latest change: the preview and the diagnostics follow it. */
-const settled = (page: Page) => expect(diagnostics(page)).toHaveAttribute("aria-busy", "false");
 
 async function pixel(page: Page, x: number, y: number): Promise<number[]> {
   return page
@@ -29,12 +34,6 @@ async function pixel(page: Page, x: number, y: number): Promise<number[]> {
 const RED = [255, 0, 0, 255];
 const BLUE = [0, 0, 255, 255];
 const BLACK = [0, 0, 0, 255];
-
-async function text(page: Page, label: string, value: string): Promise<void> {
-  const field = page.getByLabel(label, { exact: true });
-  await field.fill(value);
-  await field.press("Enter");
-}
 
 /** Opens the editor on the new animation of the template. */
 async function openEditor(page: Page): Promise<void> {
@@ -228,13 +227,11 @@ test("saves YAML with the hex colors quoted and uploads to the board", async ({ 
   // Upload: the ID is kept, the board stores the JSON.
   await page.getByRole("button", { name: "Upload to board" }).click();
   await expect(page.getByTestId("save-outcome")).toContainText("Uploaded animation e2e_edit");
-  const stored = join(simulator.dataDir, "animations", "e2e_edit.json");
-  expect(existsSync(stored)).toBe(true);
-  expect(JSON.parse(readFileSync(stored, "utf8")).name).toBe("Blue Dot");
+  const path = stored(simulator, "animations", "e2e_edit");
+  expect(existsSync(path)).toBe(true);
+  expect(JSON.parse(readFileSync(path, "utf8")).name).toBe("Blue Dot");
   await page.getByRole("link", { name: "Board" }).click();
-  await expect(
-    page.getByRole("table", { name: "Animations on the board" }).locator("code", { hasText: /^e2e_edit$/ }),
-  ).toBeVisible();
+  await expect(animations(page).locator("code", { hasText: /^e2e_edit$/ })).toBeVisible();
 
   // The same content again needs no question.
   await editorLink(page).click();
@@ -272,7 +269,7 @@ test("does not upload an animation with errors", async ({ page, simulator }) => 
   await dialog.getByRole("button", { name: "Use this ID" }).click();
   await expect(page.getByTestId("save-outcome")).toContainText("has errors and was not uploaded");
   await expect(page.getByTestId("save-outcome")).toContainText("empty_sprite");
-  expect(existsSync(join(simulator.dataDir, "animations", "with_errors.json"))).toBe(false);
+  expect(existsSync(stored(simulator, "animations", "with_errors"))).toBe(false);
 });
 
 test("opens a stored animation from the Board view and asks before replacing unsaved changes", async ({
@@ -308,17 +305,11 @@ test("opens a YAML file, refuses a playlist and a broken file", async ({ page })
   await expect(page.getByTestId("editor-id")).toHaveText("dot");
   await expect(page.getByTestId("editor-source")).toContainText("dot.yaml");
 
-  await page.locator("#editor-open").setInputFiles({
-    name: "list.json",
-    mimeType: "application/json",
-    buffer: Buffer.from('{"format":"pixelart-playlist/1","name":"x","items":[]}'),
-  });
+  await page
+    .locator("#editor-open")
+    .setInputFiles(upload("list.json", '{"format":"pixelart-playlist/1","name":"x","items":[]}'));
   await expect(page.getByRole("alert")).toContainText("playlist");
-  await page.locator("#editor-open").setInputFiles({
-    name: "broken.json",
-    mimeType: "application/json",
-    buffer: Buffer.from("{'format': 1}"),
-  });
+  await page.locator("#editor-open").setInputFiles(upload("broken.json", "{'format': 1}"));
   await expect(page.getByRole("alert")).toContainText("not valid JSON");
   await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Dot");
 });
@@ -365,10 +356,9 @@ test("works when the browser storage is unavailable", async ({ page }) => {
 
 test("shows file text as text, never as markup", async ({ page }) => {
   await openEditor(page);
-  await page.locator("#editor-open").setInputFiles({
-    name: "xss.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(
+  await page.locator("#editor-open").setInputFiles(
+    upload(
+      "xss.json",
       JSON.stringify({
         format: "pixelart/1",
         name: '<img src=x onerror="window.pwned=1">',
@@ -379,7 +369,7 @@ test("shows file text as text, never as markup", async ({ page }) => {
         timeline: [{ show: ["dot"] }],
       }),
     ),
-  });
+  );
   await expect(page.getByLabel("Name", { exact: true })).toHaveValue('<img src=x onerror="window.pwned=1">');
   await expect(page.getByTestId("editor-source")).toContainText("xss.json");
   expect(await page.evaluate(() => (window as unknown as { pwned?: number }).pwned)).toBeUndefined();

@@ -2,15 +2,16 @@
 // (docs/protocol/protocol-v1.md): one request in flight, a random first seq,
 // retries with the same seq, an immediate resend on bad_frame.
 
+import { FILE_LIMITS, MAX_DIAGNOSTICS } from "../engine/types";
 import { decodeLine, encodeLine, type Body } from "./framing";
+import { isCount, isRecord } from "./guards";
 import type { Transport } from "./transport";
 
-export const REQUEST_TIMEOUT_MS = 2000;
+const REQUEST_TIMEOUT_MS = 2000;
 export const PUT_END_TIMEOUT_MS = 10_000;
 export const TRIES = 5;
-export const PROTOCOL_VERSION = 1;
+const PROTOCOL_VERSION = 1;
 const DEFAULT_CHUNK = 512;
-const MAX_DIAGNOSTICS = 32;
 
 export type Kind = "animation" | "playlist";
 
@@ -38,8 +39,6 @@ export class BoardError extends Error {
 export const NO_REPLY = "no_reply";
 export const CONNECTION_LOST = "connection_lost";
 
-export type Reply = Body;
-
 export interface BoardInfo {
   protocol: number;
   firmware: string;
@@ -50,15 +49,12 @@ export interface BoardInfo {
   limits: { line: number; chunk: number; page: number; animation: number; playlist: number };
 }
 
-const isRecord = (value: unknown): value is Body =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-const count = (value: unknown): number | null =>
-  typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+const count = (value: unknown): number | null => (isCount(value) ? value : null);
 const strings = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((s): s is string => typeof s === "string") : [];
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
-export function parseInfo(reply: Reply): BoardInfo {
+function parseInfo(reply: Body): BoardInfo {
   const formats = isRecord(reply.formats) ? reply.formats : {};
   const storage = isRecord(reply.storage) ? reply.storage : {};
   const limits = isRecord(reply.limits) ? reply.limits : {};
@@ -75,8 +71,8 @@ export function parseInfo(reply: Reply): BoardInfo {
       line: count(limits.line) ?? 1024,
       chunk: count(limits.chunk) || DEFAULT_CHUNK,
       page: count(limits.page) ?? 8,
-      animation: count(limits.animation) ?? 64 * 1024,
-      playlist: count(limits.playlist) ?? 16 * 1024,
+      animation: count(limits.animation) ?? FILE_LIMITS.animation,
+      playlist: count(limits.playlist) ?? FILE_LIMITS.playlist,
     },
   };
 }
@@ -96,25 +92,23 @@ export function parseDiagnostics(value: unknown): WireDiagnostic[] {
   return out;
 }
 
-export function errorFromReply(reply: Reply): BoardError {
+export function errorFromReply(reply: Body): BoardError {
   const code = text(reply.error) || "error";
   let message = text(reply.message);
   if (code === "bad_offset" && typeof reply.expected === "number") message += ` (expected offset ${reply.expected})`;
   return new BoardError(code, message, parseDiagnostics(reply.diagnostics), reply);
 }
 
-type Outcome = { kind: "reply"; reply: Reply } | { kind: "again" } | { kind: "timeout" } | { kind: "closed" };
+type Outcome = { kind: "reply"; reply: Body } | { kind: "again" } | { kind: "timeout" } | { kind: "closed" };
 
 interface Waiter {
   seq: number;
   resolve: (outcome: Outcome) => void;
 }
 
-export interface ClientOptions {
+interface ClientOptions {
   /** First seq; default random. For tests. */
   firstSeq?: number;
-  requestTimeoutMs?: number;
-  putEndTimeoutMs?: number;
 }
 
 export class BoardClient {
@@ -122,8 +116,6 @@ export class BoardClient {
   private waiter: Waiter | null = null;
   private queue: Promise<unknown> = Promise.resolve();
   private closed = false;
-  private readonly requestTimeoutMs: number;
-  private readonly putEndTimeoutMs: number;
   /** Set after the handshake. */
   info: BoardInfo | null = null;
   /** Called when the client gave up on a request or the link ended. */
@@ -137,14 +129,8 @@ export class BoardClient {
   ) {
     // A fresh run never reuses a seq the board still remembers.
     this.seq = options.firstSeq ?? ((crypto.getRandomValues(new Uint32Array(1))[0] as number) % 2 ** 31) + 1;
-    this.requestTimeoutMs = options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
-    this.putEndTimeoutMs = options.putEndTimeoutMs ?? PUT_END_TIMEOUT_MS;
     transport.onLine = (line) => this.receive(line);
     transport.onClose = (reason) => this.linkClosed(reason ?? "the connection closed");
-  }
-
-  get putEndTimeout(): number {
-    return this.putEndTimeoutMs;
   }
 
   get chunkSize(): number {
@@ -194,7 +180,7 @@ export class BoardClient {
   }
 
   /** Sends a request and returns the reply, whether it succeeded or not. Throws BoardError when no reply comes. */
-  request(cmd: string, fields: Body = {}, timeoutMs: number = this.requestTimeoutMs): Promise<Reply> {
+  request(cmd: string, fields: Body = {}, timeoutMs: number = REQUEST_TIMEOUT_MS): Promise<Body> {
     return this.serial(async () => {
       if (this.closed) throw new BoardError(CONNECTION_LOST, "the connection is closed");
       this.seq = (this.seq + 1) % 2 ** 32;
@@ -219,7 +205,7 @@ export class BoardClient {
   }
 
   /** Like request(), but a failure reply throws a BoardError carrying the board's diagnostics. */
-  async command(cmd: string, fields: Body = {}, timeoutMs?: number): Promise<Reply> {
+  async command(cmd: string, fields: Body = {}, timeoutMs?: number): Promise<Body> {
     const reply = await this.request(cmd, fields, timeoutMs);
     if (reply.ok !== true) throw errorFromReply(reply);
     return reply;

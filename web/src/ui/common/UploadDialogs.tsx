@@ -10,14 +10,12 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { Field } from "./Field";
 import { takeOpener } from "./focusReturn";
 
-export type { DifferingChoice };
-
 type Prompt =
   | { type: "id"; intro: string; suggestion: string; resolve: (id: string | null) => void }
   | { type: "differing"; entries: PlanEntry[]; resolve: (choice: DifferingChoice | null) => void }
   | { type: "missing"; missing: Resolution["missing"]; resolve: (go: boolean) => void };
 
-const ID_RULE = "Lowercase letters, digits, _ and -, starting with a letter or digit, at most 32 characters.";
+export const ID_RULE = "Lowercase letters, digits, _ and -, starting with a letter or digit, at most 32 characters.";
 
 function IdDialog({
   intro,

@@ -17,9 +17,9 @@ import {
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
-import { EditorCard, ButtonRow } from "./EditorCard";
+import { EditorCard, ButtonRow, type Edit } from "./EditorCard";
 import { TextField } from "./Fields";
-import type { Edit } from "./types";
+import { plural } from "../format";
 
 interface Props {
   doc: Doc;
@@ -122,8 +122,8 @@ export function SpritesPanel({ doc, edit, selected, onSelect }: Props) {
           onConfirm={() => remove(deleting)}
         >
           <p>
-            The sprite {deleting} is used {uses} time{uses === 1 ? "" : "s"} in frames and composite sprites. Those
-            entries are removed too.
+            The sprite {deleting} is used {plural(uses, "time")} in frames and composite sprites. Those entries are
+            removed too.
           </p>
         </ConfirmDialog>
       )}

@@ -20,8 +20,13 @@ export const MAX_MS = 60000;
 export const MIN_COORD = -128;
 export const MAX_COORD = 127;
 export const DEFAULT_FRAME_MS = 500;
+/** A sprite or palette name, and a #rrggbb color. */
+export const NAME_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
+export const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 export const MAX_PLAYLIST_FILE_SIZE = 16 * 1024;
+/** The largest file of each kind a board stores. */
+export const FILE_LIMITS = { animation: MAX_FILE_SIZE, playlist: MAX_PLAYLIST_FILE_SIZE } as const;
 export const MAX_PLAYLIST_ITEMS = 256;
 export const MAX_PLAYLIST_REPEAT = 1000;
 
@@ -48,7 +53,7 @@ export interface Pos {
   y: number;
 }
 
-export interface Point {
+interface Point {
   x: number;
   y: number;
   color: number;

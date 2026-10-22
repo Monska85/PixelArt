@@ -25,13 +25,13 @@ Only one program can open the serial port at a time. A client and the serial mon
 
 ### WebSocket (simulator)
 
-The simulator serves the protocol with `--ws [PORT]`, default port 8765, in real-time runs only. It listens on `127.0.0.1` only and serves one client at a time; a second connection is refused until the first one closes.
+The simulator serves the protocol with `--ws [PORT]`, default port 8765, in real-time runs only. It listens on `127.0.0.1` only and serves one client at a time; a second connection is refused with HTTP status 503 until the first one closes.
 
 - Every WebSocket text message carries exactly one protocol line, with the same framing as on the serial port and without the final newline.
 - The 1,024-byte [line limit](#limits) counts the whole message, after the simulator reassembles it from fragments. A longer message closes the connection with status 1009. A binary message closes it with status 1003. A text message that contains a newline closes it with status 1008, and one that is not valid UTF-8 closes it with status 1007.
 - The simulator accepts the WebSocket handshake on any request path.
 - The simulator sends only protocol lines over the WebSocket. Clients still ignore any line without the protocol marker, as on the serial port.
-- **Origin check.** Any web page can open a WebSocket to `localhost`, so the simulator accepts a connection only when its `Origin` header is missing (command line clients), is `http://localhost` or `http://127.0.0.1` with any port, or is `https://monska85.github.io`. `--ws-origin ORIGIN` adds another one. Any other origin is refused with HTTP status 403. This keeps a website you happen to visit from rewriting the simulator's files.
+- **Origin check.** Any web page can open a WebSocket to `localhost`, so the simulator accepts a connection only when its `Origin` header is missing (command line clients), is `http://localhost` or `http://127.0.0.1` with any port, or is `https://monska85.github.io`. `--ws-origin ORIGIN`, which can be repeated, adds another one. Any other origin is refused with HTTP status 403. This keeps a website you happen to visit from rewriting the simulator's files.
 
 Uploads and deletions through the simulator change its data folder (`data/` or the folder given with `--data`). `make data` writes the converted repository files there again.
 

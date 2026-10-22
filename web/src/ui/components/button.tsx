@@ -4,18 +4,16 @@ import { Loader2 } from "lucide-react";
 import type { ButtonHTMLAttributes, Ref } from "react";
 import { cn } from "./cn";
 
-export const buttonVariants = cva(
+const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default: "border border-transparent bg-primary text-primary-foreground hover:bg-primary/90",
-        secondary: "border border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         outline: "border border-input bg-card text-foreground hover:bg-accent hover:text-accent-foreground",
         ghost: "border border-transparent text-foreground hover:bg-accent hover:text-accent-foreground",
         destructive: "border border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/90",
         "destructive-outline": "border border-destructive bg-card text-destructive hover:bg-destructive-soft",
-        link: "border border-transparent px-0 text-primary underline underline-offset-4 hover:no-underline",
       },
       size: {
         default: "h-9 px-4 py-2",

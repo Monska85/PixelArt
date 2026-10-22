@@ -21,6 +21,7 @@ protocol of docs/protocol/protocol-v1.md. COMMAND is one of:
     get ID [--kind KIND] [-o FILE]     download a file, checked against its SHA-256
     rm ID [--kind KIND]            delete a file
     settings [key=value ...]       show or change brightness and playlist
+    wipe [--settings] [--yes]      delete every animation and playlist, and with --settings reset the settings
 
 The serial port can be open in one program only: close the serial monitor first.
 
@@ -81,6 +82,11 @@ def load_source(path):
     return yaml.load(text, Loader=StrictLoader)
 
 
+def compact_json(document):
+    """The JSON text of a board file, as `build` writes it and `board put` sends it."""
+    return json.dumps(document, separators=(",", ":"), ensure_ascii=False)
+
+
 def build(source, out, use_schema):
     validators = {}
     if use_schema:
@@ -123,7 +129,7 @@ def build(source, out, use_schema):
                     continue
             target = out / kind / f"{name}.json"
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(json.dumps(document, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
+            target.write_text(compact_json(document), encoding="utf-8")
             written += 1
     print(f"pixelart: wrote {written} files to {out}" + (f", {errors} failed" if errors else ""))
     return 1 if errors else 0
@@ -136,13 +142,12 @@ BAUD_RATE = 115200
 REQUEST_TIMEOUT = 2.0  # seconds to wait for a reply
 PUT_END_TIMEOUT = 10.0  # validating a large file takes longer
 TRIES = 5  # sends of one request, the first included
-MAX_REPLY_LINE = 64 * 1024  # the board's lines stay under 16 KiB
+# A reply line is at most 16 KiB (protocol-v1.md, limits): a line or a fragmented message gets that plus margin.
+MAX_LINE = 64 * 1024
 DEFAULT_CHUNK = 512
 KIND_FOLDERS = {"animations": "animation", "playlists": "playlist"}
 KIND_FORMATS = {"pixelart/1": "animation", "pixelart-playlist/1": "playlist"}
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-# A reply line is at most 16 KiB (protocol-v1.md, limits): a fragmented message gets that plus margin.
-MAX_MESSAGE = 64 * 1024
 # The board's own limits (docs/protocol/protocol-v1.md, limits): the most a client accepts when the board names none.
 FILE_LIMITS = {"animation": 64 * 1024, "playlist": 16 * 1024}
 # Control (Cc), format (Cf, which holds the bidirectional overrides and zero-width marks), line and paragraph
@@ -256,7 +261,7 @@ class SerialTransport:
                 line = bytes(self._buffer[:end]).rstrip(b"\r")
                 del self._buffer[: end + 1]
                 return line
-            if len(self._buffer) > MAX_REPLY_LINE:
+            if len(self._buffer) > MAX_LINE:
                 self._buffer.clear()  # a runaway line: wait for the next newline
             if time.monotonic() >= deadline:
                 return None
@@ -279,7 +284,7 @@ class WebSocketTransport:
         self._message = bytearray()
         self._socket = None
         # The simulator serves one client at a time and frees the slot a moment after a close.
-        for attempt in range(TRIES):
+        for _ in range(TRIES):
             try:
                 self._socket = socket.create_connection((host, port), timeout=connect_timeout)
             except OSError as e:
@@ -378,7 +383,7 @@ class WebSocketTransport:
                     raise BoardError("the server closed the WebSocket connection")
                 elif opcode in (0x0, 0x1):
                     self._message += payload
-                    if len(self._message) > MAX_MESSAGE:
+                    if len(self._message) > MAX_LINE:
                         self._close_with(1009)
                         raise BoardError("the server sent a WebSocket message that is too long")
                     if fin:
@@ -666,7 +671,7 @@ def board_put(board, args):
     if not ID_PATTERN.match(file_id):
         raise BoardError(f"invalid ID '{file_id}': use lowercase letters, digits, _ and -, at most 32 characters (--id)")
     # The same bytes `build` writes, so the board holds what `make data` would produce.
-    data = json.dumps(document, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    data = compact_json(document).encode("utf-8")
     try:
         warnings = upload(board, kind, file_id, data)
     except BoardError as e:

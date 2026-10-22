@@ -20,11 +20,9 @@ uint32_t crc32(const void *data, size_t size, uint32_t crc = 0);
 class Sha256
 {
 public:
-  Sha256() { reset(); }
-  void reset();
+  Sha256();
   void update(const void *data, size_t size);
-  // Finishes the hash and returns it as 64 lowercase hexadecimal digits. The
-  // object must be reset before it is used again.
+  // Finishes the hash and returns it as 64 lowercase hexadecimal digits.
   std::string hex_digest();
 
 private:

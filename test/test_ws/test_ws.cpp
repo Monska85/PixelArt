@@ -698,7 +698,8 @@ static void test_wait_wakes_for_a_handshake_past_its_deadline_and_drops_the_clie
   auto start = std::chrono::steady_clock::now();
   sim::ws_wait(LONG_LIMIT);
   long took = elapsed_ms(start);
-  TEST_ASSERT_TRUE_MESSAGE(took >= 4500 && took < 8000, "the wait did not end at the handshake deadline");
+  TEST_ASSERT_TRUE_MESSAGE(took >= PIXELART_WS_HANDSHAKE_MS * 9 / 10 && took < PIXELART_WS_HANDSHAKE_MS + 3000,
+                           "the wait did not end at the handshake deadline");
   TEST_ASSERT_FALSE_MESSAGE(c.read_available(), "the stalled client was not dropped");
 }
 
@@ -712,7 +713,8 @@ static void test_wait_wakes_for_a_refused_socket_past_its_deadline_and_closes_it
   auto start = std::chrono::steady_clock::now();
   sim::ws_wait(LONG_LIMIT);
   long took = elapsed_ms(start);
-  TEST_ASSERT_TRUE_MESSAGE(took >= 700 && took < 4000, "the wait did not end at the refused socket's deadline");
+  TEST_ASSERT_TRUE_MESSAGE(took >= PIXELART_WS_CLOSE_MS * 7 / 10 && took < PIXELART_WS_CLOSE_MS + 3000,
+                           "the wait did not end at the refused socket's deadline");
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
   second.try_send("y"); // the first send after the close draws a reset
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -735,7 +737,7 @@ static void test_wait_serves_input_held_back_once_the_sketch_drains_its_queue()
   }
   TEST_ASSERT_EQUAL(4089 + 6 + 3, sim::serial_input_size());
   while (sim::serial_input_size() > 0) // the sketch reads everything
-    sim::serial_input_read(true);
+    sim::serial_input_read();
   auto start = std::chrono::steady_clock::now();
   sim::ws_wait(LONG_LIMIT);
   TEST_ASSERT_TRUE_MESSAGE(elapsed_ms(start) < 1000, "the wait did not end for the buffered input");

@@ -9,7 +9,7 @@ import { Button } from "../components/button";
 import { Card, CardContent } from "../components/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/tabs";
 import { AnimationPanel } from "./AnimationPanel";
-import { EditorCard } from "./EditorCard";
+import { EditorCard, type Edit } from "./EditorCard";
 import { EditorHeader } from "./EditorHeader";
 import { ColorField } from "./Fields";
 import { EditorPreview } from "./EditorPreview";
@@ -21,7 +21,6 @@ import { TimelinePanel } from "./TimelinePanel";
 import { YamlTab } from "./YamlTab";
 import { navigateAndFocus } from "../navigation";
 import { editorStore, useEditor } from "./store";
-import type { Edit } from "./types";
 import { useValidation } from "./useValidation";
 
 const TABS = [

@@ -49,7 +49,6 @@ uint32_t Frame::at(int x, int y) const
 
 const std::vector<Frame> &frames() { return state().frames; }
 const std::vector<SerialLine> &serial() { return state().serial; }
-const Panel &panel() { return state().panel; }
 uint64_t now_us() { return state().clock_us; }
 unsigned long seed() { return state().opts.seed; }
 const std::string &data_dir() { return state().opts.data_dir; }
@@ -75,14 +74,13 @@ void serial_input(const std::string &bytes)
 
 size_t serial_input_size() { return state().serial_in.size(); }
 
-int serial_input_read(bool consume)
+int serial_input_read()
 {
   std::deque<char> &in = state().serial_in;
   if (in.empty())
     return -1;
   int byte = (unsigned char)in.front();
-  if (consume)
-    in.pop_front();
+  in.pop_front();
   return byte;
 }
 

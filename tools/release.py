@@ -5,7 +5,7 @@
       Print the firmware version of this checkout (PIXELART_VERSION, else git).
   tools/release.py build [--out site] [--version X] [--schema]
       Collect the files of every board from the PlatformIO build folders and
-      write the site. Run `make release-site` to build everything first.
+      write the site. Run `make release-firmware` to build everything first.
   tools/release.py assemble --out DIR [--firmware DIR] [--web DIR]
       Merge a firmware site (the output of `build`) and a built web app into the
       site GitHub Pages serves. Used by the release workflow and `make release-site`.
@@ -284,16 +284,27 @@ def check_replaceable(site):
         raise ReleaseError(f"refusing to replace {site}: not empty and not a release site built by this tool")
 
 
-def build_site(out, version, data, use_schema):
-    if not fw_version.SAFE_VERSION.fullmatch(version):
-        raise ReleaseError(f"'{version}' is not a valid version")
+def site_path(out):
+    """The site folder `out`, resolved; never the repository or a folder above it."""
     site = Path(out).resolve()
     if site == ROOT or site in ROOT.parents:
         raise ReleaseError(f"refusing to use {site} as the site folder")
+    return site
+
+
+def reset_site(site):
+    """Empties the site folder, which must be empty or a site this tool built, and creates it."""
     check_replaceable(site)
     if site.exists():
         shutil.rmtree(site)
     site.mkdir(parents=True)
+
+
+def build_site(out, version, data, use_schema):
+    if not fw_version.SAFE_VERSION.fullmatch(version):
+        raise ReleaseError(f"'{version}' is not a valid version")
+    site = site_path(out)
+    reset_site(site)
 
     boot_app0 = boot_app0_path()
     firmware = []
@@ -358,9 +369,7 @@ def assemble_site(out, firmware, web):
     """Copy the firmware site, then the web app, into `out`. A path in both is an error and nothing is written."""
     if firmware is None and web is None:
         raise ReleaseError("assemble needs --firmware, --web or both")
-    site = Path(out).resolve()
-    if site == ROOT or site in ROOT.parents:
-        raise ReleaseError(f"refusing to use {site} as the site folder")
+    site = site_path(out)
     inputs = [(label, Path(path)) for label, path in (("firmware", firmware), ("web", web)) if path]
     # Listed first, as given: a link must be seen before it is resolved
     trees = [(label, path, list_tree(path, label)) for label, path in inputs]
@@ -374,10 +383,7 @@ def assemble_site(out, firmware, web):
             shown = ", ".join(conflicts[:10]) + (f" and {len(conflicts) - 10} more" if len(conflicts) > 10 else "")
             raise ReleaseError(f"the firmware site and the web app both hold: {shown}")
 
-    check_replaceable(site)
-    if site.exists():
-        shutil.rmtree(site)
-    site.mkdir(parents=True)
+    reset_site(site)
     for label, path, files in trees:
         for name in files:
             target = site / name
