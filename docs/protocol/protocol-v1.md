@@ -4,7 +4,7 @@ Status: **implemented** by the firmware (`src/protocol.cpp`) and the simulator.
 
 This document specifies how a client (the command line tool, the web app, a test) talks to a PixelArt board: reading what is stored, uploading and downloading animations and playlists, deleting them, and changing the board's settings. Why the protocol works this way is recorded in [ADR 0002](../adr/0002-command-protocol.md).
 
-The protocol does not depend on the link. The board speaks it over its USB serial port, and the simulator speaks it over a local WebSocket. WiFi can carry the same messages later.
+The protocol does not depend on the link. The board speaks it over its USB serial port and over a WebSocket on WiFi, and the simulator speaks it over a local WebSocket.
 
 ## Transports
 
@@ -36,8 +36,15 @@ The simulator serves the protocol with `--ws [PORT]`, default port 8765, in real
 - Any other invalid handshake (a wrong method, a missing or unsupported header) gets the HTTP status the `websockets` package gives under the WebSocket standard. Clients must not rely on the body of a refusal, 403 and 503 included. A refused connection is closed right after the HTTP response.
 - Malformed frames during the closing handshake are handled as RFC 6455 says. When the simulator stops, the client is closed with status 1001.
 - A client that completed the handshake keeps the single slot until it disconnects, even while it sends nothing, so the web app can stay connected while idle.
+- `--ws-transport wifi` makes the WebSocket stand for the board's WiFi transport, to test the network login and the commands reserved for USB without a board: see [WiFi and updates](../board/wifi-and-updates-v1.md#simulator-and-tests). The default is `usb`, with the behavior described here.
 
 Uploads and deletions through the simulator change its data folder (`data/` or the folder given with `--data`). `make data` writes the converted repository files there again.
+
+### WebSocket (board over WiFi)
+
+A board connected to WiFi serves the protocol on a WebSocket, with the framing of the simulator's WebSocket above: one line per text message, the same limits and close codes, one client at a time. Its address, the accepted origins, what differs from the simulator and the network login are specified in [WiFi and updates](../board/wifi-and-updates-v1.md#protocol-over-wifi). A few commands are reserved for USB and answered `usb_only` over WiFi, and with network login on a WiFi client [authenticates](#authentication) first.
+
+The WebSocket carries no checksum in its own right, but the lines keep theirs, and a client uses the same sequence numbers and retries as on the serial port. The board remembers the last reply of each transport separately, and forgets the one of the WiFi transport when a WiFi connection opens or closes, so a reply made for one client is never sent to the next.
 
 ## Lines
 
@@ -106,7 +113,7 @@ A request without a `seq` that is a valid integer, or without a `cmd` string, is
 
 A request or its reply can be lost on the link. The client waits for the reply with a timeout (the command line tool waits 2 seconds, and 10 seconds for `put_end` and `delete_all`) and then sends the same request again, with the same `seq`, up to 5 times in all.
 
-The board remembers its last reply, with the `seq` and the CRC of the request it answered. When a request arrives with the same `seq` and the same CRC, the board sends that reply again without running the command a second time. A file is therefore never committed twice. A request with the same `seq` but a different CRC is a new request and runs normally. The board forgets the last reply when it restarts; `info.boot_id` lets a client notice a restart.
+The board remembers its last reply on each transport, USB and WiFi, with the `seq` and the CRC of the request it answered; a request on one transport never replaces the reply remembered for the other. When a request arrives with the same `seq` and the same CRC as the last request on its transport, the board sends that reply again without running the command a second time. A file is therefore never committed twice. A request with the same `seq` but a different CRC is a new request and runs normally. The board forgets both replies when it restarts, and the WiFi one also when a WiFi connection opens or closes (see [WebSocket](#websocket-board-over-wifi)); `info.boot_id` lets a client notice a restart.
 
 A `bad_frame` reply does not change the remembered reply.
 
@@ -140,7 +147,7 @@ What the board is and what it supports. No fields.
 
 ```text
 @PR 3c250228 {"seq":1,"cmd":"info"}
-@PR aabf0c13 {"seq":1,"ok":true,"protocol":1,"firmware":"1.2.0","board":"esp32c3","boot_id":2864434397,"formats":{"animation":["pixelart/1"],"playlist":["pixelart-playlist/1"]},"canvas":{"width":16,"height":16},"storage":{"total":1441792,"used":180224},"memory":{"free":182340,"largest":110580},"limits":{"line":1024,"chunk":512,"page":8,"animation":65536,"playlist":16384}}
+@PR 64db6cd1 {"seq":1,"ok":true,"protocol":1,"firmware":"1.2.0","board":"esp32c3","boot_id":2864434397,"formats":{"animation":["pixelart/1"],"playlist":["pixelart-playlist/1"]},"canvas":{"width":16,"height":16},"storage":{"total":983040,"used":180224},"memory":{"free":182340,"largest":110580},"limits":{"line":1024,"chunk":512,"page":8,"animation":65536,"playlist":16384}}
 ```
 
 | Field      | Meaning                                                                                                                                                                      |
@@ -166,7 +173,7 @@ The stored files of one kind, sorted by ID in byte order, one page at a time.
 | `kind`  | yes      | `animation` or `playlist`.                                          |
 | `after` | no       | An ID. The page starts with the first file whose ID sorts after it. |
 
-The reply holds `kind`, `entries` (at most 8) and `more`, which is `true` when files remain after the last entry. The client asks for the next page with `after` set to the last ID it received. `after` does not have to name an existing file, but it must follow the ID rule.
+The reply holds `kind`, `entries` (at most 8) and `more`, which is `true` when files remain after the last entry. The client asks for the next page with `after` set to the last ID it received. `after` does not have to name an existing file, but it must follow the ID rule. While an update holds the memory for more than 2 seconds, the board answers `out_of_memory`, over USB as over WiFi, and the client asks again later.
 
 Each entry has:
 
@@ -202,7 +209,7 @@ A file can change between two reads. A client that needs a consistent copy compa
 
 ### `put_begin`, `put_chunk`, `put_end`, `put_abort`
 
-Upload one animation or playlist, replacing the stored file with the same ID, if any. See [Uploads](#uploads) for the whole sequence.
+Upload one animation or playlist, replacing the stored file with the same ID, if any. See [Uploads](#uploads) for the whole sequence. While an upload is in progress, the four commands over the other transport than the one that began it are answered `busy`.
 
 `put_begin` starts an upload:
 
@@ -226,7 +233,7 @@ The reply on success holds `received`, the number of bytes received so far.
 
 `put_end` finishes the upload. It has no fields. The reply on success holds `warnings`, the engine's warnings for the new file (possibly empty).
 
-`put_abort` cancels the upload in progress and removes the temporary file. It has no fields, and it succeeds even when no upload is in progress.
+`put_abort` cancels the upload in progress and removes the temporary file. It has no fields, and it succeeds even when no upload is in progress. It is `busy` when the upload in progress belongs to the other transport.
 
 ### `delete`
 
@@ -238,11 +245,11 @@ Deleting the active playlist is allowed: the board then plays every animation, a
 
 Removes every animation and every playlist, and, when asked, puts the settings back to their defaults. It has one optional field, `settings`: `true` or `false`, `false` when it is left out. Any other value, `null` included, is `bad_request`, and nothing changes.
 
-The board first cancels an upload in progress and removes its temporary file, as `put_begin` does. Then it removes every file in `/playlists`, then every file in `/animations`, including files whose names are not valid IDs, so a damaged file can always be cleared.
+The board first cancels an upload in progress, over either transport, and removes its temporary file. It also stops an installation of animations and playlists that is running or was asked for with `update_install`, so that the files it removes are not stored again: the file being downloaded is discarded, the files not yet stored are skipped, and the files the last check found are forgotten, so `update.files` and `update.failed_files` are 0 and `update.state` is `idle` at once. A stopped installation counts no failure and sets no `last_result`: it stays what it was. A new `update_check` finds the files again. An installation of firmware is not touched. Then it removes every file in `/playlists`, then every file in `/animations`, including files whose names are not valid IDs, so a damaged file can always be cleared.
 
 Without `settings` (or with `false`) the settings do not change: the `playlist` setting keeps its value, so the board plays every animation until a playlist with that ID is stored again, and shows its built-in "no animations" image while there is none.
 
-With `settings: true`, once every file is removed, every setting goes back to its default in the [settings table](#settings_get-settings_set): brightness `100` and playlist `default`. The playlist setting takes its default even though no playlist `default` is stored, which `settings_set` refuses. Saving follows the all or nothing rule of `settings_set`: the playlist is saved first and put back if the brightness cannot be saved.
+With `settings: true`, once every file is removed, every setting goes back to its default in the [settings tables](#settings_get-settings_set): brightness `100`, playlist `default`, and the defaults of the update, power and login settings. The stored WiFi network is erased as by `wifi_forget`, and a new token is made as by `token_regenerate` (and a new certificate as by `cert_regenerate`, where it exists). With `settings: true`, `delete_all` works over USB only; over WiFi it is `usb_only` and removes nothing. Without it, `delete_all` works over WiFi too. The playlist setting takes its default even though no playlist `default` is stored, which `settings_set` refuses. Saving follows the all or nothing rule of `settings_set`: the playlist is saved first and put back if the brightness cannot be saved.
 
 The reply on success holds `playlists` and `animations`, the number of files removed from each folder, and with `settings: true` also `settings`, with every setting after the reset, as `settings_get` gives them. When a file cannot be removed, the board stops and replies `storage_error`; the files removed before it stay removed, the settings do not change, and sending `delete_all` again removes the rest. When every file is removed but the settings cannot be saved, the reply is `storage_error` too: the files stay removed and the settings are as they were, except when the settings memory fails twice, as for `settings_set`, and the message says the settings may be partly changed. Sending `delete_all` with `settings: true` again, as a new request, finishes the reset; the client can also read the settings with `settings_get`.
 
@@ -252,7 +259,7 @@ A board whose firmware is older than this field answers `bad_request` to `settin
 > {"seq":12,"cmd":"delete_all"}
 < {"seq":12,"ok":true,"playlists":1,"animations":30}
 > {"seq":13,"cmd":"delete_all","settings":true}
-< {"seq":13,"ok":true,"playlists":0,"animations":0,"settings":{"brightness":100,"playlist":"default"}}
+< {"seq":13,"ok":true,"playlists":0,"animations":0,"settings":{"brightness":100,"playlist":"default",...}}
 ```
 
 Removing many files takes time on the board, so the frame being waited for can be shown late, as for other slow commands (see [Playback while commands run](#playback-while-commands-run)).
@@ -266,26 +273,129 @@ The board's settings. They live in the board's settings memory (NVS), not with t
 | `brightness` | integer | `100`     | LED brightness, from 0 (off) to 255. It is the limit: the playing animation can lower it with its own `brightness` ([format](../format/pixelart-v1.md#brightness)), never raise it. |
 | `playlist`   | string  | `default` | ID of the active playlist, the one the board plays.                                                                                                                                 |
 
+The board also has these settings, specified in [WiFi and updates](../board/wifi-and-updates-v1.md):
+
+| Setting             | Type    | Default                            | Values                                                                                      |
+| ------------------- | ------- | ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| `wifi_power`        | string  | `auto`                             | `auto`, `8.5`, `11`, `13`, `15`, `17`, `18.5`, `19.5`.                                      |
+| `update_mode`       | string  | `automatic`                        | `off`, `notify`, `automatic`.                                                               |
+| `update_firmware`   | boolean | `true`                             | `true` or `false`.                                                                          |
+| `update_animations` | boolean | `true`                             | `true` or `false`.                                                                          |
+| `check_hours`       | integer | `6`                                | 1 to 168.                                                                                   |
+| `install_start`     | integer | `0`                                | 0 to 1,439, minutes after midnight.                                                         |
+| `install_end`       | integer | `0`                                | 0 to 1,439. Equal to `install_start`: the whole day.                                        |
+| `timezone`          | string  | `UTC0`                             | A POSIX TZ string, 1 to 64 printable ASCII characters.                                      |
+| `animation_source`  | string  | `<site>manifest.json` of the build | An `https://` or `http://` URL with a host, no user information, at most 512 characters.    |
+| `network_login`     | boolean | `false`                            | `true` or `false`: whether WiFi clients must [authenticate](#authentication).               |
+| `token`             | string  | made at first start                | Read only: 16 characters from `a-z` and `0-9`. See [`token_regenerate`](#token_regenerate). |
+
+`<site>` is the site address the firmware was built with, `https://monska85.github.io/PixelArt/` for the project's own build ([site address](../board/wifi-and-updates-v1.md#site-address)), so a fork's boards update from the fork's release without a setting.
+
+`settings_get` over USB includes `token`; over WiFi it leaves it out. `settings_set` with `token` is `bad_request`. A value that breaks the rules of its row is `bad_request`.
+
+A `settings_set` that sets every setting to its longest value (a 32 character playlist ID, a 64 character time zone and a 512 character `animation_source`) is a line of 903 bytes, within the 1,024 byte limit of a request.
+
 `settings_get` has no fields. Its reply holds `settings`, an object with every setting.
 
 `settings_set` has one optional field per setting, and at least one of them. The board checks every field before changing anything: a value out of range or of the wrong type, `null` included, is `bad_request`, a `playlist` that does not follow the ID rule is `invalid_id`, and a `playlist` that is not stored is `not_found`. If a setting cannot be saved, the reply is `storage_error` and no setting has changed. The one exception is a settings memory that fails twice: when the brightness cannot be saved and the previous playlist cannot be put back either, the reply is `storage_error` with a message that the settings may be partly changed, and the client reads them again with `settings_get`. On success the reply holds `settings`, with every setting after the change.
 
 ```text
 > {"seq":9,"cmd":"settings_set","brightness":40}
-< {"seq":9,"ok":true,"settings":{"brightness":40,"playlist":"default"}}
+< {"seq":9,"ok":true,"settings":{"brightness":40,"playlist":"default",...}}
 ```
 
-(This example and the later ones show the JSON only. On the link, each one is a full `@PR <crc> <json>` line.)
+(This example and the later ones show the JSON only, and `...` stands for the other settings. On the link, each one is a full `@PR <crc> <json>` line.)
 
 The active playlist can be deleted after it was set. The board then falls back as for a missing playlist, and the setting keeps its value, so uploading the playlist again makes it active again.
+
+### `status`
+
+The board's WiFi and update state, specified in [WiFi and updates](../board/wifi-and-updates-v1.md). No fields.
+
+```text
+> {"seq":20,"cmd":"status"}
+< {"seq":20,"ok":true,"wifi":{"state":"connected","ip":"192.168.1.42","rssi":-58,"power":"19.5","power_reduced":false,"hostname":"pixelart-118c","ssid":"Example Home WiFi"},"time":{"known":true},"update":{"state":"idle","progress":0,"last_check":1200,"last_result":"ok","last_detail":null,"failed_files":0,"firmware":"1.3.0","files":3,"last_install":{"result":"updated","from":"1.2.0","to":"1.3.0"}}}
+```
+
+| Field                 | Meaning                                                                                                                                                                                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wifi.state`          | `not_configured`, `connecting`, `connected`, `network_not_found`, `wrong_password`, `no_address` or `disconnected`.                                                                                                                                                    |
+| `wifi.ip`             | The board's IPv4 address, or `null` without one.                                                                                                                                                                                                                       |
+| `wifi.rssi`           | Signal strength in dBm, or `null` when not joined.                                                                                                                                                                                                                     |
+| `wifi.power`          | The transmit power in use, one of the fixed values of `wifi_power`.                                                                                                                                                                                                    |
+| `wifi.power_reduced`  | `true` when the board fell back to 8.5 dBm.                                                                                                                                                                                                                            |
+| `wifi.hostname`       | `pixelart-XXXX`, also its mDNS name without `.local`.                                                                                                                                                                                                                  |
+| `wifi.ssid`           | The name of the stored network, text, or `null` when none is stored (`not_configured`). It is the name as stored, up to 32 bytes; bytes that are not valid UTF-8 are sent as U+FFFD, one for each byte that is not part of a well-formed sequence. See the note below. |
+| `time.known`          | Whether the board knows the time: it asks for it only when the install window is narrower than the whole day.                                                                                                                                                          |
+| `update.state`        | `idle`, `checking`, `downloading`, `installing` or `waiting_for_time`.                                                                                                                                                                                                 |
+| `update.progress`     | From 0 to 100 while downloading or installing, `0` otherwise.                                                                                                                                                                                                          |
+| `update.last_check`   | Seconds since the last check ended, or `null` when none ended since the board started.                                                                                                                                                                                 |
+| `update.last_result`  | `ok`, or the [update error](#update-errors) of the last check or installation; `null` before the first one.                                                                                                                                                            |
+| `update.last_detail`  | `no_release` when the last check failed because a manifest request was answered 404 (`last_result` is then `http_error`), `null` otherwise, and before the first check. See [update errors](#update-errors).                                                           |
+| `update.failed_files` | How many files failed in the last animation update.                                                                                                                                                                                                                    |
+| `update.firmware`     | The firmware version the last check found for this board, newer than the running one, or `null`. A version on the skip list is reported too: `last_install` then says `rolled_back` with the same `to`, and only `update_install` with `force` installs it.            |
+| `update.files`        | How many animations and playlists would be added or replaced, as the last check found them. A check starts from 0, so it is 0 after a check that could not read the manifest at `animation_source`.                                                                    |
+| `update.last_install` | `null`, or the last firmware installation: `result` (`updated` or `rolled_back`), `from` and `to` (versions). A firmware on its trial boot has not confirmed itself yet: it reports the installation before it, and `updated` once it shows its first frame.           |
+
+The board reports the name of the stored network in `wifi.ssid` and never the password, over any transport. Over WiFi, `status` is a command like the others: with `network_login` on, a client that has not logged in gets `unauthorized`, so only a logged in client is sent the name, and with it off every client is. The simulator reports `connected`, the address `127.0.0.1`, `rssi` `-50`, the hostname `pixelart-sim` and the name `PixelArt Simulator`, and keeps reporting them after `wifi_forget`: it has no stored network to erase, and a `null` name next to `connected` would break the rule above. Its `wifi.power` follows the `wifi_power` setting (`19.5` for `auto`), and `time.known` is `false` unless the simulator was given a time with `--update-time`.
+
+#### Update errors
+
+| Code                | Meaning                                                                       |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `network_error`     | The server could not be reached, or the connection dropped.                   |
+| `tls_error`         | The server's certificate could not be checked.                                |
+| `http_error`        | The server answered with a status other than 200.                             |
+| `bad_manifest`      | The manifest is too large, not strict JSON, of another format, or incomplete. |
+| `checksum_mismatch` | A downloaded file differs from the manifest's size or SHA-256.                |
+| `invalid_file`      | A downloaded animation or playlist fails the engine's validation.             |
+| `no_space`          | Not enough free space for a file.                                             |
+| `out_of_memory`     | Not enough free memory for the connection, the manifest or the validation.    |
+| `storage_error`     | The file system failed.                                                       |
+| `flash_error`       | The firmware slot could not be written, or the image is larger than the slot. |
+
+An `http_error` has a detail when the request that failed was for a manifest (the animation source or the firmware manifest) and the server answered 404, after any redirects: `status` then reports `update.last_detail` as `no_release`, meaning that no release is published at that address yet. A file (an animation, a playlist or a firmware) that is answered 404, and every other status of a manifest, is an `http_error` with `last_detail` `null`. The detail belongs to the last result: the next check or installation replaces it, and a success clears it. The simulator answers 404 for a manifest that its `--update-source` folder does not have, and for a file the folder does not have it answers a plain `http_error`.
+
+### `update_check`
+
+Starts a check at once, in the background. No fields. The reply comes before the check ends; `status` follows it.
+
+It is `updates_off` when `update_mode` is `off` or both `update_firmware` and `update_animations` are `false`, `no_network` when the board is not connected, and `busy` when a check or an installation is running. The board tests them in this order.
+
+### `update_install`
+
+Installs what the last check found, at once, ignoring the install window. The reply comes before the installation ends.
+
+| Field    | Required | Meaning                                                                                    |
+| -------- | -------- | ------------------------------------------------------------------------------------------ |
+| `target` | yes      | `firmware` or `animations`.                                                                |
+| `force`  | no       | `true` installs a firmware version on the skip list. `false` when left out. Firmware only. |
+
+It is `updates_off` when `update_mode` is `off` or the switch of `target` is `false`, `no_network` and `busy` as for `update_check`, and `nothing_to_install` when the last check found nothing for `target` (a check that is still running has found nothing yet: the answer is `busy`). The board tests them in this order. A field other than `target` and `force` is `bad_request`, as is a `target` that is not `firmware` or `animations` and a `force` that is not `true` or `false`; `force` is ignored for `animations`. The animations and playlists the last check found are stored as for an upload (`put_end`), one file at a time; `status` shows the progress, and the files that failed stay in `update.files`. What the last check found for animations and playlists is forgotten when `animation_source` changes (`update.files` becomes 0 until the next check, and `update_install` for `animations` answers `nothing_to_install`), while a firmware it found is kept, since it does not come from `animation_source`. The files are also forgotten when `delete_all` stops the installation (see [`delete_all`](#delete_all)). An upload (`put_*`) during an installation is allowed: the installation may replace the uploaded file, as the server wins at the next check. A firmware installation ends with a restart, which the client notices by a changed `info.boot_id`; while it runs, `update.state` is `installing` and `update.progress` counts the written part. An installation that fails leaves `update.last_result` set to the error, `update.state` back to `idle`, and the firmware still in `update.firmware`. `force` installs a version of the skip list, never a lower or equal version than the running one: for those the answer is `nothing_to_install`. For `firmware` the answer is also `nothing_to_install` when the last check found a skipped version and `force` is not `true`.
+
+### `wifi_forget`
+
+Erases the stored WiFi network and disconnects. No fields. USB only.
+
+### `token_regenerate`
+
+Makes a new token, replacing the old one, and closes the WiFi client's connection. No fields. USB only. The reply holds `token`.
+
+### `cert_regenerate`
+
+Makes a new key and self-signed certificate for the WebSocket over TLS, and closes the WiFi client's connection. No fields. USB only. It exists only if a later firmware serves the WebSocket over TLS (see [WiFi and updates](../board/wifi-and-updates-v1.md#protocol-over-wifi)); the firmware of this version answers `unknown_command`.
+
+### `auth_challenge`, `auth`
+
+[Authentication](#authentication) for a WiFi client. `auth_challenge` has no fields; its reply holds `nonce`, 32 lowercase hexadecimal digits. `auth` has one field, `hmac`, 64 lowercase hexadecimal digits. Both also work over USB, where they are never needed.
 
 ## Uploads
 
 An upload goes through these steps, in order:
 
-1. The client sends `put_begin` with the kind, ID, size and SHA-256 of the file. The board cancels any upload in progress, whether or not the new `put_begin` is accepted. It then checks the fields and the free space. It checks that its largest free memory block can hold the file and its parse, and replies `out_of_memory` without creating anything otherwise. Then it opens an empty temporary file, and keeps it open until the upload ends.
+1. The client sends `put_begin` with the kind, ID, size and SHA-256 of the file. The board holds one upload, which belongs to the transport whose `put_begin` started it. While it is in progress, `put_begin`, `put_chunk`, `put_end` and `put_abort` over the other transport are answered `busy`, before their fields are checked, until the upload ends: by `put_end`, by `put_abort` from its own transport, by a failed chunk write, or by the idle timeout below. Over its own transport, a new `put_begin` cancels the upload in progress, whether or not the new `put_begin` is accepted. It then checks the fields and the free space. It checks that its largest free memory block can hold the file and its parse, and replies `out_of_memory` without creating anything otherwise. Then it opens an empty temporary file, and keeps it open until the upload ends.
 2. The client sends the file in chunks with `put_chunk`, in order, waiting for each reply before sending the next chunk. The board appends each chunk to the temporary file. A chunk that cannot be written cancels the upload and is answered with `storage_error`.
-3. The client sends `put_end`. The board closes the temporary file and checks that it received exactly `size` bytes with the declared SHA-256. It checks the memory again, because it may have shrunk during the upload, and replies `out_of_memory` without trying otherwise. Then it validates the file with the engine, as it would before playing it.
+3. The client sends `put_end`. The board closes the temporary file and checks that it received exactly `size` bytes with the declared SHA-256. It checks the memory again, because it may have shrunk during the upload, and replies `out_of_memory` without trying otherwise. Then it validates the file with the engine, as it would before playing it; when an update connection holds the memory for more than 2 seconds, the reply is `out_of_memory` as well, and the client may upload again later.
 4. If the file is valid, the board moves it over the stored file with the same ID in one atomic step, and replies with the warnings. If not, it removes the temporary file, keeps the stored file as it was, and replies with the error.
 
 The upload ends at `put_end`, whatever its result, or at `put_abort`. A `put_chunk` or `put_end` without an upload in progress is `no_upload`. A malformed request is `bad_request` even without an upload: the board checks the fields of `put_chunk` (`offset` and `data`, including the base64) before it looks for an upload.
@@ -308,7 +418,7 @@ An already received chunk is therefore never written twice, even when the client
 
 The temporary file lives outside the animation and playlist folders, so the board never lists or plays it, and a stored file is never half written:
 
-- **The client stops sending.** After 10 seconds without a `put_begin` or an accepted `put_chunk`, the board cancels the upload and removes the temporary file. A later `put_chunk` or `put_end` is `no_upload`. A dropped connection does not end an upload by itself: the upload stays open until it ends as described above (`put_end`, `put_abort`, a new `put_begin`, a failed chunk write, or this timeout), so the next client can continue it.
+- **The client stops sending.** After 10 seconds without a `put_begin` or an accepted `put_chunk`, the board cancels the upload and removes the temporary file. A later `put_chunk` or `put_end` is `no_upload`. A dropped connection does not end an upload by itself: the upload stays open until it ends as described above (`put_end`, `put_abort`, a new `put_begin`, a failed chunk write, or this timeout), so the next client over the same transport can continue it, while the other transport gets `busy` until the timeout.
 - **The board restarts during an upload.** It removes any leftover temporary file at boot.
 - **The file is wrong.** `size_mismatch`, `checksum_mismatch` and `invalid_file` all leave the stored file untouched.
 
@@ -347,27 +457,34 @@ Changes reach the matrix at these times:
 
 - **`brightness`** applies from the next frame. The brightness the LEDs receive is the board setting lowered by the playing animation's own `brightness` ([format](../format/pixelart-v1.md#brightness)), so a change of the setting reaches the LEDs in that proportion.
 - **The active playlist,** and any upload or deletion of a playlist, applies when the current animation ends: the board then reads the active playlist again and starts it from its first item.
-- **Animations** are read from storage each time they start, so an uploaded or deleted animation applies the next time the playlist reaches it. The animation playing at the moment finishes unchanged.
+- **Animations** are read from storage each time they start, so an uploaded or deleted animation applies the next time the playlist reaches it. The animation playing at the moment finishes unchanged. The same holds for animations and playlists installed by an [update](../board/wifi-and-updates-v1.md#animation-updates).
+- **A firmware installation** stops the animation and shows the update icon until the board restarts, see [Firmware updates](../board/wifi-and-updates-v1.md#firmware-updates). Requests are still answered meanwhile.
 
 ## Errors
 
-| Code                | Meaning                                                                                                     |
-| ------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `bad_frame`         | The line is too long, its CRC is malformed or wrong, or its JSON is broken. The reply has no `seq`.         |
-| `bad_request`       | A field is missing, unknown, of the wrong type or out of range, or the base64 data is invalid.              |
-| `unknown_command`   | `cmd` names a command this firmware does not know.                                                          |
-| `invalid_kind`      | `kind` is not `animation` or `playlist`.                                                                    |
-| `invalid_id`        | `id`, `after` or the `playlist` setting does not follow the ID rule.                                        |
-| `not_found`         | The named file is not stored.                                                                               |
-| `too_large`         | The declared `size` is over the limit of its kind, or a chunk goes past the declared `size`.                |
-| `no_space`          | Not enough free space for the upload.                                                                       |
-| `no_upload`         | `put_chunk` or `put_end` without an upload in progress.                                                     |
-| `bad_offset`        | `put_chunk` does not continue where the upload stands. `expected` holds the right offset.                   |
-| `size_mismatch`     | At `put_end`, the bytes received differ from the declared `size`.                                           |
-| `checksum_mismatch` | At `put_end`, the SHA-256 of the bytes received differs from the declared one.                              |
-| `invalid_file`      | The engine rejects the file. `diagnostics` says why.                                                        |
-| `out_of_memory`     | The board has not enough free memory to validate the file, at `put_begin` or `put_end`. Nothing is changed. |
-| `storage_error`     | The file system failed to read, write, rename or remove a file. An upload in progress is cancelled.         |
+| Code                 | Meaning                                                                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bad_frame`          | The line is too long, its CRC is malformed or wrong, or its JSON is broken. The reply has no `seq`.                                                            |
+| `bad_request`        | A field is missing, unknown, of the wrong type or out of range, or the base64 data is invalid.                                                                 |
+| `unknown_command`    | `cmd` names a command this firmware does not know.                                                                                                             |
+| `invalid_kind`       | `kind` is not `animation` or `playlist`.                                                                                                                       |
+| `invalid_id`         | `id`, `after` or the `playlist` setting does not follow the ID rule.                                                                                           |
+| `not_found`          | The named file is not stored.                                                                                                                                  |
+| `too_large`          | The declared `size` is over the limit of its kind, or a chunk goes past the declared `size`.                                                                   |
+| `no_space`           | Not enough free space for the upload.                                                                                                                          |
+| `no_upload`          | `put_chunk` or `put_end` without an upload in progress.                                                                                                        |
+| `bad_offset`         | `put_chunk` does not continue where the upload stands. `expected` holds the right offset.                                                                      |
+| `size_mismatch`      | At `put_end`, the bytes received differ from the declared `size`.                                                                                              |
+| `checksum_mismatch`  | At `put_end`, the SHA-256 of the bytes received differs from the declared one.                                                                                 |
+| `invalid_file`       | The engine rejects the file. `diagnostics` says why.                                                                                                           |
+| `out_of_memory`      | The board has not enough free memory to validate the file, at `put_begin` or `put_end`, or an update holds the memory (`list`, `put_end`). Nothing is changed. |
+| `storage_error`      | The file system failed to read, write, rename or remove a file. An upload in progress is cancelled.                                                            |
+| `unauthorized`       | Over WiFi with network login on: the client has not authenticated, or `auth` failed.                                                                           |
+| `usb_only`           | The command works over USB only.                                                                                                                               |
+| `busy`               | A check or an installation is already running, or (`put_*`) an upload over the other transport is in progress.                                                 |
+| `updates_off`        | Updates are off for what the command asks.                                                                                                                     |
+| `no_network`         | The board is not connected to WiFi.                                                                                                                            |
+| `nothing_to_install` | The last check found nothing to install for the `target`.                                                                                                      |
 
 Every error leaves the stored files and the settings as they were, except that a `storage_error` during `delete` may have removed the file, and a `storage_error` during `delete_all` does not bring back the files it removed before the failure (nor, with `settings: true`, the files when the settings then cannot be saved). One more exception: when the settings memory fails twice during `settings_set`, or during `delete_all` with `settings: true`, the settings may be partly changed, and the `storage_error` message says so (see [`settings_set`](#settings_get-settings_set)).
 
@@ -407,7 +524,31 @@ The board treats every request as untrusted:
 - It builds file paths only from `kind` and a valid `id`, so a request cannot reach any other file.
 - Every size, count and nesting depth has a limit, checked before any memory is used for it: line length, JSON depth, chunk size, file size, upload count.
 - Every uploaded file goes through the same engine validation as a file read from storage, and is stored only if it passes.
-- Version 1 has no authentication: whoever can open the USB port, or connect to the simulator on the same computer, can change the board. Phase 4 adds authentication for WiFi.
+- Over USB and the simulator's WebSocket there is no authentication: whoever can open the USB port, or connect to the simulator on the same computer, can change the board.
+- Over WiFi, the board accepts connections only from the origins listed in [WiFi and updates](../board/wifi-and-updates-v1.md#protocol-over-wifi). With network login off (the default), anyone on the network can send every command except those reserved for USB. With it on, a WiFi client authenticates first.
+
+### Authentication
+
+With `network_login` on, a WiFi client authenticates once per connection:
+
+1. The client sends `auth_challenge`. The board answers with `nonce`: 16 random bytes from the hardware random number generator, as 32 lowercase hexadecimal digits. A new `auth_challenge` replaces the previous nonce.
+2. The client sends `auth` with `hmac`: HMAC-SHA256 with the token's 16 ASCII bytes as the key and the nonce's 32 ASCII characters as the message, as 64 lowercase hexadecimal digits.
+3. When it matches, the reply is `ok` and the connection is authenticated until it closes. When it does not, or no nonce is waiting, the reply is `unauthorized`. A nonce serves one `auth` only, right or wrong. After 3 failed `auth` on one connection, the board closes it.
+
+A request with a missing, mistyped or malformed `hmac` (not 64 lowercase hexadecimal digits) is `bad_request`: it does not use the nonce and is not a failed login. A login that is tried when `network_login` is off works the same, and changes nothing for the commands.
+
+The login belongs to the connection. A new connection starts without it, and so does a connection that is open when `network_login` is turned on. `token_regenerate`, and `delete_all` with `settings: true`, close the WiFi client, because they make a new token. Over USB, `auth_challenge` and `auth` answer the same way, with a login of their own that never closes anything and never logs in the WiFi client.
+
+The token never crosses the network. Before authenticating, a WiFi client can send `info`, `auth_challenge` and `auth`; every other command is `unauthorized`, even a command reserved for USB or one the firmware does not know. The traffic itself is not encrypted with `ws://`; someone who can watch the network sees the requests and replies, and someone who can change them on the way can take over an authenticated connection.
+
+For example, with the token `k3j9x0q7w2m5z8a1` and the nonce below (the HMAC comes from Python's `hmac.new(token, nonce, hashlib.sha256).hexdigest()`, an implementation independent of the board's):
+
+```text
+> {"seq":2,"cmd":"auth_challenge"}
+< {"seq":2,"ok":true,"nonce":"000102030405060708090a0b0c0d0e0f"}
+> {"seq":3,"cmd":"auth","hmac":"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23"}
+< {"seq":3,"ok":true}
+```
 
 ## Conformance
 
