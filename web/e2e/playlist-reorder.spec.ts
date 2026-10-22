@@ -250,13 +250,29 @@ test("Remove from the keyboard moves focus to the next item, the previous one, t
   await expect(editor.getByRole("button", { name: "Add animation" })).toBeFocused();
 });
 
+/** A fixed start for the page's clock, so the tests do not depend on the machine's date or time zone. */
+const CLOCK_START = new Date("2026-01-15T10:30:00Z");
+
 /**
  * Stops the page's clock: from here its time, frames and timers move only by `page.clock.runFor`, so a test of the
- * edge scrolling speed or delay gives the same result on a slow runner. Needs `page.clock.install()` before the page
- * loads.
+ * edge scrolling speed or delay gives the same result on a slow runner. Needs `page.clock.install` before the page
+ * loads. The installed clock runs until it is paused and `pauseAt` only moves forward, so it aims a second past the
+ * page's time, and again if the page got there first. It waits for the board lists first: a request still waiting
+ * for its reply when the clock jumps could time out (after 2 s).
  */
 async function pauseClock(page: Page): Promise<void> {
-  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1);
+  for (const kind of ["animations", "playlists"]) {
+    await expect(page.locator("#main")).toHaveAttribute(`data-list-${kind}`, "known");
+  }
+  for (;;) {
+    const target = (await page.evaluate(() => Date.now())) + 1000;
+    try {
+      await page.clock.pauseAt(target);
+      return;
+    } catch (error) {
+      if (!String(error).includes("Cannot fast-forward to the past")) throw error;
+    }
+  }
 }
 
 /** The part of the panel where the list shows, between the title bar and the button bar that stick to it. */
@@ -277,7 +293,7 @@ test("near the outer limit of the edge zone the panel scrolls slowly, and a drag
   page,
   simulator,
 }) => {
-  await page.clock.install();
+  await page.clock.install({ time: CLOCK_START });
   await page.setViewportSize({ width: 375, height: 600 });
   await connectSimulator(page, simulator);
   const { editor } = await openDefault(page, simulator);
@@ -301,7 +317,7 @@ test("near the outer limit of the edge zone the panel scrolls slowly, and a drag
 });
 
 test("scrolling up while dragging is as fast as scrolling down", async ({ page, simulator }) => {
-  await page.clock.install();
+  await page.clock.install({ time: CLOCK_START });
   await page.setViewportSize({ width: 375, height: 600 });
   await connectSimulator(page, simulator);
   const { editor } = await openDefault(page, simulator);
