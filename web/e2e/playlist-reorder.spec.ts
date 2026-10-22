@@ -250,6 +250,15 @@ test("Remove from the keyboard moves focus to the next item, the previous one, t
   await expect(editor.getByRole("button", { name: "Add animation" })).toBeFocused();
 });
 
+/**
+ * Stops the page's clock: from here its time, frames and timers move only by `page.clock.runFor`, so a test of the
+ * edge scrolling speed or delay gives the same result on a slow runner. Needs `page.clock.install()` before the page
+ * loads.
+ */
+async function pauseClock(page: Page): Promise<void> {
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1);
+}
+
 /** The part of the panel where the list shows, between the title bar and the button bar that stick to it. */
 const visibleBand = (panel: Locator) =>
   panel.evaluate((element) => {
@@ -268,21 +277,23 @@ test("near the outer limit of the edge zone the panel scrolls slowly, and a drag
   page,
   simulator,
 }) => {
+  await page.clock.install();
   await page.setViewportSize({ width: 375, height: 600 });
   await connectSimulator(page, simulator);
   const { editor } = await openDefault(page, simulator);
   const panel = page.getByTestId("wide-panel");
   const scrollTop = () => panel.evaluate((element) => element.scrollTop);
   const near = (await visibleBand(panel)).bottom - 40;
+  await pauseClock(page);
 
   // The drag starts inside the bottom zone (48 px above the button bar): nothing scrolls for the first 300 ms.
   await touch(page, "pointerdown", handle(editor, 1), near);
   await touch(page, "pointermove", null, near);
-  await page.waitForTimeout(150);
+  await page.clock.runFor(280);
   expect(await scrollTop()).toBe(0);
 
   // 8 px into the zone the speed is under 5 px per 60 Hz frame: well under 400 px in the next second.
-  await page.waitForTimeout(1300);
+  await page.clock.runFor(1170);
   const after = await scrollTop();
   expect(after).toBeGreaterThan(0);
   expect(after).toBeLessThan(400);
@@ -290,6 +301,7 @@ test("near the outer limit of the edge zone the panel scrolls slowly, and a drag
 });
 
 test("scrolling up while dragging is as fast as scrolling down", async ({ page, simulator }) => {
+  await page.clock.install();
   await page.setViewportSize({ width: 375, height: 600 });
   await connectSimulator(page, simulator);
   const { editor } = await openDefault(page, simulator);
@@ -297,6 +309,7 @@ test("scrolling up while dragging is as fast as scrolling down", async ({ page, 
   const scrollTop = () => panel.evaluate((element) => element.scrollTop);
   const band = await visibleBand(panel);
   const middle = await panel.evaluate((element) => Math.round((element.scrollHeight - element.clientHeight) / 2));
+  await pauseClock(page);
 
   /** Drags item 10 to `y` from the middle of the list and returns how far the panel scrolled in one second. */
   async function scrolledFrom(y: number): Promise<number> {
@@ -309,7 +322,7 @@ test("scrolling up while dragging is as fast as scrolling down", async ({ page, 
     await touch(page, "pointermove", null, box.y + 5);
     const before = await scrollTop();
     await touch(page, "pointermove", null, y);
-    await page.waitForTimeout(1000);
+    await page.clock.runFor(1000);
     const moved = Math.abs((await scrollTop()) - before);
     await touch(page, "pointerup", null, y);
     return moved;
