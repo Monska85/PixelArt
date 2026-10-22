@@ -29,6 +29,8 @@ import {
   MAX_SPRITES,
   MAX_TIMELINE_ITEMS,
   MIN_COORD,
+  NAME_PATTERN,
+  HEX_PATTERN,
   MIN_MS,
   type Animation,
   type AnimationResult,
@@ -44,12 +46,10 @@ import {
   type Sprite,
 } from "./types";
 
-const isName = (s: string): boolean => /^[a-z][a-z0-9_]{0,31}$/.test(s);
-const HEX = /^#[0-9a-fA-F]{6}$/;
-const parseHex = (s: string): Rgb | null => (HEX.test(s) ? parseInt(s.slice(1), 16) : null);
+const isName = (s: string): boolean => NAME_PATTERN.test(s);
+const parseHex = (s: string): Rgb | null => (HEX_PATTERN.test(s) ? parseInt(s.slice(1), 16) : null);
 const indexPath = (base: string, i: number): string => `${base}[${i}]`;
 const keyPath = (base: string, key: string): string => (base === "" ? key : `${base}.${key}`);
-const get = (object: JsonObject, key: string): JsonValue | undefined => object.get(key);
 const isNull = (value: JsonValue | undefined): boolean => value === undefined || value === null;
 
 class Loader {
@@ -247,18 +247,18 @@ class Loader {
       return;
     }
     this.checkKeys(value, ["at", "pivot", "points", "parts"], where);
-    const at = get(value, "at");
+    const at = value.get("at");
     if (!isNull(at)) {
       const pos = this.getPosition(at, keyPath(where, "at"));
       if (pos) sprite.at = pos;
     }
-    const pivot = get(value, "pivot");
+    const pivot = value.get("pivot");
     if (!isNull(pivot)) {
       const pos = this.getPosition(pivot, keyPath(where, "pivot"));
       if (pos) sprite.pivot = pos;
     }
-    const points = get(value, "points");
-    const parts = get(value, "parts");
+    const points = value.get("points");
+    const parts = value.get("parts");
     const hasPoints = !isNull(points);
     const hasParts = !isNull(parts);
     if (hasPoints === hasParts) this.error("structure", where, 'a sprite needs either "points" or "parts", not both');
@@ -349,13 +349,13 @@ class Loader {
         name = p;
       } else if (isObject(p)) {
         this.checkKeys(p, ["sprite", "at"], at);
-        const named = get(p, "sprite");
+        const named = p.get("sprite");
         if (typeof named !== "string") {
           this.error("structure", keyPath(at, "sprite"), "must be a sprite name");
           return;
         }
         name = named;
-        const posValue = get(p, "at");
+        const posValue = p.get("at");
         if (!isNull(posValue)) partAt = this.getPosition(posValue, keyPath(at, "at"));
       } else {
         this.error("structure", at, "must be a sprite name or { sprite, at }");
@@ -451,7 +451,7 @@ class Loader {
 
   // Returns [ok, position]: an absent value is ok with no position.
   private optionalPosition(object: JsonObject, key: string, where: string): [boolean, Pos | null] {
-    const value = get(object, key);
+    const value = object.get(key);
     if (isNull(value)) return [true, null];
     const pos = this.getPosition(value, keyPath(where, key));
     return [pos !== null, pos];
@@ -493,7 +493,7 @@ class Loader {
       this.error("structure", where, "must be a sprite name or { sprite, ... }");
       return null;
     }
-    const named = get(value, "sprite");
+    const named = value.get("sprite");
     if (typeof named !== "string") {
       this.error("structure", keyPath(where, "sprite"), "must be a sprite name");
       return null;
@@ -510,7 +510,7 @@ class Loader {
     ref.pivot = pivot;
     if (move) ref.move = move;
 
-    const wrap = get(value, "wrap");
+    const wrap = value.get("wrap");
     if (!isNull(wrap)) {
       if (typeof wrap === "boolean") ref.wrap = wrap;
       else {
@@ -518,19 +518,19 @@ class Loader {
         ok = false;
       }
     }
-    const rotate = get(value, "rotate");
+    const rotate = value.get("rotate");
     if (!isNull(rotate)) {
       const degrees = this.parseAngle(rotate, keyPath(where, "rotate"));
       if (degrees === null) ok = false;
       else ref.rotate = degrees;
     }
-    const spin = get(value, "spin");
+    const spin = value.get("spin");
     if (!isNull(spin)) {
       const degrees = this.parseAngle(spin, keyPath(where, "spin"));
       if (degrees === null) ok = false;
       else ref.spin = degrees;
     }
-    const flip = get(value, "flip");
+    const flip = value.get("flip");
     if (!isNull(flip)) {
       const f = typeof flip === "string" ? flip : "";
       if (f === "x") ref.flipX = true;
@@ -547,18 +547,18 @@ class Loader {
   private parseFrame(object: JsonObject, where: string): FrameItem {
     const item: FrameItem = { kind: "frame", repeat: 1, ms: this.frameMs, refs: [], recolor: [] };
     this.checkKeys(object, ["show", "ms", "repeat", "recolor"], where);
-    const ms = get(object, "ms");
+    const ms = object.get("ms");
     if (!isNull(ms)) {
       const value = this.getInt(ms, MIN_MS, MAX_MS, keyPath(where, "ms"));
       if (value !== null) item.ms = value;
     }
-    const repeat = get(object, "repeat");
+    const repeat = object.get("repeat");
     if (!isNull(repeat)) {
       const value = this.getInt(repeat, 1, MAX_COUNT, keyPath(where, "repeat"));
       if (value !== null) item.repeat = value;
     }
 
-    const show = get(object, "show");
+    const show = object.get("show");
     const showWhere = keyPath(where, "show");
     if (!isArray(show)) this.error("structure", showWhere, "must be a list of sprites");
     else if (show.length > MAX_SHOW) this.error("limit_exceeded", showWhere, `more than ${MAX_SHOW} sprites`);
@@ -578,7 +578,7 @@ class Loader {
       this.checkDrawnPoints(item, showWhere);
     }
 
-    const recolor = get(object, "recolor");
+    const recolor = object.get("recolor");
     if (isNull(recolor)) return item;
     const recolorWhere = keyPath(where, "recolor");
     if (!isObject(recolor) || recolor.size === 0) {
@@ -614,13 +614,13 @@ class Loader {
   private parseLoop(object: JsonObject, where: string, depth: number): LoopItem {
     const item: LoopItem = { kind: "loop", count: 1, children: [] };
     this.checkKeys(object, ["loop", "steps"], where);
-    const count = this.getInt(get(object, "loop"), 1, MAX_COUNT, keyPath(where, "loop"));
+    const count = this.getInt(object.get("loop"), 1, MAX_COUNT, keyPath(where, "loop"));
     if (count !== null) item.count = count;
     if (depth > MAX_LOOP_DEPTH) {
       this.error("limit_exceeded", where, `loops nested more than ${MAX_LOOP_DEPTH} levels deep`);
       return item;
     }
-    const steps = get(object, "steps");
+    const steps = object.get("steps");
     if (!isArray(steps) || steps.length === 0) {
       this.error("structure", keyPath(where, "steps"), "must be a non-empty list of frames and loops");
       return item;
@@ -638,8 +638,8 @@ class Loader {
         this.itemsFullReported = true;
         return;
       }
-      const isLoop = isObject(entry) && !isNull(get(entry, "loop"));
-      const isFrame = isObject(entry) && !isNull(get(entry, "show"));
+      const isLoop = isObject(entry) && !isNull(entry.get("loop"));
+      const isFrame = isObject(entry) && !isNull(entry.get("show"));
       if (!isObject(entry) || isLoop === isFrame) {
         this.error("structure", at, 'an item is either a frame ("show") or a loop ("loop" and "steps")');
         continue;
@@ -684,7 +684,7 @@ class Loader {
       this.error("structure", "", "the document must be an object");
       return null;
     }
-    const format = get(root, "format");
+    const format = root.get("format");
     if (format !== "pixelart/1") {
       this.error("format_unsupported", "format", `unsupported format "${typeof format === "string" ? format : ""}"`);
       return null;
@@ -709,26 +709,26 @@ class Loader {
       "",
     );
     for (const key of ["name", "canvas", "sprites", "timeline"])
-      if (isNull(get(root, key))) this.error("structure", key, `missing required field "${key}"`);
+      if (isNull(root.get(key))) this.error("structure", key, `missing required field "${key}"`);
 
-    const name = get(root, "name");
+    const name = root.get("name");
     if (!isNull(name)) {
       const text = this.getString(name, 128, false, "name");
       if (text !== null) this.name = text;
     }
-    const version = get(root, "version");
+    const version = root.get("version");
     if (!isNull(version)) {
       const value = this.getInt(version, 1, 0x7fffffff, "version");
       if (value !== null) this.version = value;
     }
-    const author = get(root, "author");
+    const author = root.get("author");
     if (!isNull(author)) this.getString(author, 128, true, "author");
-    const description = get(root, "description");
+    const description = root.get("description");
     if (!isNull(description)) this.getString(description, 512, true, "description");
-    const canvas = get(root, "canvas");
+    const canvas = root.get("canvas");
     if (!isNull(canvas)) {
-      const width = isObject(canvas) ? get(canvas, "width") : undefined;
-      const height = isObject(canvas) ? get(canvas, "height") : undefined;
+      const width = isObject(canvas) ? canvas.get("width") : undefined;
+      const height = isObject(canvas) ? canvas.get("height") : undefined;
       if (
         !isObject(canvas) ||
         canvas.size !== 2 ||
@@ -739,24 +739,24 @@ class Loader {
       )
         this.error("structure", "canvas", "must be { width: 16, height: 16 }");
     }
-    const frameMs = get(root, "frame_ms");
+    const frameMs = root.get("frame_ms");
     if (!isNull(frameMs)) {
       const value = this.getInt(frameMs, MIN_MS, MAX_MS, "frame_ms");
       if (value !== null) this.frameMs = value;
     }
     // A present null is an error, unlike the optional fields above that ignore it.
     if (root.has("brightness")) {
-      const value = this.getInt(get(root, "brightness"), 1, 100, "brightness");
+      const value = this.getInt(root.get("brightness"), 1, 100, "brightness");
       if (value !== null) this.brightness = value;
     }
 
-    this.parsePalette(get(root, "palette"));
-    const background = get(root, "background");
+    this.parsePalette(root.get("palette"));
+    const background = root.get("background");
     if (!isNull(background)) this.background = this.getColor(background, "background");
-    const sprites = get(root, "sprites");
+    const sprites = root.get("sprites");
     if (!isNull(sprites)) this.parseSprites(sprites);
 
-    const timeline = get(root, "timeline");
+    const timeline = root.get("timeline");
     if (!isNull(timeline)) {
       if (!isArray(timeline) || timeline.length === 0)
         this.error("structure", "timeline", "must be a non-empty list of frames and loops");

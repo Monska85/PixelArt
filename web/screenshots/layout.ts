@@ -24,7 +24,7 @@ const TOP_ALIGNED_TABLES = ["Diagnostics"];
  * - every control a person can reach has an accessible name;
  * - the cells of a table row are centred on one line (from 640 px, where a row is one line), and the last action of
  *   every row ends at the same place;
- * - a playlist item's mark sits under its animation field.
+ * - a playlist item's mark sits under its animation field, aligned with its left edge.
  */
 export async function expectGoodLayout(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
@@ -139,8 +139,11 @@ export async function expectGoodLayout(page: Page): Promise<void> {
         for (const mark of document.querySelectorAll('[data-testid^="item-missing-"]')) {
           const field = mark.closest("li")?.querySelector("select");
           if (!field || !shown(mark)) continue;
-          const dx = Math.abs(mark.getBoundingClientRect().left - field.getBoundingClientRect().left);
+          const markBox = mark.getBoundingClientRect();
+          const fieldBox = field.getBoundingClientRect();
+          const dx = Math.abs(markBox.left - fieldBox.left);
           if (dx > limits.markOffset) found.push(`${describe(mark)} is ${Math.round(dx)} px off its animation field`);
+          if (markBox.top < fieldBox.bottom) found.push(`${describe(mark)} is not under its animation field`);
         }
       };
 

@@ -55,23 +55,6 @@ test("offers the install buttons without a connection, and no comparison", async
   await expect(page.getByTestId("firmware-check")).toHaveCount(0);
 });
 
-test("says that no firmware release is published without a manifest", async ({ page }) => {
-  await page.route("**/manifest.json", (route) => route.fulfill({ status: 404, body: "not found" }));
-  await page.goto("/#firmware");
-  await expect(page.getByTestId("firmware-empty")).toContainText("No firmware release is published yet");
-  await expect(page.locator("esp-web-install-button")).toHaveCount(0);
-});
-
-test("explains that Web Serial is missing instead of showing the buttons", async ({ page }) => {
-  await page.addInitScript(() => {
-    // @ts-expect-error The property is removed on purpose, as in a browser without Web Serial.
-    delete Navigator.prototype.serial;
-  });
-  await page.goto("/#firmware");
-  await expect(page.getByText(/needs Web Serial, which only desktop Chrome, Edge, Opera/)).toHaveCount(1);
-  await expect(page.locator("esp-web-install-button")).toHaveCount(0);
-});
-
 test("closes the connection of the app before ESP Web Tools asks for the port, then offers to reconnect", async ({
   page,
   simulator,

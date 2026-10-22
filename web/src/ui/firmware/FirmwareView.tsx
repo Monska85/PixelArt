@@ -8,9 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Checkbox } from "../components/checkbox";
 import { Label } from "../components/label";
 import { DEFAULTS_TEXT, useDeleteEverything } from "../common/DeleteEverything";
-import { EmptyList } from "../common/FileTable";
-import { LoadingNote } from "../common/LoadingNote";
-import { PageHeader } from "../common/Page";
+import { ManifestPending, PageHeader } from "../common/Page";
 import { SERIAL_SUPPORTED, session, useSession } from "../session";
 import { useUploadRunning } from "../upload";
 import { useLatest } from "../useLatest";
@@ -55,24 +53,19 @@ export function FirmwareView() {
   const serial = SERIAL_SUPPORTED();
   const installer = useInstaller(manifest.status === "ready" && serial);
 
-  if (manifest.status === "loading")
+  if (manifest.status !== "ready")
     return (
-      <div className="flex flex-col gap-4">
-        <PageHeader title={TITLE} description={DESCRIPTION} />
-        <LoadingNote>Checking for a firmware release...</LoadingNote>
-      </div>
-    );
-  if (manifest.status === "none")
-    return (
-      <div className="flex flex-col gap-4">
-        <PageHeader title={TITLE} description={DESCRIPTION} />
-        <Card data-testid="firmware-empty">
-          <EmptyList title="No firmware release is published yet">
-            The firmware appears here once a release is published.
-          </EmptyList>
-        </Card>
+      <ManifestPending
+        title={TITLE}
+        description={DESCRIPTION}
+        loading={manifest.status === "loading"}
+        loadingText="Checking for a firmware release..."
+        emptyTitle="No firmware release is published yet"
+        emptyTestId="firmware-empty"
+        emptyText="The firmware appears here once a release is published."
+      >
         {reset}
-      </div>
+      </ManifestPending>
     );
 
   const latest = manifest.manifest.version;
@@ -86,18 +79,14 @@ export function FirmwareView() {
         title={TITLE}
         description={DESCRIPTION}
         primaryNode={
-          serial && installer === "ready" ? (
-            <InstallButton
-              manifest="./firmware/update.json"
-              label="Update firmware"
-              variant="default"
-              onHandover={handover}
-            />
-          ) : (
-            <Button disabled loading={serial && installer === "loading"}>
-              Update firmware
-            </Button>
-          )
+          <InstallButton
+            state={serial ? installer : "failed"}
+            manifest="./firmware/update.json"
+            label="Update firmware"
+            variant="default"
+            fallbackVariant="default"
+            onHandover={handover}
+          />
         }
       />
       {!serial && (
@@ -175,18 +164,14 @@ export function FirmwareView() {
             </AlertDescription>
           </Alert>
           <div>
-            {serial && installer === "ready" ? (
-              <InstallButton
-                manifest="./firmware/install.json"
-                label="Install from scratch"
-                variant="destructive-outline"
-                onHandover={handover}
-              />
-            ) : (
-              <Button variant="outline" disabled loading={serial && installer === "loading"}>
-                Install from scratch
-              </Button>
-            )}
+            <InstallButton
+              state={serial ? installer : "failed"}
+              manifest="./firmware/install.json"
+              label="Install from scratch"
+              variant="destructive-outline"
+              fallbackVariant="outline"
+              onHandover={handover}
+            />
           </div>
         </CardContent>
       </Card>
@@ -273,17 +258,28 @@ function useInstaller(wanted: boolean): Loading {
   return loaded;
 }
 
-function InstallButton({
-  manifest,
-  label,
-  variant,
-  onHandover,
-}: {
+interface InstallerProps {
   manifest: string;
   label: string;
   variant: "default" | "destructive-outline";
   onHandover: () => void;
-}) {
+}
+
+/** The installer's button once the installer is ready; before that, or without it, a disabled `fallbackVariant` one. */
+function InstallButton({
+  state,
+  fallbackVariant,
+  ...props
+}: InstallerProps & { state: Loading; fallbackVariant: "default" | "outline" }) {
+  if (state === "ready") return <Installer {...props} />;
+  return (
+    <Button variant={fallbackVariant} disabled loading={state === "loading"}>
+      {props.label}
+    </Button>
+  );
+}
+
+function Installer({ manifest, label, variant, onHandover }: InstallerProps) {
   const host = useRef<HTMLElement>(null);
   const handover = useLatest(onHandover);
   useEffect(() => {

@@ -1,10 +1,7 @@
 import type { Page } from "@playwright/test";
-import { watchBoard } from "../screenshots/board";
-import { connectSimulator, expect, test } from "./fixtures";
+import { watchBoard } from "./board";
+import { animations, animationYaml, connectSimulator, expect, pick, test, upload } from "./fixtures";
 import { connectScripted, scriptedBoard, type Scripted } from "./scripted";
-
-const animationYaml = (name: string): string =>
-  `format: pixelart/1\nname: ${name}\ncanvas: { width: 16, height: 16 }\nsprites:\n  dot:\n    points: [[7, 7, "#ff0000"]]\ntimeline:\n  - show: [dot]\n`;
 
 /** The kinds of the lists the page asked for since `since` requests (first pages only), in order. */
 const listed = (board: Scripted, since: number): unknown[] =>
@@ -18,7 +15,7 @@ async function connected(page: Page): Promise<Scripted> {
   board.files.animation.set("ball", Buffer.from("{}"));
   board.files.playlist.set("mix", Buffer.from("{}"));
   await connectScripted(page, board);
-  await expect(page.getByRole("table", { name: "Animations on the board" })).toContainText("ball");
+  await expect(animations(page)).toContainText("ball");
   await expect(page.getByRole("table", { name: "Playlists on the board", includeHidden: true })).toContainText("mix");
   return board;
 }
@@ -61,9 +58,7 @@ for (const via of ["Board", "Firmware"] as const) {
 
 test("an upload reads the list of the kind it stored again", async ({ page }) => {
   const board = await connected(page);
-  await page
-    .locator("#upload-input")
-    .setInputFiles([{ name: "one.yaml", mimeType: "application/yaml", buffer: Buffer.from(animationYaml("One")) }]);
+  await pick(page, upload("one.yaml", animationYaml("One")));
   await expect.poll(() => board.requests.some((r) => r.cmd === "put_end")).toBe(true);
   // The queue lists the board before it sends; what follows the last file is the refresh.
   const sent = (): number => board.requests.findLastIndex((r) => r.cmd === "put_end") + 1;
@@ -79,7 +74,7 @@ test("a list that is still being read is not shown as empty", async ({ page, sim
   await expect(page.getByText("No animations on this board")).toHaveCount(0);
   await expect(page.getByText("No playlists on this board")).toHaveCount(0);
   watch.release();
-  await expect(page.getByRole("table", { name: "Animations on the board" })).toBeVisible();
+  await expect(animations(page)).toBeVisible();
 });
 
 test("a list that could not be read says so and Retry reads it again, and the failure is reported once", async ({
@@ -103,7 +98,7 @@ test("a list that could not be read says so and Retry reads it again, and the fa
 
   board.failLists = false;
   await page.getByRole("button", { name: "Retry" }).first().click();
-  await expect(page.getByRole("table", { name: "Animations on the board" })).toContainText("ball");
+  await expect(animations(page)).toContainText("ball");
 });
 
 test("settings that could not be read say so and Retry reads the settings only", async ({ page }) => {

@@ -1,4 +1,5 @@
-import { memo, useCallback, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { clsx } from "clsx";
+import { memo, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
   GRID,
   paintCells,
@@ -12,9 +13,8 @@ import {
 } from "../../editor/doc";
 import { Alert, AlertDescription } from "../components/alert";
 import { Button } from "../components/button";
-import { ButtonRow, EditorCard, Hint } from "./EditorCard";
+import { ButtonRow, EditorCard, Hint, type Edit } from "./EditorCard";
 import { PosField } from "./Fields";
-import type { Edit } from "./types";
 
 type Tool = "draw" | "erase" | "pick";
 
@@ -37,10 +37,9 @@ interface CellProps {
 }
 
 const Cell = memo(function Cell({ index, hex, filled, cursor, origin, pivot }: CellProps) {
-  const classes = ["cell", cursor && "is-cursor", origin && "is-origin", pivot && "is-pivot"].filter(Boolean).join(" ");
   return (
     <div
-      className={classes}
+      className={clsx("cell", cursor && "is-cursor", origin && "is-origin", pivot && "is-pivot")}
       data-testid={`cell-${index % GRID}-${Math.floor(index / GRID)}`}
       data-color={filled ? (hex ?? "unknown") : "empty"}
       style={filled && hex ? { background: hex } : undefined}
@@ -48,10 +47,12 @@ const Cell = memo(function Cell({ index, hex, filled, cursor, origin, pivot }: C
   );
 });
 
+const clampCell = (v: number): number => Math.min(GRID - 1, Math.max(0, v));
+
 const cellIndex = (event: PointerEvent<HTMLElement>): number => {
   const rect = event.currentTarget.getBoundingClientRect();
-  const x = Math.min(GRID - 1, Math.max(0, Math.floor(((event.clientX - rect.left) / rect.width) * GRID)));
-  const y = Math.min(GRID - 1, Math.max(0, Math.floor(((event.clientY - rect.top) / rect.height) * GRID)));
+  const x = clampCell(Math.floor(((event.clientX - rect.left) / rect.width) * GRID));
+  const y = clampCell(Math.floor(((event.clientY - rect.top) / rect.height) * GRID));
   return y * GRID + x;
 };
 
@@ -65,15 +66,12 @@ export function GridPanel({ doc, edit, sprite, color, onPick }: Props) {
   const strokeRef = useRef<Map<number, string | null> | null>(null);
   const drawHex = resolveColor(doc, color);
 
-  const apply = useCallback(
-    (index: number, into: Map<number, string | null>): boolean => {
-      const value = tool === "draw" ? color : null;
-      if (tool === "pick" || into.get(index) === value) return false;
-      into.set(index, value);
-      return true;
-    },
-    [tool, color],
-  );
+  const apply = (index: number, into: Map<number, string | null>): boolean => {
+    const value = tool === "draw" ? color : null;
+    if (tool === "pick" || into.get(index) === value) return false;
+    into.set(index, value);
+    return true;
+  };
 
   if (!view || !spriteMap)
     return (
@@ -127,7 +125,7 @@ export function GridPanel({ doc, edit, sprite, color, onPick }: Props) {
     const y = Math.floor(cursor / GRID);
     const go = (nx: number, ny: number): void => {
       event.preventDefault();
-      setCursor(Math.min(GRID - 1, Math.max(0, ny)) * GRID + Math.min(GRID - 1, Math.max(0, nx)));
+      setCursor(clampCell(ny) * GRID + clampCell(nx));
     };
     if (event.key === "ArrowLeft") go(x - 1, y);
     else if (event.key === "ArrowRight") go(x + 1, y);

@@ -11,7 +11,7 @@ const loading = (what: string, view: ReactNode): ReactNode => (
   <Suspense fallback={<LoadingNote>Loading {what}...</LoadingNote>}>{view}</Suspense>
 );
 
-export interface View {
+interface View {
   /** The fragment of the address: `#board`. */
   id: string;
   title: string;
@@ -23,9 +23,5 @@ export const VIEWS: View[] = [
   { id: "board", title: "Board", render: () => <BoardView /> },
   { id: "library", title: "Library", render: () => loading("the Library", <LibraryView />) },
   { id: "firmware", title: "Firmware", render: () => loading("the firmware page", <FirmwareView />) },
-  {
-    id: "editor",
-    title: "Editor",
-    render: () => loading("the editor", <EditorView />),
-  },
+  { id: "editor", title: "Editor", render: () => loading("the editor", <EditorView />) },
 ];

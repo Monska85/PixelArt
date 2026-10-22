@@ -21,12 +21,7 @@ export function ConnectionAlerts() {
       <ErrorAlert title="Could not connect" testId="connection-message">
         <p>
           {message}
-          {offerFirmware && (
-            <>
-              {" "}
-              <FirmwareLink />
-            </>
-          )}
+          {offerFirmware && <FirmwareLink />}
         </p>
       </ErrorAlert>
     );

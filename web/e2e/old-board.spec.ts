@@ -1,33 +1,12 @@
 import type { Page } from "@playwright/test";
-import { decodeLine, encodeLine } from "../src/protocol/framing";
 import { expect, test } from "./fixtures";
+import { connectScripted, scriptedBoard } from "./scripted";
 
-/** A board that answers `info` only, with the given protocol version and file formats. */
+/** A board of an older firmware: another protocol version or other file formats. */
 async function oldBoard(page: Page, info: { protocol: number; formats: { animation: string[]; playlist: string[] } }) {
-  await page.routeWebSocket("ws://127.0.0.1:9/", (socket) => {
-    socket.onMessage((message) => {
-      const request = decodeLine(new TextEncoder().encode(String(message)));
-      if (!request) return;
-      socket.send(
-        encodeLine({
-          seq: request.seq,
-          ok: true,
-          firmware: "0.0.1",
-          board: "old",
-          boot_id: 1,
-          canvas: { width: 16, height: 16 },
-          storage: { total: 1000, used: 10 },
-          memory: { free: 0, largest: 0 },
-          limits: { line: 1024, chunk: 512, page: 8, animation: 65536, playlist: 16384 },
-          ...info,
-        }),
-      );
-    });
-  });
-  await page.goto("/");
-  await page.getByRole("button", { name: "Use the simulator" }).click();
-  await page.getByLabel("Simulator address").fill("ws://127.0.0.1:9/");
-  await page.getByRole("button", { name: "Connect simulator" }).click();
+  const board = await scriptedBoard(page);
+  board.info = { firmware: "0.0.1", board: "old", ...info };
+  await connectScripted(page, board);
 }
 
 test("offers the Firmware view when the board speaks another protocol", async ({ page }) => {

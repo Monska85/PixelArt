@@ -1,0 +1,55 @@
+{
+  "description": "a request with a number outside the JSON grammar gets bad_frame",
+  "steps": [
+    {
+      "send": "@PR 22c90158 {\"seq\":+1,\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 9e35147b {\"seq\":01,\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 20b7d938 {\"seq\":1.,\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 23347ade {\"seq\":1,\"cmd\":\"info\",\"x\":.5}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 8ef5c3c7 {\"seq\":1,\"cmd\":\"info\",\"x\":1e}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    }
+  ]
+}

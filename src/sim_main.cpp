@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Entry point for the native simulator build (pio run -e native).
 // Firmware builds skip this file: PIXELART_SIM is only set by the native env.
 

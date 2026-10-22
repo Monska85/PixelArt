@@ -10,12 +10,11 @@ export interface ShownDiagnostic {
 
 // Every text here comes from a file or a board: React shows it as text only. The table follows the width of its
 // container, not of the window: below 36 rem (a phone, or the editor's side column) code and place go into the message.
-export function DiagnosticsTable({ diagnostics, caption }: { diagnostics: ShownDiagnostic[]; caption?: string }) {
+export function DiagnosticsTable({ diagnostics }: { diagnostics: ShownDiagnostic[] }) {
   if (diagnostics.length === 0) return null;
   return (
     <div className="@container rounded-md border border-border bg-card text-foreground">
       <Table className="table-fixed text-xs max-sm:text-[0.8rem]" aria-label="Diagnostics">
-        {caption && <caption className="p-2 text-left text-muted-foreground">{caption}</caption>}
         <TableHeader>
           <TableRow>
             <TableHead className="w-20 @xl:w-24">Severity</TableHead>

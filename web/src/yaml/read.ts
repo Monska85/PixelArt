@@ -3,14 +3,14 @@
 // command line.
 
 import { isAlias, isMap, isNode, isPair, isScalar, isSeq, parseDocument, type Document, type Node } from "yaml";
-import { JsonNumber, type JsonObject, type JsonValue } from "../engine/json";
+import { JsonNumber, type JsonObject, type JsonValue } from "../engine";
 import { resolvePlain } from "./pyyaml";
 
-export const MAX_YAML_BYTES = 256 * 1024;
+const MAX_YAML_BYTES = 256 * 1024;
 /** Most nodes that aliases may produce in one document, all expansions together. */
-export const MAX_ALIAS_NODES = 100_000;
+const MAX_ALIAS_NODES = 100_000;
 
-export type YamlResult = { ok: true; value: JsonValue } | { ok: false; message: string; line?: number };
+type YamlResult = { ok: true; value: JsonValue } | { ok: false; message: string; line?: number };
 
 class YamlFailure extends Error {
   constructor(
@@ -120,7 +120,8 @@ class Converter {
 
 /** Reads one YAML document with YAML 1.1 rules into JSON values. */
 export function readYaml(text: string): YamlResult {
-  if (new TextEncoder().encode(text).length > MAX_YAML_BYTES) {
+  // A UTF-16 code unit takes at most 3 bytes in UTF-8: only a longer text needs encoding to measure it.
+  if (text.length * 3 > MAX_YAML_BYTES && new TextEncoder().encode(text).length > MAX_YAML_BYTES) {
     return { ok: false, message: `the YAML text is larger than ${MAX_YAML_BYTES / 1024} KiB` };
   }
   try {

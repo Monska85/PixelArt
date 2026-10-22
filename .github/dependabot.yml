@@ -5,6 +5,7 @@ updates:
     directories:
       - "/"
       - "/.github/actions/checks"
+      - "/.github/actions/setup"
     schedule:
       interval: weekly
     groups:
@@ -26,4 +27,17 @@ updates:
           - "*"
     commit-message:
       prefix: "build"
+      include: "scope"
+
+  # The Python tools of CI and the release build, pinned in requirements-ci.txt
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
       include: "scope"

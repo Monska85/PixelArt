@@ -3,18 +3,26 @@
 // returns a new document and shares what it did not change, so a document is
 // an undo snapshot. No access to the page.
 
-import { JsonNumber, isArray, isObject, type JsonArray, type JsonObject, type JsonValue } from "../engine/json";
+import {
+  CANVAS_WIDTH as GRID,
+  HEX_PATTERN,
+  JsonNumber,
+  MAX_COORD,
+  MIN_COORD,
+  NAME_PATTERN,
+  isArray,
+  isObject,
+  type JsonArray,
+  type JsonObject,
+  type JsonValue,
+} from "../engine";
 import { writeJson } from "../yaml/writeJson";
 
 export type Doc = JsonObject;
 /** Position of a timeline item: the index in the timeline, then the index in the steps of that loop, and so on. */
 export type Path = number[];
 
-export const GRID = 16;
-export const MIN_COORD = -128;
-export const MAX_COORD = 127;
-export const NAME_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
-export const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
+export { GRID, HEX_PATTERN, MAX_COORD, MIN_COORD };
 
 /** Field order of the format, used where the editor adds a field the file did not have. */
 const ORDER: { doc: string[]; sprite: string[]; frame: string[]; loop: string[]; ref: string[] } = {
@@ -96,11 +104,6 @@ function setField(
 
 const replaceAt = <T>(list: T[], index: number, value: T): T[] => list.map((v, i) => (i === index ? value : v));
 const removeAt = <T>(list: T[], index: number): T[] => list.filter((_, i) => i !== index);
-function insertAt<T>(list: T[], index: number, value: T): T[] {
-  const next = [...list];
-  next.splice(index, 0, value);
-  return next;
-}
 function moveAt<T>(list: T[], index: number, delta: number): T[] {
   const to = index + delta;
   if (index < 0 || index >= list.length || to < 0 || to >= list.length) return list;
@@ -121,7 +124,7 @@ export function readPos(v: JsonValue | undefined): { x: number; y: number } | nu
   return x === null || y === null ? null : { x, y };
 }
 
-export const clampCoord = (n: number): number => Math.max(MIN_COORD, Math.min(MAX_COORD, Math.round(n)));
+const clampCoord = (n: number): number => Math.max(MIN_COORD, Math.min(MAX_COORD, Math.round(n)));
 
 /** A name that is not in `taken`, built from `base` and a number when needed, at most 32 characters. */
 export function uniqueName(base: string, taken: Iterable<string>): string {
@@ -209,6 +212,42 @@ export function setColorHex(doc: Doc, name: string, hex: string): Doc {
   return withKey(doc, "palette", withKey(palette, name, hex.toLowerCase()));
 }
 
+// Applies `fn` to the `field` of every sprite that has it. Only the sprites it changed are rebuilt.
+function mapSprites(doc: Doc, field: string, fn: (value: JsonValue) => JsonValue): Doc {
+  const sprites = asObject(doc.get("sprites"));
+  if (!sprites) return doc;
+  let next = sprites;
+  for (const [name, sprite] of sprites) {
+    const map = asObject(sprite);
+    const value = map?.get(field);
+    if (!map || value === undefined) continue;
+    const mapped = fn(value);
+    if (mapped !== value) next = withKey(next, name, withKey(map, field, mapped));
+  }
+  return next === sprites ? doc : withKey(doc, "sprites", next);
+}
+
+// Applies `leaf` to every frame of the timeline, inside loops too. Only the items it changed are rebuilt.
+function mapTimeline(doc: Doc, leaf: (frame: JsonObject) => JsonObject): Doc {
+  const walk = (list: JsonValue[]): JsonValue[] => {
+    let changed = false;
+    const next = list.map((item) => {
+      const map = asObject(item);
+      if (!map) return item;
+      const steps = asList(map.get("steps"));
+      const mapped = steps ? walk(steps) : leaf(map);
+      if (mapped === steps || mapped === map) return item;
+      changed = true;
+      return steps ? withKey(map, "steps", mapped as JsonValue[]) : mapped;
+    });
+    return changed ? next : list;
+  };
+  const timeline = asList(doc.get("timeline"));
+  if (!timeline) return doc;
+  const mapped = walk(timeline);
+  return mapped === timeline ? doc : withKey(doc, "timeline", mapped);
+}
+
 // Applies `change` to every color reference of the document: the background, the
 // points of every sprite (both forms) and the recolor pairs of every frame.
 function mapColors(doc: Doc, change: (ref: string) => string): Doc {
@@ -216,26 +255,20 @@ function mapColors(doc: Doc, change: (ref: string) => string): Doc {
   const background = doc.get("background");
   if (typeof background === "string" && change(background) !== background)
     result = withKey(result, "background", change(background));
-
-  const sprites = asObject(doc.get("sprites"));
-  if (sprites) {
-    let nextSprites = sprites;
-    for (const [name, sprite] of sprites) {
-      const map = asObject(sprite);
-      const points = map?.get("points");
-      if (!map || points === undefined) continue;
-      const mapped = mapPoints(points, change);
-      if (mapped !== points) nextSprites = withKey(nextSprites, name, withKey(map, "points", mapped));
+  result = mapSprites(result, "points", (points) => mapPoints(points, change));
+  return mapTimeline(result, (frame) => {
+    const recolor = asObject(frame.get("recolor"));
+    if (!recolor) return frame;
+    let touched = false;
+    const pairs: JsonObject = new Map();
+    for (const [from, to] of recolor) {
+      const newFrom = change(from);
+      const newTo = typeof to === "string" ? change(to) : to;
+      if (newFrom !== from || newTo !== to) touched = true;
+      pairs.set(newFrom, newTo);
     }
-    if (nextSprites !== sprites) result = withKey(result, "sprites", nextSprites);
-  }
-
-  const timeline = asList(doc.get("timeline"));
-  if (timeline) {
-    const mapped = mapTimelineColors(timeline, change);
-    if (mapped !== timeline) result = withKey(result, "timeline", mapped);
-  }
-  return result;
+    return touched ? withKey(frame, "recolor", pairs) : frame;
+  });
 }
 
 function mapPoints(points: JsonValue, change: (ref: string) => string): JsonValue {
@@ -260,35 +293,6 @@ function mapPoints(points: JsonValue, change: (ref: string) => string): JsonValu
     return changed ? next : points;
   }
   return points;
-}
-
-function mapTimelineColors(list: JsonValue[], change: (ref: string) => string): JsonValue[] {
-  let changed = false;
-  const next = list.map((item) => {
-    const map = asObject(item);
-    if (!map) return item;
-    const steps = asList(map.get("steps"));
-    if (steps) {
-      const mapped = mapTimelineColors(steps, change);
-      if (mapped === steps) return item;
-      changed = true;
-      return withKey(map, "steps", mapped);
-    }
-    const recolor = asObject(map.get("recolor"));
-    if (!recolor) return item;
-    let touched = false;
-    const pairs: JsonObject = new Map();
-    for (const [from, to] of recolor) {
-      const newFrom = change(from);
-      const newTo = typeof to === "string" ? change(to) : to;
-      if (newFrom !== from || newTo !== to) touched = true;
-      pairs.set(newFrom, newTo);
-    }
-    if (!touched) return item;
-    changed = true;
-    return withKey(map, "recolor", pairs);
-  });
-  return changed ? next : list;
 }
 
 /** Renames a palette color and every place that uses it, points group keys and recolor pairs included. */
@@ -371,47 +375,13 @@ function mapSpriteRefs(doc: Doc, change: (name: string) => string | null): Doc {
     return changed ? next : entries;
   };
 
-  let result = doc;
-  const sprites = asObject(doc.get("sprites"));
-  if (sprites) {
-    let nextSprites = sprites;
-    for (const [name, sprite] of sprites) {
-      const map = asObject(sprite);
-      const parts = asList(map?.get("parts"));
-      if (!map || !parts) continue;
-      const mapped = mapEntries(parts);
-      if (mapped !== parts) nextSprites = withKey(nextSprites, name, withKey(map, "parts", mapped));
-    }
-    if (nextSprites !== sprites) result = withKey(result, "sprites", nextSprites);
-  }
-
-  const walk = (list: JsonValue[]): JsonValue[] => {
-    let changed = false;
-    const next = list.map((item) => {
-      const map = asObject(item);
-      if (!map) return item;
-      const steps = asList(map.get("steps"));
-      if (steps) {
-        const mapped = walk(steps);
-        if (mapped === steps) return item;
-        changed = true;
-        return withKey(map, "steps", mapped);
-      }
-      const show = asList(map.get("show"));
-      if (!show) return item;
-      const mapped = mapEntries(show);
-      if (mapped === show) return item;
-      changed = true;
-      return withKey(map, "show", mapped);
-    });
-    return changed ? next : list;
-  };
-  const timeline = asList(doc.get("timeline"));
-  if (timeline) {
-    const mapped = walk(timeline);
-    if (mapped !== timeline) result = withKey(result, "timeline", mapped);
-  }
-  return result;
+  const result = mapSprites(doc, "parts", (parts) => (isArray(parts) ? mapEntries(parts) : parts));
+  return mapTimeline(result, (frame) => {
+    const show = asList(frame.get("show"));
+    if (!show) return frame;
+    const mapped = mapEntries(show);
+    return mapped === show ? frame : withKey(frame, "show", mapped);
+  });
 }
 
 /** Renames a sprite and every show entry and composite part that names it. */
@@ -474,22 +444,18 @@ export function setSpritePivot(doc: Doc, name: string, pivot: { x: number; y: nu
 
 // ---------------------------------------------------------------- points
 
-export interface SpritePoint {
+interface SpritePoint {
   x: number;
   y: number;
   color: string;
 }
 
-export interface PointsView {
+interface PointsView {
   at: { x: number; y: number };
   /** The color reference of each grid cell (index y * 16 + x), or null: points of the sprite at its home position. */
   cells: Array<string | null>;
   /** Points whose place falls outside the 16x16 canvas, in file order, in sprite coordinates. */
   outside: SpritePoint[];
-}
-
-function readPoint(v: JsonValue): { x: number; y: number } | null {
-  return readPos(v);
 }
 
 /** Reads the points of a sprite for the grid, or returns null when they are not in a valid form. */
@@ -501,7 +467,7 @@ export function readPoints(sprite: JsonObject | undefined): PointsView | null {
   const list: SpritePoint[] = [];
   if (isArray(points)) {
     for (const p of points) {
-      const xy = isArray(p) && p.length === 3 ? readPoint(p.slice(0, 2)) : null;
+      const xy = isArray(p) && p.length === 3 ? readPos(p.slice(0, 2)) : null;
       const color = isArray(p) ? p[2] : undefined;
       if (!xy || typeof color !== "string") return null;
       list.push({ ...xy, color });
@@ -510,7 +476,7 @@ export function readPoints(sprite: JsonObject | undefined): PointsView | null {
     for (const [color, positions] of points) {
       if (!isArray(positions)) return null;
       for (const p of positions) {
-        const xy = readPoint(p);
+        const xy = readPos(p);
         if (!xy) return null;
         list.push({ ...xy, color });
       }
@@ -570,7 +536,7 @@ export function paintCells(doc: Doc, name: string, changes: Map<number, string |
 
 // ---------------------------------------------------------------- composite parts
 
-export interface PartView {
+interface PartView {
   sprite: string;
   at: { x: number; y: number } | null;
 }
@@ -682,7 +648,7 @@ function insertItem(doc: Doc, parent: Path, item: JsonValue, after?: number): { 
   let index = 0;
   const next = editTimeline(doc, parent, (items) => {
     index = after === undefined ? items.length : Math.min(after + 1, items.length);
-    return insertAt(items, index, item);
+    return items.toSpliced(index, 0, item);
   });
   return { doc: next, path: [...parent, index] };
 }
@@ -725,9 +691,7 @@ export function unwrapLoop(doc: Doc, path: Path): Doc {
   return editTimeline(doc, parentOf(path), (items) => {
     const steps = asList(asObject(items[indexOf(path)])?.get("steps"));
     if (!steps) return items;
-    const next = [...items];
-    next.splice(indexOf(path), 1, ...steps);
-    return next;
+    return items.toSpliced(indexOf(path), 1, ...steps);
   });
 }
 
@@ -764,7 +728,7 @@ export function setRecolor(doc: Doc, path: Path, pairs: Array<[string, string]>)
 
 // ---------------------------------------------------------------- show entries
 
-export interface RefView {
+interface RefView {
   sprite: string;
   at: { x: number; y: number } | null;
   move: { x: number; y: number } | null;

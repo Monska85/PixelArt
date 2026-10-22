@@ -1,15 +1,14 @@
-import { MoreHorizontal, type LucideIcon } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { useRef, type ReactNode } from "react";
-import { rememberOpener } from "./focusReturn";
+import { EmptyList } from "./FileTable";
+import { LoadingNote } from "./LoadingNote";
+import { MenuItems, type MenuEntry } from "./MoreMenu";
 import { Button } from "../components/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../components/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";
+import { Card } from "../components/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../components/dropdown-menu";
+import { ReasonTooltip } from "../components/tooltip";
 
-export interface PageAction {
-  label: string;
-  icon?: LucideIcon;
-  onSelect: () => void;
-  disabled?: boolean;
+interface PageAction extends MenuEntry {
   /** Why the action is disabled, shown as a tooltip. */
   reason?: string | null;
   loading?: boolean;
@@ -26,7 +25,7 @@ interface Props {
   /** Secondary actions: buttons on a wide screen, items of the More menu on a phone. */
   secondary?: PageAction[];
   /** Everything else, in the More menu. Destructive items go last. */
-  more?: Array<PageAction & { destructive?: boolean }>;
+  more?: PageAction[];
 }
 
 function ActionButton({
@@ -53,21 +52,16 @@ function ActionButton({
   );
   if (!action.disabled || !action.reason) return button;
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className={className} tabIndex={0} role="group" aria-label={action.reason}>
-          {button}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>{action.reason}</TooltipContent>
-    </Tooltip>
+    <ReasonTooltip reason={action.reason} className={className}>
+      {button}
+    </ReasonTooltip>
   );
 }
 
 /** The header every view starts with: the title, what the view is for, and its actions on the right. */
 export function PageHeader({ title, description, primary, primaryNode, secondary = [], more = [] }: Props) {
   const trigger = useRef<HTMLButtonElement>(null);
-  const menu = [...secondary.map((action) => ({ ...action, phoneOnly: true, destructive: false })), ...more];
+  const menu = [...secondary.map((action) => ({ ...action, className: "sm:hidden", destructive: false })), ...more];
   return (
     <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
       <div className="min-w-0 flex-1 basis-64">
@@ -89,28 +83,49 @@ export function PageHeader({ title, description, primary, primaryNode, secondary
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              {menu.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <DropdownMenuItem
-                    key={item.label}
-                    destructive={item.destructive}
-                    disabled={item.disabled}
-                    className={"phoneOnly" in item ? "sm:hidden" : undefined}
-                    onSelect={() => {
-                      rememberOpener(trigger.current);
-                      item.onSelect();
-                    }}
-                  >
-                    {Icon && <Icon aria-hidden="true" />}
-                    {item.label}
-                  </DropdownMenuItem>
-                );
-              })}
+              <MenuItems entries={menu} trigger={trigger} />
             </DropdownMenuContent>
           </DropdownMenu>
         )}
       </div>
     </header>
+  );
+}
+
+/** A view that shows the published release while the release is read, or when none is published. */
+export function ManifestPending({
+  title,
+  description,
+  loading,
+  loadingText,
+  emptyTitle,
+  emptyTestId,
+  emptyText,
+  children,
+}: {
+  title: string;
+  description: ReactNode;
+  loading: boolean;
+  loadingText: string;
+  emptyTitle: string;
+  emptyTestId: string;
+  emptyText: string;
+  /** Shown under the empty card. */
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader title={title} description={description} />
+      {loading ? (
+        <LoadingNote>{loadingText}</LoadingNote>
+      ) : (
+        <>
+          <Card data-testid={emptyTestId}>
+            <EmptyList title={emptyTitle}>{emptyText}</EmptyList>
+          </Card>
+          {children}
+        </>
+      )}
+    </div>
   );
 }

@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Shared by the native test suites (test/test_*): a throwaway storage folder
-// that undoes every simulator hook, and the helpers to build protocol requests.
+// that undoes every simulator hook, file and color helpers, and the helpers to
+// build protocol requests.
 // Found through `-I$PROJECT_DIR/test/support` in [env:native_test].
 
 #pragma once
@@ -11,6 +14,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <system_error>
 
@@ -23,8 +27,21 @@ namespace pixelart_test
 
 namespace fs = std::filesystem;
 
-// Size of the board's data partition, the simulator's default capacity.
-constexpr size_t DEFAULT_CAPACITY = 1441792;
+// The board files built from animations/ and playlists/ by `make data`.
+inline const std::string REPO_DATA = std::string(PIXELART_PROJECT_DIR) + "/data";
+
+inline std::string read_file(const fs::path &path)
+{
+  std::ifstream in(path, std::ios::binary);
+  std::stringstream ss;
+  ss << in.rdbuf();
+  return ss.str();
+}
+
+// Channels of a recorded LED color.
+inline uint8_t red(uint32_t c) { return c >> 16; }
+inline uint8_t green(uint32_t c) { return c >> 8; }
+inline uint8_t blue(uint32_t c) { return c; }
 
 // A throwaway storage folder for one test. The destructor puts back the
 // simulator hooks a test may have changed, so the next test starts clean.
@@ -39,11 +56,11 @@ struct TempData
     fs::create_directories(root / "animations");
     fs::create_directories(root / "playlists");
     sim::set_data_dir(root.string());
-    storage::set_capacity(DEFAULT_CAPACITY);
+    storage::set_capacity(storage::DEFAULT_CAPACITY);
   }
   ~TempData()
   {
-    storage::set_capacity(DEFAULT_CAPACITY);
+    storage::set_capacity(storage::DEFAULT_CAPACITY);
     storage::set_fail_writes(false);
     storage::set_read_all_failure(storage::ReadResult::Ok);
     protocol::set_memory_probe(nullptr);
@@ -97,6 +114,20 @@ inline std::string protocol_frame(const std::string &json)
 inline std::string request(unsigned seq, const std::string &fields)
 {
   return protocol_frame("{\"seq\":" + std::to_string(seq) + "," + fields + "}") + "\n";
+}
+
+// put_begin of `bytes` as a file of `kind` and `id`.
+inline std::string put_begin(unsigned seq, const char *kind, const char *id, const std::string &bytes)
+{
+  return request(seq, std::string(R"("cmd":"put_begin","kind":")") + kind + R"(","id":")" + id + R"(","size":)" +
+                          std::to_string(bytes.size()) + R"(,"sha256":")" + sha256_hex(bytes) + "\"");
+}
+
+// put_chunk of `bytes` at offset 0.
+inline std::string put_chunk(unsigned seq, const std::string &bytes)
+{
+  return request(seq, R"("cmd":"put_chunk","offset":0,"data":")" + pixelart::base64_encode(bytes.data(), bytes.size()) +
+                          "\"");
 }
 
 } // namespace pixelart_test

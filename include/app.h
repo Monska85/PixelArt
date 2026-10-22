@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Plays the animations stored on the board, following the playlist rules of
 // docs/format/playlist-v1.md#how-the-board-chooses-what-to-play.
 
@@ -8,6 +10,10 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+
+// Folders of the animation and playlist files on the board.
+constexpr const char *ANIMATIONS_FOLDER = "/animations";
+constexpr const char *PLAYLISTS_FOLDER = "/playlists";
 
 // Path of an animation or playlist file on the board, from its ID or name.
 std::string animation_file(const std::string &id);

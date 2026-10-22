@@ -1,7 +1,7 @@
 // The state of the editor: the document with its undo history, and the text of
 // the YAML tab. A pure reducer, so it runs in the tests without a page.
 
-import { isObject } from "../engine/json";
+import { isObject } from "../engine";
 import { readYaml } from "../yaml/read";
 import { writeYaml } from "../yaml/writeYaml";
 import { writeJson } from "../yaml/writeJson";
@@ -11,7 +11,7 @@ import { newAnimation, type Doc } from "./doc";
 
 export const MAX_UNDO = 200;
 
-export interface TextError {
+interface TextError {
   message: string;
   line?: number;
 }

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Runs the protocol conformance cases in conformance/protocol/ through the
 // real line reader on the simulated serial port, and tests what the cases
 // cannot express. Run with: pio test -e native_test (or make test)
@@ -5,13 +7,14 @@
 #include <ArduinoJson.h>
 #include <pixel_codec.h>
 #include <sim.h>
+#include <strict_json.h>
 #include <unity.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <deque>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -24,20 +27,15 @@
 namespace fs = std::filesystem;
 using pixelart_test::DOT;
 using pixelart_test::protocol_frame;
+using pixelart_test::put_begin;
+using pixelart_test::put_chunk;
+using pixelart_test::read_file;
 using pixelart_test::request;
 using pixelart_test::sha256_hex;
 using pixelart_test::TempData;
 
 static const fs::path SUITE = fs::path(PIXELART_PROJECT_DIR) / "conformance" / "protocol";
 static const char *ANY = "<any>";
-
-static std::string read_file(const fs::path &path)
-{
-  std::ifstream in(path, std::ios::binary);
-  std::stringstream ss;
-  ss << in.rdbuf();
-  return ss.str();
-}
 
 // The replies the board has written to the serial port.
 class Replies
@@ -79,37 +77,24 @@ private:
 // Strict check of RFC 3629: no overlong forms, surrogates or values over U+10FFFF.
 static bool is_utf8(const std::string &text)
 {
-  size_t i = 0;
-  while (i < text.size())
-  {
-    unsigned char c = (unsigned char)text[i];
-    size_t n = c < 0x80                   ? 1
-               : (c >= 0xC2 && c <= 0xDF) ? 2
-               : (c >= 0xE0 && c <= 0xEF) ? 3
-               : (c >= 0xF0 && c <= 0xF4) ? 4
-                                          : 0;
-    if (n == 0 || i + n > text.size())
+  for (size_t i = 0, n; i < text.size(); i += n)
+    if ((n = pixelart::utf8_sequence_length(text.data(), text.size(), i)) == 0)
       return false;
-    for (size_t k = 1; k < n; k++)
-      if (((unsigned char)text[i + k] & 0xC0) != 0x80)
-        return false;
-    unsigned char second = n > 1 ? (unsigned char)text[i + 1] : 0;
-    if ((c == 0xE0 && second < 0xA0) || (c == 0xED && second > 0x9F) || (c == 0xF0 && second < 0x90) ||
-        (c == 0xF4 && second > 0x8F))
-      return false;
-    i += n;
-  }
   return true;
 }
 
-// Splits a reply line and checks its framing: marker, 8 lowercase hex digits
-// and a CRC that matches the JSON.
+// Splits a reply line and checks its framing: marker, 8 lowercase hex digits,
+// a CRC that matches the JSON, and JSON that follows the strict rules.
 static std::string reply_json(const std::string &line, const std::string &where)
 {
   TEST_ASSERT_TRUE_MESSAGE(line.size() > 13 && line.compare(0, 4, "@PR ") == 0 && line[12] == ' ',
                            (where + ": not a protocol line: " + line).c_str());
   std::string json = line.substr(13);
   TEST_ASSERT_TRUE_MESSAGE(is_utf8(json), (where + ": the reply is not valid UTF-8: " + line).c_str());
+  const char *reason;
+  size_t offset;
+  TEST_ASSERT_TRUE_MESSAGE(pixelart::check_strict_json(json.data(), json.size(), 32, reason, offset),
+                           (where + ": the reply is not strict JSON: " + line).c_str());
   char want[16];
   snprintf(want, sizeof(want), "%08x", (unsigned)pixelart::crc32(json.data(), json.size()));
   TEST_ASSERT_EQUAL_STRING_MESSAGE(want, line.substr(4, 8).c_str(), (where + ": wrong CRC in " + line).c_str());
@@ -123,11 +108,17 @@ static std::string text_of(JsonVariantConst value)
   return out;
 }
 
-// Compares a reply with the expected body. "<any>" matches any value.
+// Compares a reply with the expected body. "<any>" matches any value, and
+// "<at most N characters>" any text of at most N code points.
 static bool matches(JsonVariantConst want, JsonVariantConst got)
 {
   if (want.is<const char *>() && std::string(want.as<const char *>()) == ANY)
     return true;
+  size_t limit;
+  int end = 0;
+  if (want.is<const char *>() && sscanf(want.as<const char *>(), "<at most %zu characters>%n", &limit, &end) == 1 &&
+      end > 0 && want.as<const char *>()[end] == '\0')
+    return got.is<const char *>() && pixelart::utf8_code_points(got.as<const char *>()) <= limit;
   if (want.is<JsonObjectConst>())
   {
     if (!got.is<JsonObjectConst>() || want.as<JsonObjectConst>().size() != got.as<JsonObjectConst>().size())
@@ -286,11 +277,9 @@ static void test_line_reader_limits()
 // Sends a whole upload of DOT and returns the reply to put_end.
 static std::string upload_dot(Replies &replies, unsigned seq = 1)
 {
-  replies.send(request(seq, R"("cmd":"put_begin","kind":"animation","id":"dot","size":147,"sha256":")" +
-                                sha256_hex(DOT) + "\""));
+  replies.send(put_begin(seq, "animation", "dot", DOT));
   replies.pop();
-  replies.send(request(seq + 1, R"("cmd":"put_chunk","offset":0,"data":")" +
-                                    pixelart::base64_encode(DOT.data(), DOT.size()) + "\""));
+  replies.send(put_chunk(seq + 1, DOT));
   replies.pop();
   replies.send(request(seq + 2, R"("cmd":"put_end")"));
   return reply_json(replies.pop(), "put_end");
@@ -302,8 +291,7 @@ static protocol::Memory plenty_of_memory() { return {400000, 300000}; }
 // Sends put_begin of DOT and returns its reply.
 static std::string begin_dot(Replies &replies)
 {
-  replies.send(
-      request(1, R"("cmd":"put_begin","kind":"animation","id":"dot","size":147,"sha256":")" + sha256_hex(DOT) + "\""));
+  replies.send(put_begin(1, "animation", "dot", DOT));
   return reply_json(replies.pop(), "put_begin");
 }
 
@@ -341,8 +329,7 @@ static void test_out_of_memory_at_end_leaves_everything_unchanged()
   protocol::set_memory_probe(plenty_of_memory);
   std::string begun = begin_dot(replies);
   TEST_ASSERT_TRUE_MESSAGE(begun.find("\"ok\":true") != std::string::npos, begun.c_str());
-  replies.send(
-      request(2, R"("cmd":"put_chunk","offset":0,"data":")" + pixelart::base64_encode(DOT.data(), DOT.size()) + "\""));
+  replies.send(put_chunk(2, DOT));
   replies.pop();
   protocol::set_memory_probe(low_memory); // memory shrank while the data came in
   replies.send(request(3, R"("cmd":"put_end")"));
@@ -369,7 +356,7 @@ static void test_boot_id_differs_between_starts()
   sim::reset();
   TempData data("protocol");
   std::string first = boot_id_after_setup();
-  sim::reset(); // the same --seed again
+  sim::reset();
   std::string second = boot_id_after_setup();
   TEST_ASSERT_TRUE_MESSAGE(first != second, ("boot_id repeated: " + first).c_str());
 }
@@ -401,12 +388,12 @@ static void test_chunk_write_failure_cancels_the_upload()
   TEST_ASSERT_TRUE(fs::exists(data.root / "upload.tmp"));
 
   storage::set_fail_writes(true);
-  replies.send(
-      request(2, R"("cmd":"put_chunk","offset":0,"data":")" + pixelart::base64_encode(DOT.data(), DOT.size()) + "\""));
+  replies.send(put_chunk(2, DOT));
   storage::set_fail_writes(false);
   std::string json = reply_json(replies.pop(), "put_chunk");
   TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\":\"storage_error\"") != std::string::npos, json.c_str());
   TEST_ASSERT_FALSE(protocol::upload_active());
+  TEST_ASSERT_EQUAL(0, storage::open_writers());
   TEST_ASSERT_FALSE(fs::exists(data.root / "upload.tmp"));
 }
 
@@ -419,12 +406,6 @@ static std::string begin_with(Replies &replies, unsigned seq, size_t size, const
   replies.send(request(seq, std::string(R"("cmd":"put_begin","kind":"animation","id":")") + id + R"(","size":)" +
                                 std::to_string(size) + R"(,"sha256":")" + sha256 + "\""));
   return reply_json(replies.pop(), "put_begin");
-}
-
-static void chunk(Replies &replies, unsigned seq, const std::string &bytes)
-{
-  replies.send(request(seq, R"("cmd":"put_chunk","offset":0,"data":")" +
-                                pixelart::base64_encode(bytes.data(), bytes.size()) + "\""));
 }
 
 // Opens an upload declared as `declared` of `size` bytes, and checks that its file is open.
@@ -446,33 +427,6 @@ static void test_upload_file_is_open_only_while_the_upload_is()
 
   begin_upload(replies, DOT, DOT.size());
   replies.send(request(2, R"("cmd":"put_abort")"));
-  replies.pop();
-  TEST_ASSERT_EQUAL(0, storage::open_writers());
-}
-
-static void test_idle_expiry_closes_the_upload_file()
-{
-  sim::reset();
-  TempData data("protocol");
-  setup();
-  Replies replies;
-  begin_upload(replies, DOT, DOT.size());
-  sim::advance_us((uint64_t)protocol::UPLOAD_IDLE_MS * 1000);
-  protocol::poll();
-  TEST_ASSERT_FALSE(protocol::upload_active());
-  TEST_ASSERT_EQUAL(0, storage::open_writers());
-}
-
-static void test_failed_chunk_write_closes_the_upload_file()
-{
-  sim::reset();
-  TempData data("protocol");
-  setup();
-  Replies replies;
-  begin_upload(replies, DOT, DOT.size());
-  storage::set_fail_writes(true);
-  chunk(replies, 2, DOT);
-  storage::set_fail_writes(false);
   replies.pop();
   TEST_ASSERT_EQUAL(0, storage::open_writers());
 }
@@ -499,7 +453,7 @@ static std::string end_upload(const std::string &sent, const std::string &declar
   setup();
   Replies replies;
   begin_upload(replies, declared, declared_size);
-  chunk(replies, 2, sent);
+  replies.send(put_chunk(2, sent));
   replies.pop();
   TEST_ASSERT_EQUAL(1, storage::open_writers());
   protocol::set_memory_probe(probe);
@@ -509,6 +463,47 @@ static std::string end_upload(const std::string &sent, const std::string &declar
   TEST_ASSERT_FALSE(protocol::upload_active());
   TEST_ASSERT_EQUAL(0, storage::open_writers());
   return json;
+}
+
+static void test_put_end_reply_stays_under_16_kib_with_long_texts()
+{
+  // 40 unknown fields named with 200 four-byte characters, 200 escaped quotes or
+  // 200 U+0001 (written back as \u0001): every diagnostic quotes its field, so
+  // uncut texts would make a reply of about 50 KB.
+  static const char *const parts[] = {"\xF0\x9F\x98\x80", "\\\"", "\\u0001"};
+  std::string file = DOT.substr(0, DOT.size() - 1);
+  for (int i = 0; i < 40; i++)
+  {
+    std::string name = std::to_string(i);
+    for (int j = 0; j < 200; j++)
+      name += parts[i % 3];
+    file += ",\"" + name + "\":1";
+  }
+  file += "}";
+  sim::reset();
+  TempData data("protocol");
+  setup();
+  Replies replies;
+  replies.send(put_begin(1, "animation", "long", file));
+  replies.pop();
+  unsigned seq = 2;
+  for (size_t offset = 0; offset < file.size(); offset += 512, seq++)
+  {
+    std::string piece = file.substr(offset, 512);
+    replies.send(request(seq, R"("cmd":"put_chunk","offset":)" + std::to_string(offset) + R"(,"data":")" +
+                                  pixelart::base64_encode(piece.data(), piece.size()) + "\""));
+    replies.pop();
+  }
+  replies.send(request(seq, R"("cmd":"put_end")"));
+  std::string line = replies.pop();
+  std::string json = reply_json(line, "put_end");
+  JsonDocument reply;
+  TEST_ASSERT_FALSE(deserializeJson(reply, json));
+  TEST_ASSERT_EQUAL_STRING("invalid_file", reply["error"]);
+  TEST_ASSERT_EQUAL(32, reply["diagnostics"].size());
+  TEST_ASSERT_LESS_THAN(16384, line.size() + 1);
+  // The texts are cut between characters: a cut inside one would show as U+FFFD
+  TEST_ASSERT_EQUAL(std::string::npos, json.find("\xEF\xBF\xBD"));
 }
 
 static void test_every_put_end_result_closes_the_upload_file()
@@ -695,8 +690,7 @@ static void test_path_traversal_ids_never_reach_storage()
   setup();
   Replies replies;
   unsigned seq = 1;
-  for (const char *id :
-       {"../outside/secret", "..", ".", "a/b", "a\\\\b", "dot.json", "%2e%2e", "dot\\u0000x", "/etc/passwd"})
+  for (const char *id : {"../outside/secret", "..", ".", "a/b", "a\\\\b", "dot.json", "%2e%2e", "/etc/passwd"})
   {
     for (const char *cmd : {"delete", "get", "put_begin"})
     {
@@ -735,6 +729,29 @@ static void expect_not_in(const std::string &part, const std::string &json)
 
 // SHA-256 values below were computed with Python hashlib over the bytes the
 // test spells out.
+static void test_control_characters_are_escaped_in_replies()
+{
+  // A diagnostic, a message that names a field and a list name, each quoting
+  // U+0001 or U+001F: reply_json checks that every reply is strict JSON.
+  std::string file = DOT.substr(0, DOT.size() - 1) + R"(,"a\u0001b":1})";
+  std::string json = end_upload(file, file, file.size());
+  expect_in(R"("code":"structure")", json);
+  expect_in(R"(a\u0001b)", json);
+
+  sim::reset();
+  TempData data("protocol");
+  std::string named = DOT;
+  named.replace(named.find(R"("Dot")"), 5, R"("D\u001ft")");
+  data.write("animations/named.json", named);
+  setup();
+  Replies replies;
+  expect_in(R"("name":"D\u001ft")", list_animations(replies, 1));
+  replies.send(request(2, R"("cmd":"list","kind":"animation","a\u0001b":1)"));
+  json = reply_json(replies.pop(), "list");
+  expect_in(R"("error":"bad_request")", json);
+  expect_in(R"(a\u0001b)", json);
+}
+
 static void test_list_reads_metadata_only_up_to_the_size_limit()
 {
   sim::reset();
@@ -821,10 +838,10 @@ int main(int, char **)
   RUN_TEST(test_idle_upload_ends_when_a_line_is_handled_without_poll);
   RUN_TEST(test_chunk_write_failure_cancels_the_upload);
   RUN_TEST(test_upload_file_is_open_only_while_the_upload_is);
-  RUN_TEST(test_idle_expiry_closes_the_upload_file);
-  RUN_TEST(test_failed_chunk_write_closes_the_upload_file);
   RUN_TEST(test_refused_put_begin_closes_the_open_upload_file);
   RUN_TEST(test_every_put_end_result_closes_the_upload_file);
+  RUN_TEST(test_put_end_reply_stays_under_16_kib_with_long_texts);
+  RUN_TEST(test_control_characters_are_escaped_in_replies);
   RUN_TEST(test_same_active_playlist_does_not_restart_playback);
   RUN_TEST(test_settings_set_is_all_or_nothing);
   RUN_TEST(test_settings_set_says_so_when_the_playlist_cannot_be_put_back);

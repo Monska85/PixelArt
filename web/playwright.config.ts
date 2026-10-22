@@ -4,10 +4,9 @@ const PORT = 4173;
 
 export default defineConfig({
   testDir: "e2e",
-  // The simulator serves one client at a time: tests run one after the other.
-  workers: 1,
-  fullyParallel: false,
-  retries: 0,
+  // Every test starts its own simulator on its own port.
+  workers: 2,
+  fullyParallel: true,
   timeout: 60_000,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
   outputDir: "test-results",
@@ -23,7 +22,6 @@ export default defineConfig({
     command: "node e2e/serve-site.mjs",
     env: { PORT: String(PORT) },
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: false,
     timeout: 30_000,
   },
 });

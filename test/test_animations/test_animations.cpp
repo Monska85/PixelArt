@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Runs the firmware's playback on the simulator: animations and playlists
 // read from storage, the fallbacks of docs/format/playlist-v1.md, and the LED
 // output. Run with: pio test -e native_test (or make test)
@@ -8,8 +10,6 @@
 
 #include <cstring>
 #include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <string>
 
 #include <pixelart_engine.h>
@@ -20,14 +20,13 @@
 #include "pixelart_test.h"
 
 namespace fs = std::filesystem;
+using pixelart_test::blue;
 using pixelart_test::dot_animation;
+using pixelart_test::green;
+using pixelart_test::read_file;
+using pixelart_test::red;
+using pixelart_test::REPO_DATA;
 using pixelart_test::TempData;
-
-static const std::string REPO_DATA = std::string(PIXELART_PROJECT_DIR) + "/data";
-
-static uint8_t red(uint32_t c) { return c >> 16; }
-static uint8_t green(uint32_t c) { return c >> 8; }
-static uint8_t blue(uint32_t c) { return c; }
 
 static std::string serial_text()
 {
@@ -76,8 +75,7 @@ void test_brightness_scales_led_output()
 void test_effective_brightness_rule()
 {
   // The rows are hand-computed from docs/format/pixelart-v1.md#brightness and shared with the web app tests.
-  std::ifstream in(std::string(PIXELART_PROJECT_DIR) + "/conformance/brightness.json", std::ios::binary);
-  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  std::string text = read_file(std::string(PIXELART_PROJECT_DIR) + "/conformance/brightness.json");
   JsonDocument doc;
   TEST_ASSERT_FALSE_MESSAGE(deserializeJson(doc, text), "conformance/brightness.json is not valid JSON");
   JsonArrayConst rows = doc["rows"].as<JsonArrayConst>();

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The strict JSON pre-scan: grammar, UTF-8 boundaries, escapes and depth.
 // Run with: pio test -e native_test (or make test)
 
@@ -126,9 +128,13 @@ static void test_mixed_brackets_are_matched()
 static void test_error_message_and_offset()
 {
   const std::string json = "[1, +2]";
-  const std::string message = pixelart::strict_json_error(json.data(), json.size(), 32);
+  JsonDocument doc;
+  const char *code = nullptr;
+  std::string message;
+  TEST_ASSERT_FALSE(pixelart::parse_document(json.data(), json.size(), 1024, 32, doc, code, message));
+  TEST_ASSERT_EQUAL_STRING("structure", code);
   TEST_ASSERT_EQUAL_STRING("not valid JSON: unexpected character (byte 4)", message.c_str());
-  TEST_ASSERT_EQUAL_STRING("", pixelart::strict_json_error("[1]", 3, 32).c_str());
+  TEST_ASSERT_TRUE(pixelart::parse_document("[1]", 3, 1024, 32, doc, code, message));
 }
 
 static void test_code_points()

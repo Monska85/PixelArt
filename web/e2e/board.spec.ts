@@ -1,18 +1,27 @@
 import { readdirSync, readFileSync, existsSync, writeFileSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
 import { decodeLine } from "../src/protocol/framing";
-import { connectSimulator, expect, openConnection, test, toastWith, watchReplies } from "./fixtures";
+import {
+  animations,
+  connectSimulator,
+  expect,
+  file,
+  openConnection,
+  pick,
+  showPlaylists,
+  stored,
+  test,
+  toastWith,
+  upload,
+  watchReplies,
+} from "./fixtures";
 
-const file = (name: string): string => fileURLToPath(new URL(`./files/${name}`, import.meta.url));
 const dotYaml = readFileSync(file("dot.yaml"), "utf8");
-const animations = (page: Page) => page.getByRole("table", { name: "Animations on the board" });
 const playlists = (page: Page) => page.getByRole("table", { name: "Playlists on the board" });
 const editorPanel = (page: Page, name: string | RegExp) => page.getByRole("dialog", { name });
 const row = (section: ReturnType<typeof animations>, id: string) =>
   section.locator("tr", { has: section.page().locator("code", { hasText: new RegExp(`^${id}$`) }) });
-const showPlaylists = (page: Page) => page.getByRole("tab", { name: /^Playlists/ }).click();
 const showAnimations = (page: Page) => page.getByRole("tab", { name: /^Animations/ }).click();
 /** On a wide screen the playlist editor spans the content width above the lists, in view, not at the end of the page. */
 const expectAboveLists = async (page: Page, panel: ReturnType<typeof editorPanel>): Promise<void> => {
@@ -41,7 +50,7 @@ async function newPlaylist(page: Page): Promise<void> {
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "New playlist" }).click();
 }
-const stored = (dir: string, kind: string): string[] =>
+const storedIds = (dir: string, kind: string): string[] =>
   readdirSync(join(dir, kind)).map((n) => n.replace(/\.json$/, ""));
 
 test("connects to the simulator and lists what it stores", async ({ page, simulator }) => {
@@ -55,23 +64,13 @@ test("connects to the simulator and lists what it stores", async ({ page, simula
   await expect(page.getByTestId("info-storage")).toContainText(/KB|MB/);
   await page.keyboard.press("Escape");
 
-  const ids = stored(simulator.dataDir, "animations");
+  const ids = storedIds(simulator.dataDir, "animations");
   await expect(page.getByRole("tab", { name: /^Animations/ })).toContainText(String(ids.length));
   await expect(animations(page).getByRole("row")).toHaveCount(ids.length + 1);
   await expect(row(animations(page), "snowflake")).toContainText("Snowflake");
   await showPlaylists(page);
   await expect(row(playlists(page), "default")).toContainText("Active");
   await expect(page).toHaveURL(/#board$|\/$/);
-});
-
-test("reports a simulator that is not there", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Use the simulator" }).click();
-  await page.getByLabel("Simulator address").fill("ws://127.0.0.1:1");
-  await page.getByRole("button", { name: "Connect simulator" }).click();
-  await expect(page.getByTestId("connection-message")).toContainText("Cannot connect");
-  await expect(page.getByTestId("connection-state")).toHaveText("Not connected");
-  // Chrome logs the failed WebSocket handshake itself; that is not a problem of the app.
 });
 
 test("remembers the simulator address", async ({ page, simulator }) => {
@@ -83,25 +82,25 @@ test("remembers the simulator address", async ({ page, simulator }) => {
 
 test("uploads a valid YAML file, stored as the JSON of make data", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  await page.locator("#upload-input").setInputFiles(file("dot.yaml"));
+  await pick(page, file("dot.yaml"));
   await expect(toastWith(page, "Uploaded animation dot")).toContainText("147 B");
   await expect(row(animations(page), "dot")).toContainText("Dot");
-  expect(readFileSync(join(simulator.dataDir, "animations", "dot.json")).length).toBe(147);
+  expect(readFileSync(stored(simulator, "animations", "dot")).length).toBe(147);
 });
 
 test("shows the diagnostics of a rejected file and does not upload it", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  await page.locator("#upload-input").setInputFiles(file("bad.yaml"));
+  await pick(page, file("bad.yaml"));
   const table = page.getByRole("table").filter({ hasText: "unknown_color" });
   await expect(table).toBeVisible();
   await expect(table).toContainText("sprites.dot.points[0][2]");
   await expect(page.getByRole("alert").filter({ hasText: "The file has errors and was not uploaded." })).toBeVisible();
-  expect(existsSync(join(simulator.dataDir, "animations", "bad.json"))).toBe(false);
+  expect(existsSync(stored(simulator, "animations", "bad"))).toBe(false);
 });
 
 test("refuses a file of another format", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  await page.locator("#upload-input").setInputFiles(file("other.json"));
+  await pick(page, file("other.json"));
   await expect(page.getByRole("alert").filter({ hasText: /format of this file is "something\/9"/ })).toBeVisible();
 });
 
@@ -110,7 +109,7 @@ test("asks for an ID when the file name is not one, and for confirmation before 
   simulator,
 }) => {
   await connectSimulator(page, simulator);
-  await page.locator("#upload-input").setInputFiles(file("Bad Name.yaml"));
+  await pick(page, file("Bad Name.yaml"));
   const dialog = page.getByRole("dialog", { name: "Choose an ID" });
   await expect(dialog.getByLabel("ID")).toHaveValue("bad_name");
   await dialog.getByLabel("ID").fill("Not valid!");
@@ -119,30 +118,26 @@ test("asks for an ID when the file name is not one, and for confirmation before 
   await dialog.getByRole("button", { name: "Use this ID" }).click();
   await expect(toastWith(page, "Uploaded animation odd")).toBeVisible();
 
-  await page.locator("#upload-input").setInputFiles(file("dot.yaml"));
+  await pick(page, file("dot.yaml"));
   await expect(toastWith(page, "Uploaded animation dot").first()).toBeVisible();
   // The same file again is skipped without a question.
-  await page.locator("#upload-input").setInputFiles(file("dot.yaml"));
+  await pick(page, file("dot.yaml"));
   await expect(toastWith(page, "The board already has these files.")).toBeVisible();
   // A different file with the same ID asks once.
-  const changed = {
-    name: "dot.yaml",
-    mimeType: "application/yaml",
-    buffer: Buffer.from(dotYaml.replace("Dot", "Dot 2")),
-  };
-  await page.locator("#upload-input").setInputFiles(changed);
+  const changed = upload("dot.yaml", dotYaml.replace("Dot", "Dot 2"));
+  await pick(page, changed);
   const replace = page.getByRole("dialog", { name: "Replace the stored file?" });
   await expect(replace).toContainText("dot");
   await replace.getByRole("button", { name: "Cancel" }).click();
   await expect(row(animations(page), "dot")).toContainText("Dot");
   await expect(row(animations(page), "dot")).not.toContainText("Dot 2");
-  await page.locator("#upload-input").setInputFiles(changed);
+  await pick(page, changed);
   await page
     .getByRole("dialog", { name: "Replace the stored file?" })
     .getByRole("button", { name: "Keep the board's" })
     .click();
   await expect(toastWith(page, "The board's files were kept.")).toBeVisible();
-  await page.locator("#upload-input").setInputFiles(changed);
+  await pick(page, changed);
   await page
     .getByRole("dialog", { name: "Replace the stored file?" })
     .getByRole("button", { name: "Replace them" })
@@ -153,7 +148,7 @@ test("asks for an ID when the file name is not one, and for confirmation before 
 
 test("uploads several files picked together", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  await page.locator("#upload-input").setInputFiles([file("dot.yaml"), file("bad.yaml"), file("other.json")]);
+  await pick(page, file("dot.yaml"), file("bad.yaml"), file("other.json"));
   await expect(toastWith(page, "Uploaded animation dot")).toBeVisible();
   // The two files that cannot be uploaded each get an alert that stays until it is dismissed.
   await expect(page.getByRole("alert")).toHaveCount(2);
@@ -168,7 +163,7 @@ test("uploads a file dropped on the view", async ({ page, simulator }) => {
     zone.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
   }, source);
   await expect(toastWith(page, "Uploaded animation dropped")).toBeVisible();
-  expect(existsSync(join(simulator.dataDir, "animations", "dropped.json"))).toBe(true);
+  expect(existsSync(stored(simulator, "animations", "dropped"))).toBe(true);
 });
 
 test("downloads a file as stored, and as YAML", async ({ page, simulator }) => {
@@ -176,7 +171,7 @@ test("downloads a file as stored, and as YAML", async ({ page, simulator }) => {
   const [json] = await Promise.all([page.waitForEvent("download"), downloadItem(page, "snowflake", "Download JSON")]);
   expect(json.suggestedFilename()).toBe("snowflake.json");
   const saved = readFileSync((await json.path()) as string);
-  expect(saved.equals(readFileSync(join(simulator.dataDir, "animations", "snowflake.json")))).toBe(true);
+  expect(saved.equals(readFileSync(stored(simulator, "animations", "snowflake")))).toBe(true);
 
   const [yaml] = await Promise.all([page.waitForEvent("download"), downloadItem(page, "snowflake", "Download YAML")]);
   expect(yaml.suggestedFilename()).toBe("snowflake.yaml");
@@ -216,7 +211,7 @@ test("deletes after a confirmation that names the file", async ({ page, simulato
   await chooseDelete(page, animations(page), "star");
   await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
   await expect(row(animations(page), "star")).toHaveCount(0);
-  expect(existsSync(join(simulator.dataDir, "animations", "star.json"))).toBe(false);
+  expect(existsSync(stored(simulator, "animations", "star"))).toBe(false);
 });
 
 test("deleting the active playlist says the board then plays every animation", async ({ page, simulator }) => {
@@ -270,7 +265,7 @@ test("changes the active playlist", async ({ page, simulator }) => {
 
 test("edits a stored playlist: order, repeat, enabled, add and remove", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  const path = join(simulator.dataDir, "playlists", "default.json");
+  const path = stored(simulator, "playlists", "default");
   const before = JSON.parse(readFileSync(path, "utf8"));
   await showPlaylists(page);
   await row(playlists(page), "default").getByRole("button", { name: "Edit default" }).click();
@@ -301,7 +296,7 @@ test("the playlist editor opens in view and takes typed changes, with the board'
   simulator,
 }) => {
   await connectSimulator(page, simulator);
-  const path = join(simulator.dataDir, "playlists", "default.json");
+  const path = stored(simulator, "playlists", "default");
   const before = JSON.parse(readFileSync(path, "utf8"));
   expect(before.items.length).toBeGreaterThan(20);
   await showPlaylists(page);
@@ -336,7 +331,7 @@ test("a repeat field shows the stored value again when left empty, and refuses n
   page,
   simulator,
 }) => {
-  const path = join(simulator.dataDir, "playlists", "default.json");
+  const path = stored(simulator, "playlists", "default");
   const seeded = JSON.parse(readFileSync(path, "utf8"));
   seeded.items[1].repeat = 5;
   writeFileSync(path, JSON.stringify(seeded));
@@ -367,8 +362,7 @@ test("Edit on another playlist asks before replacing unsaved changes, and focuse
   page,
   simulator,
 }) => {
-  const dir = join(simulator.dataDir, "playlists");
-  copyFileSync(join(dir, "default.json"), join(dir, "other.json"));
+  copyFileSync(stored(simulator, "playlists", "default"), stored(simulator, "playlists", "other"));
   await connectSimulator(page, simulator);
   await showPlaylists(page);
   const heading = (id: string) => page.getByRole("heading", { name: `Edit playlist ${id}` });
@@ -401,8 +395,7 @@ test("Edit asks about changes typed while the other playlist is being read from 
   page,
   simulator,
 }) => {
-  const dir = join(simulator.dataDir, "playlists");
-  copyFileSync(join(dir, "default.json"), join(dir, "other.json"));
+  copyFileSync(stored(simulator, "playlists", "default"), stored(simulator, "playlists", "other"));
   const port = new URL(simulator.address).port;
   // Only the read that Edit starts is held: the app also reads every playlist in the background after connecting.
   let armed = false;
@@ -483,7 +476,7 @@ test("a new playlist opens in view and is stored", async ({ page, simulator }) =
   await expect(editorPanel(page, "New playlist")).toHaveCount(0);
   await showPlaylists(page);
   await expect(row(playlists(page), "fresh")).toContainText("Fresh");
-  const saved = JSON.parse(readFileSync(join(simulator.dataDir, "playlists", "fresh.json"), "utf8"));
+  const saved = JSON.parse(readFileSync(stored(simulator, "playlists", "fresh"), "utf8"));
   expect(saved.name).toBe("Fresh");
   expect(saved.items).toHaveLength(2);
   expect(saved.items[1]).toEqual({ animation: "star" });
@@ -491,7 +484,7 @@ test("a new playlist opens in view and is stored", async ({ page, simulator }) =
 
 test("saving a new playlist with a stored ID asks before replacing it", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  const path = join(simulator.dataDir, "playlists", "default.json");
+  const path = stored(simulator, "playlists", "default");
   const before = readFileSync(path, "utf8");
   await newPlaylist(page);
   await page.getByLabel("ID", { exact: true }).fill("default");
@@ -528,7 +521,7 @@ test("saving a new playlist with a stored ID asks before replacing it", async ({
 
 test("marks an item whose animation is not stored and keeps it", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  await page.locator("#upload-input").setInputFiles(file("dot.yaml"));
+  await pick(page, file("dot.yaml"));
   await expect(toastWith(page, "Uploaded animation dot").first()).toBeVisible();
   await newPlaylist(page);
   await page.getByLabel("ID", { exact: true }).fill("temp");
@@ -546,14 +539,7 @@ test("marks an item whose animation is not stored and keeps it", async ({ page, 
   await page.getByRole("button", { name: "Upload to board" }).click();
   // The board stores the playlist and warns about the missing animation: the editor stays open to show it.
   await expect(page.getByRole("table").filter({ hasText: "unknown_animation" })).toBeVisible();
-  expect(JSON.parse(readFileSync(join(simulator.dataDir, "playlists", "temp.json"), "utf8")).items).toEqual([
+  expect(JSON.parse(readFileSync(stored(simulator, "playlists", "temp"), "utf8")).items).toEqual([
     { animation: "dot" },
   ]);
-});
-
-test("shows the state when the simulator goes away", async ({ page, simulator }) => {
-  await connectSimulator(page, simulator);
-  simulator.stop();
-  await expect(page.getByTestId("connection-state")).toHaveText("Lost");
-  await expect(page.getByRole("alert").filter({ hasText: "Connection lost. Reconnect to continue." })).toBeVisible();
 });

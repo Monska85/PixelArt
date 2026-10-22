@@ -38,7 +38,9 @@ import { parseDraftDocument } from "../src/ui/editor/drafts";
 import { firstFrameOf, frameAt } from "../src/editor/preview";
 import { initialState, reduce, MAX_UNDO, type EditorState } from "../src/editor/state";
 import { JsonNumber, Player, isObject, loadAnimation } from "../src/engine";
-import { jsonBytes, readYaml, writeJson, writeYaml } from "../src/yaml";
+import { readYaml } from "../src/yaml/read";
+import { jsonBytes, writeJson } from "../src/yaml/writeJson";
+import { writeYaml } from "../src/yaml/writeYaml";
 import { REPO } from "./helpers";
 
 const doc = (source: string): Doc => {
@@ -513,6 +515,25 @@ describe("YAML tab", () => {
     expect(hasComments("a: 1 # x\n")).toBe(true);
     expect(hasComments("# top\na: 1\n")).toBe(true);
     expect(hasComments('a: "#ff0000"\nb:\n  - [1, 2]\n')).toBe(false);
+  });
+
+  it.each([
+    ["an end-of-line comment", "a: 1 # x\n", true],
+    ["a comment at the top", "# top\na: 1\n", true],
+    ["a comment in a flow map", "a: {b: 1, # x\n  c: 2}\n", true],
+    ["a comment after a block scalar", "a: |\n  text\n# after\nb: 1\n", true],
+    ["a comment after a directive", "%YAML 1.2 # x\n---\na: 1\n", true],
+    ["a comment after an anchor", "a: &x # note\n  b: 1\n", true],
+    ["a comment in a sequence item", "a:\n  - 1 # one\n  - 2\n", true],
+    ["# in a single-quoted scalar", "a: '# not a comment'\n", false],
+    ["# in a double-quoted scalar", 'a: "# not a comment"\n', false],
+    ["# inside a plain scalar", "a: b#c\n", false],
+    ["# in a literal block scalar", "a: |\n  # not a comment\n  text\n", false],
+    ["# in a folded block scalar", "a: >\n  # not a comment\n", false],
+    ["# in a plain multi-word scalar", "a: b #c\n", true],
+    ["no # at all", "a: 1\nb: [1, 2]\n", false],
+  ])("finds %s", (_, text, expected) => {
+    expect(hasComments(text)).toBe(expected);
   });
 });
 

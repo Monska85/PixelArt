@@ -1,23 +1,13 @@
-// The one way the app sends a file to the board. A board takes one upload at a
-// time and a second put_begin cancels the first, so the lock lives here, not in
-// a component that a view switch can unmount.
-
 import { useSyncExternalStore } from "react";
-import {
-  BoardError,
-  CONNECTION_LOST,
-  NO_REPLY,
-  UploadCancelled,
-  uploadFile,
-  type BoardClient,
-  type WireDiagnostic,
-} from "../protocol";
-import { runSends, type PlanEntry, type QueueSummary } from "../queue/plan";
+import { createEmitter } from "./emitter";
+import { BoardError, CONNECTION_LOST, NO_REPLY, UploadCancelled, uploadFile, type BoardClient } from "../protocol";
+import { runSends, type PlanEntry, type QueueSummary, type SendOutcome } from "../queue/plan";
 import { session, type Snapshot } from "./session";
 
 export const UPLOAD_BUSY = "upload_busy";
 export const SKIPPED_MESSAGE = "Skipped: the stored file was kept.";
 export const CANCELLED_MESSAGE = "Cancelled: the upload was aborted.";
+export const BUSY_MESSAGE = "Another upload is still running. Wait for it to finish or cancel it.";
 
 /** Why a view cannot send files now, as text for the user, or null. `verb` is "upload" or "install". */
 export function uploadBlockedReason(
@@ -34,14 +24,8 @@ export function blockedOrBusy(blocked: string | null, queueBusy: boolean): strin
   return blocked ?? (queueBusy ? "Another upload is still running." : null);
 }
 
-export type UploadOutcome =
-  | { status: "done"; warnings: WireDiagnostic[] }
-  | { status: "cancelled" }
-  /** `error` is a BoardError or another Error: show it with toShownError. */
-  | { status: "failed"; error: unknown };
-
 /** What the activity panel shows about the work that runs: an upload, a queue of uploads, or the wipe. */
-export interface UploadActivity {
+interface UploadActivity {
   /** "Uploading ball". */
   label: string;
   /** "File 2 of 5" when a view sends several files, else absent. */
@@ -56,22 +40,13 @@ export interface UploadActivity {
 
 let running: AbortController | null = null;
 let activity: UploadActivity | null = null;
-const listeners = new Set<() => void>();
+const { subscribe, emit } = createEmitter();
 
 function setRunning(controller: AbortController | null, next: UploadActivity | null = null): void {
   running = controller;
   activity = next;
-  notify();
+  emit();
 }
-
-function notify(): void {
-  for (const listener of listeners) listener();
-}
-
-const subscribe = (listener: () => void): (() => void) => {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-};
 
 /** True while any view is uploading. */
 export const useUploadRunning = (): boolean => useSyncExternalStore(subscribe, () => running !== null);
@@ -83,7 +58,7 @@ export function cancelRunningUpload(): void {
   running?.abort();
 }
 
-export interface LockHandle {
+interface LockHandle {
   /** Aborted by Cancel. */
   signal: AbortSignal;
   /** Changes what the activity panel shows. */
@@ -95,8 +70,7 @@ export interface LockHandle {
  * the lock is taken. The lock lives here, not in a component that a view switch can unmount.
  */
 export async function withUploadLock<T>(initial: UploadActivity, task: (lock: LockHandle) => Promise<T>): Promise<T> {
-  if (running)
-    throw new BoardError(UPLOAD_BUSY, "Another upload is still running. Wait for it to finish or cancel it.");
+  if (running) throw new BoardError(UPLOAD_BUSY, BUSY_MESSAGE);
   const controller = new AbortController();
   setRunning(controller, initial);
   try {
@@ -105,7 +79,7 @@ export async function withUploadLock<T>(initial: UploadActivity, task: (lock: Lo
       update: (patch) => {
         if (running !== controller || !activity) return;
         activity = { ...activity, ...patch };
-        notify();
+        emit();
       },
     });
   } finally {
@@ -114,7 +88,7 @@ export async function withUploadLock<T>(initial: UploadActivity, task: (lock: Lo
 }
 
 /** The outcome of one upload, from the error it ended with. A connection lost midway is remembered for put_abort. */
-function outcomeOf(error: unknown): Exclude<UploadOutcome, { status: "done" }> {
+function outcomeOf(error: unknown): Exclude<SendOutcome, { status: "done" }> {
   if (error instanceof UploadCancelled) return { status: "cancelled" };
   if (error instanceof BoardError && (error.code === CONNECTION_LOST || error.code === NO_REPLY))
     session.markUploadInterrupted();

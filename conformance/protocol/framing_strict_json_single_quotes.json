@@ -1,0 +1,15 @@
+{
+  "description": "a request with single-quoted strings gets bad_frame",
+  "steps": [
+    {
+      "send": "@PR 3d5f443f {'seq':1,'cmd':'info'}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    }
+  ]
+}

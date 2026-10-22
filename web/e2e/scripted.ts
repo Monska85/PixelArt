@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { decodeLine, encodeLine, type Body } from "../src/protocol/framing";
+import { openConnectCard } from "./fixtures";
 
 type Kind = "animation" | "playlist";
 
@@ -20,6 +21,8 @@ export interface Scripted {
   failSettings: number;
   /** The address to connect to. */
   address: string;
+  /** Fields that replace those of the `info` reply, for a board of another firmware. */
+  info: Body;
 }
 
 /**
@@ -36,6 +39,7 @@ export async function scriptedBoard(page: Page, port = 9): Promise<Scripted> {
     failLists: false,
     failSettings: 0,
     address: `ws://127.0.0.1:${port}/`,
+    info: {},
   };
   let uploading: { kind: Kind; id: string; data: Buffer[] } | null = null;
   let deleteCalls = 0;
@@ -55,6 +59,7 @@ export async function scriptedBoard(page: Page, port = 9): Promise<Scripted> {
           storage: board.storage,
           memory: { free: 0, largest: 0 },
           limits: { line: 1024, chunk: 512, page: 8, animation: 65536, playlist: 16384 },
+          ...board.info,
         };
       case "list": {
         if (board.failLists) return { ok: false, error: "storage_error", message: "the files cannot be read" };
@@ -129,8 +134,5 @@ export async function scriptedBoard(page: Page, port = 9): Promise<Scripted> {
 
 /** Connects the page to the scripted board through the connect card of the Board view. */
 export async function connectScripted(page: Page, board: Scripted): Promise<void> {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Use the simulator" }).click();
-  await page.getByLabel("Simulator address").fill(board.address);
-  await page.getByRole("button", { name: "Connect simulator" }).click();
+  await openConnectCard(page, board.address);
 }

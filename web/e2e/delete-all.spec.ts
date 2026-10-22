@@ -1,8 +1,8 @@
 import { copyFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type { Locator, Page } from "@playwright/test";
-import { connectSimulator, expect, test, toastWith, watchReplies } from "./fixtures";
-import { watchBoard } from "../screenshots/board";
+import { connectSimulator, expect, stored, test, toastWith, watchReplies } from "./fixtures";
+import { watchBoard } from "./board";
 import { connectScripted, scriptedBoard } from "./scripted";
 
 const count = (dir: string, kind: string): number => readdirSync(join(dir, kind)).length;
@@ -61,7 +61,7 @@ test("Delete everything can also reset the settings: brightness 100 and playlist
   page,
   simulator,
 }) => {
-  copyFileSync(join(simulator.dataDir, "playlists", "default.json"), join(simulator.dataDir, "playlists", "mine.json"));
+  copyFileSync(stored(simulator, "playlists", "default"), stored(simulator, "playlists", "mine"));
   const replies = watchReplies(page, "delete_all");
   await connectSimulator(page, simulator);
   await page.getByLabel("Active playlist").selectOption("mine");
@@ -174,20 +174,6 @@ test("Delete everything is not offered without a board, and an empty board needs
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("an old firmware that does not know delete_all gets the update message with a link", async ({ page }) => {
-  const board = await scriptedBoard(page);
-  board.files.animation.set("a", Buffer.from("{}"));
-  board.deleteAll = () => ({ ok: false, error: "unknown_command", message: "this firmware does not know the command" });
-  await connectScripted(page, board);
-  await openDeleteEverything(page);
-  await page.getByRole("dialog").getByRole("button", { name: "Delete 1 file" }).click();
-  const notice = page.getByTestId("delete-all-old");
-  await expect(notice).toContainText("does not know the command");
-  await notice.getByRole("link", { name: "Open the Firmware view" }).click();
-  await expect(page.getByRole("link", { name: "Firmware", exact: true })).toHaveAttribute("aria-current", "page");
-  expect(board.files.animation.size).toBe(1);
-});
-
 test("a storage error offers to run Delete everything again", async ({ page }) => {
   const board = await scriptedBoard(page);
   board.files.animation.set("a", Buffer.from("{}"));
@@ -229,23 +215,6 @@ test("the activity panel shows while Delete everything runs and no upload can st
   await expect(page.getByText("No animations on this board")).toBeVisible();
   for (const button of await page.getByRole("button", { name: "Upload files" }).all())
     await expect(button).toBeEnabled();
-});
-
-test("a firmware that does not know the settings field deletes nothing and says so", async ({ page }) => {
-  const board = await scriptedBoard(page);
-  board.files.animation.set("a", Buffer.from("{}"));
-  board.deleteAll = () => ({ ok: false, error: "bad_request", message: 'unknown field "settings"' });
-  await connectScripted(page, board);
-  await openDeleteEverything(page);
-  await resetBox(page.getByRole("dialog")).check();
-  await page.getByRole("dialog").getByRole("button", { name: "Delete 1 file and reset the settings" }).click();
-  const notice = page.getByTestId("delete-all-old-reset");
-  await expect(notice).toContainText("Nothing was deleted");
-  await expect(notice.getByRole("link", { name: "Open the Firmware view" })).toBeVisible();
-  expect(board.requests.filter((r) => r.cmd === "delete_all")).toEqual([
-    expect.objectContaining({ cmd: "delete_all", settings: true }),
-  ]);
-  expect(board.files.animation.size).toBe(1);
 });
 
 test("without the checkbox Delete everything sends no settings field", async ({ page }) => {

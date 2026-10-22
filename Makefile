@@ -4,7 +4,11 @@ SITE ?= site
 ANIM ?=
 ARGS ?=
 WS ?=
+# Set on the command line only (make serve PORT=9000): a PORT in the environment is ignored
+PORT := 8765
 PYTHON ?= python3
+# The simulator's --ws starts tools/ws_bridge.py with this Python, the one the other tools use
+export PIXELART_PYTHON = $(PYTHON)
 SIM := .pio/build/native/program
 CPP_SOURCES = $(shell find src include test lib -name '*.cpp' -o -name '*.h')
 
@@ -19,7 +23,7 @@ WS_ARG := $(if $(WS),--ws,)
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-24s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
-	@echo "Variables: BOARD=$(BOARD) (esp32c3, esp32, esp32s3)  ANIM=name[,name]  OUT=$(OUT)  SITE=$(SITE)  ARGS=extra simulator options  WS=1 (emulate with the WebSocket)"
+	@echo "Variables: BOARD=$(BOARD) (esp32c3, esp32, esp32s3)  ANIM=name[,name]  OUT=$(OUT)  SITE=$(SITE)  ARGS=extra simulator options  WS=1 (emulate with the WebSocket)  PORT=$(PORT) (serve)  PYTHON=$(PYTHON)"
 
 data: ## Build data/ (the board's files) from animations/ and playlists/
 	$(PYTHON) tools/pixelart.py build
@@ -46,10 +50,9 @@ upload-data: data ## Flash only the animations and playlists, keeping the firmwa
 monitor: ## Open the serial monitor
 	pio device monitor -e $(BOARD)
 
-flash: data ## Flash the firmware and the animations, then open the serial monitor
-	pio run -e $(BOARD) -t upload
-	pio run -e $(BOARD) -t uploadfs
-	pio device monitor -e $(BOARD)
+flash: ## Flash the firmware and the animations, then open the serial monitor
+	$(MAKE) --no-print-directory upload
+	$(MAKE) --no-print-directory monitor
 
 mirror: data ## Flash with the frame mirror on, then watch the matrix live in the terminal
 	PLATFORMIO_BUILD_FLAGS=-DPIXELART_MIRROR pio run -e $(BOARD) -t upload
@@ -71,8 +74,8 @@ sim-play: data sim-build ## Play once in real time in the terminal
 emulate: data sim-build ## Emulate the board: live matrix and serial output in the terminal, no hardware (WS=1 adds the WebSocket)
 	$(SIM) $(ANIM_ARG) --live $(WS_ARG) $(ARGS)
 
-serve: data sim-build ## Emulate the board and serve the command protocol on ws://127.0.0.1:8765
-	$(SIM) $(ANIM_ARG) --live --ws $(ARGS)
+serve: data sim-build ## Emulate the board and serve the command protocol on ws://127.0.0.1:PORT (default 8765)
+	$(SIM) $(ANIM_ARG) --live --ws $(PORT) $(ARGS)
 
 sim-open: sim ## Run the simulator and open the HTML player
 	@if command -v xdg-open >/dev/null 2>&1; then xdg-open $(OUT)/player.html; \
@@ -123,23 +126,19 @@ web-build: web/node_modules ## Build the web app into web/dist
 web-size: web-build ## Fail when the JavaScript the web app loads at start is over its budget (190 KB gzip)
 	cd web && npm run size
 
-web-test: data web/node_modules ## Type check, lint and run the web app's unit tests and the conformance suite
-	cd web && npm run typecheck && npm run lint && npm test
+web-test: data web/node_modules ## Type check, lint, check the formatting and run the web app's unit tests and the conformance suite
+	cd web && npm run typecheck && npm run lint && npm run format:check && npm test
 
-web-e2e: data sim-build web/node_modules ## Run the web app's end-to-end tests and layout checks against the simulator (first: cd web && npx playwright install chromium)
-	cd web && npm run build && npm run e2e
+web-e2e: data sim-build web-build ## Run the web app's end-to-end tests and layout checks against the simulator (first: cd web && npx playwright install chromium)
+	cd web && npm run e2e
 
-web-screenshots: data sim-build web/node_modules ## Compare one main state per view with its reference image, inside the Playwright container (needs Docker)
-	cd web && npm run build
+web-screenshots: data sim-build web-build ## Compare one main state per view with its reference image, inside the Playwright container (needs Docker)
 	web/scripts/run-screenshots.sh compare
 
-web-screenshots-update: data sim-build web/node_modules ## Draw the reference images of the screenshot suite again, inside the Playwright container (needs Docker)
-	cd web && npm run build
+web-screenshots-update: data sim-build web-build ## Draw the reference images of the screenshot suite again, inside the Playwright container (needs Docker)
 	web/scripts/run-screenshots.sh update
 
-check: data sim-build ## Check formatting and animations, run the tests and build every board
-	@clang-format --dry-run --Werror $(CPP_SOURCES)
-	$(SIM) --validate
+check: format-check validate ## Check formatting and animations, run every test suite (simulator, tools, web app) and build every board
 	$(PYTHON) -m unittest discover -s tools
 	pio test -e native_test
 	pio run -e esp32c3 -e esp32 -e esp32s3
@@ -147,4 +146,4 @@ check: data sim-build ## Check formatting and animations, run the tests and buil
 
 clean: ## Remove build outputs, data/ and simulator output
 	pio run -t clean -e native -e native_test -e esp32c3 -e esp32 -e esp32s3
-	rm -rf data $(OUT) $(SITE) web/dist web/test-results
+	rm -rf data $(OUT) $(SITE) web/dist web/test-results* web/playwright-report*

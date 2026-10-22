@@ -25,13 +25,17 @@ Only one program can open the serial port at a time. A client and the serial mon
 
 ### WebSocket (simulator)
 
-The simulator serves the protocol with `--ws [PORT]`, default port 8765, in real-time runs only. It listens on `127.0.0.1` only and serves one client at a time; a second connection is refused until the first one closes.
+The simulator serves the protocol with `--ws [PORT]`, default port 8765, in real-time runs only. It starts `tools/ws_bridge.py`, which serves the WebSocket and passes the lines to the simulator, so `--ws` needs Python with the `websockets` package, version 15 or later. It listens on `127.0.0.1` only and serves one client at a time; a second connection is refused with HTTP status 503, as soon as it sends its opening request, until the first one closes.
 
 - Every WebSocket text message carries exactly one protocol line, with the same framing as on the serial port and without the final newline.
 - The 1,024-byte [line limit](#limits) counts the whole message, after the simulator reassembles it from fragments. A longer message closes the connection with status 1009. A binary message closes it with status 1003. A text message that contains a newline closes it with status 1008, and one that is not valid UTF-8 closes it with status 1007.
 - The simulator accepts the WebSocket handshake on any request path.
 - The simulator sends only protocol lines over the WebSocket. Clients still ignore any line without the protocol marker, as on the serial port.
-- **Origin check.** Any web page can open a WebSocket to `localhost`, so the simulator accepts a connection only when its `Origin` header is missing (command line clients), is `http://localhost` or `http://127.0.0.1` with any port, or is `https://monska85.github.io`. `--ws-origin ORIGIN` adds another one. Any other origin is refused with HTTP status 403. This keeps a website you happen to visit from rewriting the simulator's files.
+- A connection that does not complete its opening handshake within 5 seconds is closed, and the closing handshake waits at most 1 second for the client. A client that leaves more than 256 KiB of replies or pongs unread is disconnected. Requests the simulator has not read yet are buffered up to a limit, after which the connection is not read, so a client that sends faster than the simulator reads has to wait.
+- **Origin check.** Any web page can open a WebSocket to `localhost`, so the simulator accepts a connection only when its `Origin` header is missing (command line clients), is `http://localhost` or `http://127.0.0.1` with any port, or is `https://monska85.github.io`. `--ws-origin ORIGIN`, which can be repeated, adds another one. Any other origin is refused with HTTP status 403. This keeps a website you happen to visit from rewriting the simulator's files.
+- Any other invalid handshake (a wrong method, a missing or unsupported header) gets the HTTP status the `websockets` package gives under the WebSocket standard. Clients must not rely on the body of a refusal, 403 and 503 included. A refused connection is closed right after the HTTP response.
+- Malformed frames during the closing handshake are handled as RFC 6455 says. When the simulator stops, the client is closed with status 1001.
+- A client that completed the handshake keeps the single slot until it disconnects, even while it sends nothing, so the web app can stay connected while idle.
 
 Uploads and deletions through the simulator change its data folder (`data/` or the folder given with `--data`). `make data` writes the converted repository files there again.
 
@@ -45,7 +49,7 @@ Every protocol message, in both directions, is one line:
 
 - `@PR` followed by one space, at the very start of the line.
 - `<crc>` is the CRC-32 of the `<json>` bytes, exactly as sent, written as 8 lowercase hexadecimal digits, followed by one space. The CRC is the common one used by zlib, PNG and Ethernet (polynomial `0x04C11DB7` reflected, initial value and final XOR `0xFFFFFFFF`). In Python it is `zlib.crc32(data)`.
-- `<json>` is one JSON object in UTF-8, with no newline inside.
+- `<json>` is one JSON object in valid UTF-8, with no newline inside. It follows the same strict JSON rules as a file ([format specification](../format/pixelart-v1.md#files)): no comments, no single quotes, no unquoted keys, no control characters inside strings, no escaped surrogate that is not part of a pair, numbers only in the JSON forms, no U+0000 in a text, even written as `\u0000`, and nothing after the object.
 - The line ends with `\n`. A `\r` just before the `\n` is ignored, so terminals that send `\r\n` work.
 
 For example, the `info` request with sequence number 1:
@@ -54,7 +58,7 @@ For example, the `info` request with sequence number 1:
 @PR 3c250228 {"seq":1,"cmd":"info"}
 ```
 
-Every reply the board sends is valid UTF-8, whatever the files or the request contained. Text the board quotes from a stored file, an upload or a request (a list `name`, a diagnostic `where` or `message`, a message that names a field) is copied with every byte that is not part of a well-formed UTF-8 sequence replaced by U+FFFD, the replacement character, one for each such byte. Well-formed means the sequences of RFC 3629: no overlong forms, no surrogates and nothing above U+10FFFF. A client can therefore always decode a reply, and a damaged file can always be listed and deleted.
+Every reply the board sends is valid UTF-8, whatever the files or the request contained. Text the board quotes from a stored file, an upload or a request (a list `name`, a diagnostic `where` or `message`, a message that names a field) is copied with every byte that is not part of a well-formed UTF-8 sequence replaced by U+FFFD, the replacement character, one for each such byte. Well-formed means the sequences of RFC 3629: no overlong forms, no surrogates and nothing above U+10FFFF. A control character in such a text (U+0001 to U+001F) is always written as a JSON escape (`\b`, `\f`, `\n`, `\r`, `\t` or `\u00XX`), never raw, so every reply follows the strict JSON rules above and the text arrives unchanged. A client can therefore always decode a reply, and a damaged file can always be listed and deleted.
 
 The board ignores, without replying, every line that does not start with `@PR `. Log lines and typed noise therefore never run anything. The board writes every line it sends in one piece, so a protocol line never mixes with a log or mirror line.
 
@@ -62,7 +66,7 @@ The board answers with a `bad_frame` error, without `seq`, when a line starts wi
 
 - is longer than the line limit (the board drops the bytes up to the next newline);
 - has a CRC that is not 8 lowercase hexadecimal digits, or that does not match the JSON;
-- holds JSON that does not parse, is not an object, or nests deeper than 4 levels.
+- holds JSON that breaks the strict JSON rules above, is not an object, or nests deeper than 4 levels.
 
 ```text
 @PR 15233999 {"ok":false,"error":"bad_frame","message":"checksum does not match"}
@@ -119,7 +123,7 @@ Each diagnostic is an object with the fields of the engine's validation messages
 | `where`    | The place of the problem, for example `sprites.tree.points[12]`, or empty. |
 | `message`  | A short explanation for people.                                            |
 
-A file has at most 32 diagnostics, as the format specifications require.
+A file has at most 32 diagnostics, as the format specifications require. The board cuts `where` and `message` after 160 characters, or sooner when the text would take more than 192 bytes once written in JSON, never inside a character, so a reply with 32 diagnostics stays under 16 KiB.
 
 ## Commands
 
@@ -264,7 +268,7 @@ The board's settings. They live in the board's settings memory (NVS), not with t
 
 `settings_get` has no fields. Its reply holds `settings`, an object with every setting.
 
-`settings_set` has one optional field per setting, and at least one of them. The board checks every field before changing anything: a value out of range or of the wrong type is `bad_request`, a `playlist` that does not follow the ID rule is `invalid_id`, and a `playlist` that is not stored is `not_found`. If a setting cannot be saved, the reply is `storage_error` and no setting has changed. The one exception is a settings memory that fails twice: when the brightness cannot be saved and the previous playlist cannot be put back either, the reply is `storage_error` with a message that the settings may be partly changed, and the client reads them again with `settings_get`. On success the reply holds `settings`, with every setting after the change.
+`settings_set` has one optional field per setting, and at least one of them. The board checks every field before changing anything: a value out of range or of the wrong type, `null` included, is `bad_request`, a `playlist` that does not follow the ID rule is `invalid_id`, and a `playlist` that is not stored is `not_found`. If a setting cannot be saved, the reply is `storage_error` and no setting has changed. The one exception is a settings memory that fails twice: when the brightness cannot be saved and the previous playlist cannot be put back either, the reply is `storage_error` with a message that the settings may be partly changed, and the client reads them again with `settings_get`. On success the reply holds `settings`, with every setting after the change.
 
 ```text
 > {"seq":9,"cmd":"settings_set","brightness":40}

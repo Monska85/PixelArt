@@ -3,6 +3,7 @@
 // browser's storage.
 
 import { useSyncExternalStore } from "react";
+import { createEmitter } from "../emitter";
 import { writeJson } from "../../yaml/writeJson";
 import { newAnimation, type Doc } from "../../editor/doc";
 import { deriveSaveState, hasCurrentCopy, type BoardFiles, type SavedCopy, type Saves } from "../../editor/saves";
@@ -12,20 +13,19 @@ import { publishHolding } from "./holding";
 import { clearDraft, parseDraftDocument, readDraft, writeDraft, type Draft, type DraftOrigin } from "./drafts";
 
 /** The view an opening came from, so the editor can offer a way back. */
-export type Origin = DraftOrigin;
 
 export interface Opening {
   doc: Doc;
   id: string | null;
   source: string;
-  from?: Origin;
+  from?: DraftOrigin;
   /** The copies the document already has outside the browser: the board file it came from, or its file. */
   saves?: Saves;
 }
 
-export type DraftStatus = "none" | "saving" | "saved" | "unavailable";
+type DraftStatus = "none" | "saving" | "saved" | "unavailable";
 
-export interface EditorSnapshot {
+interface EditorSnapshot {
   state: EditorState;
   /** An opening waiting for the user to agree to replace the document being edited. */
   pending: Opening | null;
@@ -33,7 +33,7 @@ export interface EditorSnapshot {
   restored: string | null;
   draft: DraftStatus;
   /** The view the document being edited was opened from, or null (the menu, a file, a new animation). */
-  origin: Origin | null;
+  origin: DraftOrigin | null;
   /** Counts the documents opened, so what belongs to one document can start over with the next. */
   openings: number;
 }
@@ -45,7 +45,7 @@ export function documentName(doc: Doc, fallback: string): string {
 }
 
 /** What became of a request: the document was opened, the user kept the one being edited, or a newer request took over. */
-export type RequestResult = "opened" | "kept" | "superseded";
+type RequestResult = "opened" | "kept" | "superseded";
 
 const DRAFT_DELAY_MS = 400;
 /** How long an opening waits for the stored draft. Storage that never answers must not keep the user from opening anything. */
@@ -60,7 +60,7 @@ export class EditorStore {
     origin: null,
     openings: 0,
   };
-  private listeners = new Set<() => void>();
+  private readonly changes = createEmitter();
   private starting: Promise<void> | null = null;
   /**
    * Resolves the one request waiting for the user's answer. Invariant: it is set exactly while `snapshot.pending` is
@@ -73,16 +73,13 @@ export class EditorStore {
   private drafting = true;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
-  subscribe = (listener: () => void): (() => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  };
+  subscribe = this.changes.subscribe;
 
   getSnapshot = (): EditorSnapshot => this.snapshot;
 
   private set(patch: Partial<EditorSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };
-    for (const listener of this.listeners) listener();
+    this.changes.emit();
   }
 
   /**
@@ -120,7 +117,7 @@ export class EditorStore {
     const doc = parseDraftDocument(draft.json);
     if (!doc) return;
     this.holdDraft = false;
-    this.apply({ type: "load", doc, id: draft.id, source: draft.source, dirty: draft.dirty, saves: draft.saves });
+    this.dispatch({ type: "load", doc, id: draft.id, source: draft.source, dirty: draft.dirty, saves: draft.saves });
     // The draft just read is what storage already holds: writing it back would only race a discard.
     this.cancelTimer();
     this.set({ draft: "saved", origin: draft.origin });
@@ -131,10 +128,6 @@ export class EditorStore {
   }
 
   dispatch = (action: Action): void => {
-    this.apply(action);
-  };
-
-  private apply(action: Action): void {
     const before = this.snapshot.state;
     const state = reduce(before, action);
     if (state === before) return;
@@ -144,7 +137,7 @@ export class EditorStore {
     if (this.holdDraft) return;
     if (state.doc !== before.doc || state.id !== before.id || state.dirty !== before.dirty || action.type === "load")
       this.scheduleDraft();
-  }
+  };
 
   // The Board and Firmware views warn before they delete the board file that is this document's only saved copy.
   private publishHolding(): void {
@@ -177,12 +170,10 @@ export class EditorStore {
     return true;
   }
 
-  /** Remembers that the document is now this copy. */
   saved(doc: Doc, copy: SavedCopy): void {
     this.dispatch({ type: "saved", doc, copy });
   }
 
-  /** Applies a change to the document. */
   edit(change: (doc: Doc) => Doc, group?: string): void {
     this.dispatch({ type: "edit", doc: change(this.snapshot.state.doc), ...(group !== undefined && { group }) });
   }

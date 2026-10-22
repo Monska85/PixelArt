@@ -16,8 +16,8 @@ interface SerialLike {
   requestPort(): Promise<SerialPortLike>;
 }
 
-export const BAUD_RATE = 115_200;
-export const BUFFER_SIZE = 8192;
+const BAUD_RATE = 115_200;
+const BUFFER_SIZE = 8192;
 
 export function serialApi(): SerialLike | null {
   const serial = (globalThis.navigator as { serial?: SerialLike } | undefined)?.serial;
@@ -34,7 +34,7 @@ export const PORT_BUSY =
 export const CLOSE_STEP_MS = 1000;
 
 /** A port that could not be opened: the friendly hint, then what the browser said, so other failures can be told apart. */
-export class SerialOpenError extends Error {
+class SerialOpenError extends Error {
   constructor(cause: unknown) {
     const said =
       cause instanceof Error ? `${cause.name}: ${cause.message}` : typeof cause === "string" ? cause : "unknown error";
@@ -47,7 +47,7 @@ export class SerialOpenError extends Error {
 const closingPorts = new WeakMap<SerialPortLike, Promise<void>>();
 
 /** Waits for `promise`, but never longer than `ms`; its failure is ignored. */
-async function settle(promise: Promise<unknown> | undefined, ms: number): Promise<void> {
+async function settle(promise: Promise<unknown> | null | undefined, ms: number): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   await Promise.race([
     Promise.resolve(promise).catch(() => undefined),
@@ -159,7 +159,7 @@ export class SerialTransport implements Transport {
     this.ended = true;
     await settle(this.reader?.cancel(), CLOSE_STEP_MS);
     // Cancelling the splitter side cancels the pipe, which then releases the readable.
-    await settle(this.piped ?? undefined, CLOSE_STEP_MS);
+    await settle(this.piped, CLOSE_STEP_MS);
     // Abort, not close: close waits for every queued write, abort drops them and waits only for the one in flight,
     // which a vanished device may never complete: the step limit covers that one.
     await settle(this.writer?.abort(), CLOSE_STEP_MS);

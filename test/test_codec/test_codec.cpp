@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // CRC-32, SHA-256 and base64 against published test vectors.
 // Run with: pio test -e native_test (or make test)
 

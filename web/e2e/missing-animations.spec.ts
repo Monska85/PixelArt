@@ -1,15 +1,12 @@
 import { existsSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import type { Page } from "@playwright/test";
-import { connectSimulator, expect, test, toastWith, type Simulator } from "./fixtures";
+import { animations, connectSimulator, expect, showPlaylists, stored, test, toastWith } from "./fixtures";
 
 // The stored playlist `default` (also the active one) names 30 animations. snowflake is published in the fixture
 // release; bear is not.
 const PUBLISHED = "snowflake";
 const UNPUBLISHED = "bear";
 
-const stored = (simulator: Simulator, kind: string, id: string): string => join(simulator.dataDir, kind, `${id}.json`);
-const showPlaylists = (page: Page) => page.getByRole("tab", { name: /^Playlists/ }).click();
 const playlistRow = (page: Page) =>
   page.getByRole("table", { name: "Playlists on the board" }).locator("tr", { hasText: "Christmas" });
 const badge = (page: Page) => page.getByTestId("missing-default");
@@ -72,8 +69,7 @@ test("deleting an animation a playlist uses shows the badge, and Install missing
   simulator,
 }) => {
   await connectSimulator(page, simulator);
-  await page
-    .getByRole("table", { name: "Animations on the board" })
+  await animations(page)
     .getByRole("button", { name: `More actions for ${PUBLISHED}` })
     .click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
