@@ -1,0 +1,113 @@
+format: pixelart/1
+name: Glittering Spiderweb
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 220
+
+palette:
+  silk: "#c8c8d8"
+  sparkle: "#ffffff"
+  glint: "#5cc8ff"
+  glint_pink: "#ff6fcf"
+
+sprites:
+  web:
+    points:
+      silk: [
+          [7, 7], [7, 6], [7, 5], [7, 4], [7, 3], [7, 2], [7, 1], [7, 0], [8, 6], [9, 5],
+          [10, 4], [11, 4], [12, 3], [13, 2], [14, 1], [15, 0], [8, 7], [9, 7], [10, 7], [11, 7],
+          [12, 7], [13, 7], [14, 7], [15, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13],
+          [14, 14], [15, 15], [7, 8], [7, 9], [7, 10], [7, 11], [7, 12], [7, 13], [7, 14], [7, 15],
+          [6, 8], [5, 9], [4, 10], [4, 11], [3, 12], [2, 13], [1, 14], [0, 15], [6, 7], [5, 7],
+          [4, 7], [3, 7], [2, 7], [1, 7], [0, 7], [6, 6], [5, 5], [4, 4], [3, 3], [2, 2],
+          [1, 1], [0, 0], [8, 4], [10, 6], [10, 8], [8, 10], [6, 10], [4, 8], [4, 6], [6, 4],
+          [8, 1], [9, 1], [10, 2], [11, 2], [12, 2], [12, 4], [13, 5], [13, 6], [13, 8], [13, 9],
+          [12, 10], [12, 11], [11, 12], [10, 12], [9, 13], [8, 13], [6, 13], [5, 13], [4, 12], [2, 12],
+          [2, 11], [2, 10], [1, 9], [1, 8], [1, 6], [1, 5], [2, 4], [2, 3], [3, 2], [4, 2],
+          [5, 1], [6, 1]]
+  glint_0:
+    at: [6, 0]
+    points:
+      sparkle: [[1, 1]]
+      glint: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_1:
+    at: [11, 2]
+    points:
+      sparkle: [[1, 1]]
+      glint_pink: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_2:
+    at: [12, 6]
+    points:
+      sparkle: [[1, 1]]
+      glint: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_3:
+    at: [10, 10]
+    points:
+      sparkle: [[1, 1]]
+      glint_pink: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_4:
+    at: [6, 12]
+    points:
+      sparkle: [[1, 1]]
+      glint: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_5:
+    at: [2, 10]
+    points:
+      sparkle: [[1, 1]]
+      glint_pink: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_6:
+    at: [0, 6]
+    points:
+      sparkle: [[1, 1]]
+      glint: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_7:
+    at: [2, 2]
+    points:
+      sparkle: [[1, 1]]
+      glint_pink: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_8:
+    at: [6, 6]
+    points:
+      sparkle: [[1, 1]]
+      glint: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_9:
+    at: [9, 6]
+    points:
+      sparkle: [[1, 1]]
+      glint_pink: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_10:
+    at: [6, 3]
+    points:
+      sparkle: [[1, 1]]
+      glint: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  glint_11:
+    at: [3, 9]
+    points:
+      sparkle: [[1, 1]]
+      glint_pink: [[1, 0], [0, 1], [2, 1], [1, 2]]
+
+timeline:
+  - show: [web, glint_0]
+  - show: [web, glint_0, glint_1]
+  - show: [web, glint_4]
+  - show: [web, glint_4, glint_5]
+  - show: [web, glint_2]
+  - show: [web, glint_2, glint_3]
+  - show: [web, glint_6]
+  - show: [web, glint_6, glint_7]
+  - show: [web, glint_8]
+  - show: [web, glint_8, glint_9]
+  - show: [web, glint_1]
+  - show: [web, glint_1, glint_10]
+  - show: [web, glint_5]
+  - show: [web, glint_5, glint_11]
+  - show: [web, glint_3]
+  - show: [web, glint_3, glint_0]
+  - show: [web, glint_7]
+  - show: [web, glint_7, glint_4]
+  - show: [web, glint_9]
+  - show: [web, glint_9, glint_2]
+  - show: [web, glint_10]
+  - show: [web, glint_10, glint_6]
+  - show: [web, glint_11]
+  - show: [web, glint_11, glint_8]

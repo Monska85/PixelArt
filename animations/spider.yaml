@@ -1,0 +1,85 @@
+format: pixelart/1
+name: Friendly Spider
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 150
+
+palette:
+  thread: "#a5a5a5"
+  body: "#9b6bff"
+  leg: "#6b3fd0"
+  eye: "#ffffff"
+  pink: "#ff8fc0"
+
+sprites:
+  spider_a:
+    points:
+      thread: [
+          [5, -24], [5, -23], [5, -22], [5, -21], [5, -20], [5, -19], [5, -18], [5, -17], [5, -16], [5, -15],
+          [5, -14], [5, -13], [5, -12], [5, -11], [5, -10], [5, -9], [5, -8], [5, -7], [5, -6], [5, -5],
+          [5, -4], [5, -3], [5, -2], [5, -1]]
+      leg: [[0, 1], [10, 1], [0, 3], [10, 3], [0, 5], [10, 5], [1, 6], [9, 6]]
+      body: [
+          [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1],
+          [7, 1], [8, 1], [1, 2], [4, 2], [5, 2], [6, 2], [9, 2], [1, 3], [4, 3], [5, 3],
+          [6, 3], [9, 3], [1, 4], [3, 4], [4, 4], [5, 4], [6, 4], [7, 4], [9, 4], [2, 5],
+          [3, 5], [7, 5], [8, 5], [3, 6], [4, 6], [5, 6], [6, 6], [7, 6]]
+      eye: [[2, 2], [3, 2], [7, 2], [8, 2], [2, 3], [7, 3]]
+      pink: [[2, 4], [8, 4], [4, 5], [5, 5], [6, 5]]
+  spider_b:
+    points:
+      thread: [
+          [5, -24], [5, -23], [5, -22], [5, -21], [5, -20], [5, -19], [5, -18], [5, -17], [5, -16], [5, -15],
+          [5, -14], [5, -13], [5, -12], [5, -11], [5, -10], [5, -9], [5, -8], [5, -7], [5, -6], [5, -5],
+          [5, -4], [5, -3], [5, -2], [5, -1]]
+      leg: [[1, 1], [9, 1], [0, 2], [10, 2], [0, 4], [10, 4], [1, 5], [9, 5], [0, 6], [10, 6]]
+      body: [
+          [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1],
+          [7, 1], [8, 1], [1, 2], [4, 2], [5, 2], [6, 2], [9, 2], [1, 3], [4, 3], [5, 3],
+          [6, 3], [9, 3], [1, 4], [3, 4], [4, 4], [5, 4], [6, 4], [7, 4], [9, 4], [2, 5],
+          [3, 5], [7, 5], [8, 5], [3, 6], [4, 6], [5, 6], [6, 6], [7, 6]]
+      eye: [[2, 2], [3, 2], [7, 2], [8, 2], [2, 3], [7, 3]]
+      pink: [[2, 4], [8, 4], [4, 5], [5, 5], [6, 5]]
+
+timeline:
+  - show: [{ sprite: spider_a, at: [2, -6] }]
+  - show: [{ sprite: spider_a, at: [2, -5] }]
+  - show: [{ sprite: spider_a, at: [2, -4] }]
+  - show: [{ sprite: spider_a, at: [2, -3] }]
+  - show: [{ sprite: spider_a, at: [2, -2] }]
+  - show: [{ sprite: spider_a, at: [2, -1] }]
+  - show: [{ sprite: spider_a, at: [2, 0] }]
+  - show: [{ sprite: spider_a, at: [2, 1] }]
+  - show: [{ sprite: spider_a, at: [2, 2] }]
+  - show: [{ sprite: spider_a, at: [2, 3] }]
+  - show: [{ sprite: spider_a, at: [2, 4] }]
+  - show: [{ sprite: spider_a, at: [2, 5] }]
+  - show: [{ sprite: spider_b, at: [2, 5] }]
+    ms: 220
+  - show: [{ sprite: spider_a, at: [2, 5] }]
+    ms: 220
+  - show: [{ sprite: spider_b, at: [2, 5] }]
+    ms: 220
+  - show: [{ sprite: spider_a, at: [2, 5] }]
+    ms: 220
+  - show: [{ sprite: spider_b, at: [2, 5] }]
+    ms: 220
+  - show: [{ sprite: spider_a, at: [2, 5] }]
+    ms: 220
+  - show: [{ sprite: spider_b, at: [2, 5] }]
+    ms: 220
+  - show: [{ sprite: spider_a, at: [2, 5] }]
+    ms: 220
+  - show: [{ sprite: spider_a, at: [2, 5] }]
+  - show: [{ sprite: spider_b, at: [2, 4] }]
+  - show: [{ sprite: spider_a, at: [2, 3] }]
+  - show: [{ sprite: spider_b, at: [2, 2] }]
+  - show: [{ sprite: spider_a, at: [2, 1] }]
+  - show: [{ sprite: spider_b, at: [2, 0] }]
+  - show: [{ sprite: spider_a, at: [2, -1] }]
+  - show: [{ sprite: spider_b, at: [2, -2] }]
+  - show: [{ sprite: spider_a, at: [2, -3] }]
+  - show: [{ sprite: spider_b, at: [2, -4] }]
+  - show: [{ sprite: spider_a, at: [2, -5] }]
+  - show: [{ sprite: spider_b, at: [2, -6] }]
+  - show: [{ sprite: spider_a, at: [2, -7] }]

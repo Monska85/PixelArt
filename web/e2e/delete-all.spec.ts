@@ -69,7 +69,8 @@ test("Delete everything can also reset the settings: brightness 100 and playlist
   await page.getByRole("slider", { name: "Brightness" }).focus();
   await page.getByRole("slider", { name: "Brightness" }).press("PageDown");
   await expect(page.getByTestId("brightness-value")).not.toHaveText("100");
-  const total = count(simulator.dataDir, "animations") + count(simulator.dataDir, "playlists");
+  const playlists = count(simulator.dataDir, "playlists");
+  const total = count(simulator.dataDir, "animations") + playlists;
 
   await openDeleteEverything(page);
   const dialog = page.getByRole("dialog");
@@ -79,9 +80,9 @@ test("Delete everything can also reset the settings: brightness 100 and playlist
     "This cannot be undone. The firmware stays; the settings go back to their defaults: brightness 100 and active playlist default.",
   );
   await dialog.getByRole("button", { name: `Delete ${total} files and reset the settings` }).click();
-  await expect(toastWith(page, /^Deleted \d+ animations and 2 playlists and reset the settings/)).toContainText(
-    "The settings are back to their defaults: brightness 100 and active playlist default.",
-  );
+  await expect(
+    toastWith(page, new RegExp(`^Deleted \\d+ animations and ${playlists} playlists and reset the settings`)),
+  ).toContainText("The settings are back to their defaults: brightness 100 and active playlist default.");
   expect(count(simulator.dataDir, "animations")).toBe(0);
   expect(count(simulator.dataDir, "playlists")).toBe(0);
   expect(replies.replies[0]).toMatchObject({ ok: true, settings: { brightness: 100, playlist: "default" } });
