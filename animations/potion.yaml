@@ -1,0 +1,92 @@
+format: pixelart/1
+name: Magic Potion
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 200
+
+palette:
+  glass: "#bfe8ff"
+  shine: "#ffffff"
+  cork: "#8c5227"
+  liquid: "#ff5fbf"
+  liquid_light: "#ffa8df"
+  purple: "#a35cff"
+  purple_light: "#d1a8ff"
+  blue: "#3fa9ff"
+  blue_light: "#a8dcff"
+  green: "#4ddb6a"
+  green_light: "#a8f5b8"
+  sparkle: "#fff3a8"
+
+sprites:
+  bottle:
+    points:
+      cork: [[6, 1], [7, 1], [8, 1], [9, 1], [6, 2], [7, 2], [8, 2], [9, 2]]
+      glass: [
+          [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [6, 4], [9, 4], [6, 5], [9, 5],
+          [4, 6], [5, 6], [6, 6], [9, 6], [10, 6], [11, 6], [3, 7], [12, 7], [2, 8], [13, 8],
+          [2, 9], [13, 9], [1, 10], [14, 10], [1, 11], [14, 11], [1, 12], [14, 12], [2, 13], [13, 13],
+          [3, 14], [12, 14], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15], [10, 15], [11, 15]]
+      shine: [[3, 8]]
+      liquid_light: [
+          [3, 9], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [12, 9]]
+      liquid: [
+          [2, 10], [3, 10], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [10, 10], [11, 10],
+          [12, 10], [13, 10], [2, 11], [3, 11], [4, 11], [6, 11], [7, 11], [8, 11], [9, 11], [11, 11],
+          [12, 11], [13, 11], [2, 12], [3, 12], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12],
+          [10, 12], [11, 12], [12, 12], [13, 12], [3, 13], [4, 13], [5, 13], [6, 13], [9, 13], [10, 13],
+          [11, 13], [12, 13], [4, 14], [5, 14], [6, 14], [7, 14], [8, 14], [9, 14], [10, 14], [11, 14]]
+  bubble:
+    points:
+      liquid_light: [[0, 0]]
+  sparkles_a:
+    points:
+      sparkle: [[4, 1], [11, 0], [12, 3]]
+  sparkles_b:
+    points:
+      sparkle: [[3, 3], [10, 2], [13, 1]]
+
+timeline:
+  - show: [bottle, { sprite: bubble, at: [7, 9] }, sparkles_a]
+  - show: [bottle, { sprite: bubble, at: [8, 8] }, sparkles_b]
+  - show: [bottle, { sprite: bubble, at: [7, 7] }, sparkles_a]
+  - show: [bottle, { sprite: bubble, at: [8, 6] }, sparkles_b]
+  - show: [bottle, { sprite: bubble, at: [7, 5] }, sparkles_a]
+  - show: [bottle, { sprite: bubble, at: [8, 4] }, sparkles_b]
+  - show: [bottle, { sprite: bubble, at: [7, 9] }, sparkles_a]
+    recolor: { liquid: purple, liquid_light: purple_light }
+  - show: [bottle, { sprite: bubble, at: [8, 8] }, sparkles_b]
+    recolor: { liquid: purple, liquid_light: purple_light }
+  - show: [bottle, { sprite: bubble, at: [7, 7] }, sparkles_a]
+    recolor: { liquid: purple, liquid_light: purple_light }
+  - show: [bottle, { sprite: bubble, at: [8, 6] }, sparkles_b]
+    recolor: { liquid: purple, liquid_light: purple_light }
+  - show: [bottle, { sprite: bubble, at: [7, 5] }, sparkles_a]
+    recolor: { liquid: purple, liquid_light: purple_light }
+  - show: [bottle, { sprite: bubble, at: [8, 4] }, sparkles_b]
+    recolor: { liquid: purple, liquid_light: purple_light }
+  - show: [bottle, { sprite: bubble, at: [7, 9] }, sparkles_a]
+    recolor: { liquid: blue, liquid_light: blue_light }
+  - show: [bottle, { sprite: bubble, at: [8, 8] }, sparkles_b]
+    recolor: { liquid: blue, liquid_light: blue_light }
+  - show: [bottle, { sprite: bubble, at: [7, 7] }, sparkles_a]
+    recolor: { liquid: blue, liquid_light: blue_light }
+  - show: [bottle, { sprite: bubble, at: [8, 6] }, sparkles_b]
+    recolor: { liquid: blue, liquid_light: blue_light }
+  - show: [bottle, { sprite: bubble, at: [7, 5] }, sparkles_a]
+    recolor: { liquid: blue, liquid_light: blue_light }
+  - show: [bottle, { sprite: bubble, at: [8, 4] }, sparkles_b]
+    recolor: { liquid: blue, liquid_light: blue_light }
+  - show: [bottle, { sprite: bubble, at: [7, 9] }, sparkles_a]
+    recolor: { liquid: green, liquid_light: green_light }
+  - show: [bottle, { sprite: bubble, at: [8, 8] }, sparkles_b]
+    recolor: { liquid: green, liquid_light: green_light }
+  - show: [bottle, { sprite: bubble, at: [7, 7] }, sparkles_a]
+    recolor: { liquid: green, liquid_light: green_light }
+  - show: [bottle, { sprite: bubble, at: [8, 6] }, sparkles_b]
+    recolor: { liquid: green, liquid_light: green_light }
+  - show: [bottle, { sprite: bubble, at: [7, 5] }, sparkles_a]
+    recolor: { liquid: green, liquid_light: green_light }
+  - show: [bottle, { sprite: bubble, at: [8, 4] }, sparkles_b]
+    recolor: { liquid: green, liquid_light: green_light }
+  - show: [bottle]

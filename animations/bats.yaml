@@ -1,0 +1,66 @@
+format: pixelart/1
+name: Flapping Bats
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 160
+
+palette:
+  purple: "#8f5cff"
+  eye: "#ffe14a"
+  moon: "#fff2a8"
+
+sprites:
+  moon:
+    at: [11, 1]
+    points:
+      moon: [
+          [2, 0], [3, 0], [4, 0], [1, 1], [2, 1], [0, 2], [1, 2], [0, 3], [1, 3], [1, 4],
+          [2, 4], [2, 5], [3, 5], [4, 5]]
+  bat_up:
+    points:
+      purple: [
+          [0, 0], [3, 0], [5, 0], [8, 0], [0, 1], [1, 1], [3, 1], [4, 1], [5, 1], [7, 1],
+          [8, 1], [0, 2], [1, 2], [2, 2], [4, 2], [6, 2], [7, 2], [8, 2], [1, 3], [3, 3],
+          [4, 3], [5, 3], [7, 3], [4, 4]]
+      eye: [[3, 2], [5, 2]]
+  bat_down:
+    points:
+      purple: [
+          [3, 0], [5, 0], [3, 1], [4, 1], [5, 1], [1, 2], [2, 2], [4, 2], [6, 2], [7, 2],
+          [0, 3], [1, 3], [2, 3], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [0, 4],
+          [3, 4], [4, 4], [5, 4], [8, 4]]
+      eye: [[3, 2], [5, 2]]
+
+timeline:
+  - show: [moon, { sprite: bat_up, at: [0, 3], wrap: true }, { sprite: bat_down, at: [8, 10], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [1, 3], wrap: true }, { sprite: bat_up, at: [9, 11], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [2, 4], wrap: true }, { sprite: bat_down, at: [10, 11], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [3, 4], wrap: true }, { sprite: bat_up, at: [11, 10], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [4, 3], wrap: true }, { sprite: bat_down, at: [12, 10], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [5, 3], wrap: true }, { sprite: bat_up, at: [13, 11], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [6, 4], wrap: true }, { sprite: bat_down, at: [14, 11], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [7, 4], wrap: true }, { sprite: bat_up, at: [15, 10], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [8, 3], wrap: true }, { sprite: bat_down, at: [0, 10], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [9, 3], wrap: true }, { sprite: bat_up, at: [1, 11], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [10, 4], wrap: true }, { sprite: bat_down, at: [2, 11], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [11, 4], wrap: true }, { sprite: bat_up, at: [3, 10], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [12, 3], wrap: true }, { sprite: bat_down, at: [4, 10], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [13, 3], wrap: true }, { sprite: bat_up, at: [5, 11], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [14, 4], wrap: true }, { sprite: bat_down, at: [6, 11], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [15, 4], wrap: true }, { sprite: bat_up, at: [7, 10], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [0, 3], wrap: true }, { sprite: bat_down, at: [8, 10], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [1, 3], wrap: true }, { sprite: bat_up, at: [9, 11], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [2, 4], wrap: true }, { sprite: bat_down, at: [10, 11], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [3, 4], wrap: true }, { sprite: bat_up, at: [11, 10], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [4, 3], wrap: true }, { sprite: bat_down, at: [12, 10], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [5, 3], wrap: true }, { sprite: bat_up, at: [13, 11], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [6, 4], wrap: true }, { sprite: bat_down, at: [14, 11], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [7, 4], wrap: true }, { sprite: bat_up, at: [15, 10], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [8, 3], wrap: true }, { sprite: bat_down, at: [0, 10], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [9, 3], wrap: true }, { sprite: bat_up, at: [1, 11], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [10, 4], wrap: true }, { sprite: bat_down, at: [2, 11], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [11, 4], wrap: true }, { sprite: bat_up, at: [3, 10], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [12, 3], wrap: true }, { sprite: bat_down, at: [4, 10], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [13, 3], wrap: true }, { sprite: bat_up, at: [5, 11], wrap: true }]
+  - show: [moon, { sprite: bat_up, at: [14, 4], wrap: true }, { sprite: bat_down, at: [6, 11], wrap: true }]
+  - show: [moon, { sprite: bat_down, at: [15, 4], wrap: true }, { sprite: bat_up, at: [7, 10], wrap: true }]
