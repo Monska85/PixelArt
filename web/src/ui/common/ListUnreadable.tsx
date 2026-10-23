@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { RefreshCw } from "lucide-react";
 import { KINDS } from "../fileLists";
 import { session } from "../session";

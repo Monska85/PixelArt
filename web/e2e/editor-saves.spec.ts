@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { existsSync, rmSync } from "node:fs";
 import type { Dialog, Page } from "@playwright/test";
 import { connectSimulator, expect, file, stored, test, text } from "./fixtures";

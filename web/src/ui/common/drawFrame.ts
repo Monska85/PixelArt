@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { Frame } from "../../engine";
 
 /** Draws a frame on a 16x16 canvas. */

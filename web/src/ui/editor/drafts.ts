@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The draft of the document being edited, kept in IndexedDB. Browser storage can
 // be missing or blocked, so every call catches its failure and the editor works
 // without it.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // One run of the upload queue (docs/web/web-app-v1.md#upload-queue), from files that already passed the app's own
 // check to the summary: read the board, bring a playlist's animations, ask about what differs, check the space,
 // send. It has no access to the page: the questions, the notices, the free-space reading and the sending come in

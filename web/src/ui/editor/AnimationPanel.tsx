@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { setTopField, type Doc } from "../../editor/doc";
 import { JsonNumber } from "../../engine";
 import { EditorCard, type Edit } from "./EditorCard";

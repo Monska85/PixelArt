@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Form fields of the editor. Text and numbers commit when the user leaves the
 // field or presses Enter, so a half-typed value never reaches the document.
 

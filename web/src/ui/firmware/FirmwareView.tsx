@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SERIAL_UNSUPPORTED } from "../../protocol/serial";
 import { checkFirmware, type FirmwareCheck } from "../../release/semver";
@@ -5,15 +7,15 @@ import { Alert, AlertDescription, AlertTitle } from "../components/alert";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/card";
-import { Checkbox } from "../components/checkbox";
-import { Label } from "../components/label";
-import { DEFAULTS_TEXT, useDeleteEverything } from "../common/DeleteEverything";
+import { ResetBox, RESET_TEXT, useDeleteEverything } from "../common/DeleteEverything";
 import { ManifestPending, PageHeader } from "../common/Page";
 import { SERIAL_SUPPORTED, session, useSession } from "../session";
 import { useUploadRunning } from "../upload";
 import { useLatest } from "../useLatest";
 import { useManifest } from "../useManifest";
 import { closeConnectionBeforeClick } from "./handover";
+import { onOldLayout } from "./layout";
+import { NetworkUpdates } from "./NetworkUpdates";
 
 const TITLE = "Firmware";
 const DESCRIPTION = "Install or update the board's firmware.";
@@ -33,7 +35,7 @@ function badgeFor(check: FirmwareCheck): ReactNode {
 
 export function FirmwareView() {
   const manifest = useManifest();
-  const { state, info, client } = useSession();
+  const { state, info, client, restarts } = useSession();
   const [handedOver, setHandedOver] = useState(false);
   const wipe = useDeleteEverything({
     client: state === "connected" ? client : null,
@@ -50,6 +52,10 @@ export function FirmwareView() {
       dialogs={wipe.dialogs}
     />
   );
+  const network =
+    state === "connected" && client ? (
+      <NetworkUpdates client={client} restarts={restarts} paused={uploadRunning} />
+    ) : null;
   const serial = SERIAL_SUPPORTED();
   const installer = useInstaller(manifest.status === "ready" && serial);
 
@@ -64,6 +70,7 @@ export function FirmwareView() {
         emptyTestId="firmware-empty"
         emptyText="The firmware appears here once a release is published."
       >
+        {network}
         {reset}
       </ManifestPending>
     );
@@ -71,6 +78,7 @@ export function FirmwareView() {
   const latest = manifest.manifest.version;
   const check = state === "connected" && info ? checkFirmware(info.firmware, latest) : null;
   const development = check !== null && check.kind !== "incomparable" && check.development;
+  const oldLayout = state === "connected" && onOldLayout(info);
   const handover = () => setHandedOver(true);
 
   return (
@@ -142,6 +150,17 @@ export function FirmwareView() {
               it with the firmware it runs.
             </p>
           )}
+          {oldLayout && (
+            <Alert variant="warning" data-testid="old-layout">
+              <AlertTitle>This board needs Install from scratch once</AlertTitle>
+              <AlertDescription>
+                It still has the flash layout of the firmware before WiFi, and Update firmware cannot move its stored
+                files to the current one. Use Install from scratch below and let it erase the board: that deletes the
+                animations, playlists and settings, and writes the published animations and playlists. Later updates
+                keep them.
+              </AlertDescription>
+            </Alert>
+          )}
           <p className="text-sm text-muted-foreground">
             ESP Web Tools closes the connection of this app, because a serial port can only be open once. Put the board
             in download mode first if it does not appear in the list: hold BOOT while plugging it in.
@@ -149,11 +168,15 @@ export function FirmwareView() {
         </CardContent>
       </Card>
 
+      {network}
+
       <Card aria-labelledby="firmware-scratch">
         <CardHeader>
           <CardTitle id="firmware-scratch">Install from scratch</CardTitle>
           <CardDescription>
-            For a new board, or to start over. It writes the firmware and the published animations and playlists.
+            For a new board, to start over, or once for a board flashed before the firmware with WiFi, whose stored
+            files Update firmware cannot move to the current flash layout. It writes the firmware and the published
+            animations and playlists.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -197,34 +220,31 @@ function ResetCard({
 }) {
   // Checked here, the dialog opens with its own box checked too, and a board without files can still be reset.
   const [resetSettings, setResetSettings] = useState(false);
+  const overWifi = useSession().via === "wifi";
   return (
     <Card aria-labelledby="firmware-reset">
       <CardHeader>
         <CardTitle id="firmware-reset">Reset</CardTitle>
         <CardDescription>
-          Delete every animation and playlist stored on the board, and if you choose, put the settings back to their
-          defaults: {DEFAULTS_TEXT}. The firmware stays.
+          Delete every animation and playlist stored on the board. The firmware stays. With the box checked,{" "}
+          {RESET_TEXT.charAt(0).toLowerCase() + RESET_TEXT.slice(1)}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {notice}
-        <div className="flex items-start gap-2">
-          <Checkbox
-            id="reset-card-settings"
-            className="mt-0.5"
-            checked={resetSettings}
-            onCheckedChange={(checked) => setResetSettings(checked === true)}
-          />
-          <Label htmlFor="reset-card-settings" className="leading-normal">
-            Also reset the settings
-          </Label>
-        </div>
+        <ResetBox
+          id="reset-card-settings"
+          checked={resetSettings && !overWifi}
+          overWifi={overWifi}
+          onChange={setResetSettings}
+          labelClassName=""
+        />
         <div className="flex flex-wrap items-center gap-3">
           <Button
             variant="destructive-outline"
             disabled={!connected || disabled}
             onClick={() => {
-              onDelete(resetSettings);
+              onDelete(resetSettings && !overWifi);
               // The dialog carries the choice from here: the box is off again for the next time.
               setResetSettings(false);
             }}

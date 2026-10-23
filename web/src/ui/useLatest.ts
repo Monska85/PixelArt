@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useEffect, useRef } from "react";
 
 /** A ref that always holds the latest value, for callbacks that async work calls after a render. */

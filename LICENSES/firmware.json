@@ -1,0 +1,194 @@
+{
+  "comment": "The third-party software of the firmware, for tools/firmware_notices.py (LICENSES/README.md). Every archive the firmware links must be named by a section, a library or the project's own lib/ folder. A section's version is read from the build: 'esp-idf' and 'component:<name>' from versions.txt of the framework's library package, 'arduino' from its package.json, 'toolchain' from the compiler package. 'pins' are the versions the files in LICENSES/firmware/ were taken from: a build with other versions fails until the files are taken again.",
+  "pins": {
+    "esp-idf": "v5.5.5",
+    "arduino": "3.3.12",
+    "components": {
+      "espressif__cjson": "1.7.19~2",
+      "espressif__esp_diagnostics": "1.3.4",
+      "espressif__mdns": "1.13.1",
+      "espressif__network_provisioning": "1.0.2",
+      "joltwallet__littlefs": "1.22.3"
+    }
+  },
+  "sections": [
+    {
+      "name": "Arduino-ESP32",
+      "version": "arduino",
+      "license": "LGPL-2.1-or-later",
+      "source": "https://github.com/espressif/arduino-esp32/tree/{version}",
+      "files": ["arduino-esp32.LICENSE.md"],
+      "archives": ["libFrameworkArduino.a", "libWiFi.a", "libNetwork.a", "libFS.a", "libLittleFS.a", "libPreferences.a", "libESPmDNS.a", "libWire.a", "libSPI.a"]
+    },
+    {
+      "name": "ESP-IDF",
+      "version": "esp-idf",
+      "license": "Apache-2.0",
+      "source": "https://github.com/espressif/esp-idf/tree/{version}",
+      "files": ["esp-idf.LICENSE"],
+      "archives": [
+        "libapp_update.a", "libbootloader_support.a", "libbt.a", "libcxx.a", "libefuse.a", "libesp-tls.a", "libesp_app_format.a",
+        "libesp_coex.a", "libesp_common.a", "libesp_driver_gpio.a", "libesp_driver_rmt.a", "libesp_driver_spi.a",
+        "libesp_driver_tsens.a", "libesp_driver_uart.a", "libesp_driver_usb_serial_jtag.a", "libesp_eth.a", "libesp_event.a",
+        "libesp_http_client.a", "libesp_http_server.a", "libesp_hw_support.a", "libesp_mm.a", "libesp_netif.a",
+        "libesp_partition.a", "libesp_phy.a", "libesp_pm.a", "libesp_psram.a", "libesp_ringbuf.a", "libesp_rom.a",
+        "libesp_security.a", "libesp_system.a", "libesp_timer.a", "libesp_vfs_console.a", "libesp_wifi.a", "libespcoredump.a",
+        "libfreertos.a", "libhal.a", "libheap.a", "liblog.a", "liblwip.a", "libnewlib.a", "libnvs_flash.a",
+        "libnvs_sec_provider.a", "libprotocomm.a", "libpthread.a", "libriscv.a", "libsoc.a", "libspi_flash.a",
+        "libtcp_transport.a", "libvfs.a", "libwpa_supplicant.a", "libxtensa.a"
+      ]
+    },
+    {
+      "name": "Espressif binary libraries (WiFi, PHY, Bluetooth, coexistence) and the ROM code of Espressif chips, in object form only",
+      "version": "esp-idf",
+      "license": "Apache-2.0",
+      "source": "https://github.com/espressif/esp-idf/tree/{version} (the folders lib of components esp_wifi, esp_phy, esp_coex and bt/controller hold the libraries; no source code is published for them)",
+      "files": ["esp-idf.LICENSE"],
+      "archives": ["libbtbb.a", "libbtdm_app.a", "libcoexist.a", "libcore.a", "libespnow.a", "libmesh.a", "libnet80211.a", "libphy.a", "libpp.a", "librtc.a", "libsmartconfig.a"],
+      "always": true
+    },
+    {
+      "name": "lwIP (in ESP-IDF, components/lwip)",
+      "version": "esp-idf",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/espressif/esp-lwip, the commit ESP-IDF {version} names",
+      "files": ["lwip.COPYING"],
+      "archives": ["liblwip.a"]
+    },
+    {
+      "name": "wpa_supplicant (in ESP-IDF, components/wpa_supplicant)",
+      "version": "esp-idf",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/espressif/esp-idf/tree/{version}/components/wpa_supplicant",
+      "files": ["wpa_supplicant.COPYING"],
+      "archives": ["libwpa_supplicant.a"]
+    },
+    {
+      "name": "FreeRTOS kernel (in ESP-IDF, components/freertos)",
+      "version": "esp-idf",
+      "license": "MIT",
+      "source": "https://github.com/espressif/esp-idf/tree/{version}/components/freertos/FreeRTOS-Kernel",
+      "files": ["FreeRTOS-Kernel.LICENSE.md"],
+      "archives": ["libfreertos.a"]
+    },
+    {
+      "name": "Mbed TLS (in ESP-IDF, components/mbedtls), used under Apache-2.0",
+      "version": "esp-idf",
+      "license": "Apache-2.0 OR GPL-2.0-or-later",
+      "source": "https://github.com/espressif/mbedtls, the commit ESP-IDF {version} names",
+      "files": ["mbedtls.LICENSE"],
+      "archives": ["libmbedcrypto.a", "libmbedtls.a", "libmbedtls_2.a", "libmbedx509.a"]
+    },
+    {
+      "name": "cJSON (in ESP-IDF, components/json)",
+      "version": "esp-idf",
+      "license": "MIT",
+      "source": "https://github.com/DaveGamble/cJSON, the commit ESP-IDF {version} names",
+      "files": ["cJSON.LICENSE"],
+      "archives": ["libjson.a"]
+    },
+    {
+      "name": "cJSON (component espressif/cjson)",
+      "version": "component:espressif__cjson",
+      "license": "MIT",
+      "source": "https://components.espressif.com/components/espressif/cjson/versions/{version}",
+      "files": ["cJSON.LICENSE"],
+      "archives": ["libespressif__cjson.a"]
+    },
+    {
+      "name": "http_parser (in ESP-IDF, components/http_parser)",
+      "version": "esp-idf",
+      "license": "MIT",
+      "source": "https://github.com/espressif/esp-idf/tree/{version}/components/http_parser",
+      "files": ["http_parser.LICENSE.txt"],
+      "archives": ["libhttp_parser.a"]
+    },
+    {
+      "name": "protobuf-c (in ESP-IDF, components/protobuf-c)",
+      "version": "esp-idf",
+      "license": "BSD-2-Clause",
+      "source": "https://github.com/protobuf-c/protobuf-c, the commit ESP-IDF {version} names",
+      "files": ["protobuf-c.LICENSE"],
+      "archives": ["libprotobuf-c.a"]
+    },
+    {
+      "name": "TLSF memory allocator (in ESP-IDF, components/heap/tlsf)",
+      "version": "esp-idf",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/espressif/tlsf, the commit ESP-IDF {version} names",
+      "files": ["tlsf.LICENSE"],
+      "archives": ["libheap.a"]
+    },
+    {
+      "name": "Xtensa HAL by Cadence Design Systems (in ESP-IDF, components/xtensa)",
+      "version": "esp-idf",
+      "license": "MIT",
+      "source": "https://github.com/espressif/esp-idf/tree/{version}/components/xtensa",
+      "files": ["xtensa-hal.notice.txt"],
+      "archives": ["libxt_hal.a", "libxtensa.a"]
+    },
+    {
+      "name": "esp_littlefs (component joltwallet/littlefs) and littlefs",
+      "version": "component:joltwallet__littlefs",
+      "license": "MIT AND BSD-3-Clause",
+      "source": "https://components.espressif.com/components/joltwallet/littlefs/versions/{version}",
+      "files": ["esp_littlefs.LICENSE", "littlefs.LICENSE.md"],
+      "archives": ["libjoltwallet__littlefs.a"]
+    },
+    {
+      "name": "mDNS (component espressif/mdns)",
+      "version": "component:espressif__mdns",
+      "license": "Apache-2.0",
+      "source": "https://components.espressif.com/components/espressif/mdns/versions/{version}",
+      "files": ["esp-idf.LICENSE"],
+      "archives": ["libespressif__mdns.a"]
+    },
+    {
+      "name": "network_provisioning (component espressif/network_provisioning)",
+      "version": "component:espressif__network_provisioning",
+      "license": "Apache-2.0",
+      "source": "https://components.espressif.com/components/espressif/network_provisioning/versions/{version}",
+      "files": ["network_provisioning.LICENSE"],
+      "archives": ["libespressif__network_provisioning.a"]
+    },
+    {
+      "name": "esp_diagnostics (component espressif/esp_diagnostics)",
+      "version": "component:espressif__esp_diagnostics",
+      "license": "Apache-2.0",
+      "source": "https://components.espressif.com/components/espressif/esp_diagnostics/versions/{version}",
+      "files": ["esp-idf.LICENSE"],
+      "archives": ["libespressif__esp_diagnostics.a"]
+    },
+    {
+      "name": "newlib C library (from the compiler)",
+      "version": "toolchain",
+      "license": "BSD-style licenses of newlib (COPYING.NEWLIB)",
+      "source": "https://github.com/espressif/newlib-esp32, the version the compiler {version} names (https://github.com/espressif/crosstool-NG)",
+      "files": ["toolchain:share/licenses/newlib/COPYING.NEWLIB"],
+      "archives": ["libc.a", "libm.a"]
+    },
+    {
+      "name": "GCC runtime libraries libgcc and libstdc++ (from the compiler)",
+      "version": "toolchain",
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "source": "https://github.com/espressif/gcc, the version the compiler {version} names (https://github.com/espressif/crosstool-NG)",
+      "files": ["toolchain:share/licenses/gcc/COPYING3", "toolchain:share/licenses/gcc/COPYING.RUNTIME"],
+      "archives": ["libgcc.a", "libstdc++.a"]
+    },
+    {
+      "name": "Mozilla CA certificate list (the roots in certs/x509_crt_bundle.bin, from ESP-IDF's cacrt_all.pem)",
+      "version": "esp-idf",
+      "license": "MPL-2.0",
+      "source": "https://github.com/espressif/esp-idf/blob/{version}/components/mbedtls/esp_crt_bundle/cacrt_all.pem",
+      "files": ["MPL-2.0.txt"],
+      "archives": [],
+      "always": true
+    }
+  ],
+  "libraries": {
+    "Adafruit GFX Library": { "license": "BSD-2-Clause", "files": ["license.txt"] },
+    "Adafruit NeoMatrix": { "license": "LGPL-3.0-or-later", "files": ["COPYING.LESSER", "COPYING"] },
+    "Adafruit NeoPixel": { "license": "LGPL-3.0-or-later", "files": ["COPYING"] },
+    "ArduinoJson": { "license": "MIT", "files": ["LICENSE.txt"] }
+  }
+}

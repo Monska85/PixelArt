@@ -12,16 +12,23 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <deque>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "app.h"
+#include "firmware.h"
+#include "improv.h"
+#include "network.h"
+#include "platform.h"
 #include "protocol.h"
 #include "settings.h"
 #include "storage.h"
+#include "updates.h"
 #include "pixelart_test.h"
 
 namespace fs = std::filesystem;
@@ -48,6 +55,14 @@ public:
     while (sim::serial_input_size() > 0)
       protocol::poll();
     collect();
+  }
+
+  // Hands a line to the protocol the way the WiFi transport does, without the serial port.
+  void send_wifi(const std::string &line)
+  {
+    std::string reply = protocol::handle_line(line, protocol::Transport::Wifi);
+    if (!reply.empty())
+      pending_.push_back(reply);
   }
 
   void collect()
@@ -108,6 +123,18 @@ static std::string text_of(JsonVariantConst value)
   return out;
 }
 
+// The member `key` of `object`, found by its name so that a key with a null value counts as present.
+static bool find_member(JsonObjectConst object, const char *key, JsonVariantConst &found)
+{
+  for (JsonPairConst pair : object)
+    if (!strcmp(pair.key().c_str(), key))
+    {
+      found = pair.value();
+      return true;
+    }
+  return false;
+}
+
 // Compares a reply with the expected body. "<any>" matches any value, and
 // "<at most N characters>" any text of at most N code points.
 static bool matches(JsonVariantConst want, JsonVariantConst got)
@@ -126,8 +153,11 @@ static bool matches(JsonVariantConst want, JsonVariantConst got)
     // Equal sizes and every expected key present: the same set of keys.
     JsonObjectConst object = got.as<JsonObjectConst>();
     for (JsonPairConst pair : want.as<JsonObjectConst>())
-      if (object[pair.key()].isNull() || !matches(pair.value(), object[pair.key()]))
+    {
+      JsonVariantConst member;
+      if (!find_member(object, pair.key().c_str(), member) || !matches(pair.value(), member))
         return false;
+    }
     return true;
   }
   if (want.is<JsonArrayConst>())
@@ -146,10 +176,120 @@ static std::string file_bytes(const JsonVariantConst &spec)
 {
   if (spec.is<const char *>())
     return spec.as<const char *>();
+  if (!spec["json"].isNull())
+    return text_of(spec["json"]); // the compact text of the value, in the order the case gives it
   std::string decoded;
   std::string coded = spec["base64"].as<const char *>();
   TEST_ASSERT_TRUE(pixelart::base64_decode(coded.data(), coded.size(), 1 << 20, decoded));
   return decoded;
+}
+
+// The settings a case starts with: any setting, the token included.
+static void start_settings(JsonVariantConst start)
+{
+  settings::Values values = settings::current();
+  if (!start["brightness"].isNull())
+    values.brightness = start["brightness"].as<uint8_t>();
+  if (!start["playlist"].isNull())
+    values.playlist = start["playlist"].as<std::string>();
+  if (!start["wifi_power"].isNull())
+    values.wifi_power = start["wifi_power"].as<std::string>();
+  if (!start["update_mode"].isNull())
+    values.update_mode = start["update_mode"].as<std::string>();
+  if (!start["update_firmware"].isNull())
+    values.update_firmware = start["update_firmware"].as<bool>();
+  if (!start["update_animations"].isNull())
+    values.update_animations = start["update_animations"].as<bool>();
+  if (!start["check_hours"].isNull())
+    values.check_hours = start["check_hours"].as<uint16_t>();
+  if (!start["install_start"].isNull())
+    values.install_start = start["install_start"].as<uint16_t>();
+  if (!start["install_end"].isNull())
+    values.install_end = start["install_end"].as<uint16_t>();
+  if (!start["timezone"].isNull())
+    values.timezone = start["timezone"].as<std::string>();
+  if (!start["animation_source"].isNull())
+    values.animation_source = start["animation_source"].as<std::string>();
+  if (!start["network_login"].isNull())
+    values.network_login = start["network_login"].as<bool>();
+  if (!start["token"].isNull())
+    values.token = start["token"].as<std::string>();
+  TEST_ASSERT_TRUE(settings::commit(values) == settings::Commit::Ok);
+  network::set_power(values.wifi_power);
+  updates::apply(settings::current());
+}
+
+// Failures of the simulated update server, in the form of `update_source.fail`, from now on.
+static void inject_failures(JsonVariantConst failures)
+{
+  for (JsonVariantConst fail : failures.as<JsonArrayConst>())
+  {
+    updates::Failure failure;
+    TEST_ASSERT_TRUE_MESSAGE(updates::sim_failure_from_name(fail["kind"] | "", failure),
+                             "unknown failure kind in update_source");
+    updates::sim_inject(failure, fail["path"] | "");
+  }
+}
+
+// The files the simulated update server serves, and the failures it injects.
+static void start_update_source(JsonVariantConst source)
+{
+  updates::sim_reset();
+  if (source.isNull())
+    return;
+  if (!source["local_time"].isNull())
+  {
+    unsigned hours = 0, minutes = 0;
+    TEST_ASSERT_EQUAL_MESSAGE(2, sscanf(source["local_time"].as<const char *>(), "%u:%u", &hours, &minutes),
+                              "local_time is HH:MM");
+    updates::sim_set_local_minutes((int)(hours * 60 + minutes));
+  }
+  std::map<std::string, std::string> files;
+  for (JsonPairConst f : source["files"].as<JsonObjectConst>())
+    files[f.key().c_str()] = file_bytes(f.value());
+  updates::sim_use_files(files);
+  inject_failures(source["fail"]);
+}
+
+// Lets the board's update task run until it has nothing more to do.
+static void run_updates()
+{
+  for (int i = 0; i < 10000; i++)
+  {
+    updates::poll();
+    const std::string state = updates::snapshot().state;
+    if (state == "idle" || state == "waiting_for_time" || firmware::sim_restart_requested())
+      return;
+  }
+  TEST_FAIL_MESSAGE("the update did not end");
+}
+
+// Restarts the board: the files and the firmware slots stay, the settings go back to their defaults. A
+// firmware that asks for a restart (a trial that is not healthy) restarts it again.
+static void reboot(bool unhealthy)
+{
+  firmware::sim_fail_next_health(unhealthy);
+  do
+  {
+    firmware::sim_clear_restart();
+    setup();
+  } while (firmware::sim_restart_requested());
+  firmware::sim_fail_next_health(false);
+  updates::poll();
+}
+
+// The nonces a case gives the board, as the bytes of its random number generator.
+static std::string nonce_bytes(JsonVariantConst nonces)
+{
+  std::string bytes;
+  for (JsonVariantConst nonce : nonces.as<JsonArrayConst>())
+  {
+    const std::string hex = nonce.as<std::string>();
+    TEST_ASSERT_EQUAL_MESSAGE(32, hex.size(), "a nonce is 32 hexadecimal digits");
+    for (size_t i = 0; i < hex.size(); i += 2)
+      bytes += (char)std::stoi(hex.substr(i, 2), nullptr, 16);
+  }
+  return bytes;
 }
 
 static void run_case(const fs::path &file)
@@ -161,15 +301,22 @@ static void run_case(const fs::path &file)
 
   sim::reset();
   TempData data("protocol");
+  firmware::sim_reset(doc["firmware_version"] | "");
+  if (!doc["firmware_skip"].isNull())
+    firmware::sim_set_skipped(doc["firmware_skip"].as<std::string>());
   if (!doc["capacity"].isNull())
     storage::set_capacity(doc["capacity"].as<size_t>());
   for (JsonPairConst f : doc["files"].as<JsonObjectConst>())
     data.write(f.key().c_str(), file_bytes(f.value()));
   setup();
-  if (!doc["settings"]["brightness"].isNull())
-    settings::set_brightness(doc["settings"]["brightness"].as<uint8_t>());
-  if (!doc["settings"]["playlist"].isNull())
-    settings::set_playlist(doc["settings"]["playlist"].as<const char *>());
+  start_settings(doc["settings"]);
+  start_update_source(doc["update_source"]);
+  updates::poll(); // the board has its address from the start: the first check is 5 minutes away
+  const bool wifi = std::string(doc["transport"] | "usb") == "wifi";
+  if (wifi)
+    protocol::wifi_opened(); // the client of the case is connected from the start
+  platform::sim_queue_random_bytes(nonce_bytes(doc["nonces"]));
+  unsigned closes_seen = 0;
 
   Replies replies;
   size_t index = 0;
@@ -179,7 +326,12 @@ static void run_case(const fs::path &file)
     if (!step["send"].isNull())
     {
       std::string eol = step["eol"].isNull() ? "\n" : step["eol"].as<const char *>();
-      replies.send(std::string(step["send"].as<const char *>()) + eol);
+      const std::string via = step["via"] | (wifi ? "wifi" : "usb");
+      TEST_ASSERT_TRUE_MESSAGE(via == "usb" || via == "wifi", (where + ": via is usb or wifi").c_str());
+      if (via == "wifi")
+        replies.send_wifi(step["send"].as<const char *>());
+      else
+        replies.send(std::string(step["send"].as<const char *>()) + eol);
     }
     else if (!step["expect"].isNull())
     {
@@ -199,11 +351,44 @@ static void run_case(const fs::path &file)
     {
       sim::advance_us((uint64_t)step["advance_ms"].as<uint32_t>() * 1000);
       protocol::poll();
+      updates::poll();
       replies.collect();
+    }
+    else if (!step["run_update"].isNull())
+    {
+      run_updates();
+    }
+    else if (!step["update_fail"].isNull())
+    {
+      inject_failures(step["update_fail"]);
     }
     else if (!step["reboot"].isNull())
     {
-      setup();
+      reboot(false);
+      closes_seen = 0;
+    }
+    else if (!step["reboot_unhealthy"].isNull())
+    {
+      reboot(true);
+      closes_seen = 0;
+    }
+    else if (!step["first_frame"].isNull())
+    {
+      firmware::first_frame_shown();
+    }
+    else if (!step["wifi_connect"].isNull())
+    {
+      protocol::wifi_closed(); // a connection that was open is gone
+      protocol::wifi_opened();
+    }
+    else if (!step["expect_closed"].isNull())
+    {
+      const unsigned closes = network::sim_close_requests();
+      TEST_ASSERT_EQUAL_MESSAGE(
+          step["expect_closed"].as<bool>(), closes > closes_seen,
+          (where + ": the WiFi connection was " + (step["expect_closed"].as<bool>() ? "not closed" : "closed"))
+              .c_str());
+      closes_seen = closes;
     }
     else if (!step["expect_files"].isNull())
     {
@@ -224,6 +409,7 @@ static void run_case(const fs::path &file)
       TEST_FAIL_MESSAGE((where + ": unknown step").c_str());
   }
   TEST_ASSERT_TRUE_MESSAGE(replies.empty(), (name + ": unexpected reply " + replies.pop()).c_str());
+  updates::sim_reset();
 }
 
 static void test_conformance_cases()
@@ -285,8 +471,8 @@ static std::string upload_dot(Replies &replies, unsigned seq = 1)
   return reply_json(replies.pop(), "put_end");
 }
 
-static protocol::Memory low_memory() { return {5000, 3000}; }
-static protocol::Memory plenty_of_memory() { return {400000, 300000}; }
+static install::Memory low_memory() { return {5000, 3000}; }
+static install::Memory plenty_of_memory() { return {400000, 300000}; }
 
 // Sends put_begin of DOT and returns its reply.
 static std::string begin_dot(Replies &replies)
@@ -303,17 +489,17 @@ static void test_out_of_memory_at_begin_creates_nothing()
   setup();
   Replies replies;
 
-  protocol::set_memory_probe(low_memory);
+  install::set_memory_probe(low_memory);
   std::string refused = begin_dot(replies);
-  protocol::set_memory_probe(nullptr);
+  install::set_memory_probe(nullptr);
   TEST_ASSERT_TRUE_MESSAGE(refused.find("\"out_of_memory\"") != std::string::npos, refused.c_str());
   TEST_ASSERT_TRUE(read_file(data.root / "animations/dot.json") == "old content");
   TEST_ASSERT_FALSE(fs::exists(data.root / "upload.tmp"));
   TEST_ASSERT_FALSE(protocol::upload_active());
 
-  protocol::set_memory_probe(plenty_of_memory);
+  install::set_memory_probe(plenty_of_memory);
   std::string accepted = upload_dot(replies, 10);
-  protocol::set_memory_probe(nullptr);
+  install::set_memory_probe(nullptr);
   TEST_ASSERT_TRUE_MESSAGE(accepted.find("\"ok\":true") != std::string::npos, accepted.c_str());
   TEST_ASSERT_TRUE(read_file(data.root / "animations/dot.json") == DOT);
 }
@@ -326,15 +512,15 @@ static void test_out_of_memory_at_end_leaves_everything_unchanged()
   setup();
   Replies replies;
 
-  protocol::set_memory_probe(plenty_of_memory);
+  install::set_memory_probe(plenty_of_memory);
   std::string begun = begin_dot(replies);
   TEST_ASSERT_TRUE_MESSAGE(begun.find("\"ok\":true") != std::string::npos, begun.c_str());
   replies.send(put_chunk(2, DOT));
   replies.pop();
-  protocol::set_memory_probe(low_memory); // memory shrank while the data came in
+  install::set_memory_probe(low_memory); // memory shrank while the data came in
   replies.send(request(3, R"("cmd":"put_end")"));
   std::string refused = reply_json(replies.pop(), "put_end");
-  protocol::set_memory_probe(nullptr);
+  install::set_memory_probe(nullptr);
   TEST_ASSERT_TRUE_MESSAGE(refused.find("\"out_of_memory\"") != std::string::npos, refused.c_str());
   TEST_ASSERT_TRUE(read_file(data.root / "animations/dot.json") == "old content");
   TEST_ASSERT_FALSE(fs::exists(data.root / "upload.tmp"));
@@ -446,7 +632,7 @@ static void test_refused_put_begin_closes_the_open_upload_file()
 
 // Runs one upload to put_end and returns the reply; the file must be closed afterwards.
 static std::string end_upload(const std::string &sent, const std::string &declared, size_t declared_size,
-                              protocol::MemoryProbe probe = nullptr)
+                              install::MemoryProbe probe = nullptr)
 {
   sim::reset();
   TempData data("protocol");
@@ -456,10 +642,10 @@ static std::string end_upload(const std::string &sent, const std::string &declar
   replies.send(put_chunk(2, sent));
   replies.pop();
   TEST_ASSERT_EQUAL(1, storage::open_writers());
-  protocol::set_memory_probe(probe);
+  install::set_memory_probe(probe);
   replies.send(request(3, R"("cmd":"put_end")"));
   std::string json = reply_json(replies.pop(), "put_end");
-  protocol::set_memory_probe(nullptr);
+  install::set_memory_probe(nullptr);
   TEST_ASSERT_FALSE(protocol::upload_active());
   TEST_ASSERT_EQUAL(0, storage::open_writers());
   return json;
@@ -615,7 +801,7 @@ static void test_delete_all_keeps_the_settings_when_they_cannot_be_reset()
   settings::fail_brightness_saves(false);
   replies.send(request(2, R"("cmd":"delete_all","settings":true)"));
   json = reply_json(replies.pop(), "delete_all");
-  TEST_ASSERT_TRUE_MESSAGE(json.find("\"settings\":{\"brightness\":100,\"playlist\":\"default\"}") != std::string::npos,
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"settings\":{\"brightness\":100,\"playlist\":\"default\",") != std::string::npos,
                            json.c_str());
 }
 
@@ -647,11 +833,57 @@ static void test_info_reports_the_memory_probe()
   TempData data("protocol");
   setup();
   Replies replies;
-  protocol::set_memory_probe(low_memory);
+  install::set_memory_probe(low_memory);
   replies.send(request(1, R"("cmd":"info")"));
-  protocol::set_memory_probe(nullptr);
+  install::set_memory_probe(nullptr);
   std::string info = reply_json(replies.pop(), "info");
   TEST_ASSERT_TRUE_MESSAGE(info.find("\"memory\":{\"free\":5000,\"largest\":3000}") != std::string::npos, info.c_str());
+}
+
+static std::string status_with_ssid(bool stored, const char *ssid)
+{
+  sim::reset();
+  TempData data("protocol");
+  setup();
+  network::Snapshot snapshot;
+  snapshot.state = stored ? wifi_logic::State::Connecting : wifi_logic::State::NotConfigured;
+  snapshot.has_ssid = stored;
+  snprintf(snapshot.ssid, sizeof(snapshot.ssid), "%s", ssid);
+  network::sim_set_snapshot(snapshot);
+  Replies replies;
+  replies.send(request(1, R"("cmd":"status")"));
+  return reply_json(replies.pop(), "status");
+}
+
+static void test_status_reports_the_stored_network_name_as_valid_json()
+{
+  // Plain, with a character that needs JSON escaping, and with UTF-8.
+  TEST_ASSERT_NOT_EQUAL(std::string::npos,
+                        status_with_ssid(true, "Example Home WiFi").find("\"ssid\":\"Example Home WiFi\""));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos,
+                        status_with_ssid(true, "Say \"hi\"\\").find("\"ssid\":\"Say \\\"hi\\\"\\\\\""));
+  TEST_ASSERT_NOT_EQUAL(
+      std::string::npos,
+      status_with_ssid(true, "Caf\xC3\xA9 \xC3\x9C 2.4G").find("\"ssid\":\"Caf\xC3\xA9 \xC3\x9C 2.4G\""));
+  // Bytes that are not UTF-8 become U+FFFD, one per byte, and the reply stays valid JSON.
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, status_with_ssid(true, "Net\xFF"
+                                                                  "A\xC3")
+                                               .find("\"ssid\":\"Net\xEF\xBF\xBD"
+                                                     "A\xEF\xBF\xBD\""));
+  // A control character is escaped.
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, status_with_ssid(true, "a\tb").find("\"ssid\":\"a\\tb\""));
+  // The longest name, 32 bytes none of which is UTF-8, is 96 bytes of replacement characters.
+  std::string json = status_with_ssid(true, std::string(32, '\xC0').c_str());
+  size_t at = json.find("\"ssid\":\"");
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, at);
+  TEST_ASSERT_EQUAL(96, json.find('"', at + 8) - (at + 8));
+}
+
+static void test_status_reports_no_network_name_when_none_is_stored()
+{
+  const std::string json = status_with_ssid(false, "");
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"hostname\":\"\""));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"ssid\":null"));
 }
 
 static void test_replies_are_whole_lines()
@@ -827,6 +1059,170 @@ static void test_list_falls_back_to_piecewise_hash_when_read_all_fails()
 void setUp() {}
 void tearDown() {}
 
+// ---- Settings, token and transports ----
+
+static std::string token_of(const std::string &json)
+{
+  JsonDocument doc;
+  TEST_ASSERT_FALSE(deserializeJson(doc, json));
+  return doc["settings"]["token"] | doc["token"] | "";
+}
+
+static void test_token_is_16_characters_of_a_to_z_and_0_to_9_and_new_at_every_first_start()
+{
+  sim::reset();
+  TempData data("token");
+  setup();
+  const std::string first = settings::current().token;
+  TEST_ASSERT_TRUE(settings::valid_token(first));
+  TEST_ASSERT_EQUAL(16, first.size());
+  setup(); // the simulator starts from nothing every time
+  TEST_ASSERT_TRUE(first != settings::current().token);
+  for (int i = 0; i < 200; i++)
+    TEST_ASSERT_TRUE(settings::valid_token(settings::make_token()));
+  TEST_ASSERT_FALSE(settings::valid_token("ABCDEFGHIJKLMNOP"));
+  TEST_ASSERT_FALSE(settings::valid_token("abcdefghijklmno"));
+  TEST_ASSERT_FALSE(settings::valid_token("abcdefghijklmno-"));
+}
+
+static void test_token_goes_over_usb_only_and_a_repeated_request_is_not_replayed_to_the_other_transport()
+{
+  sim::reset();
+  TempData data("token");
+  setup();
+  const std::string line = protocol_frame(R"({"seq":5,"cmd":"settings_get"})");
+  std::string usb = protocol::handle_line(line, protocol::Transport::Usb);
+  std::string wifi = protocol::handle_line(line, protocol::Transport::Wifi);
+  TEST_ASSERT_TRUE(usb.find("\"token\"") != std::string::npos);
+  TEST_ASSERT_TRUE(wifi.find("\"token\"") == std::string::npos);
+  TEST_ASSERT_TRUE(usb.find(settings::current().token) != std::string::npos);
+  // The same request again over USB is the remembered reply.
+  TEST_ASSERT_TRUE(protocol::handle_line(line, protocol::Transport::Usb) == usb);
+}
+
+static void test_each_transport_remembers_its_own_last_reply()
+{
+  sim::reset();
+  TempData data("protocol");
+  data.write("animations/dot.json", DOT);
+  data.write("animations/dot2.json", DOT);
+  setup();
+  const std::string wifi_line = protocol_frame(R"({"seq":1,"cmd":"delete","kind":"animation","id":"dot"})");
+  const std::string usb_line = protocol_frame(R"({"seq":1,"cmd":"delete","kind":"animation","id":"dot2"})");
+  const std::string wifi = protocol::handle_line(wifi_line, protocol::Transport::Wifi);
+  const std::string usb = protocol::handle_line(usb_line, protocol::Transport::Usb);
+  expect_in(R"("ok":true)", wifi);
+  expect_in(R"("ok":true)", usb);
+  // Each request again, after a request over the other transport, is its
+  // remembered reply: running the delete again would answer not_found.
+  TEST_ASSERT_TRUE(protocol::handle_line(wifi_line, protocol::Transport::Wifi) == wifi);
+  TEST_ASSERT_TRUE(protocol::handle_line(usb_line, protocol::Transport::Usb) == usb);
+  // A WiFi connection that opens forgets only the WiFi reply.
+  protocol::wifi_opened();
+  expect_in(R"("error":"not_found")", protocol::handle_line(wifi_line, protocol::Transport::Wifi));
+  TEST_ASSERT_TRUE(protocol::handle_line(usb_line, protocol::Transport::Usb) == usb);
+}
+
+static void test_token_regenerate_replaces_the_token_and_reports_save_failures()
+{
+  sim::reset();
+  TempData data("token");
+  setup();
+  Replies replies;
+  const std::string before = settings::current().token;
+  replies.send(request(1, R"("cmd":"token_regenerate")"));
+  std::string json = reply_json(replies.pop(), "token_regenerate");
+  const std::string made = token_of(json);
+  TEST_ASSERT_TRUE(settings::valid_token(made));
+  TEST_ASSERT_TRUE(made == settings::current().token);
+  TEST_ASSERT_TRUE(made != before);
+
+  settings::fail_token_saves(true);
+  replies.send(request(2, R"("cmd":"token_regenerate")"));
+  json = reply_json(replies.pop(), "token_regenerate");
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\":\"storage_error\"") != std::string::npos, json.c_str());
+  TEST_ASSERT_TRUE(made == settings::current().token);
+}
+
+static void test_delete_all_with_settings_makes_a_new_token_and_resets_every_setting()
+{
+  sim::reset();
+  TempData data("token");
+  setup();
+  Replies replies;
+  replies.send(request(
+      1, R"("cmd":"settings_set","wifi_power":"11","update_mode":"off","check_hours":24,"network_login":true)"));
+  replies.pop();
+  const std::string before = settings::current().token;
+  replies.send(request(2, R"("cmd":"delete_all","settings":true)"));
+  std::string json = reply_json(replies.pop(), "delete_all");
+  const settings::Values &v = settings::current();
+  TEST_ASSERT_TRUE(v.token != before);
+  TEST_ASSERT_TRUE(token_of(json) == v.token);
+  TEST_ASSERT_EQUAL_STRING("auto", v.wifi_power.c_str());
+  TEST_ASSERT_EQUAL_STRING("automatic", v.update_mode.c_str());
+  TEST_ASSERT_EQUAL(6, v.check_hours);
+  TEST_ASSERT_FALSE(v.network_login);
+  TEST_ASSERT_EQUAL_STRING("19.5", network::snapshot().power);
+}
+
+static void test_a_settings_save_that_fails_leaves_every_new_setting_as_it_was()
+{
+  sim::reset();
+  TempData data("token");
+  setup();
+  Replies replies;
+  settings::fail_brightness_saves(true); // brightness is saved before the others, so they are saved and put back
+  replies.send(request(1, R"("cmd":"settings_set","brightness":9,"wifi_power":"13","timezone":"CET-1")"));
+  settings::fail_brightness_saves(false);
+  std::string json = reply_json(replies.pop(), "settings_set");
+  TEST_ASSERT_TRUE(json.find("storage_error") != std::string::npos);
+  TEST_ASSERT_EQUAL_STRING("auto", settings::current().wifi_power.c_str());
+  TEST_ASSERT_EQUAL_STRING("UTC0", settings::current().timezone.c_str());
+  TEST_ASSERT_EQUAL_STRING("19.5", network::snapshot().power);
+}
+
+static void test_the_transmit_power_setting_reaches_the_network()
+{
+  sim::reset();
+  TempData data("power");
+  setup();
+  Replies replies;
+  replies.send(request(1, R"("cmd":"settings_set","wifi_power":"8.5")"));
+  replies.pop();
+  TEST_ASSERT_EQUAL_STRING("8.5", network::snapshot().power);
+  replies.send(request(2, R"("cmd":"settings_set","wifi_power":"auto")"));
+  replies.pop();
+  TEST_ASSERT_EQUAL_STRING("19.5", network::snapshot().power);
+}
+
+static void test_the_setting_rules()
+{
+  TEST_ASSERT_TRUE(settings::valid_wifi_power("auto") && settings::valid_wifi_power("18.5"));
+  TEST_ASSERT_FALSE(settings::valid_wifi_power("20") || settings::valid_wifi_power("") ||
+                    settings::valid_wifi_power("Auto"));
+  TEST_ASSERT_TRUE(settings::valid_update_mode("off") && settings::valid_update_mode("notify") &&
+                   settings::valid_update_mode("automatic"));
+  TEST_ASSERT_FALSE(settings::valid_update_mode("") || settings::valid_update_mode("on"));
+  TEST_ASSERT_TRUE(settings::valid_check_hours(1) && settings::valid_check_hours(168));
+  TEST_ASSERT_FALSE(settings::valid_check_hours(0) || settings::valid_check_hours(169));
+  TEST_ASSERT_TRUE(settings::valid_minutes(0) && settings::valid_minutes(1439));
+  TEST_ASSERT_FALSE(settings::valid_minutes(1440));
+  TEST_ASSERT_TRUE(settings::valid_timezone("CET-1CEST,M3.5.0,M10.5.0/3") &&
+                   settings::valid_timezone(std::string(64, 'A')));
+  TEST_ASSERT_FALSE(settings::valid_timezone("") || settings::valid_timezone(std::string(65, 'A')) ||
+                    settings::valid_timezone("a\tb") || settings::valid_timezone("caf\xC3\xA9"));
+  TEST_ASSERT_TRUE(settings::valid_animation_source("https://example.com/m.json") &&
+                   settings::valid_animation_source("http://localhost:8000/m.json") &&
+                   settings::valid_animation_source("http://host:8000/m.json"));
+  TEST_ASSERT_FALSE(
+      settings::valid_animation_source("https://") || settings::valid_animation_source("https:///m.json") ||
+      settings::valid_animation_source("ftp://x/m.json") || settings::valid_animation_source("x.com/m.json") ||
+      settings::valid_animation_source("https://a b/m.json") || settings::valid_animation_source("https://@/m.json") ||
+      settings::valid_animation_source("http://user@host/m.json") ||
+      settings::valid_animation_source("https://user:pass@host/m.json"));
+}
+
 int main(int, char **)
 {
   UNITY_BEGIN();
@@ -848,6 +1244,8 @@ int main(int, char **)
   RUN_TEST(test_delete_all_keeps_the_settings_when_they_cannot_be_reset);
   RUN_TEST(test_delete_all_says_so_when_the_settings_are_partly_reset);
   RUN_TEST(test_info_reports_the_memory_probe);
+  RUN_TEST(test_status_reports_the_stored_network_name_as_valid_json);
+  RUN_TEST(test_status_reports_no_network_name_when_none_is_stored);
   RUN_TEST(test_replies_are_whole_lines);
   RUN_TEST(test_protocol_logs_do_not_stop_the_reader);
   RUN_TEST(test_path_traversal_ids_never_reach_storage);
@@ -855,5 +1253,13 @@ int main(int, char **)
   RUN_TEST(test_list_a_folder_named_like_a_file_is_not_listed);
   RUN_TEST(test_list_keeps_size_of_a_file_it_cannot_open);
   RUN_TEST(test_list_falls_back_to_piecewise_hash_when_read_all_fails);
+  RUN_TEST(test_token_is_16_characters_of_a_to_z_and_0_to_9_and_new_at_every_first_start);
+  RUN_TEST(test_token_goes_over_usb_only_and_a_repeated_request_is_not_replayed_to_the_other_transport);
+  RUN_TEST(test_each_transport_remembers_its_own_last_reply);
+  RUN_TEST(test_token_regenerate_replaces_the_token_and_reports_save_failures);
+  RUN_TEST(test_delete_all_with_settings_makes_a_new_token_and_resets_every_setting);
+  RUN_TEST(test_a_settings_save_that_fails_leaves_every_new_setting_as_it_was);
+  RUN_TEST(test_the_transmit_power_setting_reaches_the_network);
+  RUN_TEST(test_the_setting_rules);
   return UNITY_END();
 }

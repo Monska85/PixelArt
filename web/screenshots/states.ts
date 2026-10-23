@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Every view and its main states, as scripts that bring the app there, assert what it shows, and then call `check`.
 // Every state runs in layout.spec.ts, where `check` runs the layout checks of layout.ts. The states named in CURATED
 // (views.spec.ts) also run there, where `check` compares the page with its reference image. Adding a state here adds
@@ -127,7 +129,9 @@ export const states = {
   },
   "board-address-error": async ({ page, check }) => {
     await openConnectCard(page, "ws://127.0.0.1:1");
-    await expect(page.getByTestId("connection-message")).toContainText("Cannot connect");
+    await expect(page.getByTestId("connection-message")).toContainText("Cannot connect", {
+      timeout: 10_000, // the six tries take about 6.2 seconds
+    });
     await expect(page.getByTestId("connection-state")).toHaveText("Not connected");
     await check();
   },
@@ -178,6 +182,14 @@ export const states = {
   "board-connected": async ({ page, simulator, check }) => {
     await connected(page, simulator);
     await expect(animations(page)).toBeVisible();
+    await check();
+  },
+  "board-updates-failed": async ({ page, simulator, check }) => {
+    // The simulator started without an update source reaches no server: the check ends with network_error.
+    await connected(page, simulator);
+    const updates = page.getByRole("region", { name: "Updates" });
+    await updates.getByRole("button", { name: "Check now" }).click();
+    await expect(updates.getByTestId("update-last-check")).toContainText("(network_error)");
     await check();
   },
   "chip-connected": async ({ page, simulator, check }) => {
@@ -437,12 +449,13 @@ export const states = {
     await check();
   },
   "board-lost": async ({ page, simulator, check }) => {
-    await connected(page, simulator);
+    const board = await connected(page, simulator);
     // The board's files and settings are read before the link drops, so the picture does not depend on which read the
     // drop cuts.
     await expect(row(page, "ball")).toBeVisible();
     await expect(page.getByRole("tab", { name: /^Playlists\s*2$/ })).toBeVisible();
     await expect(page.getByTestId("brightness-value")).toBeVisible();
+    await board.disconnect();
     simulator.stop();
     await expect(page.getByTestId("lost-alert")).toBeVisible();
     await expect(page.getByTestId("connection-state")).toHaveText("Lost");
@@ -560,11 +573,12 @@ export const states = {
     await check();
   },
   "library-lost": async ({ page, simulator, check }) => {
-    await connected(page, simulator);
+    const board = await connected(page, simulator);
     await go(page, "library", "Library");
     // Both file lists are read before the link drops, as in board-lost, so no read is cut by the drop.
     await expect(page.locator("#main")).toHaveAttribute("data-list-animations", "known");
     await expect(page.locator("#main")).toHaveAttribute("data-list-playlists", "known");
+    await board.disconnect();
     simulator.stop();
     await expect(page.getByTestId("lost-alert")).toBeVisible();
     await check();

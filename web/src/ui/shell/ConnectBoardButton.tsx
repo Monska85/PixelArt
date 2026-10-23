@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { ReactNode } from "react";
 import { Button } from "../components/button";
 import { SERIAL_SUPPORTED, session, useSession } from "../session";

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { isValidId } from "../../engine";
 import type { PlanEntry, Resolution } from "../../queue/plan";

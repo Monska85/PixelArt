@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import js from "@eslint/js";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
@@ -5,7 +7,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "node_modules", "test-results*", "playwright-report*"],
+    ignores: ["dist", "node_modules", "coverage", "test-results*", "playwright-report*"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -50,7 +52,7 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser, sourceType: "script" },
   },
   {
-    files: ["test/**/*.ts", "e2e/**/*.{ts,mjs}", "scripts/**/*.mjs", "*.config.ts", "*.config.js"],
+    files: ["test/**/*.ts", "e2e/**/*.{ts,mjs}", "scripts/**/*.{mjs,ts}", "*.config.ts", "*.config.js"],
     languageOptions: { globals: globals.node },
   },
 );

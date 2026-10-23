@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useEffect, useState } from "react";
 import { loadAnimation, type AnimationResult } from "../../engine";
 import type { Doc } from "../../editor/doc";

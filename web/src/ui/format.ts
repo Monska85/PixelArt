@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 /** A size as people read it: `845 B`, `2.9 KB`, `1.4 MB`, base 1,024, one decimal above 1,023 bytes. */
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

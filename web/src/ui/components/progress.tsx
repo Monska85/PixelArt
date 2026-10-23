@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Based on shadcn/ui (MIT): see THIRD_PARTY_NOTICES.txt of the web app.
+
 import * as ProgressPrimitive from "@radix-ui/react-progress";
 import type { ComponentProps } from "react";
 import { cn } from "./cn";

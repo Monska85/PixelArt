@@ -62,7 +62,7 @@ size_t used_bytes();
 #ifdef PIXELART_SIM
 // Capacity of the simulated file system, by default the size of the board's
 // data partition.
-constexpr size_t DEFAULT_CAPACITY = 720896;
+constexpr size_t DEFAULT_CAPACITY = 983040;
 void set_capacity(size_t bytes);
 #endif
 
@@ -131,5 +131,9 @@ private:
   std::unique_ptr<Impl> impl_;
   size_t size_ = 0;
 };
+
+// SHA-256 of an open file as 64 lowercase hexadecimal digits, read in small pieces. False when the
+// file cannot be read.
+bool sha256_hex(Reader &file, std::string &digest);
 
 } // namespace storage

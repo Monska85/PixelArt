@@ -6,6 +6,7 @@
 #   PLAYWRIGHT_IMAGE  the image to use; by default the one of the pinned @playwright/test version (CI names it by digest)
 #   PIXELART_SIM      the simulator to start for each test; by default the one `make sim-build` makes. It runs inside
 #                     the container, so it must be a Linux program.
+#   PIXELART_JOBS     how many Playwright workers run (make and just set it from JOBS; default 2)
 #   PIXELART_PYTHON   the Python whose websockets package the simulator's WebSocket bridge uses (default python3).
 #                     The container's Python has no websockets, so the package is mounted from this one.
 #
@@ -50,6 +51,7 @@ exec docker run --rm --init --ipc=host \
   --user "$(id -u):$(id -g)" \
   -e HOME=/tmp \
   -e CI="${CI:-}" \
+  -e PIXELART_JOBS="${PIXELART_JOBS:-}" \
   -e PIXELART_SIM=/pixelart-sim \
   -e PIXELART_WS_BRIDGE=/work/tools/ws_bridge.py \
   -e PYTHONPATH=/pixelart-python \

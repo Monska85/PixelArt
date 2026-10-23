@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import {

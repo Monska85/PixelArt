@@ -96,6 +96,9 @@ jobs:
       # Empty on a dry run: the firmware version then comes from git describe
       PIXELART_VERSION: ${{ needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.version || '' }}
       RELEASE_TAG: ${{ needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.tag_name || '' }}
+      # Empty unless the repository sets the variable (a custom domain): the firmware then looks for its manifest at
+      # the address GitHub Pages gives the repository (tools/site_url.py)
+      PIXELART_SITE_URL: ${{ vars.PIXELART_SITE_URL }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -198,7 +201,7 @@ jobs:
           name: site
           path: site
 
-      - name: Attach the site archive and the factory images to the GitHub Release
+      - name: Attach the site archive, the factory images and the third-party notices to the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -214,7 +217,25 @@ jobs:
             board=$(basename "$(dirname "$file")")
             cp "$file" "assets/${board}-$(basename "$file")"
           done
+          cp site/firmware/THIRD_PARTY_NOTICES.txt assets/THIRD_PARTY_NOTICES.txt
           gh release upload "$TAG" assets/* --clobber
+
+      # The body comes from the changelog; this line is added once, so a re-run does not repeat it
+      - name: Add the source code and licenses line to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -eu
+          body=$(gh release view "$TAG" --json body --jq .body)
+          case "$body" in
+            *"Source code and licenses:"*) exit 0 ;;
+          esac
+          line="**Source code and licenses:** built from tag \`$TAG\` of $REPOSITORY_URL ($REPOSITORY_URL/tree/$TAG). To build it again, check out the tag and run \`make release-firmware\` (README.md, Releases). GPL-3.0-or-later with the additional permission in LICENSE-EXCEPTION ($REPOSITORY_URL/blob/$TAG/LICENSE, $REPOSITORY_URL/blob/$TAG/LICENSE-EXCEPTION); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at firmware/THIRD_PARTY_NOTICES.txt on the site."
+          printf '%s\n\n%s\n' "$body" "$line" > notes.md
+          gh release edit "$TAG" --notes-file notes.md
 
   publish-web-release:
     needs: [release-please, build-web]
@@ -240,7 +261,25 @@ jobs:
           mkdir assets
           # The built app with index.html at the root, ready to be merged into the Pages site
           (cd web && zip -q -r -X "../assets/pixelart-web-${VERSION}.zip" .)
-          gh release upload "$TAG" "assets/pixelart-web-${VERSION}.zip" --clobber
+          cp web/THIRD_PARTY_NOTICES.txt assets/THIRD_PARTY_NOTICES.txt
+          gh release upload "$TAG" "assets/pixelart-web-${VERSION}.zip" assets/THIRD_PARTY_NOTICES.txt --clobber
+
+      # The body comes from the changelog; this line is added once, so a re-run does not repeat it
+      - name: Add the source code and licenses line to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.web_tag_name }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -eu
+          body=$(gh release view "$TAG" --json body --jq .body)
+          case "$body" in
+            *"Source code and licenses:"*) exit 0 ;;
+          esac
+          line="**Source code and licenses:** built from tag \`$TAG\` of $REPOSITORY_URL ($REPOSITORY_URL/tree/$TAG). To build it again, check out the tag and run \`make web-build\` (web/README.md). GPL-3.0-or-later ($REPOSITORY_URL/blob/$TAG/LICENSE); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at the root of the site."
+          printf '%s\n\n%s\n' "$body" "$line" > notes.md
+          gh release edit "$TAG" --notes-file notes.md
 
   # A Pages deployment replaces the whole site: it always holds the latest firmware release and the latest web
   # release, whichever of the two was just published. A side that failed to build or publish blocks the deployment.
@@ -320,6 +359,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      contents: read
       pages: write
       id-token: write
     concurrency:
@@ -328,9 +368,34 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      # Empty unless the repository sets the variable (a custom domain): see the build job
+      PIXELART_SITE_URL: ${{ vars.PIXELART_SITE_URL }}
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # The firmware looks for its manifest at the site address it was built with (tools/site_url.py). Pages gives
+      # the address it will serve this repository at before the deployment: a site that would be served somewhere
+      # else stops here, before any board can be left without updates.
+      - id: pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      - name: Check that Pages will serve the site where the firmware looks for it
+        env:
+          PAGES_URL: ${{ steps.pages.outputs.base_url }}
+        run: python3 tools/release.py check-site "$PAGES_URL"
+
       - id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+      # The same check on the address of the deployment itself, in case Pages served it elsewhere than announced. The
+      # site is live by now: a failure cannot stop it, it marks the run as failed for a maintainer to fix and release again.
+      - name: Check that the site is served where the firmware looks for it
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: python3 tools/release.py check-site "$PAGE_URL"
 
   assemble-dry-run:
     needs: [build, build-web]

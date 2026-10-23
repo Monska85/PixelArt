@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Strict JSON reader (RFC 8259) that keeps integers and other numbers apart,
 // which JSON.parse cannot do: `1.0` is not an integer in the formats.
 

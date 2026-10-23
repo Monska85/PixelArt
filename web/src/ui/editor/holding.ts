@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Whether the editor holds an animation whose only saved copy is a file on the board. The Board and Firmware views
 // read it before they delete that file, and offer "Download YAML first". It is a small module of its own so those
 // views do not load the editor's store, which holds the YAML library.

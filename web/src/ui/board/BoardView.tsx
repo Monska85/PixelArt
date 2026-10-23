@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { FolderUp, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
-import { Suspense, lazy, useState } from "react";
-import { downloadFile, sha256Hex, type BoardClient } from "../../protocol";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { downloadFile, isUpdateRunning, sha256Hex, type BoardClient } from "../../protocol";
 import { BlockedNote } from "../common/BlockedNote";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useDeleteEverything } from "../common/DeleteEverything";
@@ -25,11 +27,15 @@ import { newModel, openStoredPlaylist } from "./playlistModel";
 import { missingByPlaylist } from "./missing";
 import type { MissingContext } from "./MissingAnimations";
 import { SettingsPanel, SettingsUnreadable } from "./Settings";
+import { StorageCard } from "./StorageCard";
+import { useBoardStatus } from "./useBoardStatus";
 import { usePlaylistAnimations } from "./usePlaylistAnimations";
 import { useBoardUpload } from "./Upload";
 import { entriesOf, useBoardData } from "./useBoardData";
 import { usePlaylistEditor } from "./usePlaylistEditor";
 
+// The cards of a connected board's WiFi, updates and network access are loaded when a board connects.
+const NetworkCards = lazy(() => import("./NetworkCards").then((m) => ({ default: m.NetworkCards })));
 // The editor of a playlist is loaded when the first one opens.
 const PlaylistEditor = lazy(() => import("./PlaylistEditor").then((m) => ({ default: m.PlaylistEditor })));
 
@@ -64,7 +70,7 @@ interface ConnectedProps {
 }
 
 function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
-  const { uploadsBlocked } = useSession();
+  const { uploadsBlocked, via, info } = useSession();
   const { errors, report, dismiss } = useErrorList();
   const editor = usePlaylistEditor();
   const [list, setList] = useState<ListKind>("animation");
@@ -88,6 +94,18 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   const upload = useBoardUpload({ client, blocked, onUploaded: changed, onProblem: report });
   const wipe = useDeleteEverything({ client, onDone: changed });
   const uploadRunning = useUploadRunning();
+  const [wifiSetup, setWifiSetup] = useState(false);
+  const statusPoll = useBoardStatus(client, restarts, lost || uploadRunning || wifiSetup);
+  // A check or an installation of the board's own updates that ends may have stored files: read the lists and the
+  // storage again, as after an upload.
+  const updateRunning = statusPoll.status !== null && isUpdateRunning(statusPoll.status.update);
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !updateRunning) refresh();
+    wasRunning.current = updateRunning;
+    // `refresh` is made again on every render and only reads the session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updateRunning]);
   const library = useManifest();
   const named = usePlaylistAnimations(client, playlists, uploadRunning);
   const missing = missingByPlaylist(named, animationIds);
@@ -234,6 +252,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
             ),
           }}
         />
+        <StorageCard storage={info?.storage ?? null} animations={animations} playlists={playlists} />
         {data.settings && (
           <SettingsPanel
             client={client}
@@ -247,6 +266,19 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
           />
         )}
         {settingsUnreadable && <SettingsUnreadable disabled={lost} onRetry={reload} />}
+        <Suspense fallback={null}>
+          <NetworkCards
+            client={client}
+            poll={statusPoll}
+            settings={data.settings}
+            overWifi={via === "wifi"}
+            lost={lost}
+            uploadRunning={uploadRunning}
+            onSetupChange={setWifiSetup}
+            onSettings={setSettings}
+            onError={report}
+          />
+        </Suspense>
       </PanelLayout>
       {upload.dialogs}
       {wipe.dialogs}

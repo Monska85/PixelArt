@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Web Serial transport (desktop Chromium browsers).
 
+import type { ImprovLink } from "./improv";
 import { createLineSplitterStream } from "./lines";
 import type { Transport } from "./transport";
 
@@ -59,6 +62,14 @@ async function settle(promise: Promise<unknown> | null | undefined, ms: number):
 export class SerialTransport implements Transport {
   onLine: ((line: Uint8Array) => void) | null = null;
   onClose: ((reason?: string) => void) | null = null;
+  /** Improv frames share the port with the protocol lines. */
+  readonly improv: ImprovLink = {
+    send: async (frame) => {
+      if (!this.writer) throw new Error("the serial port is closed");
+      await this.writer.write(frame);
+    },
+    onFrame: null,
+  };
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
   private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private piped: Promise<void> | null = null;
@@ -112,7 +123,7 @@ export class SerialTransport implements Transport {
     const { readable, writable } = this.port;
     if (!readable || !writable) throw new SerialOpenError(new Error("the port opened without its streams"));
     this.writer = writable.getWriter();
-    const splitter = createLineSplitterStream();
+    const splitter = createLineSplitterStream(undefined, (frame) => this.improv.onFrame?.(frame));
     this.piped = readable.pipeTo(splitter.writable).catch(() => undefined);
     this.reader = splitter.readable.getReader();
     void this.readLoop();

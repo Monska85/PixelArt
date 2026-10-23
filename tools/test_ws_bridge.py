@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Tests for tools/ws_bridge.py, the simulator's WebSocket, and for the simulator's --ws.
 
 Run with: python3 -m unittest discover -s tools   (part of `make check`)
@@ -7,6 +8,7 @@ import asyncio
 import base64
 import contextlib
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -112,7 +114,7 @@ class RawClient:
 
 
 @unittest.skipIf(connect is None, "needs the websockets package")
-class BridgeTest(unittest.TestCase):
+class BridgeHarness(unittest.TestCase):
     """The bridge on a free port, with the test in the simulator's place on the other end of its pipes."""
 
     def setUp(self):
@@ -120,13 +122,13 @@ class BridgeTest(unittest.TestCase):
         logging.getLogger("websockets").propagate = False
         self.pending = b""
 
-    def start(self, origins=()):
+    def start(self, origins=(), wifi=False):
         to_read, to_write = os.pipe()
         from_read, from_write = os.pipe()
 
         def serve():
             with open(to_read, "rb", buffering=0) as stdin, open(from_write, "wb", buffering=0) as stdout:
-                asyncio.run(ws_bridge.run(0, list(origins), stdin, stdout))
+                asyncio.run(ws_bridge.run(0, list(origins), stdin, stdout, wifi))
 
         thread = self.thread = threading.Thread(target=serve, daemon=True)
         thread.start()
@@ -173,6 +175,8 @@ class BridgeTest(unittest.TestCase):
         except InvalidStatus as e:
             return e.response.status_code
 
+
+class BridgeTest(BridgeHarness):
     def test_handshake_is_accepted_on_any_path(self):
         self.start()
         for path in ("/", "/any/path?x=1"):
@@ -390,6 +394,62 @@ class BridgeTest(unittest.TestCase):
         self.assertTrue(dropped, "the bridge kept buffering pongs for a client that never reads")
 
 
+class WifiBridgeTest(BridgeHarness):
+    """The bridge with --transport wifi: lines carry a prefix, and the connection's events reach the simulator."""
+
+    def test_events_and_prefixed_lines(self):
+        self.start(wifi=True)
+        ws = self.client()
+        self.assertEqual(self.request(), "open")
+        ws.send("@PR 00000000 {}")
+        self.assertEqual(self.request(), "line @PR 00000000 {}")
+        ws.send("close")  # a client text that looks like an event is only a line
+        self.assertEqual(self.request(), "line close")
+        ws.send("open")
+        self.assertEqual(self.request(), "line open")
+        self.reply("reply @PR 1 {}")
+        self.assertEqual(ws.recv(timeout=2), "@PR 1 {}")
+        ws.close()
+        self.assertEqual(self.request(), "close")
+
+    def test_a_line_the_simulator_did_not_prefix_is_not_sent(self):
+        self.start(wifi=True)
+        ws = self.client()
+        self.assertEqual(self.request(), "open")
+        self.reply("@PR 1 {}")
+        self.reply("reply two")
+        self.assertEqual(ws.recv(timeout=2), "two")
+
+    def test_the_simulator_closes_the_client_after_the_replies_before_it(self):
+        self.start(wifi=True)
+        ws = self.client()
+        self.assertEqual(self.request(), "open")
+        self.reply("reply one")
+        self.reply("close 1008")
+        self.assertEqual(ws.recv(timeout=2), "one")
+        with self.assertRaises(ConnectionClosed) as closed:
+            ws.recv(timeout=2)
+        self.assertEqual(closed.exception.rcvd.code, 1008)
+        self.assertEqual(self.request(), "close")
+
+    def test_a_close_without_a_client_is_ignored(self):
+        self.start(wifi=True)
+        self.reply("close 1008")
+        ws = self.client()
+        self.assertEqual(self.request(), "open")
+        self.reply("reply alive")
+        self.assertEqual(ws.recv(timeout=2), "alive")
+
+    def test_a_message_with_a_newline_closes_with_1008_and_is_not_forwarded(self):
+        self.start(wifi=True)
+        ws = self.client()
+        self.assertEqual(self.request(), "open")
+        ws.send("a\nline x")
+        with self.assertRaises(ConnectionClosed):
+            ws.recv(timeout=2)
+        self.assertEqual(self.request(), "close")
+
+
 class PipeTest(unittest.TestCase):
     """The bridge's writer to the simulator."""
 
@@ -440,11 +500,11 @@ class SimulatorTest(unittest.TestCase):
         self.data = self.folder / "data"
         shutil.copytree(ROOT / "data", self.data)
 
-    def start(self, port, env=None):
+    def start(self, port, env=None, options=()):
         environment = {**os.environ, "PIXELART_PYTHON": sys.executable, **(env or {})}
         # Without --live, the serial output goes to stderr next to the simulator's own messages
         process = subprocess.Popen([str(SIMULATOR), "--data", str(self.data), "--realtime", "--no-files",
-                                    "--loops", "0", "--ws", str(port)], stdout=subprocess.DEVNULL,
+                                    "--loops", "0", "--ws", str(port), *options], stdout=subprocess.DEVNULL,
                                    stderr=subprocess.PIPE, env=environment, text=True)
         self.addCleanup(process.wait, 5)
         self.addCleanup(process.stderr.close)
@@ -531,11 +591,23 @@ class SimulatorTest(unittest.TestCase):
         started = time.monotonic()
         self.ask(ws, 1, cmd="info")
         self.assertLess(time.monotonic() - started, 1.0)  # a request wakes the simulator up
-        # About 8 KiB of requests: more than the simulator reads ahead, so it holds back and catches up
+        # About 8 KiB of requests: more than the simulator reads ahead, so it holds back and catches up.
+        # put_abort has a short reply: the simulator also copies every reply to stderr, which this test
+        # does not read, so long replies would fill the pipe and stop the simulator
         for seq in range(2, 202):
-            ws.send(self.line(seq, cmd="settings_get"))
+            ws.send(self.line(seq, cmd="put_abort"))
         for seq in range(2, 202):
             self.assertIn(f'"seq":{seq},', ws.recv(timeout=5))
+
+    def test_the_transport_option_needs_the_websocket(self):
+        process = subprocess.run([str(SIMULATOR), "--no-files", "--ws-transport", "wifi"], capture_output=True,
+                                 text=True, timeout=20)
+        self.assertEqual(process.returncode, 2)
+        self.assertIn("--ws-transport needs --ws", process.stderr)
+        process = subprocess.run([str(SIMULATOR), "--no-files", "--realtime", "--ws", "--ws-transport", "tcp"],
+                                 capture_output=True, text=True, timeout=20)
+        self.assertEqual(process.returncode, 2)
+        self.assertIn("--ws-transport expects usb or wifi", process.stderr)
 
     def test_a_python_that_cannot_start_is_reported(self):
         process = self.start(self.free_port(), {"PIXELART_PYTHON": "/nonexistent/python3"})
@@ -552,6 +624,66 @@ class SimulatorTest(unittest.TestCase):
             errors = process.stderr.read()
         self.assertIn(f"ws_bridge: cannot listen on 127.0.0.1:{port}", errors)
         self.assertIn("sim: the WebSocket bridge did not start", errors)
+
+
+class SimulatorWifiTest(SimulatorTest):
+    """The simulator's --ws-transport wifi: the WebSocket is the board's WiFi transport."""
+
+    TOKEN = "k3j9x0q7w2m5z8a1"
+
+    def setUp(self):
+        super().setUp()
+        self.port = self.free_port()
+        self.start(self.port, options=("--ws-transport", "wifi", "--token", self.TOKEN))
+
+    def login(self, ws, seq, token=None):
+        nonce = self.ask(ws, seq, cmd="auth_challenge")["nonce"]
+        answer = hmac.new((token or self.TOKEN).encode(), nonce.encode(), hashlib.sha256).hexdigest()
+        return self.ask(ws, seq + 1, cmd="auth", hmac=answer)
+
+    def test_the_replies_are_those_of_the_wifi_transport(self):
+        ws = self.open(self.port)
+        settings = self.ask(ws, 1, cmd="settings_get")["settings"]
+        self.assertNotIn("token", settings)
+        self.assertFalse(settings["network_login"])
+        for seq, fields in enumerate(({"cmd": "wifi_forget"}, {"cmd": "token_regenerate"},
+                                      {"cmd": "delete_all", "settings": True}), 2):
+            reply = self.ask(ws, seq, **fields)
+            self.assertEqual(reply["error"], "usb_only", fields)
+        self.assertNotIn(self.TOKEN, json.dumps(self.ask(ws, 9, cmd="status")))
+
+    def test_with_network_login_on_the_client_logs_in_with_an_hmac(self):
+        ws = self.open(self.port)
+        self.assertTrue(self.ask(ws, 1, cmd="settings_set", network_login=True)["ok"])
+        self.assertEqual(self.ask(ws, 2, cmd="settings_get")["error"], "unauthorized")
+        self.assertTrue(self.ask(ws, 3, cmd="info")["ok"])
+        self.assertEqual(self.login(ws, 4, "a1z8m5w2q7x0j9k3")["error"], "unauthorized")
+        self.assertTrue(self.login(ws, 6)["ok"])
+        self.assertTrue(self.ask(ws, 8, cmd="settings_get")["settings"]["network_login"])
+
+    def test_three_failed_logins_close_the_connection_and_the_next_one_logs_in_again(self):
+        ws = self.open(self.port)
+        self.assertTrue(self.ask(ws, 1, cmd="settings_set", network_login=True)["ok"])
+        self.assertTrue(self.login(ws, 2)["ok"])
+        self.assertEqual(self.login(ws, 4, "a1z8m5w2q7x0j9k3")["error"], "unauthorized")
+        self.assertEqual(self.login(ws, 6, "a1z8m5w2q7x0j9k3")["error"], "unauthorized")
+        ws.send(self.line(8, cmd="auth_challenge"))
+        ws.recv(timeout=5)
+        ws.send(self.line(9, cmd="auth", hmac="0" * 64))
+        self.assertIn('"error":"unauthorized"', ws.recv(timeout=5))
+        with self.assertRaises(ConnectionClosed) as closed:
+            ws.recv(timeout=5)
+        self.assertEqual(closed.exception.rcvd.code, 1008)
+        ws = self.open(self.port)
+        self.assertEqual(self.ask(ws, 1, cmd="settings_get")["error"], "unauthorized")
+        self.assertTrue(self.login(ws, 2)["ok"])
+        self.assertTrue(self.ask(ws, 4, cmd="settings_get")["ok"])
+
+    def test_the_serial_port_traffic_stays_off_the_websocket(self):
+        ws = self.open(self.port)
+        self.assertTrue(self.ask(ws, 1, cmd="info")["ok"])
+        with self.assertRaises(TimeoutError):
+            ws.recv(timeout=0.5)
 
 
 if __name__ == "__main__":

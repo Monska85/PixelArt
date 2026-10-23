@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { DetailedHTMLProps, HTMLAttributes } from "react";
 
 // The install button of ESP Web Tools, a custom element registered when `esp-web-tools` is imported.

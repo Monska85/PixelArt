@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Semantic Versioning 2.0.0 precedence (https://semver.org/#spec-item-11).
 
 interface SemVer {

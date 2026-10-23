@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useRef, useState, type ReactNode } from "react";
 import { takeOpener } from "./focusReturn";
 import { Button } from "../components/button";

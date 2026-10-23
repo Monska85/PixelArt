@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // JSON to YAML: block style for mappings and sequences, flow style for points
 // and coordinate pairs, every text that is not a plain word in double quotes
 // (so every hex color is quoted).

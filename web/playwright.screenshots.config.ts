@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { defineConfig } from "@playwright/test";
 import { fileURLToPath } from "node:url";
+import { workers } from "./playwright.workers";
 
 const PORT = 4174;
 const here = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
@@ -16,8 +19,8 @@ export default defineConfig({
   testDir: "screenshots",
   testMatch: "views.spec.ts",
   snapshotPathTemplate: "{testDir}/baselines/{arg}{ext}",
-  // Every test starts its own simulator on its own port.
-  workers: 2,
+  // Every test starts its own simulator on its own port. `make` and `just` set PIXELART_JOBS (JOBS) for the workers.
+  workers: workers(process.env.PIXELART_JOBS),
   fullyParallel: true,
   timeout: 60_000,
   reporter: process.env.CI

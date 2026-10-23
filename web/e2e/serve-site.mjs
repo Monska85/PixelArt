@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Serves what GitHub Pages would: the built app with a fixture release next to it.
 //
 // The release is made from the repository's data/ (the animations and playlists named in site/published.json, with
@@ -53,6 +55,7 @@ const TYPES = {
   ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json",
+  ".txt": "text/plain; charset=utf-8", // GitHub Pages serves a .txt file as text, which the browser shows
   ".bin": "application/octet-stream",
 };
 

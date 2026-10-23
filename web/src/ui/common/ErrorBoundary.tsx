@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Component, useState, type ErrorInfo, type ReactNode } from "react";
 import { clearDraft } from "../editor/drafts";
 import { Button } from "../components/button";

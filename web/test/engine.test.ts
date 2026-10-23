@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Cases beyond the conformance suite: the JSON reader and the loaders' edges.
 
 import { describe, expect, it } from "vitest";

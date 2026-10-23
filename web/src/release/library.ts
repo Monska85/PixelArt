@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The animation library: what is published, and how it compares with what a board stores.
 
 import { sameSha, sha256Hex, type Entry } from "../protocol";

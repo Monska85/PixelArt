@@ -23,6 +23,11 @@ struct Stop
   std::string reason;
 };
 
+// Thrown from inside the sketch to restart it: the run calls setup() again, as a board restarts.
+struct Restart
+{
+};
+
 struct Options
 {
   uint64_t max_us = 600ULL * 1000 * 1000; // 10 virtual minutes
@@ -37,6 +42,7 @@ struct Options
   bool ws = false; // serve the command protocol over a WebSocket
   unsigned ws_port = 8765;
   std::vector<std::string> ws_origins;
+  bool ws_wifi = false; // the WebSocket stands for the board's WiFi transport (--ws-transport wifi)
 };
 
 struct State
@@ -53,6 +59,7 @@ struct State
   std::chrono::steady_clock::time_point wall_start;
   size_t shown_frames = 0;
   std::vector<std::string> live_log;
+  std::deque<WsEvent> ws_events; // what the WebSocket clients did, in the WiFi transport mode
 };
 
 constexpr size_t LIVE_LOG_LINES = 12;
@@ -65,7 +72,8 @@ void finish_frames();
 // sim_bridge.cpp: the WebSocket served by tools/ws_bridge.py in a child process.
 // ws_start() reports why the bridge cannot start; once it runs, a bridge that
 // ends stops the run.
-bool ws_start(const char *program, unsigned port, const std::vector<std::string> &extra_origins, std::string &error);
+bool ws_start(const char *program, unsigned port, const std::vector<std::string> &extra_origins, bool wifi,
+              std::string &error);
 void ws_stop();
 void ws_send_line(const std::string &line);
 // Waits up to `limit` (rounded up to a whole millisecond) for a request and returns at once when

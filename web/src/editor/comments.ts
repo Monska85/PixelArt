@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Detects comments in YAML text, to tell the user when a change made in the
 // visual editor rewrites the text without them.
 

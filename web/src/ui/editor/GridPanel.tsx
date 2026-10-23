@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { clsx } from "clsx";
 import { memo, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {

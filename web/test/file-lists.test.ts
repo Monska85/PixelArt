@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it, vi } from "vitest";
 import type { Entry, Kind } from "../src/protocol";
 import { FileListReader, KINDS, type FileLists } from "../src/ui/fileLists";

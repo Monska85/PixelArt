@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Every state of states.ts at 1,280 and 375 px, with the layout checks of layout.ts in place of a reference image:
 // they need no container and no image, so they run with the end-to-end tests (`npm run e2e`). See
 // playwright.layout.config.ts.

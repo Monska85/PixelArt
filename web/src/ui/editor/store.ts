@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The editor's document, shared by the whole app so that it survives a change of
 // view (the Board view's Edit button opens a file here), with its draft in the
 // browser's storage.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Download, FileJson, FileText, Pencil, Play, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { loadAnimation } from "../../engine";

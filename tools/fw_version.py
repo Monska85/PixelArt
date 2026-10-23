@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """The firmware version, shared by tools/release.py and scripts/firmware_version.py.
 
 The rules are in docs/protocol/protocol-v1.md#firmware-version. Standard

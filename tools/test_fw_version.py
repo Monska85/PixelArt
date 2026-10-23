@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Tests of tools/fw_version.py: python3 -m unittest discover -s tools"""
 
 import os

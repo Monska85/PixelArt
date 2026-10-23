@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Lines of the command protocol: "@PR <crc> <json>" (docs/protocol/protocol-v1.md#lines).
 
 import { crc32, crc32Hex } from "./crc32";

@@ -1,12 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { KINDS } from "../fileLists";
-import { session } from "../session";
+import { session, useSession } from "../session";
 import { BoardError, DEFAULT_SETTINGS, deleteAll, listFiles, type BoardClient } from "../../protocol";
 import { Button } from "../components/button";
 import { Checkbox } from "../components/checkbox";
 import { Label } from "../components/label";
 import { toast } from "../components/toast";
+import { ReasonTooltip } from "../components/tooltip";
 import { downloadHeld, useHeldId } from "../editor/holding";
 import { toShownError, type ShownError } from "../errors";
 import { withUploadLock } from "../upload";
@@ -28,8 +31,54 @@ type Notice =
   | { type: "storage"; message: string; resetSettings: boolean }
   | { type: "error"; error: ShownError };
 
-/** What the settings go back to, in words. */
-export const DEFAULTS_TEXT = `brightness ${DEFAULT_SETTINGS.brightness} and active playlist ${DEFAULT_SETTINGS.playlist}`;
+/** What a reset of the settings does, in words: every setting, the WiFi network and the token. */
+export const RESET_TEXT = `Every setting goes back to its default (brightness ${DEFAULT_SETTINGS.brightness}, active playlist ${DEFAULT_SETTINGS.playlist}, updates, transmit power, network login and the rest), the WiFi network is forgotten and a new token is made.`;
+
+/** The same, in the past tense, for the message that follows the reset. */
+const RESET_DONE = "Every setting is back to its default, the WiFi network is forgotten and a new token is made.";
+
+/**
+ * The "Also reset the settings" box. Over WiFi it is off, with a tooltip that says why: the box and its label are
+ * wrapped so the tooltip works on a disabled control.
+ */
+export function ResetBox({
+  id,
+  checked,
+  overWifi,
+  onChange,
+  labelClassName = "text-foreground",
+}: {
+  id: string;
+  checked: boolean;
+  overWifi: boolean;
+  onChange: (checked: boolean) => void;
+  labelClassName?: string;
+}) {
+  const box = (
+    <div className="flex items-start gap-2">
+      <Checkbox
+        id={id}
+        className="mt-0.5"
+        checked={checked}
+        disabled={overWifi}
+        onCheckedChange={(value) => onChange(value === true)}
+      />
+      <Label htmlFor={id} className={`leading-normal ${labelClassName}`}>
+        Also reset the settings
+      </Label>
+    </div>
+  );
+  return overWifi ? (
+    <ReasonTooltip reason={RESET_NEEDS_USB} testId="reset-needs-usb" className="w-fit">
+      {box}
+    </ReasonTooltip>
+  ) : (
+    box
+  );
+}
+
+/** Why the reset box is off over WiFi: the reset forgets the WiFi network and makes a new token. */
+export const RESET_NEEDS_USB = "Resetting the settings needs a USB connection.";
 
 /** Every text that depends on whether the settings are reset too, in one place. */
 const WORDING = {
@@ -42,11 +91,11 @@ const WORDING = {
     again: "",
   },
   reset: {
-    what: `This cannot be undone. The firmware stays; the settings go back to their defaults: ${DEFAULTS_TEXT}.`,
+    what: `This cannot be undone. The firmware stays. ${RESET_TEXT}`,
     confirm: " and reset the settings",
     progress: "Deleting every animation and playlist and resetting the settings",
     done: (removed: string) => (removed ? `Deleted ${removed} and reset the settings` : "Reset the settings"),
-    doneDetail: `The settings are back to their defaults: ${DEFAULTS_TEXT}.`,
+    doneDetail: RESET_DONE,
     again: " and resets the settings",
   },
 } as const;
@@ -91,6 +140,8 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
   const [resetSettings, setResetSettings] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const held = useHeldId();
+  // The reset forgets the WiFi network and makes a new token, which the board allows over USB only.
+  const overWifi = useSession().via === "wifi";
 
   async function run(reset: boolean): Promise<void> {
     if (!client) return;
@@ -132,7 +183,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
       const playlists = await listFiles(client, "playlist");
       const empty = animations.length + playlists.length === 0;
       // With nothing to delete, only a settings reset is left to confirm.
-      if (empty && !presetReset) {
+      if (empty && (!presetReset || overWifi)) {
         toast({
           title: "The board has no animations or playlists",
           description: onFirmwareView
@@ -142,7 +193,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
         });
         return;
       }
-      setResetSettings(presetReset);
+      setResetSettings(presetReset && !overWifi);
       setCounts({
         animations: animations.length,
         playlists: playlists.length,
@@ -170,9 +221,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
         onCancel={() => setCounts(null)}
         onConfirm={() => void run(true)}
       >
-        <p data-testid="delete-all-what">
-          The board has no animations or playlists. The settings go back to their defaults: {DEFAULTS_TEXT}.
-        </p>
+        <p data-testid="delete-all-what">The board has no animations or playlists. {RESET_TEXT}</p>
       </ConfirmDialog>
     );
   } else if (counts) {
@@ -192,17 +241,12 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
         }
       >
         <p data-testid="delete-all-what">{wording(resetSettings).what}</p>
-        <div className="flex items-start gap-2">
-          <Checkbox
-            id="delete-all-reset-settings"
-            className="mt-0.5"
-            checked={resetSettings}
-            onCheckedChange={(checked) => setResetSettings(checked === true)}
-          />
-          <Label htmlFor="delete-all-reset-settings" className="leading-normal text-foreground">
-            Also reset the settings
-          </Label>
-        </div>
+        <ResetBox
+          id="delete-all-reset-settings"
+          checked={resetSettings}
+          overWifi={overWifi}
+          onChange={setResetSettings}
+        />
         {holdsOnlyCopy && (
           <p data-testid="only-copy">The editor holds this animation and it has no other saved copy.</p>
         )}

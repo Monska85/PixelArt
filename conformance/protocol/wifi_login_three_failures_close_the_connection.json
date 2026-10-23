@@ -1,0 +1,141 @@
+{
+  "description": "After 3 failed auth the board closes the connection, and a new connection has to log in again",
+  "transport": "wifi",
+  "settings": {
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f",
+    "ffeeddccbbaa99887766554433221100",
+    "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+  ],
+  "steps": [
+    {
+      "send": "@PR 47460f63 {\"seq\":1,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR bbc1555f {\"seq\":2,\"cmd\":\"auth\",\"hmac\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_closed": false
+    },
+    {
+      "send": "@PR d720293e {\"seq\":3,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "nonce": "ffeeddccbbaa99887766554433221100"
+      }
+    },
+    {
+      "send": "@PR 38393e2e {\"seq\":4,\"cmd\":\"auth\",\"hmac\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_closed": false
+    },
+    {
+      "send": "@PR bcfb4598 {\"seq\":5,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "nonce": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+      }
+    },
+    {
+      "send": "@PR f041e53e {\"seq\":6,\"cmd\":\"auth\",\"hmac\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_closed": true
+    },
+    {
+      "wifi_connect": true
+    },
+    {
+      "send": "@PR 1edfd6da {\"seq\":7,\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "protocol": 1,
+        "firmware": "<any>",
+        "board": "simulator",
+        "boot_id": "<any>",
+        "formats": {
+          "animation": [
+            "pixelart/1"
+          ],
+          "playlist": [
+            "pixelart-playlist/1"
+          ]
+        },
+        "canvas": {
+          "width": 16,
+          "height": 16
+        },
+        "storage": {
+          "total": 983040,
+          "used": "<any>"
+        },
+        "memory": {
+          "free": "<any>",
+          "largest": "<any>"
+        },
+        "limits": {
+          "line": 1024,
+          "chunk": 512,
+          "page": 8,
+          "animation": 65536,
+          "playlist": 16384
+        }
+      }
+    },
+    {
+      "send": "@PR ba99ca7f {\"seq\":8,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    }
+  ]
+}

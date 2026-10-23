@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { BoardFiles } from "../../editor/saves";
 import type { Snapshot } from "../session";
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Inbox } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "../components/badge";

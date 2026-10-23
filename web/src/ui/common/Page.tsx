@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { MoreHorizontal } from "lucide-react";
 import { useRef, type ReactNode } from "react";
 import { EmptyList } from "./FileTable";

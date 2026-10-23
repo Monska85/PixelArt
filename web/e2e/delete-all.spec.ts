@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { copyFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type { Locator, Page } from "@playwright/test";
@@ -76,11 +78,11 @@ test("Delete everything can also reset the settings: brightness 100 and playlist
   await resetBox(dialog).check();
   // The dialog says what the settings go back to, and so does its button.
   await expect(dialog.getByTestId("delete-all-what")).toHaveText(
-    "This cannot be undone. The firmware stays; the settings go back to their defaults: brightness 100 and active playlist default.",
+    "This cannot be undone. The firmware stays. Every setting goes back to its default (brightness 100, active playlist default, updates, transmit power, network login and the rest), the WiFi network is forgotten and a new token is made.",
   );
   await dialog.getByRole("button", { name: `Delete ${total} files and reset the settings` }).click();
   await expect(toastWith(page, /^Deleted \d+ animations and 2 playlists and reset the settings/)).toContainText(
-    "The settings are back to their defaults: brightness 100 and active playlist default.",
+    "Every setting is back to its default, the WiFi network is forgotten and a new token is made.",
   );
   expect(count(simulator.dataDir, "animations")).toBe(0);
   expect(count(simulator.dataDir, "playlists")).toBe(0);
@@ -96,7 +98,9 @@ test("the Reset card has its own Also reset the settings box, which the dialog s
   await connectSimulator(page, simulator);
   await page.getByRole("link", { name: "Firmware" }).click();
   const card = page.getByRole("region", { name: "Reset" });
-  await expect(card).toContainText("if you choose, put the settings back to their defaults");
+  await expect(card).toContainText(
+    "With the box checked, every setting goes back to its default (brightness 100, active playlist default, updates, transmit power, network login and the rest), the WiFi network is forgotten and a new token is made.",
+  );
   // Visible in the card, off by default.
   await expect(resetBox(card)).toBeVisible();
   await expect(resetBox(card)).not.toBeChecked();
@@ -104,7 +108,7 @@ test("the Reset card has its own Also reset the settings box, which the dialog s
   await card.getByRole("button", { name: "Delete everything" }).click();
   const dialog = page.getByRole("dialog");
   await expect(resetBox(dialog)).toBeChecked();
-  await expect(dialog.getByTestId("delete-all-what")).toContainText("the settings go back to their defaults");
+  await expect(dialog.getByTestId("delete-all-what")).toContainText("Every setting goes back to its default");
   await dialog.getByRole("button", { name: /^Delete \d+ files and reset the settings$/ }).click();
   await expect(toastWith(page, /and reset the settings/)).toBeVisible();
   expect(replies.replies[0]).toMatchObject({ ok: true, settings: { brightness: 100, playlist: "default" } });
@@ -131,7 +135,7 @@ test("a board without files can still have its settings reset from the Reset car
   await card.getByRole("button", { name: "Delete everything" }).click();
   const dialog = page.getByRole("dialog", { name: "Reset the settings of this board?" });
   await expect(dialog.getByTestId("delete-all-what")).toHaveText(
-    "The board has no animations or playlists. The settings go back to their defaults: brightness 100 and active playlist default.",
+    "The board has no animations or playlists. Every setting goes back to its default (brightness 100, active playlist default, updates, transmit power, network login and the rest), the WiFi network is forgotten and a new token is made.",
   );
   await dialog.getByRole("button", { name: "Reset the settings" }).click();
   await expect(toastWith(page, /^Reset the settings/)).toBeVisible();

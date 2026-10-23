@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The playlist editor's model: a stored playlist as items the editor changes, and back to a document.
 
 import {

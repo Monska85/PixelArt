@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // What the user is told when a queue ends: a toast, and a detail alert when the story has more than one line.
 
 import type { Diagnostic } from "../../engine";

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Pause, Play, StepForward } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Player, type Animation, type Frame } from "../../engine";

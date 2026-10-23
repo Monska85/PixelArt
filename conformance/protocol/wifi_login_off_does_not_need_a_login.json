@@ -1,0 +1,99 @@
+{
+  "description": "With network login off, a WiFi client needs no login, and a login that is tried and fails changes nothing",
+  "transport": "wifi",
+  "settings": {
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f",
+    "ffeeddccbbaa99887766554433221100"
+  ],
+  "steps": [
+    {
+      "send": "@PR 2153638d {\"seq\":1,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false
+        }
+      }
+    },
+    {
+      "send": "@PR 72abb930 {\"seq\":2,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR dffd38d7 {\"seq\":3,\"cmd\":\"auth\",\"hmac\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ba7c28ca {\"seq\":4,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false
+        }
+      }
+    },
+    {
+      "send": "@PR bcfb4598 {\"seq\":5,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "nonce": "ffeeddccbbaa99887766554433221100"
+      }
+    },
+    {
+      "send": "@PR acfd2d37 {\"seq\":6,\"cmd\":\"auth\",\"hmac\":\"946f681804cafe5398415149e0c67c04f19bc6fdfed76cb6554ed63a130e85c8\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true
+      }
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it } from "vitest";
 import { capNames, missingAnimations, missingByPlaylist, nameList, splitMissing } from "../src/ui/board/missing";
 import type { Manifest } from "../src/release/manifest";

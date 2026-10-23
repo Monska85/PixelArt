@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // How fast a list scrolls while a dragged item rests near its top or bottom edge. Pure functions, so the curve and
 // its independence from the frame rate can be tested without a browser.
 

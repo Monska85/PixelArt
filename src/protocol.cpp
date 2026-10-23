@@ -4,6 +4,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <net_auth.h>
 #include <pixel_codec.h>
 #include <pixelart_engine.h>
 #include <strict_json.h>
@@ -12,12 +13,19 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <optional>
 
 #include "app.h"
+#include "firmware.h"
+#include "improv.h"
+#include "install.h"
+#include "network.h"
 #include "platform.h"
 #include "settings.h"
 #include "storage.h"
+#include "task_sync.h"
+#include "updates.h"
+#include "wifi_logic.h"
+#include "ws_server.h"
 
 namespace protocol
 {
@@ -37,18 +45,7 @@ constexpr size_t MAX_BYTES_PER_POLL = 512;
 const char *TEMP_FILE = "/upload.tmp";
 const char OUT_OF_MEMORY_MESSAGE[] = "not enough free memory to validate the file";
 
-// Memory a file needs for validation: one block for the file, and the parsed
-// document, which is a small multiple of the file. Rough values to tune with
-// the memory measured on the board.
-constexpr size_t BLOCK_MARGIN = 1024;
-constexpr size_t PARSE_FACTOR = 4;
-constexpr size_t PARSE_MARGIN = 8192;
-
-enum class Kind
-{
-  Animation,
-  Playlist
-};
+using install::Kind;
 
 struct Upload
 {
@@ -60,10 +57,11 @@ struct Upload
   std::string sha256;
   pixelart::Sha256 hash;
   uint64_t last_progress_us = 0;
-  storage::Writer writer; // the temporary file, open from put_begin until the upload ends
+  Transport owner = Transport::Usb; // the transport that began it: only that one continues or ends it
+  storage::Writer writer;           // the temporary file, open from put_begin until the upload ends
 };
 
-// The last reply, for requests that come again after their reply was lost.
+// The last reply of one transport, for requests that come again after their reply was lost.
 struct Cache
 {
   bool valid = false;
@@ -82,12 +80,40 @@ struct Status
 Status fail(const char *code, std::string message) { return {code, std::move(message)}; }
 
 Upload upload;
-Cache cache;
+// One per transport: a request over one never replaces the reply remembered for the other,
+// and a reply that holds the token is sent again only over USB.
+Cache usb_cache, wifi_cache;
 LineReader reader;
 uint32_t boot_id = 0;
+uint64_t last_byte_us = 0;
+// The transport of the request being run, for the commands that differ by it.
+Transport current_transport = Transport::Usb;
 
-Memory platform_memory() { return {platform::free_heap(), platform::max_alloc()}; }
-MemoryProbe memory_probe = platform_memory;
+// The login of each transport. The WiFi one belongs to the connection that is open, if any. The USB one
+// only answers `auth` as the WiFi one does: nothing over USB needs a login.
+pixelart_net::AuthSession wifi_session;
+pixelart_net::AuthSession usb_session;
+// The WiFi connection was told to close and its close has not been reported yet: its lines are dropped.
+bool wifi_closing = false;
+
+pixelart_net::AuthSession &session_of(Transport transport)
+{
+  return transport == Transport::Wifi ? wifi_session : usb_session;
+}
+
+// Whether a request is one a WiFi client may send before it logs in.
+bool allowed_before_login(const std::string &command)
+{
+  return command == "info" || command == "auth_challenge" || command == "auth";
+}
+
+// The WiFi client is closed after a new token: its login was made with the old one.
+void close_wifi_client()
+{
+  wifi_session.reset();
+  wifi_closing = true;
+  network::close_client();
+}
 
 size_t size_limit(Kind kind)
 {
@@ -322,19 +348,19 @@ void cancel_upload()
   upload.active = false;
 }
 
+// An upload belongs to the transport that began it: the other one gets busy until the upload ends.
+Status check_upload_owner()
+{
+  if (upload.active && upload.owner != current_transport)
+    return fail("busy", "a file is being uploaded over the other connection");
+  return {};
+}
+
 // Ends an upload whose client went quiet.
 void expire_upload()
 {
   if (upload.active && platform::now_us() - upload.last_progress_us >= (uint64_t)UPLOAD_IDLE_MS * 1000)
     cancel_upload();
-}
-
-bool has_memory_for(size_t size)
-{
-  Memory memory = memory_probe();
-  if (memory.free == 0 && memory.largest == 0)
-    return true;
-  return memory.largest >= size + BLOCK_MARGIN && memory.free >= size * PARSE_FACTOR + PARSE_MARGIN;
 }
 
 // Adds an `unknown_animation` warning for each animation a playlist names
@@ -359,7 +385,7 @@ Status cmd_info(JsonObjectConst request, JsonDocument &reply)
 {
   if (Status s = allow_only(request, {}); s.code)
     return s;
-  Memory memory = memory_probe();
+  install::Memory memory = install::memory();
   reply["protocol"] = 1;
   reply["firmware"] = platform::firmware_version();
   reply["board"] = platform::board_name();
@@ -390,23 +416,6 @@ std::string truncate_text(const std::string &text, size_t limit)
   return text.substr(0, bytes);
 }
 
-// SHA-256 of an open file, read piece by piece.
-bool hash_file(storage::Reader &file, std::string &digest)
-{
-  pixelart::Sha256 hash;
-  uint8_t block[MAX_CHUNK];
-  for (size_t offset = 0; offset < file.size();)
-  {
-    size_t got = file.read_at(offset, block, std::min(sizeof(block), file.size() - offset));
-    if (got == 0)
-      return false;
-    hash.update(block, got);
-    offset += got;
-  }
-  digest = hash.hex_digest();
-  return true;
-}
-
 // SHA-256 of an open file, or "" if it cannot be read. A file within its size
 // limit is read once into `buffer`, which describe_file then parses; a larger
 // one is hashed piece by piece and `buffer` stays empty.
@@ -420,7 +429,7 @@ std::string file_digest(Kind kind, storage::Reader &file, storage::Buffer &buffe
   }
   buffer = storage::Buffer();
   std::string digest;
-  hash_file(file, digest);
+  storage::sha256_hex(file, digest);
   return digest;
 }
 
@@ -448,7 +457,7 @@ void add_metadata(Kind kind, const storage::Buffer &buffer, JsonObject entry)
 }
 
 // One entry of a `list` reply. What cannot be read from the file is left out,
-// so a damaged file is still listed.
+// so a damaged file is still listed. The caller holds the heap lock: the files and their parses are in memory.
 void describe_file(Kind kind, const std::string &id, JsonObject entry)
 {
   const std::string path = file_path(kind, id);
@@ -490,6 +499,10 @@ Status cmd_list(JsonObjectConst request, JsonDocument &reply)
   std::vector<std::string> ids = kind == Kind::Animation ? stored_animations() : stored_playlists();
   // Ids sort differently from file names (`a-b.json` before `a.json`), and paging goes by id.
   std::sort(ids.begin(), ids.end());
+  // One lock for the page. An update holding the memory for longer than the wait is `out_of_memory`.
+  task_sync::HeapLock lock(task_sync::Owner::Loop);
+  if (!lock.held())
+    return fail("out_of_memory", "an update holds the memory, try again in a moment");
   reply["kind"] = kind == Kind::Animation ? "animation" : "playlist";
   JsonArray entries = reply["entries"].to<JsonArray>();
   bool more = false;
@@ -550,6 +563,8 @@ Status cmd_get(JsonObjectConst request, JsonDocument &reply)
 
 Status cmd_put_begin(JsonObjectConst request, JsonDocument &)
 {
+  if (Status s = check_upload_owner(); s.code)
+    return s;
   // A new upload replaces the old one even when the request is refused.
   cancel_upload();
   if (Status s = allow_only(request, {"kind", "id", "size", "sha256"}); s.code)
@@ -574,7 +589,7 @@ Status cmd_put_begin(JsonObjectConst request, JsonDocument &)
   size_t total = storage::total_bytes(), used = storage::used_bytes();
   if (total < used || total - used < needed)
     return fail("no_space", "not enough free space");
-  if (!has_memory_for(size))
+  if (!install::memory_fits(size))
     return fail("out_of_memory", OUT_OF_MEMORY_MESSAGE);
 
   Upload fresh;
@@ -589,12 +604,15 @@ Status cmd_put_begin(JsonObjectConst request, JsonDocument &)
   fresh.size = size;
   fresh.sha256 = sha256;
   fresh.last_progress_us = platform::now_us();
+  fresh.owner = current_transport;
   upload = std::move(fresh);
   return {};
 }
 
 Status cmd_put_chunk(JsonObjectConst request, JsonDocument &reply)
 {
+  if (Status s = check_upload_owner(); s.code)
+    return s;
   if (Status s = allow_only(request, {"offset", "data"}); s.code)
     return s;
   uint32_t offset;
@@ -641,34 +659,22 @@ struct TempFileGuard
 // Loads the temporary file with the engine, so the file in memory is gone
 // before the rename. Fills `diagnostics`; a rejected file also gets them in
 // the reply.
-Status validate_temp_file(Kind kind, JsonDocument &reply, std::vector<pixelart::Diagnostic> &diagnostics)
+Status validate_temp_file(Kind kind, size_t size, JsonDocument &reply, std::vector<pixelart::Diagnostic> &diagnostics)
 {
-  storage::Buffer buffer;
-  switch (storage::read(TEMP_FILE, buffer, size_limit(kind)))
+  pixelart::Playlist playlist;
+  switch (install::check(kind, TEMP_FILE, size, diagnostics, &playlist))
   {
-  case storage::ReadResult::Ok:
-    break;
-  case storage::ReadResult::OutOfMemory:
-    return fail("out_of_memory", OUT_OF_MEMORY_MESSAGE);
-  default:
-    return fail("storage_error", "the temporary file cannot be read");
-  }
-
-  bool valid;
-  if (kind == Kind::Animation)
-  {
-    pixelart::Animation animation;
-    valid = animation.load(buffer.data.get(), buffer.size, diagnostics);
-  }
-  else
-  {
-    pixelart::Playlist playlist;
-    valid = playlist.load(buffer.data.get(), buffer.size, diagnostics);
-    if (valid)
+  case install::Result::Ok:
+    if (kind == Kind::Playlist)
       warn_unknown_animations(playlist, diagnostics);
-  }
-  if (valid)
     return {};
+  case install::Result::OutOfMemory:
+    return fail("out_of_memory", OUT_OF_MEMORY_MESSAGE);
+  case install::Result::StorageError:
+    return fail("storage_error", "the temporary file cannot be read");
+  case install::Result::Invalid:
+    break;
+  }
   add_diagnostics(reply["diagnostics"].to<JsonArray>(), diagnostics);
   return fail("invalid_file",
               kind == Kind::Animation ? "the file is not a valid animation" : "the file is not a valid playlist");
@@ -676,6 +682,8 @@ Status validate_temp_file(Kind kind, JsonDocument &reply, std::vector<pixelart::
 
 Status cmd_put_end(JsonObjectConst request, JsonDocument &reply)
 {
+  if (Status s = check_upload_owner(); s.code)
+    return s;
   if (Status s = allow_only(request, {}); s.code)
     return s;
   if (!upload.active)
@@ -691,26 +699,21 @@ Status cmd_put_end(JsonObjectConst request, JsonDocument &reply)
                 "received " + std::to_string(done.received) + " bytes of " + std::to_string(done.size));
   if (done.hash.hex_digest() != done.sha256)
     return fail("checksum_mismatch", "the SHA-256 of the data differs from the declared one");
-  size_t stored = 0;
-  if (!storage::file_size(TEMP_FILE, stored) || stored != done.size)
-    return fail("storage_error", "the temporary file cannot be read");
-  if (!has_memory_for(done.size))
-    return fail("out_of_memory", OUT_OF_MEMORY_MESSAGE);
 
   std::vector<pixelart::Diagnostic> diagnostics;
-  if (Status s = validate_temp_file(done.kind, reply, diagnostics); s.code)
+  if (Status s = validate_temp_file(done.kind, done.size, reply, diagnostics); s.code)
     return s;
 
-  if (!storage::rename(TEMP_FILE, done.target))
+  if (!install::commit(done.kind, TEMP_FILE, done.target))
     return fail("storage_error", "the file cannot be stored");
-  if (done.kind == Kind::Playlist)
-    request_playlist_reload();
   add_diagnostics(reply["warnings"].to<JsonArray>(), diagnostics);
   return {};
 }
 
 Status cmd_put_abort(JsonObjectConst request, JsonDocument &)
 {
+  if (Status s = check_upload_owner(); s.code)
+    return s;
   if (Status s = allow_only(request, {}); s.code)
     return s;
   cancel_upload();
@@ -749,34 +752,67 @@ bool remove_all_files(const char *folder, size_t &count)
   return true;
 }
 
-// Saves the given settings, all or nothing: the playlist is saved first, and
-// put back if the brightness cannot be saved. When the settings memory also
-// refuses the playlist back, the new playlist stays and the message says so.
-// Returns the storage_error message, or nullptr when every setting is saved.
-const char *save_settings(const std::optional<std::string> &playlist, std::optional<uint8_t> brightness)
+// Applies what a changed setting does outside the settings memory.
+void apply_changes(const settings::Values &before)
 {
-  const std::string previous = settings::playlist();
-  bool restart = playlist && *playlist != previous;
-  if (playlist && !settings::set_playlist(*playlist))
-    return "the settings cannot be saved";
-  const char *failure = nullptr;
-  if (brightness && !settings::set_brightness(*brightness))
-  {
-    failure = "the settings cannot be saved";
-    if (playlist && !settings::set_playlist(previous))
-      failure = "the settings cannot be saved and may be partly changed";
-    else
-      restart = false; // the previous playlist is back: playback keeps it
-  }
-  if (restart)
+  const settings::Values &now = settings::current();
+  if (now.playlist != before.playlist)
     request_playlist_reload(); // playback follows the playlist that is now set
-  return failure;
+  if (now.wifi_power != before.wifi_power)
+    network::set_power(now.wifi_power);
+  if (now.update_config_differs(before))
+    updates::apply(now);
+  // A login made while the setting was off does not carry over: the client logs in again.
+  if (now.network_login && !before.network_login)
+    wifi_session.reset();
 }
 
+// Saves `next`, all or nothing, and applies what changed. Returns the
+// storage_error message, or nullptr when every setting is saved. When the
+// settings memory also refuses to put a value back, the message says so.
+const char *save_settings(const settings::Values &next)
+{
+  const settings::Values before = settings::current();
+  const settings::Commit result = settings::commit(next);
+  apply_changes(before);
+  switch (result)
+  {
+  case settings::Commit::Ok:
+    return nullptr;
+  case settings::Commit::Failed:
+    return "the settings cannot be saved";
+  case settings::Commit::PartlyChanged:
+    break;
+  }
+  return "the settings cannot be saved and may be partly changed";
+}
+
+// Every setting. The token is for USB only.
 void add_settings(JsonDocument &reply)
 {
-  reply["settings"]["brightness"] = settings::brightness();
-  reply["settings"]["playlist"] = settings::playlist();
+  const settings::Values &v = settings::current();
+  JsonObject out = reply["settings"].to<JsonObject>();
+  out["brightness"] = v.brightness;
+  out["playlist"] = v.playlist;
+  out["wifi_power"] = v.wifi_power;
+  out["update_mode"] = v.update_mode;
+  out["update_firmware"] = v.update_firmware;
+  out["update_animations"] = v.update_animations;
+  out["check_hours"] = v.check_hours;
+  out["install_start"] = v.install_start;
+  out["install_end"] = v.install_end;
+  out["timezone"] = v.timezone;
+  out["animation_source"] = v.animation_source;
+  out["network_login"] = v.network_login;
+  if (current_transport == Transport::Usb)
+    out["token"] = v.token;
+}
+
+Status usb_only(const char *what)
+{
+  if (current_transport == Transport::Usb)
+    return {};
+  return fail("usb_only", std::string(what) + " works over USB only");
 }
 
 Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
@@ -788,18 +824,24 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   if (!settings_field.isUnbound() && !settings_field.is<bool>())
     return fail("bad_request", "settings must be true or false");
   bool reset = settings_field.as<bool>();
+  if (reset)
+    if (Status s = usb_only("delete_all with settings"); s.code)
+      return s;
   cancel_upload();
+  updates::cancel_install(); // before the files go, so an installation does not store them again
   size_t playlists = 0, animations = 0;
   bool done = remove_all_files(PLAYLISTS_FOLDER, playlists) && remove_all_files(ANIMATIONS_FOLDER, animations);
   if (playlists > 0)
     request_playlist_reload();
   if (!done)
     return fail("storage_error", "a file cannot be removed");
-  // The settings go back to their defaults only once every file is gone.
+  // The settings go back to their defaults only once every file is gone, with a new token.
   if (reset)
   {
-    if (const char *failure = save_settings(std::string(settings::DEFAULT_PLAYLIST), settings::DEFAULT_BRIGHTNESS))
+    if (const char *failure = save_settings(settings::defaults_with_new_token()))
       return fail("storage_error", std::string("the files are removed but ") + failure);
+    network::forget();
+    close_wifi_client();
     add_settings(reply);
   }
   reply["playlists"] = playlists;
@@ -815,40 +857,277 @@ Status cmd_settings_get(JsonObjectConst request, JsonDocument &reply)
   return {};
 }
 
+// The optional fields below are read into `out` only when present and valid,
+// and `out` keeps its value when the field is absent. A field that is present
+// and breaks its rule is a bad_request, `null` included.
+
+// Text checked with `valid`, which `rule` describes.
+// The rule of animation_source as the message of a refusal says it, with the limit of settings.h.
+const std::string &animation_source_rule()
+{
+  static const std::string rule = "an http:// or https:// URL with a host and no user information, at most " +
+                                  std::to_string(settings::MAX_ANIMATION_SOURCE) + " characters";
+  return rule;
+}
+
+Status optional_text(JsonObjectConst request, const char *key, bool (*valid)(const std::string &), const char *rule,
+                     std::string &out)
+{
+  JsonVariantConst value = request[key];
+  if (value.isUnbound())
+    return {};
+  if (!value.is<const char *>() || !valid(value.as<std::string>()))
+    return fail("bad_request", std::string(key) + " must be " + rule);
+  out = value.as<std::string>();
+  return {};
+}
+
+Status optional_flag(JsonObjectConst request, const char *key, bool &out)
+{
+  JsonVariantConst value = request[key];
+  if (value.isUnbound())
+    return {};
+  if (!value.is<bool>())
+    return fail("bad_request", std::string(key) + " must be true or false");
+  out = value.as<bool>();
+  return {};
+}
+
+// A whole number, from `min` to `max`, checked with `valid`.
+Status optional_number(JsonObjectConst request, const char *key, bool (*valid)(uint32_t), const char *rule,
+                       uint16_t &out)
+{
+  JsonVariantConst value = request[key];
+  if (value.isUnbound())
+    return {};
+  if (!value.is<uint32_t>() || !valid(value.as<uint32_t>()))
+    return fail("bad_request", std::string(key) + " must be a whole number " + rule);
+  out = (uint16_t)value.as<uint32_t>();
+  return {};
+}
+
+// Whether the request has a field besides `seq` and `cmd`.
+bool has_fields(JsonObjectConst request)
+{
+  for (JsonPairConst pair : request)
+    if (pair.key() != "seq" && pair.key() != "cmd")
+      return true;
+  return false;
+}
+
 Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
 {
-  if (Status s = allow_only(request, {"brightness", "playlist"}); s.code)
+  if (!request["token"].isUnbound())
+    return fail("bad_request", "token is read only");
+  if (Status s = allow_only(request, {"brightness", "playlist", "wifi_power", "update_mode", "update_firmware",
+                                      "update_animations", "check_hours", "install_start", "install_end", "timezone",
+                                      "animation_source", "network_login"});
+      s.code)
     return s;
-  JsonVariantConst brightness = request["brightness"];
-  JsonVariantConst playlist = request["playlist"];
-  if (brightness.isUnbound() && playlist.isUnbound())
-    return fail("bad_request", "give at least one setting");
 
-  // Check everything before changing anything. A field given as null is of the wrong type.
-  if (!brightness.isUnbound() && !brightness.is<uint8_t>())
-    return fail("bad_request", "brightness must be a whole number from 0 to 255");
-  std::string id;
+  // Check everything before changing anything: the fields go into a copy of the settings.
+  settings::Values next = settings::current();
+  JsonVariantConst brightness = request["brightness"];
+  if (!brightness.isUnbound())
+  {
+    if (!brightness.is<uint8_t>())
+      return fail("bad_request", "brightness must be a whole number from 0 to 255");
+    next.brightness = brightness.as<uint8_t>();
+  }
+  JsonVariantConst playlist = request["playlist"];
   if (!playlist.isUnbound())
   {
     if (!playlist.is<const char *>())
       return fail("bad_request", "playlist must be text");
-    id = playlist.as<std::string>();
-    if (Status s = check_id(id, "playlist"); s.code)
+    next.playlist = playlist.as<std::string>();
+    if (Status s = check_id(next.playlist, "playlist"); s.code)
       return s;
-    if (!storage::exists(playlist_file(id)))
+    if (!storage::exists(playlist_file(next.playlist)))
       return fail("not_found", "no such playlist");
   }
+  for (Status s :
+       {optional_text(request, "wifi_power", settings::valid_wifi_power, "auto, 8.5, 11, 13, 15, 17, 18.5 or 19.5",
+                      next.wifi_power),
+        optional_text(request, "update_mode", settings::valid_update_mode, "off, notify or automatic",
+                      next.update_mode),
+        optional_text(request, "timezone", settings::valid_timezone, "1 to 64 printable ASCII characters",
+                      next.timezone),
+        optional_text(request, "animation_source", settings::valid_animation_source, animation_source_rule().c_str(),
+                      next.animation_source),
+        optional_flag(request, "update_firmware", next.update_firmware),
+        optional_flag(request, "update_animations", next.update_animations),
+        optional_flag(request, "network_login", next.network_login),
+        optional_number(request, "check_hours", settings::valid_check_hours, "from 1 to 168", next.check_hours),
+        optional_number(request, "install_start", settings::valid_minutes, "from 0 to 1439", next.install_start),
+        optional_number(request, "install_end", settings::valid_minutes, "from 0 to 1439", next.install_end)})
+    if (s.code)
+      return s;
+  if (!has_fields(request)) // every field is a setting: allow_only refused the others
+    return fail("bad_request", "give at least one setting");
 
-  std::optional<std::string> new_playlist;
-  if (!playlist.isUnbound())
-    new_playlist = id;
-  std::optional<uint8_t> new_brightness;
-  if (!brightness.isUnbound())
-    new_brightness = brightness.as<uint8_t>();
-  if (const char *failure = save_settings(new_playlist, new_brightness))
+  if (const char *failure = save_settings(next))
     return fail("storage_error", failure);
   add_settings(reply);
   return {};
+}
+
+Status cmd_status(JsonObjectConst request, JsonDocument &reply)
+{
+  if (Status s = allow_only(request, {}); s.code)
+    return s;
+  const network::Snapshot n = network::snapshot();
+  JsonObject wifi = reply["wifi"].to<JsonObject>();
+  wifi["state"] = wifi_logic::state_name(n.state);
+  if (n.has_ip)
+    wifi["ip"] = std::string(n.ip); // copied: `n` is gone when the reply is written
+  else
+    wifi["ip"] = nullptr;
+  if (n.has_rssi)
+    wifi["rssi"] = n.rssi;
+  else
+    wifi["rssi"] = nullptr;
+  wifi["power"] = std::string(n.power);
+  wifi["power_reduced"] = n.power_reduced;
+  wifi["hostname"] = std::string(n.hostname);
+  if (n.has_ssid)
+    wifi["ssid"] = pixelart::utf8_lossy(n.ssid, strnlen(n.ssid, sizeof(n.ssid)));
+  else
+    wifi["ssid"] = nullptr;
+  const updates::Snapshot u = updates::snapshot();
+  reply["time"]["known"] = u.time_known;
+  JsonObject update = reply["update"].to<JsonObject>();
+  update["state"] = u.state;
+  update["progress"] = u.progress;
+  if (u.has_last_check)
+    update["last_check"] = u.last_check_seconds;
+  else
+    update["last_check"] = nullptr;
+  if (u.last_result)
+    update["last_result"] = u.last_result;
+  else
+    update["last_result"] = nullptr;
+  if (u.last_detail)
+    update["last_detail"] = u.last_detail;
+  else
+    update["last_detail"] = nullptr;
+  update["failed_files"] = u.failed_files;
+  if (u.firmware.empty())
+    update["firmware"] = nullptr;
+  else
+    update["firmware"] = u.firmware;
+  update["files"] = u.files;
+  const firmware::LastInstall last = firmware::last_install();
+  if (last.present)
+  {
+    JsonObject install = update["last_install"].to<JsonObject>();
+    install["result"] = last.rolled_back ? "rolled_back" : "updated";
+    install["from"] = last.from;
+    install["to"] = last.to;
+  }
+  else
+    update["last_install"] = nullptr;
+  return {};
+}
+
+// The error of a request for a check or an installation, or success.
+Status update_status(updates::Request request)
+{
+  switch (request)
+  {
+  case updates::Request::Started:
+    return {};
+  case updates::Request::UpdatesOff:
+    return fail("updates_off", "updates are off for this request");
+  case updates::Request::NothingToInstall:
+    return fail("nothing_to_install", "the last check found nothing to install");
+  case updates::Request::NoNetwork:
+    return fail("no_network", "the board is not connected to WiFi");
+  case updates::Request::Busy:
+    return fail("busy", "a check or an installation is already running");
+  }
+  return fail("busy", "a check or an installation is already running");
+}
+
+Status cmd_update_check(JsonObjectConst request, JsonDocument &)
+{
+  if (Status s = allow_only(request, {}); s.code)
+    return s;
+  return update_status(updates::check());
+}
+
+Status cmd_update_install(JsonObjectConst request, JsonDocument &)
+{
+  if (Status s = allow_only(request, {"target", "force"}); s.code)
+    return s;
+  std::string target;
+  if (Status s = get_text(request, "target", target); s.code)
+    return s;
+  bool force = false;
+  if (Status s = optional_flag(request, "force", force); s.code)
+    return s;
+  if (target == "animations")
+    return update_status(updates::install_animations());
+  if (target == "firmware")
+    return update_status(updates::install_firmware(force));
+  return fail("bad_request", "target must be \"firmware\" or \"animations\"");
+}
+
+Status cmd_wifi_forget(JsonObjectConst request, JsonDocument &)
+{
+  if (Status s = allow_only(request, {}); s.code)
+    return s;
+  if (Status s = usb_only("wifi_forget"); s.code)
+    return s;
+  network::forget();
+  return {};
+}
+
+Status cmd_token_regenerate(JsonObjectConst request, JsonDocument &reply)
+{
+  if (Status s = allow_only(request, {}); s.code)
+    return s;
+  if (Status s = usb_only("token_regenerate"); s.code)
+    return s;
+  settings::Values next = settings::current();
+  next.token = settings::make_token();
+  if (const char *failure = save_settings(next))
+    return fail("storage_error", failure);
+  reply["token"] = settings::current().token;
+  close_wifi_client();
+  return {};
+}
+
+Status cmd_auth_challenge(JsonObjectConst request, JsonDocument &reply)
+{
+  if (Status s = allow_only(request, {}); s.code)
+    return s;
+  uint8_t random[pixelart_net::NONCE_BYTES];
+  platform::nonce_bytes(random, sizeof(random));
+  reply["nonce"] = session_of(current_transport).challenge(random);
+  return {};
+}
+
+Status cmd_auth(JsonObjectConst request, JsonDocument &)
+{
+  if (Status s = allow_only(request, {"hmac"}); s.code)
+    return s;
+  std::string hmac;
+  if (Status s = get_text(request, "hmac", hmac); s.code)
+    return s;
+  if (!pixelart_net::is_hmac_text(hmac))
+    return fail("bad_request", "hmac must be 64 lowercase hexadecimal digits");
+  switch (session_of(current_transport).attempt(settings::current().token, hmac))
+  {
+  case pixelart_net::AuthSession::Verdict::Accepted:
+    return {};
+  case pixelart_net::AuthSession::Verdict::Refused:
+    break;
+  case pixelart_net::AuthSession::Verdict::RefusedAndClose:
+    if (current_transport == Transport::Wifi)
+      close_wifi_client();
+    break;
+  }
+  return fail("unauthorized", "the login failed");
 }
 
 struct Command
@@ -869,10 +1148,17 @@ const Command COMMANDS[] = {
     {"delete_all", cmd_delete_all},
     {"settings_get", cmd_settings_get},
     {"settings_set", cmd_settings_set},
+    {"status", cmd_status},
+    {"update_check", cmd_update_check},
+    {"update_install", cmd_update_install},
+    {"wifi_forget", cmd_wifi_forget},
+    {"token_regenerate", cmd_token_regenerate},
+    {"auth_challenge", cmd_auth_challenge},
+    {"auth", cmd_auth},
 };
 
 // Runs a request that arrived intact and builds its reply.
-std::string run_request(const std::string &json, uint32_t crc)
+std::string run_request(const std::string &json, uint32_t crc, Transport transport)
 {
   JsonDocument request;
   if (!is_strict_object(json) ||
@@ -885,14 +1171,30 @@ std::string run_request(const std::string &json, uint32_t crc)
   if (!seq.is<uint32_t>() || !cmd.is<const char *>())
     return error_frame("bad_request", "seq must be a whole number and cmd must be text");
 
+  const std::string name = cmd.as<std::string>();
+  if (transport == Transport::Wifi)
+  {
+    if (wifi_closing)
+      return "";
+    // Before the cache, so a reply made for a logged in client is never sent to another one.
+    if (wifi_login_pending() && !allowed_before_login(name))
+    {
+      JsonDocument refusal;
+      refusal["seq"] = seq.as<uint32_t>();
+      set_error(refusal, "unauthorized", "log in first with auth_challenge and auth");
+      return frame(refusal);
+    }
+  }
+
+  Cache &cache = transport == Transport::Wifi ? wifi_cache : usb_cache;
   if (cache.valid && cache.seq == seq.as<uint32_t>() && cache.crc == crc)
     return cache.reply;
 
+  current_transport = transport;
   JsonDocument reply;
   reply["seq"] = seq.as<uint32_t>();
   reply["ok"] = true;
   Status status = fail("unknown_command", "this firmware does not know the command");
-  const std::string name = cmd.as<std::string>();
   for (const Command &command : COMMANDS)
     if (name == command.name)
       status = command.run(object, reply);
@@ -924,14 +1226,24 @@ void write_line(const std::string &reply)
 
 } // namespace
 
-#ifdef PIXELART_SIM
-void set_memory_probe(MemoryProbe probe) { memory_probe = probe ? probe : platform_memory; }
-#endif
-
 LineReader::Event LineReader::feed(uint8_t byte)
 {
   if (complete_)
     clear();
+  if (frame_.active())
+  {
+    switch (frame_.feed(byte))
+    {
+    case improv::FrameParser::Result::More:
+      return Event::None;
+    case improv::FrameParser::Result::Frame:
+      complete_ = true;
+      return Event::Improv;
+    case improv::FrameParser::Result::BadChecksum:
+      complete_ = true;
+      return Event::ImprovInvalid;
+    }
+  }
   if (byte != '\n')
   {
     // Room for a `\r` after the longest line.
@@ -939,6 +1251,23 @@ LineReader::Event LineReader::feed(uint8_t byte)
       line_ += (char)byte;
     else
       overflowed_ = true;
+    if (line_.size() == MARKER_SIZE && !overflowed_)
+      protocol_line_ = line_ == MARKER;
+    if (protocol_line_)
+      return Event::None;
+    if (recent_size_ == improv::HEADER_SIZE)
+      memmove(recent_, recent_ + 1, improv::HEADER_SIZE - 1);
+    else
+      recent_size_++;
+    recent_[recent_size_ - 1] = byte;
+    if (recent_size_ == improv::HEADER_SIZE && memcmp(recent_, improv::MAGIC, improv::MAGIC_SIZE) == 0 &&
+        recent_[improv::MAGIC_SIZE] == improv::VERSION)
+    {
+      // What came before the header on this line was not a protocol line.
+      line_.clear();
+      reset_scan();
+      frame_.start();
+    }
     return Event::None;
   }
 
@@ -948,30 +1277,48 @@ LineReader::Event LineReader::feed(uint8_t byte)
   bool is_protocol = line_.compare(0, MARKER_SIZE, MARKER) == 0;
   if (too_long)
     line_.clear();
-  overflowed_ = false;
+  reset_scan();
   if (too_long)
     return is_protocol ? Event::Overflow : Event::None;
   complete_ = true;
   return Event::Line;
 }
 
+void LineReader::reset_scan()
+{
+  overflowed_ = false;
+  recent_size_ = 0;
+  protocol_line_ = false;
+}
+
+void LineReader::abort_frame()
+{
+  frame_.reset();
+  line_.clear();
+  reset_scan();
+}
+
 void LineReader::clear()
 {
-  line_.clear();
-  overflowed_ = false;
+  abort_frame();
   complete_ = false;
 }
 
 void begin()
 {
   reader.clear();
+  improv::begin();
   upload = Upload();
-  cache = Cache();
+  usb_cache = Cache();
+  wifi_cache = Cache();
+  wifi_session.reset();
+  usb_session.reset();
+  wifi_closing = false;
   storage::remove(TEMP_FILE);
   boot_id = platform::random32();
 }
 
-std::string handle_line(const std::string &line)
+std::string handle_line(const std::string &line, Transport transport)
 {
   expire_upload();
   if (line.compare(0, MARKER_SIZE, MARKER) != 0)
@@ -986,24 +1333,60 @@ std::string handle_line(const std::string &line)
   std::string json = line.substr(json_at);
   if (pixelart::crc32(json.data(), json.size()) != crc)
     return bad_frame("checksum does not match");
-  return run_request(json, crc);
+  return run_request(json, crc, transport);
 }
+
+namespace
+{
+// A WiFi connection that opens or closes ends the WiFi session: its login, its
+// closing flag and its remembered reply, so nothing of it reaches the next client.
+void reset_wifi_session()
+{
+  wifi_session.reset();
+  wifi_closing = false;
+  wifi_cache = Cache();
+}
+} // namespace
+
+void wifi_opened() { reset_wifi_session(); }
+
+void wifi_closed() { reset_wifi_session(); }
+
+bool wifi_login_pending() { return settings::current().network_login && !wifi_session.authenticated(); }
 
 std::string line_too_long() { return bad_frame("the line is too long"); }
 
 void poll()
 {
   expire_upload();
+  ws_server::poll();
+  improv::poll();
+  if (reader.in_frame() && platform::now_us() - last_byte_us >= (uint64_t)improv::FRAME_IDLE_MS * 1000)
+    reader.abort_frame();
   for (size_t n = 0; n < MAX_BYTES_PER_POLL && Serial.available() > 0; n++)
   {
     int byte = Serial.read();
     if (byte < 0)
       return;
-    LineReader::Event event = reader.feed((uint8_t)byte);
-    if (event == LineReader::Event::None)
+    last_byte_us = platform::now_us();
+    switch (reader.feed((uint8_t)byte))
+    {
+    case LineReader::Event::None:
       continue;
-    write_line(event == LineReader::Event::Line ? handle_line(reader.line()) : line_too_long());
-    return;
+    case LineReader::Event::Line:
+      write_line(handle_line(reader.line(), Transport::Usb));
+      return;
+    case LineReader::Event::Overflow:
+      write_line(line_too_long());
+      return;
+    case LineReader::Event::Improv:
+      improv::handle_frame(reader.improv_frame().type(), reader.improv_frame().data());
+      reader.clear(); // wipes the frame, which may hold a password
+      return;
+    case LineReader::Event::ImprovInvalid:
+      improv::handle_bad_checksum();
+      return;
+    }
   }
 }
 

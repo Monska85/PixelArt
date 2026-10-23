@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Type guards for values read from the board or a release manifest.
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>

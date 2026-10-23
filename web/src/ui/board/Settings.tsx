@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useRef, useState, type ReactNode } from "react";
-import { setSettings, type BoardClient, type Settings } from "../../protocol";
+import { setSettings, type BoardClient, type Settings, type SettingsChanges } from "../../protocol";
 import { Alert, AlertDescription } from "../components/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/card";
 import { Select } from "../components/select";
@@ -44,7 +46,7 @@ export function SettingsPanel({
   const value = dragging ?? settings.brightness;
   const stored = playlists === null || playlists.has(settings.playlist);
 
-  async function change(changes: Partial<Settings>, context: string): Promise<void> {
+  async function change(changes: SettingsChanges, context: string): Promise<void> {
     sending.current = true;
     try {
       onSettings(await setSettings(client, changes));

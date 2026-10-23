@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it } from "vitest";
 import { loadManifest, parseManifest, readCapped } from "../src/release/manifest";
 import { downloadPublished, libraryState } from "../src/release/library";
@@ -32,6 +34,12 @@ describe("parseManifest", () => {
       animations: [{ id: "star", name: "STAR", version: 2, size: 100, sha256: SHA }],
       playlists: [{ id: "default", name: "Default", version: null, size: 50, sha256: SHA }],
     });
+  });
+
+  it("ignores the optional field source, as every field it does not know", () => {
+    expect(parseManifest(manifest({ source: "https://github.com/Owner/Fork/tree/v1.2.0" }))).toEqual(
+      parseManifest(manifest()),
+    );
   });
 
   it("treats anything that is not a pixelart-manifest/1 as nothing published", () => {

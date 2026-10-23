@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { BoardError, UploadCancelled, type WireDiagnostic } from "../protocol";
 
 export interface ShownError {

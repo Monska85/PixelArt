@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Based on shadcn/ui (MIT): see THIRD_PARTY_NOTICES.txt of the web app.
+
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import type { ComponentProps } from "react";
 import { cn } from "./cn";

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { Page } from "@playwright/test";
 import { decodeLine, encodeLine } from "../src/protocol/framing";
 import type { Simulator } from "./fixtures";
@@ -9,6 +11,12 @@ interface BoardWatch {
    */
   hold: (cmd: string) => void;
   release: () => void;
+  /**
+   * Cuts the board off: nothing more goes from the page to the simulator, and the page sees the board close the
+   * connection. A state that then stops the simulator does not race with it: the page's request in the moment between
+   * the simulator going away and the app noticing would go to a closing socket, which Chrome logs as an error.
+   */
+  disconnect: () => Promise<void>;
 }
 
 /**
@@ -25,18 +33,31 @@ export async function watchBoard(
   let heldCmd: string | null = null;
   let held: string | null = null;
   let send: ((message: string) => void) | null = null;
+  let cut: (() => Promise<void>) | null = null;
+  let open = true; // false once the board is cut off or its side has closed: nothing is forwarded to it
 
   await page.routeWebSocket(
     (url) => url.port === port,
     (socket) => {
       const server = socket.connectToServer();
+      open = true;
+      // With a handler on the server's side Playwright no longer closes the page's socket by itself.
+      server.onClose((code, reason) => {
+        open = false;
+        void socket.close(code && code !== 1005 && code !== 1006 ? { code, reason } : {});
+      });
+      cut = async () => {
+        open = false;
+        await server.close();
+        await socket.close({ code: 1001, reason: "board cut off" });
+      };
       const commands = new Map<number, string>();
       send = (message) => socket.send(message);
       socket.onMessage((message) => {
         const request = decodeLine(new TextEncoder().encode(String(message)));
         if (request && typeof request.seq === "number" && typeof request.cmd === "string")
           commands.set(request.seq, request.cmd);
-        server.send(message);
+        if (open) server.send(message);
       });
       server.onMessage((message) => {
         const text = String(message);
@@ -62,6 +83,9 @@ export async function watchBoard(
       heldCmd = null;
       if (held !== null) send?.(held);
       held = null;
+    },
+    disconnect: async () => {
+      await cut?.();
     },
   };
 }
