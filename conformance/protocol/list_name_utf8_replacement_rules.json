@@ -1,0 +1,80 @@
+{
+  "description": "bytes that are not part of a well-formed UTF-8 sequence are replaced one by one, valid text is kept",
+  "files": {
+    "animations/cont.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IniAeSIsImNhbnZhcyI6eyJ3aWR0aCI6MTYsImhlaWdodCI6MTZ9LCJzcHJpdGVzIjp7ImRvdCI6eyJwb2ludHMiOltbNyw3LCIjZmYwMDAwIl1dfX0sInRpbWVsaW5lIjpbeyJzaG93IjpbImRvdCJdfV19"
+    },
+    "animations/trunc.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6ImFi4oIiLCJjYW52YXMiOnsid2lkdGgiOjE2LCJoZWlnaHQiOjE2fSwic3ByaXRlcyI6eyJkb3QiOnsicG9pbnRzIjpbWzcsNywiI2ZmMDAwMCJdXX19LCJ0aW1lbGluZSI6W3sic2hvdyI6WyJkb3QiXX1dfQ=="
+    },
+    "animations/overlong.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IsCveiIsImNhbnZhcyI6eyJ3aWR0aCI6MTYsImhlaWdodCI6MTZ9LCJzcHJpdGVzIjp7ImRvdCI6eyJwb2ludHMiOltbNyw3LCIjZmYwMDAwIl1dfX0sInRpbWVsaW5lIjpbeyJzaG93IjpbImRvdCJdfV19"
+    },
+    "animations/surrogate.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6Iu2ggCIsImNhbnZhcyI6eyJ3aWR0aCI6MTYsImhlaWdodCI6MTZ9LCJzcHJpdGVzIjp7ImRvdCI6eyJwb2ludHMiOltbNyw3LCIjZmYwMDAwIl1dfX0sInRpbWVsaW5lIjpbeyJzaG93IjpbImRvdCJdfV19"
+    },
+    "animations/toohigh.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IvSQgIAiLCJjYW52YXMiOnsid2lkdGgiOjE2LCJoZWlnaHQiOjE2fSwic3ByaXRlcyI6eyJkb3QiOnsicG9pbnRzIjpbWzcsNywiI2ZmMDAwMCJdXX19LCJ0aW1lbGluZSI6W3sic2hvdyI6WyJkb3QiXX1dfQ=="
+    },
+    "animations/good.json": {
+      "base64": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6Im7DqeKCrPCfmIAiLCJjYW52YXMiOnsid2lkdGgiOjE2LCJoZWlnaHQiOjE2fSwic3ByaXRlcyI6eyJkb3QiOnsicG9pbnRzIjpbWzcsNywiI2ZmMDAwMCJdXX19LCJ0aW1lbGluZSI6W3sic2hvdyI6WyJkb3QiXX1dfQ=="
+    }
+  },
+  "steps": [
+    {
+      "send": "@PR 1af0c9a8 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "cont",
+            "size": 147,
+            "sha256": "890dabd1599d6ba46361fb3e96cc389c14e48ff473425ff75ae4a0fcd7255eec",
+            "name": "x�y",
+            "version": 1
+          },
+          {
+            "id": "good",
+            "size": 154,
+            "sha256": "05503bbbdcb974cc7ece7dda310df3d98c92d2dce80468ee72c295c0718be172",
+            "name": "né€😀",
+            "version": 1
+          },
+          {
+            "id": "overlong",
+            "size": 147,
+            "sha256": "ad6a84c4977e08ef0aa37b788c16e26b1aa71359a49aed41f590170800243286",
+            "name": "��z",
+            "version": 1
+          },
+          {
+            "id": "surrogate",
+            "size": 147,
+            "sha256": "14c4d465298f7d0a964945df0fe23e861a4f4c9e2abe0d1670a38dbd6a8ae161",
+            "name": "���",
+            "version": 1
+          },
+          {
+            "id": "toohigh",
+            "size": 148,
+            "sha256": "614f103a6c6903cc8d759d0bbb9627335be05f43c68c1331b88df0f2496bd424",
+            "name": "����",
+            "version": 1
+          },
+          {
+            "id": "trunc",
+            "size": 148,
+            "sha256": "b3d5fb97747bbe02a4c8ff95edf9a701f737cf2210e42a4726518396ac924e4f",
+            "name": "ab��",
+            "version": 1
+          }
+        ],
+        "more": false
+      }
+    }
+  ]
+}

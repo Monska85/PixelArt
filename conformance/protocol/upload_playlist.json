@@ -1,0 +1,61 @@
+{
+  "description": "a playlist of stored animations is stored with no warnings",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 474985a1 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"playlist\",\"id\":\"mix\",\"size\":131,\"sha256\":\"3e22ddc616770e73d897ee82dc370d8383352f66c14c8c7260d246b49bcaa199\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR eedccfc2 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5bGlzdC8xIiwibmFtZSI6Iktub3duIiwiY2FudmFzIjp7IndpZHRoIjoxNiwiaGVpZ2h0IjoxNn0sIml0ZW1zIjpbeyJhbmltYXRpb24iOiJkb3QifSx7ImFuaW1hdGlvbiI6ImRvdCJ9XX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 131
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "expect_files": {
+        "playlists/mix.json": "{\"format\":\"pixelart-playlist/1\",\"name\":\"Known\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"},{\"animation\":\"dot\"}]}"
+      }
+    },
+    {
+      "send": "@PR c280e0a3 {\"seq\":4,\"cmd\":\"list\",\"kind\":\"playlist\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "kind": "playlist",
+        "entries": [
+          {
+            "id": "mix",
+            "size": 131,
+            "sha256": "3e22ddc616770e73d897ee82dc370d8383352f66c14c8c7260d246b49bcaa199",
+            "name": "Known"
+          }
+        ],
+        "more": false
+      }
+    }
+  ]
+}

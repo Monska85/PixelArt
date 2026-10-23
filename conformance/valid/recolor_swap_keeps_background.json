@@ -1,0 +1,48 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "background": "#000033",
+  "palette": {
+    "lb": "#8cefff",
+    "w": "#ffffff"
+  },
+  "sprites": {
+    "flake": {
+      "points": {
+        "lb": [
+          [
+            0,
+            0
+          ]
+        ],
+        "w": [
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        "flake"
+      ]
+    },
+    {
+      "show": [
+        "flake"
+      ],
+      "recolor": {
+        "lb": "w",
+        "w": "lb",
+        "#000033": "#ff0000"
+      }
+    }
+  ]
+}

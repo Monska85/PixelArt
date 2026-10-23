@@ -1,0 +1,103 @@
+{
+  "description": "get at the start, in the middle, at the end and past the end",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR ee5204c3 {\"seq\":1,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":0,\"length\":10}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "size": 147,
+        "offset": 0,
+        "data": "eyJmb3JtYXQiOg=="
+      }
+    },
+    {
+      "send": "@PR b7c46554 {\"seq\":2,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":70,\"length\":20}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "size": 147,
+        "offset": 70,
+        "data": "InNwcml0ZXMiOnsiZG90Ijp7InA="
+      }
+    },
+    {
+      "send": "@PR cd0fbdec {\"seq\":3,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":0,\"length\":512}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "size": 147,
+        "offset": 0,
+        "data": "eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IkRvdCIsImNhbnZhcyI6eyJ3aWR0aCI6MTYsImhlaWdodCI6MTZ9LCJzcHJpdGVzIjp7ImRvdCI6eyJwb2ludHMiOltbNyw3LCIjZmYwMDAwIl1dfX0sInRpbWVsaW5lIjpbeyJzaG93IjpbImRvdCJdfV19"
+      }
+    },
+    {
+      "send": "@PR a2d75573 {\"seq\":4,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":140,\"length\":100}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "size": 147,
+        "offset": 140,
+        "data": "b3QiXX1dfQ=="
+      }
+    },
+    {
+      "send": "@PR 07eb9ae9 {\"seq\":5,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":147,\"length\":10}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "size": 147,
+        "offset": 147,
+        "data": ""
+      }
+    },
+    {
+      "send": "@PR f501acda {\"seq\":6,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":148,\"length\":10}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 34664a77 {\"seq\":7,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "size": 147,
+        "offset": 0,
+        "data": "ew=="
+      }
+    },
+    {
+      "send": "@PR e97b578e {\"seq\":8,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\",\"offset\":146,\"length\":1}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": true,
+        "size": 147,
+        "offset": 146,
+        "data": "fQ=="
+      }
+    }
+  ]
+}

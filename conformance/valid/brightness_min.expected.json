@@ -1,0 +1,17 @@
+{
+  "warnings": [],
+  "brightness": 1,
+  "frames": [
+    {
+      "ms": 100,
+      "pixels": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  ]
+}

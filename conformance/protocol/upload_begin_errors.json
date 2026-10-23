@@ -1,0 +1,224 @@
+{
+  "description": "put_begin checks kind, id, size and sha256",
+  "steps": [
+    {
+      "send": "@PR af76025b {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"song\",\"id\":\"x\",\"size\":1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "invalid_kind",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR f206c63f {\"seq\":2,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"X\",\"size\":1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 46bfce78 {\"seq\":3,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"../x\",\"size\":1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 5941e17d {\"seq\":4,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"size\":1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 497ba802 {\"seq\":5,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"size\":1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 808b20cc {\"seq\":6,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":0,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 5774f2e7 {\"seq\":7,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":-1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 37f4459b {\"seq\":8,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":\"1\",\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 5760a851 {\"seq\":9,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":1,\"sha256\":\"000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 6acc09fc {\"seq\":10,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":1,\"sha256\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR e70eca26 {\"seq\":11,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":1,\"sha256\":\"gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg\"}"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 135daaca {\"seq\":12,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":1}"
+    },
+    {
+      "expect": {
+        "seq": 12,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 81f9b966 {\"seq\":13,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"size\":1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 13,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR b185ccb5 {\"seq\":14,\"cmd\":\"put_begin\",\"id\":\"x\",\"size\":1,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 14,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 72d13bb6 {\"seq\":15,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":1,\"sha256\":5}"
+    },
+    {
+      "expect": {
+        "seq": 15,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR bef78c05 {\"seq\":16,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":65536,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 16,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR f3bb432a {\"seq\":17,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":65537,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 17,
+        "ok": false,
+        "error": "too_large",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 3eab9711 {\"seq\":18,\"cmd\":\"put_begin\",\"kind\":\"playlist\",\"id\":\"x\",\"size\":16384,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 18,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR fc49a94e {\"seq\":19,\"cmd\":\"put_begin\",\"kind\":\"playlist\",\"id\":\"x\",\"size\":16385,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 19,
+        "ok": false,
+        "error": "too_large",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR eaf27778 {\"seq\":20,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":4294967296,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 20,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_files": {
+        "upload.tmp": null
+      }
+    }
+  ]
+}

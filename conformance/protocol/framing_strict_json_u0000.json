@@ -1,0 +1,25 @@
+{
+  "description": "a request with U+0000 in a string, written as \\u0000, gets bad_frame",
+  "steps": [
+    {
+      "send": "@PR e848121e {\"seq\":1,\"cmd\":\"info\\u0000\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 97038fff {\"seq\":2,\"cmd\":\"get\",\"kind\":\"animation\",\"id\":\"dot\\u0000x\",\"offset\":0,\"length\":1}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    }
+  ]
+}

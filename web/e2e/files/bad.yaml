@@ -1,0 +1,8 @@
+format: pixelart/1
+name: Dot
+canvas: { width: 16, height: 16 }
+sprites:
+  dot:
+    points: [[7, 7, "#gren"]]
+timeline:
+  - show: [dot]

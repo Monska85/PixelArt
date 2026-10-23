@@ -1,0 +1,11 @@
+{
+  "name": "PixelEngine",
+  "version": "0.1.0",
+  "description": "Parses, validates and plays pixelart/1 animation files (docs/format/pixelart-v1.md). Plain C++17, no Arduino dependency.",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": {
+    "bblanchon/ArduinoJson": "7.4.3",
+    "PixelCodec": "*"
+  }
+}

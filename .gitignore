@@ -1,0 +1,40 @@
+# PlatformIO build output, downloaded libraries and toolchains
+.pio/
+
+# Editor and IDE files (PlatformIO IDE regenerates .vscode, except the extension list)
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+
+# clangd: compile database from `pio run -t compiledb` and its index cache
+compile_commands.json
+.cache/
+
+# Python bytecode from the monitor filter and build scripts
+__pycache__/
+*.pyc
+
+# Board files generated from animations/ and playlists/ (make data)
+data/
+
+# Simulator output (make sim)
+sim-out/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Release site built by `make release-site`
+/site/
+
+# Web app: dependencies, build output and Playwright output
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+web/test-results-screenshots/
+web/test-results-layout/
+web/playwright-report-layout/
+web/playwright-report-screenshots/

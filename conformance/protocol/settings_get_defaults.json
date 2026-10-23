@@ -1,0 +1,18 @@
+{
+  "description": "settings_get reports the defaults",
+  "steps": [
+    {
+      "send": "@PR 2153638d {\"seq\":1,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default"
+        }
+      }
+    }
+  ]
+}

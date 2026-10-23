@@ -1,0 +1,85 @@
+{
+  "description": "10 seconds without a chunk cancel the upload and remove the temporary file",
+  "steps": [
+    {
+      "send": "@PR 41df5761 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"dot\",\"size\":147,\"sha256\":\"3c878c7d9776ae2066e60d164ef9d7f3d245fd1a844ba99d76ce31162d8fb225\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 551c5207 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IkRvdCIsImNhbnZhcyI6eyJ3aWQ=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 50
+      }
+    },
+    {
+      "advance_ms": 9000
+    },
+    {
+      "send": "@PR 8e83591d {\"seq\":3,\"cmd\":\"put_chunk\",\"offset\":50,\"data\":\"dGgiOjE2LCJoZWlnaHQiOjE2fSwic3ByaXRlcyI6eyJkb3QiOnsicG9pbnRzIjpbWzc=\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "received": 100
+      }
+    },
+    {
+      "advance_ms": 9000
+    },
+    {
+      "send": "@PR 70eb7dc0 {\"seq\":4,\"cmd\":\"put_chunk\",\"offset\":100,\"data\":\"LDcsIiNmZjAwMDAiXV19fSwidGltZWxpbmUiOlt7InNob3ciOlsiZG90Il19XX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "received": 147
+      }
+    },
+    {
+      "advance_ms": 10001
+    },
+    {
+      "expect_files": {
+        "upload.tmp": null
+      }
+    },
+    {
+      "send": "@PR 00aba8dd {\"seq\":5,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ab84402d {\"seq\":6,\"cmd\":\"put_chunk\",\"offset\":147,\"data\":\"eA==\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": null
+      }
+    }
+  ]
+}

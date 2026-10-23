@@ -1,0 +1,15 @@
+{
+  "description": "a request with an unquoted key gets bad_frame",
+  "steps": [
+    {
+      "send": "@PR ac0bb65d {seq:1,\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    }
+  ]
+}

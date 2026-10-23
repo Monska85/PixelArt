@@ -1,0 +1,117 @@
+{
+  "description": "values out of range or of the wrong type are bad_request and change nothing",
+  "steps": [
+    {
+      "send": "@PR b3a12151 {\"seq\":1,\"cmd\":\"settings_set\",\"brightness\":256}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 89b2aa09 {\"seq\":2,\"cmd\":\"settings_set\",\"brightness\":-1}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 1bd570e0 {\"seq\":3,\"cmd\":\"settings_set\",\"brightness\":12.5}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ff303126 {\"seq\":4,\"cmd\":\"settings_set\",\"brightness\":\"40\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR d7620ae4 {\"seq\":5,\"cmd\":\"settings_set\",\"brightness\":true}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 4dcdc057 {\"seq\":6,\"cmd\":\"settings_set\",\"playlist\":5}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 59f920b5 {\"seq\":7,\"cmd\":\"settings_set\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 7103dc63 {\"seq\":8,\"cmd\":\"settings_set\",\"brightness\":null}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR a27f3e5d {\"seq\":9,\"cmd\":\"settings_set\",\"brightness\":4294967296}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ed937fc2 {\"seq\":10,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default"
+        }
+      }
+    }
+  ]
+}

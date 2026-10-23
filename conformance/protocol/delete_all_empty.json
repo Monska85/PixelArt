@@ -1,0 +1,40 @@
+{
+  "description": "delete_all on an empty board succeeds with zero counts",
+  "steps": [
+    {
+      "send": "@PR 822b57f4 {\"seq\":1,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 0,
+        "animations": 0
+      }
+    },
+    {
+      "send": "@PR 77763af2 {\"seq\":2,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "kind": "animation",
+        "entries": [],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR 425d127a {\"seq\":3,\"cmd\":\"list\",\"kind\":\"playlist\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "kind": "playlist",
+        "entries": [],
+        "more": false
+      }
+    }
+  ]
+}

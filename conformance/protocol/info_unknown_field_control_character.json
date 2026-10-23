@@ -1,0 +1,16 @@
+{
+  "description": "an unknown request field whose name holds U+0001 is bad_request, and the reply is strict JSON",
+  "steps": [
+    {
+      "send": "@PR d3463fb3 {\"seq\":1,\"cmd\":\"info\",\"a\\u0001b\":1}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    }
+  ]
+}

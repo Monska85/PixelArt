@@ -1,0 +1,45 @@
+{
+  "description": "list of playlists has name and no version",
+  "files": {
+    "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"name\":\"First\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"a\"},{\"animation\":\"b\"}]}",
+    "playlists/two.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"a\"}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 2fb8339c {\"seq\":1,\"cmd\":\"list\",\"kind\":\"playlist\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "playlist",
+        "entries": [
+          {
+            "id": "default",
+            "size": 127,
+            "sha256": "21a2bc643b0860e87512de461d22c79b9ab93f220e25d7fd3771d10f4eb94870",
+            "name": "First"
+          },
+          {
+            "id": "two",
+            "size": 94,
+            "sha256": "1995c1c37a395e2d533956c1d8421e9094f46ed846250ab0fb482db6e372b0c8"
+          }
+        ],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR 77763af2 {\"seq\":2,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "kind": "animation",
+        "entries": [],
+        "more": false
+      }
+    }
+  ]
+}

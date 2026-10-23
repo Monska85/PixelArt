@@ -1,0 +1,57 @@
+{
+  "description": "settings_set changes brightness and replies with every setting",
+  "steps": [
+    {
+      "send": "@PR 50c51f4c {\"seq\":1,\"cmd\":\"settings_set\",\"brightness\":40}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 40,
+          "playlist": "default"
+        }
+      }
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": {
+          "brightness": 40,
+          "playlist": "default"
+        }
+      }
+    },
+    {
+      "send": "@PR 63650587 {\"seq\":3,\"cmd\":\"settings_set\",\"brightness\":0}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "settings": {
+          "brightness": 0,
+          "playlist": "default"
+        }
+      }
+    },
+    {
+      "send": "@PR e749a30a {\"seq\":4,\"cmd\":\"settings_set\",\"brightness\":255}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "settings": {
+          "brightness": 255,
+          "playlist": "default"
+        }
+      }
+    }
+  ]
+}
