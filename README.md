@@ -451,7 +451,7 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 | `tools/ws_bridge.py`           | Serves the simulator's command protocol on a WebSocket, started by the simulator's `--ws`                                                                                       |
 | `tools/test_*.py`              | Unit tests of the tools, run by `make check`                                                                                                                                    |
 | `tools/fw_version.py`          | The firmware version rules, shared by `tools/release.py` and the PlatformIO version script                                                                                      |
-| `tools/crt_bundle.py`          | Makes the firmware's certificate bundle again from esp-idf at a pinned tag (`certs/README.md`)                                                                                  |
+| `tools/crt_bundle.py`          | Makes the firmware's certificate bundle again from ESP-IDF at a pinned tag (`certs/README.md`)                                                                                  |
 | `tools/release.py`             | Builds the firmware release site (parts, ESP Web Tools manifests, animations, playlists, `manifest.json`) and merges it with the web app                                        |
 | `tools/check_pr_title.py`      | Checks that a pull request title is a conventional commit release-please accepts, for the `pr-title` check                                                                      |
 | `web/`                         | The web app: React and TypeScript, its own `package.json`, tests and changelog, see [`web/README.md`](web/README.md)                                                            |
@@ -472,7 +472,7 @@ The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull req
 - **`check`:** Checks C++ formatting, converts animations, checks them against the JSON Schemas and validates them with the engine. It runs the tests, including the GitHub Pages certificate chain check. It drives the simulator's WebSocket with `tools/pixelart.py board` to test board information, uploads, listings, downloads, deletions and file rejection. It builds every board and the firmware release site, checks the manifest against its JSON Schema and the board limits, checks that each firmware leaves 64 KiB of its slot free, and attaches a rendered preview of every animation.
 - **`web`:** Lints and tests the web app, checks formatting and startup JavaScript size, and builds it with type checking. It runs the end-to-end and layout checks against the simulator in Chromium and compares reference images in the Playwright container.
 - **`actionlint`:** Checks the workflows with a pinned actionlint release and their `run:` blocks with shellcheck.
-- **`certificates`:** Rebuilds the firmware's certificate bundle from the pinned esp-idf files and compares it byte for byte with `certs/`.
+- **`certificates`:** Rebuilds the firmware's certificate bundle from the pinned ESP-IDF files and compares it byte for byte with `certs/`.
 
 `.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
 
