@@ -2,14 +2,9 @@
 
 // Finding frames of an animation for the preview, without playing it.
 
-import { Player, type Animation, type Frame } from "../engine";
+import { Player, type Animation, type Frame, type Item } from "../engine";
+import { frameCount, itemFrames } from "../engine/player";
 import type { Path } from "./doc";
-
-/** Frames searched at most when looking for the first frame of a timeline item. */
-const SEARCH_LIMIT = 1_000_000;
-
-const startsWith = (path: readonly number[], prefix: Path): boolean =>
-  prefix.length <= path.length && prefix.every((v, i) => path[i] === v);
 
 export interface FrameAt {
   frame: Frame;
@@ -27,7 +22,7 @@ export class FrameCursor {
   /** The number (from 1) of the frame the player is at, 0 before the first. */
   private position = 0;
 
-  constructor(animation: Animation) {
+  constructor(private readonly animation: Animation) {
     this.player = new Player(animation);
   }
 
@@ -36,18 +31,22 @@ export class FrameCursor {
     this.position = 0;
   }
 
-  /** The number (from 1) of the first frame produced by the item at `path` or, for a loop, inside it. */
+  /**
+   * The number (from 1) of the first frame produced by the item at `path` or, for a loop, inside it. It is worked
+   * out from the frame counts of what comes before the item, with every enclosing loop in its first pass.
+   */
   firstFrameOf(path: Path): number | null {
-    this.restart();
-    for (let n = 1; n <= SEARCH_LIMIT; n++) {
-      if (this.player.skip(1) === 0) {
-        this.restart();
-        return null;
-      }
-      this.position = n;
-      if (startsWith(this.player.path, path)) return n;
+    if (path.length === 0) return frameCount(this.animation.timeline) > 0 ? 1 : null;
+    let items: readonly Item[] = this.animation.timeline;
+    let before = 0;
+    for (const [depth, index] of path.entries()) {
+      const item = items[index];
+      if (!item) return null;
+      before += frameCount(items.slice(0, index));
+      if (depth === path.length - 1) return itemFrames(item) > 0 ? before + 1 : null;
+      if (item.kind !== "loop") return null;
+      items = item.children;
     }
-    this.restart();
     return null;
   }
 
@@ -55,11 +54,13 @@ export class FrameCursor {
   frameAt(n: number): FrameAt | null {
     if (n < 1) return null;
     if (n < this.position) this.restart();
-    const behind = n - this.position;
-    if (behind > 0) {
-      // The player moves to frame n - 1 here, and next() then renders frame n.
-      const skipped = this.player.skip(behind - 1);
-      const frame = skipped === behind - 1 ? this.player.next() : null;
+    if (n > this.position) {
+      // One step for the next frame; a jump moves to frame n - 1 from the frame counts, and next() renders n.
+      if (n > this.position + 1 && !this.player.seek(n - 1)) {
+        this.restart();
+        return null;
+      }
+      const frame = this.player.next();
       if (!frame) {
         this.restart();
         return null;

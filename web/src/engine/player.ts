@@ -16,6 +16,13 @@ import {
 
 const floorMod = (a: number, b: number): number => ((a % b) + b) % b;
 
+/** The number of frames the items play once through: each repetition of a frame counts, a loop counts its steps `count` times. */
+export const frameCount = (items: readonly Item[]): number => items.reduce((sum, item) => sum + itemFrames(item), 0);
+
+/** The number of frames one item plays. */
+export const itemFrames = (item: Item): number =>
+  item.kind === "loop" ? item.count * frameCount(item.children) : item.repeat;
+
 interface Level {
   items: Item[];
   pos: number;
@@ -120,6 +127,44 @@ export class Player {
     let skipped = 0;
     while (skipped < count && this.advance() !== null) skipped++;
     return skipped;
+  }
+
+  /**
+   * Moves to frame number `n` (from 1; 0 starts again) as if `n` frames had been stepped through, but from the
+   * frame counts of the timeline instead of walking every frame. Returns false, and starts again, when the
+   * animation has fewer frames.
+   */
+  seek(n: number): boolean {
+    this.restart();
+    if (n <= 0) return n === 0;
+    let rest = n - 1;
+    let items = this.animation.timeline;
+    for (;;) {
+      const level = this.stack[this.stack.length - 1] as Level;
+      let index = 0;
+      for (; index < items.length; index++) {
+        const item = items[index] as Item;
+        const size = itemFrames(item);
+        if (rest < size) break;
+        rest -= size;
+      }
+      const item = items[index];
+      if (!item) {
+        this.restart();
+        return false;
+      }
+      level.pos = index + 1;
+      if (item.kind === "frame") {
+        this.frame = item;
+        this.repetition = rest + 1;
+        this.framePath = this.stack.map((l) => l.pos - 1);
+        return true;
+      }
+      const once = frameCount(item.children);
+      this.stack.push({ items: item.children, pos: 0, done: Math.floor(rest / once), total: item.count });
+      rest %= once;
+      items = item.children;
+    }
   }
 
   // Moves to the next repetition of the next frame and returns its number k, or null at the end.

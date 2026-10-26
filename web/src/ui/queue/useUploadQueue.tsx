@@ -54,6 +54,11 @@ export interface UploadQueue {
   ) => Promise<QueueOutcome | null>;
   /** Files the caller already checked. */
   uploadPrepared: (files: QueueFile[], options?: QueueOptions) => Promise<QueueOutcome>;
+  /**
+   * Like `uploadPrepared`, but holds the queue while `prepare` runs, so a question it asks (an ID) is covered by
+   * the same reservation. `prepare` returns the files, or null to stop; the outcome is then null.
+   */
+  uploadAfter: (prepare: () => Promise<QueueFile[] | null>, options?: QueueOptions) => Promise<QueueOutcome | null>;
   /** Asks for an ID, through the queue's own dialogs. */
   askId: ReturnType<typeof useUploadDialogs>["askId"];
 }
@@ -160,6 +165,15 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
   const uploadPrepared = async (files: QueueFile[], options: QueueOptions = {}): Promise<QueueOutcome> =>
     exclusive(options.quiet, (client, reservation) => run(client, files, options, reservation));
 
+  const uploadAfter = async (
+    prepare: () => Promise<QueueFile[] | null>,
+    options: QueueOptions = {},
+  ): Promise<QueueOutcome | null> =>
+    exclusive(options.quiet, async (client, reservation) => {
+      const files = await prepare();
+      return files && files.length > 0 ? run(client, files, options, reservation) : null;
+    });
+
   async function uploadFiles(picked: File[]): Promise<QueueOutcome | null> {
     const list = picked.filter((file) => SUPPORTED_FILE.test(file.name));
     if (list.length === 0) return null;
@@ -236,5 +250,5 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
     });
   }
 
-  return { dialogs, busy: busy || uploading, uploadFiles, install, uploadPrepared, askId };
+  return { dialogs, busy: busy || uploading, uploadFiles, install, uploadPrepared, uploadAfter, askId };
 }

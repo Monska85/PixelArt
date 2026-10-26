@@ -487,7 +487,16 @@ A board test that runs the whole update path against a local copy of the release
 
 2. Build the firmware part of the site with a higher version, without `PLATFORMIO_BUILD_FLAGS`, so the firmware it serves is a normal release build: `PIXELART_VERSION=99.0.0 make release-firmware`. It is enough for this test and needs no web build. It goes to `site/` and holds the manifest and the firmware of every board. It rebuilds the boards, so run it after step 1. The manifest must offer a firmware newer than the one on the board, because an older or equal version is never installed over the network.
 3. Serve it from your computer with `python3 -m http.server 8000 --directory site`. The board must reach your computer on the same network.
-4. Check for updates from the Updates card of the web app, or in a terminal: `python3 tools/pixelart.py board --port /dev/ttyACM0 update check`, then `python3 tools/pixelart.py board --port /dev/ttyACM0 update install firmware`, which waits for the restart.
+4. A board in the default `automatic` update mode installs a newer firmware as soon as a check finds it, so a separate check and install need the `notify` mode. Put the board in it, check, install and put the previous mode back (`automatic` unless you changed it, see `board settings`). The install waits for the restart, so the last command runs once the board is back:
+
+   ```sh
+   python3 tools/pixelart.py board --port /dev/ttyACM0 settings update_mode=notify
+   python3 tools/pixelart.py board --port /dev/ttyACM0 update check
+   python3 tools/pixelart.py board --port /dev/ttyACM0 update install firmware
+   python3 tools/pixelart.py board --port /dev/ttyACM0 settings update_mode=automatic
+   ```
+
+   The Updates card of the web app does the same checks and installs. To test the automatic path instead, leave the mode alone, run only `update check` and wait for the board to install and restart.
 5. Go back to normal firmware: run `make upload-firmware` without `PLATFORMIO_BUILD_FLAGS` and `PIXELART_VERSION`, and `make upload` too if the animations changed. After a successful test the board runs version 99.0.0, and no real release is newer, so it would never update again. A board left on the test build also accepts firmware over plain `http://` from that address, so use a spare board or go back right after the test.
 
 ### Loop task stack

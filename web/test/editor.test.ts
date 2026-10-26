@@ -648,6 +648,70 @@ describe("FrameCursor", () => {
   });
 });
 
+describe("seeking in a long timeline", () => {
+  // 101 passes of one frame repeated 10000 times, then two more items. The first frame of the item after the
+  // loop is 101 * 10000 + 1 = 1010001, worked out by hand; the frame after it is the second item.
+  const LONG = `
+format: pixelart/1
+name: Long
+canvas: { width: 16, height: 16 }
+palette:
+  red: "#ff0000"
+sprites:
+  a:
+    points:
+      red: [[0, 0]]
+timeline:
+  - loop: 101
+    steps:
+      - show: [a]
+        repeat: 10000
+  - show: [a]
+  - show: [a]
+    repeat: 2
+`;
+
+  it("shows the first frame of an item far beyond a million frames, without stepping to it", () => {
+    const animation = load(doc(LONG)).animation;
+    if (!animation) throw new Error("invalid long sample");
+    const cursor = new FrameCursor(animation);
+    const skip = vi.spyOn(Player.prototype, "skip");
+    const next = vi.spyOn(Player.prototype, "next");
+    try {
+      expect(cursor.firstFrameOf([0])).toBe(1);
+      expect(cursor.firstFrameOf([0, 0])).toBe(1);
+      expect(cursor.firstFrameOf([1])).toBe(1_010_001);
+      expect(cursor.firstFrameOf([2])).toBe(1_010_002);
+      const at = cursor.frameAt(1_010_001);
+      expect(at?.path).toEqual([1]);
+      expect(cursor.frameAt(1_010_000)?.path).toEqual([0, 0]);
+      expect(cursor.frameAt(1_010_002)?.path).toEqual([2]);
+      expect(cursor.frameAt(1_010_003)?.path).toEqual([2]);
+      expect(cursor.frameAt(1_010_004)).toBeNull();
+      expect(skip).not.toHaveBeenCalled();
+      expect(next.mock.calls.length).toBeLessThan(10);
+    } finally {
+      skip.mockRestore();
+      next.mockRestore();
+    }
+  });
+
+  it("seeks to the same place as stepping, for every frame of the sample", () => {
+    const animation = load(doc(SAMPLE)).animation;
+    if (!animation) throw new Error("invalid sample");
+    for (let n = 0; n <= 9; n++) {
+      const stepped = new Player(animation);
+      stepped.skip(n);
+      const seeked = new Player(animation);
+      expect(seeked.seek(n)).toBe(true);
+      expect(seeked.path).toEqual(stepped.path);
+      expect(seeked.current()).toEqual(stepped.current());
+      expect(seeked.next()).toEqual(stepped.next());
+    }
+    expect(new Player(animation).seek(10)).toBe(false);
+  });
+});
+
 describe("parseDraftDocument", () => {
   it("reads a draft nested deeper than the engine accepts, and refuses what is not an object", () => {
     const deep = (levels: number): string => '{"timeline":['.repeat(levels) + "1" + "]}".repeat(levels);

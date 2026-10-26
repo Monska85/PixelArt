@@ -54,7 +54,7 @@ Files are strict JSON in valid UTF-8 and text lengths count characters, as the [
 
 ## Null cases
 
-A field that is present is checked even when its value is `null`, as the format specifications say. The `null_*` cases in `invalid/` and `playlist/invalid/` each set one optional field to `null` (top-level fields, sprite and part positions, the fields of a `show` entry, the fields of a frame, a frame inside a loop, the playlist fields) and expect `structure`. The `version_max` and `version_over_max` cases are the pair for the largest `version`, 2147483647.
+A field that is present is checked even when its value is `null`, as the format specifications say. The `null_*` cases in `invalid/` and `playlist/invalid/` each set one field that is present to `null`, optional or required (top-level fields, sprite and part positions, the fields of a `show` entry, the fields of a frame, a frame inside a loop, the playlist fields), and expect `structure`. The exception is `null_background`, which expects `unknown_color`, because the format reports a background that is not a color with that diagnostic. The `version_max` and `version_over_max` cases are the pair for the largest `version`, 2147483647.
 
 ## Brightness rows
 
