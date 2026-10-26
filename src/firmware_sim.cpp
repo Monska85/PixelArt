@@ -36,6 +36,9 @@ struct SimFlash
   bool fail_health = false;
   bool fail_marks = false;
   bool fail_loads = false;
+  int loads_left = -1; // reads of a load that still work before the rest fail; -1 for no limit
+  bool namespace_exists = false;
+  std::string boot_as; // the version the next trial boot reports, when it differs from the installed one
   bool restart_before_switch = false;
   bool restart_requested = false;
   std::function<void()> restart_hook;
@@ -60,11 +63,18 @@ unsigned failures_logged = 0;
 
 void log_failure(const char *) { ++failures_logged; }
 
+// The board reads 7 values one at a time, and the record is unreadable when any of them fails.
 bool load(Record &out)
 {
-  if (flash().fail_loads)
+  SimFlash &f = flash();
+  if (f.fail_loads || (f.loads_left >= 0 && f.loads_left < 7))
     return false;
-  out = flash().record;
+  if (!f.namespace_exists)
+  {
+    out = Record();
+    return true;
+  }
+  out = f.record;
   return true;
 }
 
@@ -86,6 +96,7 @@ bool save(const Record &in, bool)
       return false;
     if (f.saves_left > 0)
       --f.saves_left;
+    f.namespace_exists = true; // the first write makes the namespace
     apply();
     return true;
   };
@@ -136,7 +147,8 @@ BootState boot()
   if (!f.staged.empty())
   {
     f.previous = f.current;
-    f.current = f.staged;
+    f.current = f.boot_as.empty() ? f.staged : f.boot_as;
+    f.boot_as.clear();
     f.staged.clear();
     f.trial = true;
   }
@@ -261,6 +273,7 @@ void sim_reset(const std::string &version)
   confirm_unsaved = false;
   confirm_retry_us = 0;
   record_loaded = true;
+  boot_unsettled = false;
   failures_logged = 0;
 }
 
@@ -270,6 +283,7 @@ void sim_fail_next_health(bool fail) { flash().fail_health = fail; }
 void sim_set_skipped(const std::string &version)
 {
   flash().record.skip = version;
+  flash().namespace_exists = true;
   record.skip = version;
 }
 bool sim_restart_requested() { return flash().restart_requested; }
@@ -286,7 +300,14 @@ std::string sim_pending_version()
   return record.pending ? record.pending_to : "";
 }
 void sim_fail_marks(bool fail) { flash().fail_marks = fail; }
-void sim_fail_loads(bool fail) { flash().fail_loads = fail; }
+void sim_fail_loads(bool fail)
+{
+  flash().fail_loads = fail;
+  flash().loads_left = -1;
+}
+void sim_fail_loads_after(unsigned reads) { flash().loads_left = static_cast<int>(reads); }
+bool sim_namespace_exists() { return flash().namespace_exists; }
+void sim_boot_as(const std::string &version) { flash().boot_as = version; }
 void sim_restart_before_switch() { flash().restart_before_switch = true; }
 unsigned sim_failures_logged() { return failures_logged; }
 bool sim_on_trial() { return flash().trial; }

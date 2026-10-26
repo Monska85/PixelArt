@@ -128,6 +128,9 @@ public:
   virtual void clear_skipped_firmware() {}
   // Whether the running firmware is still on its trial boot. No new firmware is installed until the trial ends.
   virtual bool firmware_on_trial() { return false; }
+  // False while the stored record of the last installation is unread or the boot's rollback is not recorded:
+  // the skip list is unknown then, so a check offers no firmware.
+  virtual bool firmware_record_ready() { return true; }
   // Size of the slot a new firmware goes to, false when there is none.
   virtual bool firmware_slot_size(size_t &) { return false; }
   // Streams the image at `url` into the inactive slot, stopping as soon as the body passes

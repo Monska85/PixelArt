@@ -47,6 +47,9 @@ extern std::atomic<uint64_t> confirm_retry_us; // not before this time is anothe
 // False while the stored record could not be read: `record` is empty then and stands for nothing, so
 // nothing is stored from it and nothing is confirmed by it.
 extern std::atomic<bool> record_loaded;
+// True from a boot that is not a trial until its pending installation is reconciled with the record, which
+// needs the record to be read and the result to be stored.
+extern std::atomic<bool> boot_unsettled;
 
 bool valid_version(const std::string &version);
 
@@ -54,17 +57,16 @@ bool valid_version(const std::string &version);
 // later one always writes the newer record. `after_frame` is for the network task: it waits for a frame
 // before the write. Without it (the loop task, boot) a store that finds the store busy returns false.
 bool persist(bool after_frame);
-// Reads the stored record again when the boot could not. The caller holds `lock`. False while it cannot be
-// read; the record is then neither used nor stored.
-bool ensure_loaded();
-// Records the installation as pending and stores it. False when it was not stored; nothing is pending then.
+// Records the installation as pending and stores it. False when it was not stored, and while the record is
+// not ready (see record_ready()); nothing is pending then.
 bool store_pending(const std::string &from, const std::string &to);
 // Forgets the pending installation, in memory only.
 void drop_pending();
 
 // Each platform's slots and records.
 void log_failure(const char *what);
-// Reads the stored record. False when it cannot be read; `out` is not touched then.
+// Reads the stored record. A namespace that does not exist yet (a new board) is an empty record. False when
+// any read fails, not only the open; `out` is not touched then.
 bool load(Record &out);
 // Only persist() calls it, one call at a time. It writes the values in this order and stops at the first
 // failure: skip, result, from, to, confirmed, pending from, pending to. So the pending installation, which

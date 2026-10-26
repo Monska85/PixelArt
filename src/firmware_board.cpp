@@ -11,6 +11,7 @@
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
 #include <esp_system.h>
+#include <nvs.h>
 
 #include "firmware_detail.h"
 #include "task_sync.h"
@@ -41,12 +42,25 @@ esp_ota_handle_t handle = 0;
 bool image_open = false;
 size_t image_limit = 0;
 
-std::string read_text(Preferences &prefs, const char *key)
+// Preferences' getters hide the error of a failed read behind the default value, so the record is read with
+// NVS itself. A key that is absent is a valid empty value; any other error makes the whole record unreadable.
+bool read_text(nvs_handle_t handle, const char *key, std::string &out)
 {
-  if (!prefs.isKey(key))
-    return "";
-  std::string text = prefs.getString(key, "").c_str();
-  return text.size() <= MAX_VERSION ? text : "";
+  static char buffer[MAX_VERSION + 1]; // load() runs on the loop task only, one call at a time
+  size_t size = sizeof(buffer);
+  const esp_err_t err = nvs_get_str(handle, key, buffer, &size);
+  out.clear();
+  if (err == ESP_OK)
+    out = buffer;
+  // A value longer than any version is not one this firmware wrote: it counts as absent.
+  return err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND || err == ESP_ERR_NVS_INVALID_LENGTH;
+}
+
+bool read_byte(nvs_handle_t handle, const char *key, uint8_t &out)
+{
+  out = 0;
+  const esp_err_t err = nvs_get_u8(handle, key, &out);
+  return err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND;
 }
 
 // An empty value is stored as an absent key: putString cannot tell a write of "" from a failure.
@@ -63,21 +77,29 @@ void log_failure(const char *what) { Serial.printf("pixelart: %s\n", what); }
 
 bool load(Record &out)
 {
-  Preferences prefs;
-  if (!prefs.begin(NAMESPACE, true))
+  nvs_handle_t handle;
+  const esp_err_t opened = nvs_open(NAMESPACE, NVS_READONLY, &handle);
+  if (opened == ESP_ERR_NVS_NOT_FOUND)
+  {
+    out = Record(); // the namespace is made by the first write: a new board has nothing stored
+    return true;
+  }
+  if (opened != ESP_OK)
     return false;
-  out = Record();
-  out.skip = read_text(prefs, KEY_SKIP);
-  const uint8_t result = prefs.getUChar(KEY_RESULT, 0);
-  out.last.from = read_text(prefs, KEY_FROM);
-  out.last.to = read_text(prefs, KEY_TO);
-  out.last.present = (result == RESULT_UPDATED || result == RESULT_ROLLED_BACK) && !out.last.to.empty();
-  out.last.rolled_back = result == RESULT_ROLLED_BACK;
-  out.confirmed = prefs.getUChar(KEY_CONFIRMED, 0) == 1;
-  out.pending_from = read_text(prefs, KEY_PENDING_FROM);
-  out.pending_to = read_text(prefs, KEY_PENDING_TO);
-  out.pending = !out.pending_to.empty();
-  prefs.end();
+  Record in;
+  uint8_t result = 0, confirmed = 0;
+  const bool ok = read_text(handle, KEY_SKIP, in.skip) && read_byte(handle, KEY_RESULT, result) &&
+                  read_text(handle, KEY_FROM, in.last.from) && read_text(handle, KEY_TO, in.last.to) &&
+                  read_byte(handle, KEY_CONFIRMED, confirmed) && read_text(handle, KEY_PENDING_FROM, in.pending_from) &&
+                  read_text(handle, KEY_PENDING_TO, in.pending_to);
+  nvs_close(handle);
+  if (!ok)
+    return false;
+  in.last.present = (result == RESULT_UPDATED || result == RESULT_ROLLED_BACK) && !in.last.to.empty();
+  in.last.rolled_back = result == RESULT_ROLLED_BACK;
+  in.confirmed = confirmed == 1;
+  in.pending = !in.pending_to.empty();
+  out = in;
   return true;
 }
 

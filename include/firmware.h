@@ -47,6 +47,11 @@ LastInstall last_install();
 // No new firmware is installed meanwhile.
 bool is_on_trial();
 
+// Whether the stored record is read and the boot's rollback or confirmation is recorded in it. False after a
+// boot that could not read the record, until a later read works: the skip list is unknown meanwhile, and no
+// installation starts.
+bool record_ready();
+
 // The version on the skip list, empty when there is none. A newer release than this version ends the
 // skip. The list holds one version: the one the last rollback left.
 std::string skipped();
@@ -111,6 +116,15 @@ std::string sim_pending_version();
 void sim_fail_marks(bool fail);
 // Makes reading the stored record fail, as the board's storage can at boot.
 void sim_fail_loads(bool fail);
+// Lets `reads` of the 7 single reads of the stored record work, then fails the rest, as NVS can in the
+// middle of a read: the whole record is then unreadable. sim_fail_loads(false) ends it.
+void sim_fail_loads_after(unsigned reads);
+// Whether the namespace of the stored record exists. A new board has none until its first write; reading
+// it then gives an empty record, not an error.
+bool sim_namespace_exists();
+// Makes the next trial boot run `version` instead of the version that was installed, as an image whose version
+// differs from its manifest's would.
+void sim_boot_as(const std::string &version);
 // Makes the next activate() restart after storing its record and before the boot slot changes,
 // as a power loss there would.
 void sim_restart_before_switch();

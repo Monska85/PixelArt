@@ -2885,6 +2885,146 @@ static void test_a_record_that_cannot_be_read_keeps_the_pending_installation_for
   TEST_ASSERT_EQUAL_STRING("1.3.0", firmware::skipped().c_str());
 }
 
+static void test_a_new_board_without_a_namespace_installs_its_first_firmware()
+{
+  Board board("sim-firmware-new-board", NOTIFY);
+  board.data.write("animations/dot.json", DOT);
+  firmware::sim_set_version("1.2.0");
+  TEST_ASSERT_FALSE(firmware::sim_namespace_exists()); // nothing was ever stored: reading it is not an error
+  TEST_ASSERT_TRUE(firmware::record_ready());
+  publish_firmware();
+  check_and_install();
+  TEST_ASSERT_TRUE(firmware::sim_namespace_exists()); // the pending installation made it
+  restart_board();
+  TEST_ASSERT_TRUE(play_stored_animation("dot"));
+  TEST_ASSERT_FALSE(firmware::sim_on_trial());
+  TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
+}
+
+static void test_a_record_that_cannot_be_read_at_a_rollback_boot_is_settled_before_anything_new_is_installed()
+{
+  Board board("sim-firmware-rollback-unread", NOTIFY);
+  stage_skipped_firmware();
+  restart_board();
+  firmware::sim_fail_loads(true);
+  restart_board(); // the bootloader rolls back, and the record cannot be read
+  TEST_ASSERT_EQUAL_STRING("1.2.0", platform::firmware_version());
+  TEST_ASSERT_FALSE(firmware::record_ready());
+  // The skip list is unknown: a check offers nothing, and nothing replaces the pending installation.
+  TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_check\"").c_str());
+  drive();
+  TEST_ASSERT_TRUE(status_update()["firmware"].isNull());
+  TEST_ASSERT_TRUE(firmware::begin_image(IMAGE.size()));
+  TEST_ASSERT_TRUE(firmware::write_image(IMAGE.data(), IMAGE.size()));
+  TEST_ASSERT_TRUE(firmware::end_image());
+  TEST_ASSERT_FALSE(firmware::activate("1.2.0", "1.4.0")); // the stored pending installation is not replaced
+
+  // The record can be read at a later frame: the rollback is recorded first.
+  firmware::sim_fail_loads(false);
+  firmware::first_frame_shown(); // not before the retry time
+  TEST_ASSERT_FALSE(firmware::record_ready());
+  sim::advance_us(RETRY_US);
+  firmware::first_frame_shown();
+  TEST_ASSERT_TRUE(firmware::record_ready());
+  JsonDocument back = last_install();
+  TEST_ASSERT_EQUAL_STRING("rolled_back", back["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", back["to"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", firmware::skipped().c_str());
+  TEST_ASSERT_EQUAL_STRING("", firmware::sim_pending_version().c_str());
+  restart_board(); // stored: it stays
+  TEST_ASSERT_EQUAL_STRING("rolled_back", last_install()["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", firmware::skipped().c_str());
+}
+
+static void test_a_rollback_that_cannot_be_stored_at_boot_blocks_a_new_installation_until_it_is()
+{
+  Board board("sim-firmware-rollback-unstored", NOTIFY);
+  stage_skipped_firmware();
+  restart_board();
+  firmware::sim_fail_saves(true);
+  restart_board(); // rolled back; the record is read but the result cannot be stored
+  TEST_ASSERT_FALSE(firmware::record_ready());
+  TEST_ASSERT_TRUE(last_install().isNull());
+  TEST_ASSERT_TRUE(firmware::begin_image(IMAGE.size()));
+  TEST_ASSERT_TRUE(firmware::write_image(IMAGE.data(), IMAGE.size()));
+  TEST_ASSERT_TRUE(firmware::end_image());
+  firmware::sim_fail_saves(false);
+  TEST_ASSERT_FALSE(firmware::activate("1.2.0", "1.4.0")); // the stored rollback evidence is not replaced
+  sim::advance_us(RETRY_US);
+  firmware::first_frame_shown();
+  TEST_ASSERT_TRUE(firmware::record_ready());
+  TEST_ASSERT_EQUAL_STRING("rolled_back", last_install()["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", firmware::skipped().c_str());
+  restart_board();
+  TEST_ASSERT_EQUAL_STRING("rolled_back", last_install()["result"].as<const char *>());
+}
+
+static void test_a_failed_read_of_any_value_leaves_the_trial_unconfirmed()
+{
+  // The record is read value by value: skip, result, from, to, confirmed, pending from, pending to.
+  for (unsigned works = 0; works < 7; ++works)
+  {
+    Board board("sim-firmware-field-read", NOTIFY);
+    board.data.write("animations/dot.json", DOT);
+    stage_skipped_firmware();
+    firmware::sim_fail_loads_after(works);
+    restart_board();
+    char message[48];
+    snprintf(message, sizeof(message), "%u reads work", works);
+    TEST_ASSERT_TRUE_MESSAGE(firmware::sim_on_trial(), message);
+    TEST_ASSERT_TRUE_MESSAGE(play_stored_animation("dot"), message);
+    TEST_ASSERT_TRUE_MESSAGE(firmware::sim_on_trial(), message);
+    TEST_ASSERT_TRUE_MESSAGE(last_install().isNull(), message);
+    firmware::sim_fail_loads(false);
+    sim::advance_us(RETRY_US);
+    firmware::first_frame_shown();
+    TEST_ASSERT_FALSE_MESSAGE(firmware::sim_on_trial(), message);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("updated", last_install()["result"].as<const char *>(), message);
+  }
+}
+
+static void test_a_firmware_that_is_not_the_recorded_installation_is_rolled_back_not_reported_as_installed()
+{
+  Board board("sim-firmware-version-mismatch", NOTIFY);
+  board.data.write("animations/dot.json", DOT);
+  firmware::sim_set_version("1.2.0");
+  publish_firmware();
+  check_and_install();
+  firmware::sim_boot_as("1.4.0"); // the image reports another version than the manifest's 1.3.0
+  restart_board();
+  TEST_ASSERT_EQUAL_STRING("1.4.0", platform::firmware_version());
+  TEST_ASSERT_TRUE(firmware::sim_on_trial());
+  TEST_ASSERT_TRUE(play_stored_animation("dot")); // not marked valid: it asks for a restart
+  TEST_ASSERT_TRUE(firmware::sim_restart_requested());
+  TEST_ASSERT_TRUE(last_install().isNull());
+  restart_board();
+  TEST_ASSERT_EQUAL_STRING("1.2.0", platform::firmware_version());
+  JsonDocument back = last_install();
+  TEST_ASSERT_EQUAL_STRING("rolled_back", back["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", back["to"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", firmware::skipped().c_str());
+}
+
+static void test_a_record_that_cannot_be_read_at_boot_leaves_no_state_of_the_boot_before()
+{
+  Board board("sim-firmware-stale-memory", NOTIFY);
+  board.data.write("animations/dot.json", DOT);
+  install_skipped_firmware_and_boot_it();
+  TEST_ASSERT_TRUE(play_stored_animation("dot"));
+  firmware::sim_set_skipped("1.9.0");
+  TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
+  firmware::sim_fail_loads(true);
+  restart_board();
+  // A board that restarts has nothing in memory: no result and no skip until the record is read.
+  TEST_ASSERT_TRUE(last_install().isNull());
+  TEST_ASSERT_EQUAL_STRING("", firmware::skipped().c_str());
+  firmware::sim_fail_loads(false);
+  sim::advance_us(RETRY_US);
+  firmware::first_frame_shown();
+  TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.9.0", firmware::skipped().c_str());
+}
+
 static void test_a_restart_before_the_evidence_is_stored_rolls_the_trial_back()
 {
   Board board("sim-firmware-first-frame-busy-restart", NOTIFY);
@@ -3566,6 +3706,12 @@ int main(int, char **)
   RUN_TEST(test_a_failed_evidence_store_is_tried_again_after_a_time_not_a_number_of_frames);
   RUN_TEST(test_a_record_that_cannot_be_read_at_a_trial_boot_is_not_confirmed_from_nothing);
   RUN_TEST(test_a_record_that_cannot_be_read_keeps_the_pending_installation_for_the_next_boot);
+  RUN_TEST(test_a_new_board_without_a_namespace_installs_its_first_firmware);
+  RUN_TEST(test_a_record_that_cannot_be_read_at_a_rollback_boot_is_settled_before_anything_new_is_installed);
+  RUN_TEST(test_a_rollback_that_cannot_be_stored_at_boot_blocks_a_new_installation_until_it_is);
+  RUN_TEST(test_a_failed_read_of_any_value_leaves_the_trial_unconfirmed);
+  RUN_TEST(test_a_firmware_that_is_not_the_recorded_installation_is_rolled_back_not_reported_as_installed);
+  RUN_TEST(test_a_record_that_cannot_be_read_at_boot_leaves_no_state_of_the_boot_before);
   RUN_TEST(test_a_restart_before_the_evidence_is_stored_rolls_the_trial_back);
   RUN_TEST(test_the_store_failing_between_any_two_writes_never_loses_a_confirmed_installation);
   RUN_TEST(test_the_store_failing_between_any_two_writes_never_loses_a_rollback);

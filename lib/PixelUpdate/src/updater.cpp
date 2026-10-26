@@ -302,6 +302,11 @@ Error Updater::check_firmware(const Manifest &manifest)
     firmware_version_.clear();
     return Error::None;
   }
+  if (!host_.firmware_record_ready())
+  {
+    firmware_version_.clear();
+    return Error::None;
+  }
   std::string skipped = host_.skipped_firmware();
   // A release newer than the skipped version ends the skip.
   if (!skipped.empty() && skipped != manifest.version && is_newer_version(manifest.version, skipped))

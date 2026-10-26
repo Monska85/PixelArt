@@ -22,6 +22,7 @@ std::atomic<bool> mark_failure_logged{false};
 std::atomic<bool> confirm_unsaved{false};
 std::atomic<uint64_t> confirm_retry_us{0};
 std::atomic<bool> record_loaded{true};
+std::atomic<bool> boot_unsettled{false};
 
 bool valid_version(const std::string &version) { return !version.empty() && version.size() <= MAX_VERSION; }
 
@@ -43,6 +44,9 @@ std::mutex store_lock; // one store at a time, from the copy of the record to th
 std::atomic<bool> evidence_stored{false};
 std::atomic<bool> evidence_logged{false};
 std::atomic<uint64_t> evidence_retry_us{0}; // not before this time after a failed attempt
+BootState boot_state;                       // what the boot found, kept for the reconciliation
+std::atomic<bool> settle_logged{false};
+std::atomic<uint64_t> settle_retry_us{0};
 
 // Records the running firmware as installed. The caller holds `lock`.
 void record_confirmed(const std::string &running)
@@ -99,51 +103,6 @@ void retry_unsaved_confirmation()
     confirm_retry_us = platform::now_us() + RETRY_US;
 }
 
-// While the new firmware is still on trial, stores that it booted, before it marks itself valid. A board
-// that restarts after the mark and before the result is stored finds this and reports the installation;
-// without it, a firmware flashed over USB with the same version would be taken for the installed one.
-// False while it is not stored: the firmware then stays on trial, so a store that is busy or failing never
-// lets it mark itself valid without the evidence. A busy store is tried again at the next frame, a failed
-// one, or a record that cannot be read, after RETRY_US. If it never works the board restarts on the
-// previous firmware.
-bool store_evidence()
-{
-  if (evidence_stored)
-    return true;
-  if (platform::now_us() < evidence_retry_us)
-    return false;
-  {
-    std::lock_guard<std::mutex> guard(lock);
-    if (!ensure_loaded())
-    {
-      // An empty record does not prove that no installation is pending: nothing is confirmed from it.
-      evidence_retry_us = platform::now_us() + RETRY_US;
-      if (!evidence_logged.exchange(true))
-        log_failure("the record of the installation could not be read");
-      return false;
-    }
-    if (!record.pending || record.pending_to != running_version())
-    {
-      evidence_stored = true; // nothing was recorded for this boot
-      return true;
-    }
-    record.confirmed = true;
-  }
-  const Stored stored = try_persist(false);
-  if (stored == Stored::Done)
-  {
-    evidence_stored = true;
-    return true;
-  }
-  if (stored == Stored::Failed)
-  {
-    evidence_retry_us = platform::now_us() + RETRY_US;
-    if (!evidence_logged.exchange(true))
-      log_failure("the installation could not be recorded as booted");
-  }
-  return false;
-}
-
 enum class Boot
 {
   Nothing,
@@ -176,26 +135,115 @@ Boot reconcile(const BootState &state, const std::string &running)
   return Boot::Dropped;
 }
 
+// Reads the record when the boot could not, and reconciles the installation that was pending before this boot
+// with it, once. Only the loop task calls it. True once the record is read and the boot is recorded. A
+// reconciliation whose result cannot be stored is undone: the boot stays unsettled and is tried again, so
+// nothing new is installed over a rollback that was not recorded.
+bool settle()
+{
+  static Record before; // the loop task's stack stays small
+  Boot outcome;
+  {
+    std::lock_guard<std::mutex> guard(lock);
+    if (!record_loaded)
+    {
+      if (!load(record))
+      {
+        settle_retry_us = platform::now_us() + RETRY_US;
+        return false;
+      }
+      record_loaded = true;
+    }
+    if (!boot_unsettled)
+      return true;
+    before = record;
+    outcome = reconcile(boot_state, running_version());
+  }
+  if (outcome != Boot::Nothing && !persist(false))
+  {
+    {
+      std::lock_guard<std::mutex> guard(lock);
+      record = before;
+    }
+    settle_retry_us = platform::now_us() + RETRY_US;
+    if (!settle_logged.exchange(true))
+      log_failure("the installation result could not be stored");
+    return false;
+  }
+  boot_unsettled = false;
+  // The invalid state of a slot lasts until a new firmware is switched to. Once recorded it is
+  // forgotten, so a restart between the next installation's record and its switch is not taken
+  // for a rollback of the new version.
+  if (boot_state.invalid && !clear_invalid())
+    log_failure("the rolled back slot could not be cleared");
+  return true;
+}
+
+enum class Evidence
+{
+  Wait,
+  Ready,   // stored, or nothing to store: the firmware may mark itself valid
+  Mismatch // the installation recorded as pending is not the firmware that runs
+};
+
+// While the new firmware is still on trial, stores that it booted, before it marks itself valid. A board
+// that restarts after the mark and before the result is stored finds this and reports the installation;
+// without it, a firmware flashed over USB with the same version would be taken for the installed one.
+// Wait while it is not stored: the firmware then stays on trial, so a store that is busy or failing never
+// lets it mark itself valid without the evidence. A busy store is tried again at the next frame, a failed
+// one, or a record that cannot be read, after RETRY_US. If it never works the board restarts on the
+// previous firmware.
+Evidence store_evidence()
+{
+  if (evidence_stored)
+    return Evidence::Ready;
+  if (platform::now_us() < evidence_retry_us)
+    return Evidence::Wait;
+  if (!settle())
+  {
+    // An empty record does not prove that no installation is pending: nothing is confirmed from it.
+    evidence_retry_us = platform::now_us() + RETRY_US;
+    if (!evidence_logged.exchange(true))
+      log_failure("the record of the installation could not be read");
+    return Evidence::Wait;
+  }
+  {
+    std::lock_guard<std::mutex> guard(lock);
+    if (!record.pending)
+    {
+      evidence_stored = true; // no installation over the network: this trial is not one
+      return Evidence::Ready;
+    }
+    if (record.pending_to != running_version())
+      return Evidence::Mismatch;
+    record.confirmed = true;
+  }
+  const Stored stored = try_persist(false);
+  if (stored == Stored::Done)
+  {
+    evidence_stored = true;
+    return Evidence::Ready;
+  }
+  if (stored == Stored::Failed)
+  {
+    evidence_retry_us = platform::now_us() + RETRY_US;
+    if (!evidence_logged.exchange(true))
+      log_failure("the installation could not be recorded as booted");
+  }
+  return Evidence::Wait;
+}
+
 } // namespace
 
 bool persist(bool after_frame) { return try_persist(after_frame) == Stored::Done; }
-
-bool ensure_loaded()
-{
-  if (record_loaded)
-    return true;
-  if (!load(record))
-    return false;
-  record_loaded = true;
-  return true;
-}
 
 bool store_pending(const std::string &from, const std::string &to)
 {
   {
     std::lock_guard<std::mutex> guard(lock);
-    // The record of a trial that is not confirmed yet is not touched: its confirmation reads it.
-    if (on_trial || !ensure_loaded())
+    // The record of a trial that is not confirmed yet is not touched: its confirmation reads it. Nor is a
+    // record that is unread or whose boot is not recorded: the pending installation would replace its evidence.
+    if (on_trial || !record_loaded || boot_unsettled)
       return false;
     record.pending = true;
     record.confirmed = false;
@@ -220,41 +268,28 @@ using namespace detail;
 
 void begin()
 {
-  BootState state;
-  Boot outcome = Boot::Nothing;
   {
     std::lock_guard<std::mutex> guard(lock);
+    record = Record(); // a restarted board starts with nothing in memory
     record_loaded = load(record);
     if (!record_loaded)
       log_failure("the record of the installation could not be read");
-    state = boot();
-    on_trial = state.trial;
+    boot_state = boot();
+    on_trial = boot_state.trial;
+    // A trial is reconciled by its own confirmation. Any other boot with a pending installation is reconciled
+    // as soon as the record is read: until then no installation starts and the skip list is unknown.
+    boot_unsettled = !boot_state.trial;
     mark_failure_logged = false;
     evidence_stored = false;
     evidence_logged = false;
     evidence_retry_us = 0;
+    settle_logged = false;
+    settle_retry_us = record_loaded ? 0 : platform::now_us() + RETRY_US;
     confirm_unsaved = false;
     confirm_retry_us = 0;
-    // A record that could not be read says nothing about a pending installation: it is not reconciled, and
-    // an invalid slot stays, so the next boot reports the rollback.
-    if (state.trial || !record_loaded)
-      return;
-    outcome = reconcile(state, running_version());
   }
-  if (outcome != Boot::Nothing && !persist(false))
-  {
-    if (outcome == Boot::Confirmed)
-    {
-      confirm_unsaved = true;
-      log_failure("the installation result could not be stored");
-    }
-    return; // an invalid slot stays, so the next boot records the rollback again
-  }
-  // The invalid state of a slot lasts until a new firmware is switched to. Once recorded it is
-  // forgotten, so a restart between the next installation's record and its switch is not taken
-  // for a rollback of the new version.
-  if (state.invalid && !clear_invalid())
-    log_failure("the rolled back slot could not be cleared");
+  if (!on_trial)
+    settle();
 }
 
 void health(bool ok)
@@ -274,12 +309,25 @@ void first_frame_shown()
 {
   if (!on_trial)
   {
-    retry_unsaved_confirmation();
+    if (record_ready())
+      retry_unsaved_confirmation();
+    else if (platform::now_us() >= settle_retry_us)
+      settle();
     return;
   }
   // Only the loop task gets here. The firmware stays on trial, which keeps a second installation from
   // changing the record, until the evidence is stored, the mark worked and the result is in the record.
-  if (!store_evidence())
+  const Evidence evidence = store_evidence();
+  if (evidence == Evidence::Mismatch)
+  {
+    // The installation was recorded for another version: this firmware is not what the manifest promised, and
+    // is not reported as installed. It is rolled back like a failed health check.
+    log_failure("the running firmware is not the installation that was recorded, restarting");
+    if (!mark_invalid_and_restart())
+      restart();
+    return;
+  }
+  if (evidence == Evidence::Wait)
     return;
   if (!mark_valid())
   {
@@ -287,12 +335,15 @@ void first_frame_shown()
       log_failure("the new firmware could not be marked valid");
     return;
   }
+  bool recorded;
   {
     std::lock_guard<std::mutex> guard(lock);
-    record_confirmed(running_version());
+    recorded = record.pending && record.confirmed && record.pending_to == running_version();
+    if (recorded)
+      record_confirmed(running_version());
     on_trial = false;
   }
-  if (!persist(false))
+  if (recorded && !persist(false))
   {
     confirm_retry_us = platform::now_us() + RETRY_US;
     confirm_unsaved = true;
@@ -301,6 +352,8 @@ void first_frame_shown()
 }
 
 bool is_on_trial() { return on_trial; }
+
+bool record_ready() { return record_loaded && !boot_unsettled; }
 
 LastInstall last_install()
 {
@@ -318,7 +371,7 @@ void clear_skipped()
 {
   {
     std::lock_guard<std::mutex> guard(lock);
-    if (!ensure_loaded() || record.skip.empty())
+    if (!record_ready() || record.skip.empty())
       return;
     record.skip.clear();
   }
