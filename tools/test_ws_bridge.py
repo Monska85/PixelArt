@@ -491,8 +491,8 @@ class PipeTest(unittest.TestCase):
 
 @unittest.skipIf(connect is None, "needs the websockets package")
 @unittest.skipUnless(SIMULATOR.is_file() and (ROOT / "data").is_dir(), "needs the simulator and data/ (make sim-build data)")
-class SimulatorTest(unittest.TestCase):
-    """The simulator's --ws, which starts the bridge."""
+class SimulatorHarness(unittest.TestCase):
+    """A copy of data/ for a simulator with --ws. One simulator per folder: a second one deletes the first one's upload.tmp as it starts."""
 
     def setUp(self):
         self.folder = Path(tempfile.mkdtemp())
@@ -528,6 +528,21 @@ class SimulatorTest(unittest.TestCase):
                 time.sleep(0.05)
         self.fail("the simulator's WebSocket did not open")
 
+    @staticmethod
+    def line(seq, **fields):
+        body = json.dumps({"seq": seq, **fields}, separators=(",", ":"))
+        return f"@PR {zlib.crc32(body.encode()):08x} {body}"
+
+    def ask(self, ws, seq, **fields):
+        ws.send(self.line(seq, **fields))
+        reply = json.loads(ws.recv(timeout=5)[13:])
+        self.assertEqual(reply["seq"], seq)
+        return reply
+
+
+class SimulatorTest(SimulatorHarness):
+    """The simulator's --ws, which starts the bridge."""
+
     def test_info_over_the_websocket(self):
         port = self.free_port()
         self.start(port)
@@ -540,17 +555,6 @@ class SimulatorTest(unittest.TestCase):
         self.assertEqual(crc, f"{zlib.crc32(json.encode()):08x}")
         self.assertIn('"seq":7,"ok":true', json)
         self.assertIn('"board":"simulator"', json)
-
-    @staticmethod
-    def line(seq, **fields):
-        body = json.dumps({"seq": seq, **fields}, separators=(",", ":"))
-        return f"@PR {zlib.crc32(body.encode()):08x} {body}"
-
-    def ask(self, ws, seq, **fields):
-        ws.send(self.line(seq, **fields))
-        reply = json.loads(ws.recv(timeout=5)[13:])
-        self.assertEqual(reply["seq"], seq)
-        return reply
 
     def test_an_upload_continues_over_a_new_connection_and_writes_the_data_folder(self):
         port = self.free_port()
@@ -644,7 +648,7 @@ class SimulatorValidateTest(unittest.TestCase):
         self.assertEqual(len(warnings), 32)
 
 
-class SimulatorWifiTest(SimulatorTest):
+class SimulatorWifiTest(SimulatorHarness):
     """The simulator's --ws-transport wifi: the WebSocket is the board's WiFi transport."""
 
     TOKEN = "k3j9x0q7w2m5z8a1"
@@ -658,6 +662,20 @@ class SimulatorWifiTest(SimulatorTest):
         nonce = self.ask(ws, seq, cmd="auth_challenge")["nonce"]
         answer = hmac.new((token or self.TOKEN).encode(), nonce.encode(), hashlib.sha256).hexdigest()
         return self.ask(ws, seq + 1, cmd="auth", hmac=answer)
+
+    def test_an_upload_continues_over_a_new_wifi_connection_and_writes_the_data_folder(self):
+        content = DOT
+        ws = self.open(self.port)
+        self.assertTrue(self.ask(ws, 1, cmd="put_begin", kind="animation", id="dot", size=len(content),
+                                 sha256=hashlib.sha256(content).hexdigest())["ok"])
+        self.assertEqual(self.ask(ws, 2, cmd="put_chunk", offset=0,
+                                  data=base64.b64encode(content[:100]).decode())["received"], 100)
+        ws.close()
+        ws = self.open(self.port)  # a dropped connection does not end the upload
+        self.assertEqual(self.ask(ws, 3, cmd="put_chunk", offset=100,
+                                  data=base64.b64encode(content[100:]).decode())["received"], len(content))
+        self.assertTrue(self.ask(ws, 4, cmd="put_end")["ok"])
+        self.assertEqual((self.data / "animations" / "dot.json").read_bytes(), content)
 
     def test_the_replies_are_those_of_the_wifi_transport(self):
         ws = self.open(self.port)

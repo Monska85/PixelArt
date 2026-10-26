@@ -14,7 +14,6 @@ namespace pixelart_net
 {
 
 constexpr size_t NONCE_BYTES = 16;
-constexpr size_t NONCE_DIGITS = NONCE_BYTES * 2;
 constexpr size_t HMAC_DIGITS = 64;
 constexpr int MAX_AUTH_FAILURES = 3;
 

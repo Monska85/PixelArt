@@ -19,6 +19,5 @@ namespace site
 
 // Ends with a slash.
 constexpr const char *URL = PIXELART_SITE_URL;
-constexpr const char *MANIFEST_URL = PIXELART_SITE_MANIFEST_URL;
 
 } // namespace site

@@ -34,23 +34,28 @@ async function stubSerial(page: Page): Promise<void> {
   page.on("dialog", (dialog) => void dialog.dismiss());
 }
 
-test("compares the version of the board with the latest release and shows the install buttons", async ({
-  page,
-  simulator,
-}) => {
-  await connectSimulator(page, simulator);
-  await page.getByRole("link", { name: "Firmware" }).click();
-  await expect(page.getByTestId("firmware-latest")).toHaveText("0.1.0");
-  const check = page.getByTestId("firmware-check");
-  await expect(check).toContainText(/^This board runs 0\.0\.0-dev\..* The latest release is 0\.1\.0\./);
-  await expect(check).toContainText("Update available");
-  await expect(check).toContainText("Development build");
-  await expect(page.getByRole("button", { name: "Update firmware" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Install from scratch" })).toBeVisible();
-  await expect(page.getByTestId("erase-warning")).toContainText("deletes the settings and every stored file");
-  await expect(page.locator("esp-web-install-button")).toHaveCount(2);
-  await expect(page.locator('esp-web-install-button[manifest="./firmware/update.json"]')).toHaveCount(1);
-  await expect(page.locator('esp-web-install-button[manifest="./firmware/install.json"]')).toHaveCount(1);
+test.describe("a development build older than the latest release", () => {
+  // Pinned, so the test does not depend on the release tags of the clone: the build takes its version from git.
+  test.use({ simulatorArgs: ["--firmware-version", "0.0.0-dev.3+gabc1234"] });
+
+  test("compares the version of the board with the latest release and shows the install buttons", async ({
+    page,
+    simulator,
+  }) => {
+    await connectSimulator(page, simulator);
+    await page.getByRole("link", { name: "Firmware" }).click();
+    await expect(page.getByTestId("firmware-latest")).toHaveText("0.1.0");
+    const check = page.getByTestId("firmware-check");
+    await expect(check).toContainText(/^This board runs 0\.0\.0-dev\..* The latest release is 0\.1\.0\./);
+    await expect(check).toContainText("Update available");
+    await expect(check).toContainText("Development build");
+    await expect(page.getByRole("button", { name: "Update firmware" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Install from scratch" })).toBeVisible();
+    await expect(page.getByTestId("erase-warning")).toContainText("deletes the settings and every stored file");
+    await expect(page.locator("esp-web-install-button")).toHaveCount(2);
+    await expect(page.locator('esp-web-install-button[manifest="./firmware/update.json"]')).toHaveCount(1);
+    await expect(page.locator('esp-web-install-button[manifest="./firmware/install.json"]')).toHaveCount(1);
+  });
 });
 
 test("offers the install buttons without a connection, and no comparison", async ({ page }) => {
