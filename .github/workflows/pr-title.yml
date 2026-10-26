@@ -1,7 +1,17 @@
 name: PR title
 
 # The title becomes the squash commit release-please reads. Rule: README.md, Contributing.
+#
+# pull_request_target runs this workflow and tools/check_pr_title.py from the base branch, so a pull request cannot edit
+# the check that judges it. Nothing of the pull request is checked out or run: only its title is read, through the
+# environment.
 on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+  # TRANSITION, remove once this workflow is on main. GitHub takes a pull_request_target workflow from the base branch,
+  # so the pull request that adds it gets no pr-title check from it, and the main ruleset requires that check. This
+  # trigger gives that one pull request its check, from its own copy of the files. Left in place, it would let every
+  # pull request run its own version of the check.
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
@@ -9,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pr-title-${{ github.event.pull_request.number }}
+  group: pr-title-${{ github.event_name }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -19,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # No ref is given: on pull_request_target this is the base branch, never the pull request's head.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

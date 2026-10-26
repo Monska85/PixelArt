@@ -362,7 +362,7 @@ Changes reach `main` through pull requests, merged by squashing: the commit on `
 - **`!`:** marks a breaking change, for example `feat(protocol)!: ...`.
 - **Description:** does not start with a capital letter or a space, and does not end with a period.
 
-The `pr-title` check (`.github/workflows/pr-title.yml`) fails a pull request whose title breaks the rule; fix the title and it runs again. The check runs `tools/check_pr_title.py` and the workflow as they are in the pull request, so it guards against mistakes, not against a pull request that edits the check itself; the merge review is the trust point for such a change. `python3 tools/check_pr_title.py "<title>"` runs the same check locally.
+The `pr-title` check (`.github/workflows/pr-title.yml`) fails a pull request whose title breaks the rule; fix the title and it runs again. The workflow runs on `pull_request_target`, so the workflow and `tools/check_pr_title.py` come from `main`, never from the pull request: a pull request cannot change the check that judges it, and a change to the check takes effect once it is merged. The workflow checks out `main` only and reads nothing of the pull request but its title. `python3 tools/check_pr_title.py "<title>"` runs the same check locally.
 
 ## Releases
 
