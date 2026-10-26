@@ -356,6 +356,9 @@ jobs:
 
   deploy-pages:
     needs: assemble-site
+    # A release builds one package, so one build job is always skipped; without this condition the implicit success()
+    # would skip the deployment although assemble-site succeeded
+    if: ${{ !cancelled() && needs.assemble-site.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
