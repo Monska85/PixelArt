@@ -86,10 +86,11 @@ jobs:
 
   build:
     needs: release-please
-    # release-please is skipped on a dry run, which must not stop the build
+    # release-please is skipped on a dry run, which must not stop the build. A manual run that is not a dry run
+    # only redeploys Pages and builds nothing unless it released.
     if: >-
       ${{ !cancelled() && needs.release-please.result != 'failure' &&
-      (needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch') }}
+      (needs.release-please.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == true)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -148,7 +149,7 @@ jobs:
     # release-please is skipped on a dry run, which must not stop the build
     if: >-
       ${{ !cancelled() && needs.release-please.result != 'failure' &&
-      (needs.release-please.outputs.web_release_created == 'true' || github.event_name == 'workflow_dispatch') }}
+      (needs.release-please.outputs.web_release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == true)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -283,13 +284,15 @@ jobs:
 
   # A Pages deployment replaces the whole site: it always holds the latest firmware release and the latest web
   # release, whichever of the two was just published. A side that failed to build or publish blocks the deployment.
+  # A manual run on main that is not a dry run publishes nothing and deploys the site from the latest releases.
   assemble-site:
     needs:
       [release-please, build, build-web, publish-release, publish-web-release]
     if: >-
       ${{ !cancelled() &&
       !contains(needs.*.result, 'failure') &&
-      (needs.publish-release.result == 'success' || needs.publish-web-release.result == 'success') }}
+      (needs.publish-release.result == 'success' || needs.publish-web-release.result == 'success' ||
+      (github.event_name == 'workflow_dispatch' && inputs.dry_run == false && github.ref == 'refs/heads/main')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
