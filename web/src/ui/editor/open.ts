@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Ways to open an animation in the editor.
 
 import { ANIMATION_JSON_DEPTH, isObject, isValidId, parseStrictJson, type JsonValue } from "../../engine";

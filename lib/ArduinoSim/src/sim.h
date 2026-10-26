@@ -72,9 +72,39 @@ int serial_input_read();
 // `@PR` line the sketch writes to Serial goes to the client. See sim_bridge.cpp.
 bool ws_active();
 
+// The WebSocket as the board's WiFi transport (--ws-transport wifi): the serial port stays the USB
+// transport and carries none of the WebSocket's traffic. A client that connects, a message it sends
+// and a client that is gone arrive as events, in order; replies and closes go the other way.
+bool ws_wifi();
+struct WsEvent
+{
+  enum class Type
+  {
+    Open,
+    Line,
+    Close
+  };
+  Type type;
+  std::string text; // the line of a Line event, without a newline
+};
+// The oldest event not handled yet; false when there is none.
+bool ws_next_event(WsEvent &event);
+// Sends one reply line to the client.
+void ws_reply(const std::string &line);
+// Closes the client with a WebSocket status, after the replies already sent.
+void ws_close_client(unsigned code);
+
 // Clears recorded frames, serial output, queued input and the clock. Call between tests.
 void reset();
 void set_scene(const std::string &name);
+
+// Adds `name` (for example "--update-source") to the command line options. It takes a value, which
+// is passed to `handler`; `help` is one line for --help. Call it before run().
+void register_option(const std::string &name, const std::string &help, std::function<void(const char *value)> handler);
+
+// Restarts the sketch from inside it, as a board restarts: the run unwinds to its start and calls
+// setup() again. The virtual clock, the recorded frames and the serial output carry on.
+[[noreturn]] void restart();
 
 // Runs setup() then loop() (or the selected scenes) and writes the outputs.
 int run(int argc, char **argv, const SceneProvider &scenes);

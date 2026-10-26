@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useEffect, useState } from "react";
 import { getSettings, type BoardClient, type Entry, type Settings } from "../../protocol";
 import { toShownError, type ShownError } from "../errors";

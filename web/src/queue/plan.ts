@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The upload queue's decisions (docs/web/web-app-v1.md#upload-queue), with no access to the page or the board:
 // what a file needs (missing, identical, different), which animations a playlist brings, how much space a batch
 // needs, in which order files go, and what became of them. The caller reads the board and sends the files.

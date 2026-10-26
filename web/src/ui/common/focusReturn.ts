@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // A dialog opened from a menu item must give focus back to the button that opened the menu: by the time the dialog
 // mounts, the item has gone and `document.activeElement` is no use. Menus note their button here before they act.
 

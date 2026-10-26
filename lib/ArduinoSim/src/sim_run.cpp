@@ -3,8 +3,10 @@
 // Command line entry point: parses the options, runs the sketch and writes
 // the outputs.
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -35,6 +37,10 @@ Selection:
   --ws [PORT]          serve the command protocol over a WebSocket on 127.0.0.1 (default port 8765),
                        with --live or --realtime; uploads change the --data folder. Starts
                        tools/ws_bridge.py with python3 (PIXELART_PYTHON), which needs websockets
+  --ws-transport T     usb (default) or wifi: with wifi, the WebSocket stands for the board's WiFi
+                       transport: a login when `network_login` is on, no token in `settings_get`,
+                       `usb_only` for the commands reserved for USB, and none of the serial
+                       port's traffic. Needs --ws
   --ws-origin ORIGIN   also accept this Origin (repeatable). Always accepted: no Origin,
                        http://localhost and http://127.0.0.1 (any port), https://monska85.github.io
   --live               emulate the board: run forever in real time, redraw the matrix in the
@@ -58,6 +64,19 @@ Hardware:
   --layout SPEC        how the strip snakes through the panel, NeoMatrix terms
                        (default top,left,columns,zigzag)
 )";
+
+struct ExtraOption
+{
+  std::string name;
+  std::string help;
+  std::function<void(const char *)> handler;
+};
+
+std::vector<ExtraOption> &extra_options()
+{
+  static std::vector<ExtraOption> options;
+  return options;
+}
 
 // Most frames sheet.png holds; --range selects the others.
 constexpr size_t SHEET_MAX_FRAMES = 480;
@@ -114,6 +133,8 @@ bool parse_args(int argc, char **argv, RunConfig &cfg)
     if (arg == "--help" || arg == "-h")
     {
       fputs(USAGE, stdout);
+      for (const ExtraOption &option : extra_options())
+        printf("  %-20s %s\n", (option.name + " V").c_str(), option.help.c_str());
       return false;
     }
     else if (arg == "--list")
@@ -145,6 +166,13 @@ bool parse_args(int argc, char **argv, RunConfig &cfg)
           usage_error("--ws expects a port from 1 to 65535");
         opts.ws_port = (unsigned)port;
       }
+    }
+    else if (arg == "--ws-transport")
+    {
+      const std::string kind = value();
+      if (kind != "usb" && kind != "wifi")
+        usage_error("--ws-transport expects usb or wifi");
+      opts.ws_wifi = kind == "wifi";
     }
     else if (arg == "--ws-origin")
     {
@@ -200,13 +228,24 @@ bool parse_args(int argc, char **argv, RunConfig &cfg)
         usage_error("--layout expects e.g. top,left,columns,zigzag");
     }
     else
-      usage_error("unknown option '" + arg + "' (see --help)");
+    {
+      auto extra = std::find_if(extra_options().begin(), extra_options().end(),
+                                [&](const ExtraOption &option)
+                                {
+                                  return option.name == arg;
+                                });
+      if (extra == extra_options().end())
+        usage_error("unknown option '" + arg + "' (see --help)");
+      extra->handler(value());
+    }
   }
 
   if (opts.ws && !opts.realtime)
     usage_error("--ws needs a real-time run: add --live or --realtime");
   if (!opts.ws && !opts.ws_origins.empty())
     usage_error("--ws-origin needs --ws");
+  if (!opts.ws && opts.ws_wifi)
+    usage_error("--ws-transport needs --ws");
   if (opts.live)
   {
     cfg.write_files = false;
@@ -234,35 +273,43 @@ std::vector<const Scene *> resolve_scenes(const std::vector<std::string> &names,
   return plan;
 }
 
-// Runs setup() then loop() (or the selected scenes). Returns why it stopped.
+// Runs setup() then loop() (or the selected scenes). Returns why it stopped. A restart goes back
+// to setup() and the first loop, so the count of loops starts again.
 std::string play(const std::vector<const Scene *> &plan, unsigned long long loops)
 {
-  try
+  for (;;)
   {
-    set_scene("setup");
-    setup();
-    for (unsigned long long l = 0; loops == 0 || l < loops; l++)
+    try
     {
-      if (plan.empty())
+      set_scene("setup");
+      setup();
+      for (unsigned long long l = 0; loops == 0 || l < loops; l++)
       {
-        set_scene("loop");
-        loop();
-      }
-      else
-      {
-        for (const Scene *s : plan)
+        if (plan.empty())
         {
-          set_scene(s->name);
-          s->play();
+          set_scene("loop");
+          loop();
+        }
+        else
+        {
+          for (const Scene *s : plan)
+          {
+            set_scene(s->name);
+            s->play();
+          }
         }
       }
     }
+    catch (const detail::Stop &stop)
+    {
+      return stop.reason;
+    }
+    catch (const detail::Restart &)
+    {
+      continue;
+    }
+    return "finished";
   }
-  catch (const detail::Stop &stop)
-  {
-    return stop.reason;
-  }
-  return "finished";
 }
 
 void print_summary(const std::string &stop_reason)
@@ -330,6 +377,13 @@ int write_outputs(const RunConfig &cfg)
 
 } // namespace
 
+void restart() { throw detail::Restart{}; }
+
+void register_option(const std::string &name, const std::string &help, std::function<void(const char *value)> handler)
+{
+  extra_options().push_back({name, help, std::move(handler)});
+}
+
 int run(int argc, char **argv, const SceneProvider &provider)
 {
   RunConfig cfg;
@@ -351,7 +405,7 @@ int run(int argc, char **argv, const SceneProvider &provider)
   if (s.opts.ws)
   {
     std::string error;
-    if (!detail::ws_start(argv[0], s.opts.ws_port, s.opts.ws_origins, error))
+    if (!detail::ws_start(argv[0], s.opts.ws_port, s.opts.ws_origins, s.opts.ws_wifi, error))
     {
       fprintf(stderr, "sim: %s\n", error.c_str());
       return 1;

@@ -1,0 +1,62 @@
+{
+  "description": "settings_set with token is bad_request, even next to a valid setting, and changes nothing",
+  "steps": [
+    {
+      "send": "@PR a4fcc4ef {\"seq\":1,\"cmd\":\"settings_set\",\"token\":\"abcdefghijklmnop\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR aded32f2 {\"seq\":2,\"cmd\":\"settings_set\",\"brightness\":7,\"token\":\"abcdefghijklmnop\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 746341fa {\"seq\":3,\"cmd\":\"settings_set\",\"token\":null}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ba7c28ca {\"seq\":4,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    }
+  ]
+}

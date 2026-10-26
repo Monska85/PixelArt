@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it } from "vitest";
 import { detectKind, idFromFileName, inspectFile, suggestId } from "../src/ui/files";
 import { text } from "./helpers";

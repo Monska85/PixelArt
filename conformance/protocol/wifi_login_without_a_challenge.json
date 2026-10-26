@@ -1,0 +1,35 @@
+{
+  "description": "An auth without a waiting nonce is unauthorized",
+  "transport": "wifi",
+  "settings": {
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f"
+  ],
+  "steps": [
+    {
+      "send": "@PR b6c0d91c {\"seq\":1,\"cmd\":\"auth\",\"hmac\":\"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    }
+  ]
+}

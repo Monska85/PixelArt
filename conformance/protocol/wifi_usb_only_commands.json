@@ -1,0 +1,106 @@
+{
+  "description": "Over WiFi, after the login, wifi_forget, token_regenerate and delete_all with settings true are usb_only and change nothing",
+  "transport": "wifi",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "settings": {
+    "brightness": 40,
+    "wifi_power": "13",
+    "update_mode": "automatic",
+    "update_firmware": false,
+    "update_animations": false,
+    "check_hours": 12,
+    "install_start": 60,
+    "install_end": 120,
+    "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+    "animation_source": "http://localhost:8000/manifest.json",
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f"
+  ],
+  "steps": [
+    {
+      "send": "@PR 24a6cc26 {\"seq\":10,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR f1d1d205 {\"seq\":11,\"cmd\":\"auth\",\"hmac\":\"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23\"}"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 4e706339 {\"seq\":1,\"cmd\":\"wifi_forget\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "usb_only",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 72c9530a {\"seq\":2,\"cmd\":\"token_regenerate\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "usb_only",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 83cb2103 {\"seq\":3,\"cmd\":\"delete_all\",\"settings\":true}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "usb_only",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+      }
+    },
+    {
+      "send": "@PR ba7c28ca {\"seq\":4,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "settings": {
+          "brightness": 40,
+          "playlist": "default",
+          "wifi_power": "13",
+          "update_mode": "automatic",
+          "update_firmware": false,
+          "update_animations": false,
+          "check_hours": 12,
+          "install_start": 60,
+          "install_end": 120,
+          "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+          "animation_source": "http://localhost:8000/manifest.json",
+          "network_login": true
+        }
+      }
+    }
+  ]
+}

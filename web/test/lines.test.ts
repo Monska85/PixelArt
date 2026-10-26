@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it } from "vitest";
 import { LineSplitter, MAX_LINE, createLineSplitterStream } from "../src/protocol";
 import { text } from "./helpers";

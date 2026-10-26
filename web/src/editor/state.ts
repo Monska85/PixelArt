@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The state of the editor: the document with its undo history, and the text of
 // the YAML tab. A pure reducer, so it runs in the tests without a page.
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The connected board's stored files, one list per kind, read through one function. The session owns it, so the
 // Board view, the Library, the editor's save state and the leave-the-page check all see the same lists.
 

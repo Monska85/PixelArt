@@ -2,6 +2,7 @@
   "name": "pixelart-web",
   "version": "0.0.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "description": "PixelArt web app: manage a board or the simulator from the browser",
   "engines": {
@@ -54,6 +55,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.13.0",
     "prettier": "3.9.10",
+    "rollup-plugin-license": "3.7.1",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",

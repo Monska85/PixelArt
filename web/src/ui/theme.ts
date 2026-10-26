@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The theme choice: System (the default), Dark or Light. The document carries the resolved theme in `data-theme`;
 // public/theme-init.js sets it before the first paint, this module keeps it right afterwards.
 

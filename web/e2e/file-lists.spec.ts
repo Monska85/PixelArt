@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { Page } from "@playwright/test";
 import { watchBoard } from "./board";
 import { animations, animationYaml, connectSimulator, expect, pick, test, upload } from "./fixtures";

@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Tests of tools/release.py that need neither PlatformIO nor a build: python3 -m unittest discover -s tools"""
 
 import json
+import os
 import struct
 import sys
 import tempfile
@@ -23,14 +25,14 @@ class PartitionTableTest(unittest.TestCase):
         return path
 
     def test_reads_entries_and_stops_at_the_md5_entry(self):
-        path = self.table(entry("app0", 0, 0x10, 0x10000, 0x140000), entry("spiffs", 1, 0x82, 0x290000, 0x160000))
+        path = self.table(entry("app0", 0, 0x10, 0x10000, 0x180000), entry("spiffs", 1, 0x82, 0x310000, 0xF0000))
         entries = release.read_partitions(path)
-        self.assertEqual(entries[0], ("app0", 0, 0x10, 0x10000, 0x140000))
-        self.assertEqual(release.find_partition(entries, 1, 0x82, "file system")[3], 0x290000)
+        self.assertEqual(entries[0], ("app0", 0, 0x10, 0x10000, 0x180000))
+        self.assertEqual(release.find_partition(entries, 1, 0x82, "file system")[3], 0x310000)
         self.assertEqual(len(entries), 2)
 
     def test_missing_partition_is_reported(self):
-        entries = release.read_partitions(self.table(entry("app0", 0, 0x10, 0x10000, 0x140000)))
+        entries = release.read_partitions(self.table(entry("app0", 0, 0x10, 0x10000, 0x180000)))
         with self.assertRaises(release.ReleaseError):
             release.find_partition(entries, 1, 0x82, "file system")
 
@@ -43,7 +45,7 @@ class WebToolsManifestTest(unittest.TestCase):
     firmware = [
         {"board": b, "part": p, "file": f"firmware/{b}/{p}-1.0.0.bin", "offset": o}
         for b in release.BOARDS
-        for p, o in (("app", 65536), ("bootloader", 0), ("filesystem", 2686976), ("factory", 0))
+        for p, o in (("app", 65536), ("bootloader", 0), ("filesystem", 3211264), ("factory", 0))
     ]
 
     def test_update_has_no_file_system_and_paths_are_relative_to_firmware(self):
@@ -60,6 +62,37 @@ class WebToolsManifestTest(unittest.TestCase):
         parts = [p["path"] for p in manifest["builds"][1]["parts"]]
         self.assertEqual(parts[-1], "esp32/filesystem-1.0.0.bin")
         self.assertFalse(any("factory" in p for p in parts))
+
+
+class LimitsTest(unittest.TestCase):
+    @staticmethod
+    def manifest(files, name="x"):
+        entries = [{"id": f"{name}{i}", "file": f"animations/{name}{i}.json", "size": 1, "sha256": "0" * 64} for i in range(files)]
+        return {"format": release.FORMAT, "version": "1.0.0", "firmware": [], "animations": entries, "playlists": []}
+
+    def test_a_manifest_takes_at_most_200_files(self):
+        # 200 files are over the size limit, so the count passes and the size refuses them.
+        with self.assertRaisesRegex(release.ReleaseError, "bytes, more than"):
+            release.check_manifest_limits(self.manifest(200))
+        with self.assertRaisesRegex(release.ReleaseError, "lists 201 animations and playlists"):
+            release.check_manifest_limits(self.manifest(201))
+
+    def test_a_manifest_takes_at_most_20_kib(self):
+        self.assertEqual(release.MAX_MANIFEST_BYTES, 20 * 1024)
+        manifest = self.manifest(10)
+        manifest["padding"] = ""
+        manifest["padding"] = "x" * (release.MAX_MANIFEST_BYTES - len(release.json_text(manifest).encode("utf-8")))
+        self.assertEqual(len(release.json_text(manifest).encode("utf-8")), release.MAX_MANIFEST_BYTES)
+        release.check_manifest_limits(manifest)
+        manifest["padding"] += "x"
+        with self.assertRaises(release.ReleaseError):
+            release.check_manifest_limits(manifest)
+
+    def test_an_application_keeps_64_kib_free_in_its_slot(self):
+        slot = 0x180000
+        self.assertEqual(release.check_app_room("esp32c3", slot - 65536, slot), 65536)
+        with self.assertRaises(release.ReleaseError):
+            release.check_app_room("esp32c3", slot - 65535, slot)
 
 
 class SiteFolderTest(unittest.TestCase):
@@ -297,3 +330,78 @@ class VersionTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SiteAddressTest(unittest.TestCase):
+    SITE = "https://example-owner.github.io/Fork/"
+
+    def test_the_firmware_must_carry_the_manifest_address_of_the_site(self):
+        app = b"\0\1binary\0" + (self.SITE + "manifest.json").encode() + b"\0more"
+        release.check_firmware_address("esp32c3", app, self.SITE)
+        for bad in (b"no address", (release.site_url.DEFAULT_SITE_URL + "manifest.json").encode() + b"\0",
+                    (self.SITE + "manifest.json").encode()):  # not a C string
+            with self.assertRaises(release.ReleaseError, msg=bad):
+                release.check_firmware_address("esp32c3", bad, self.SITE)
+
+    def test_the_address_pages_serves_must_be_the_one_of_the_build(self):
+        env = {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "Example-Owner/Fork"}
+        with mock.patch.dict(release.os.environ, env, clear=True):
+            release.check_site(self.SITE)
+            release.check_site(self.SITE.rstrip("/"))  # a missing slash is the same address
+            for other in ("https://example-owner.github.io/", "https://art.example.org/", "http://example-owner.github.io/Fork/"):
+                with self.assertRaises(release.ReleaseError, msg=other):
+                    release.check_site(other)
+        # A custom domain is set with the variable, and then Pages must serve that address.
+        env = {"PIXELART_SITE_URL": "https://art.example.org/", "GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "a/b"}
+        with mock.patch.dict(release.os.environ, env, clear=True):
+            release.check_site("https://art.example.org/")
+            with self.assertRaises(release.ReleaseError):
+                release.check_site("https://a.github.io/b/")
+
+    def test_an_invalid_site_address_stops_the_release(self):
+        with mock.patch.dict(release.os.environ, {"PIXELART_SITE_URL": "http://art.example.org/"}, clear=True):
+            with self.assertRaises(release.ReleaseError):
+                release.site_address()
+
+
+class SourceTest(unittest.TestCase):
+    def test_the_source_is_the_tree_of_the_release_tag_in_github_actions(self):
+        env = {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "Owner/Fork", "GITHUB_SERVER_URL": "https://github.com",
+               "RELEASE_TAG": "v1.2.0"}
+        with mock.patch.dict(release.os.environ, env, clear=True):
+            self.assertEqual(release.source_url(), "https://github.com/Owner/Fork/tree/v1.2.0")
+
+    def test_an_invalid_repository_stops_the_release(self):
+        for repository in ("Owner", "a/b/c", "-bad/Fork", "Owner/..", "Owner/", "Owner/Fo rk"):
+            env = {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": repository, "RELEASE_TAG": "v1.2.0"}
+            with self.subTest(repository=repository), mock.patch.dict(release.os.environ, env, clear=True):
+                with self.assertRaises(release.ReleaseError):
+                    release.source_url()
+
+    def test_without_a_tag_the_source_is_the_tree_of_the_commit_in_the_project_repository(self):
+        done = mock.Mock(stdout="0123abcd\n")
+        with mock.patch.dict(release.os.environ, {}, clear=True), mock.patch.object(release.subprocess, "run", return_value=done):
+            self.assertEqual(release.source_url(), release.firmware_notices.REPOSITORY + "/tree/0123abcd")
+
+    def test_a_commit_that_cannot_be_read_stops_the_release(self):
+        failure = release.subprocess.CalledProcessError(128, ["git"])
+        with mock.patch.dict(release.os.environ, {}, clear=True), mock.patch.object(release.subprocess, "run", side_effect=failure):
+            with self.assertRaises(release.ReleaseError):
+                release.source_url()
+
+    def test_the_schema_takes_an_https_source_only(self):
+        try:
+            import jsonschema  # noqa: F401
+        except ImportError:
+            if os.environ.get("CI"):
+                raise
+            self.skipTest("needs the jsonschema package")
+        manifest = {"format": release.FORMAT, "version": "1.2.0", "released": "2026-11-02",
+                    "source": "https://github.com/Owner/Fork/tree/v1.2.0", "animations": [], "playlists": [],
+                    "firmware": [{"board": "esp32c3", "chip": "ESP32-C3", "part": "app", "offset": 65536,
+                                  "file": "firmware/esp32c3/app-1.2.0.bin", "size": 1, "sha256": "0" * 64}]}
+        release.validate(manifest)
+        for bad in ("http://example.org/src", "https://example.org/" + "x" * 200, 7):
+            manifest["source"] = bad
+            with self.assertRaises(release.ReleaseError, msg=bad):
+                release.validate(manifest)

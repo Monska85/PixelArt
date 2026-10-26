@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Finding frames of an animation for the preview, without playing it.
 
 import { Player, type Animation, type Frame } from "../engine";

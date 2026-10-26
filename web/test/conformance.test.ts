@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The conformance suite of conformance/README.md, with the comparison rules of
 // test/test_conformance/test_conformance.cpp.
 

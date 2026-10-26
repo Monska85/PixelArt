@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it } from "vitest";
 import { documentFromModel, modelFromBytes } from "../src/ui/board/playlistModel";
 import { jsonBytes } from "../src/yaml/writeJson";

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { createHash } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { decodeLine, encodeLine, type Body } from "../src/protocol/framing";

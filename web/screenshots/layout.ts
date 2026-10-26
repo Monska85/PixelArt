@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { expect, type Page } from "@playwright/test";
 
 /** How far, in pixels, things may be off before the layout checks fail, and the width from which a list row is one line. */

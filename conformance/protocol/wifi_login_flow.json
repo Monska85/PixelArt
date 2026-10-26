@@ -1,0 +1,139 @@
+{
+  "description": "With network login on, a WiFi client can send only info, auth_challenge and auth until it logs in; then it can send everything",
+  "transport": "wifi",
+  "settings": {
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f"
+  ],
+  "steps": [
+    {
+      "send": "@PR 3c250228 {\"seq\":1,\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "protocol": 1,
+        "firmware": "<any>",
+        "board": "simulator",
+        "boot_id": "<any>",
+        "formats": {
+          "animation": [
+            "pixelart/1"
+          ],
+          "playlist": [
+            "pixelart-playlist/1"
+          ]
+        },
+        "canvas": {
+          "width": 16,
+          "height": 16
+        },
+        "storage": {
+          "total": 983040,
+          "used": "<any>"
+        },
+        "memory": {
+          "free": "<any>",
+          "largest": "<any>"
+        },
+        "limits": {
+          "line": 1024,
+          "chunk": 512,
+          "page": 8,
+          "animation": 65536,
+          "playlist": 16384
+        }
+      }
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 53f46bc4 {\"seq\":3,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 444d25c5 {\"seq\":4,\"cmd\":\"no_such_command\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR bcfb4598 {\"seq\":5,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR 5104dfe5 {\"seq\":6,\"cmd\":\"auth\",\"hmac\":\"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR cc9911f7 {\"seq\":7,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": true
+        }
+      }
+    },
+    {
+      "send": "@PR 226e38b1 {\"seq\":8,\"cmd\":\"cert_regenerate\"}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "unknown_command",
+        "message": "<any>"
+      }
+    }
+  ]
+}

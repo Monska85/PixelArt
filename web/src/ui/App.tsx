@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { ToastProvider } from "@radix-ui/react-toast";
 import { lazy, Suspense, useEffect, useSyncExternalStore } from "react";
 import { ErrorBoundary } from "./common/ErrorBoundary";
@@ -8,6 +10,8 @@ import { boardFilesOf } from "./editor/boardFiles";
 import { session, useSession } from "./session";
 import type { BoardFileList } from "./fileLists";
 import { ConnectionAlerts } from "./shell/ConnectionAlerts";
+import { LoginDialog } from "./shell/LoginDialog";
+import { Footer } from "./shell/Footer";
 import { TopBar } from "./shell/TopBar";
 import { theme } from "./theme";
 import { VIEWS } from "./views";
@@ -75,7 +79,7 @@ export function App() {
         >
           Skip to the content
         </a>
-        <TopBar views={VIEWS} current={view.id} />
+        <TopBar views={VIEWS.filter((v) => !v.hidden)} current={view.id} />
         <main
           id="main"
           className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 focus:outline-none"
@@ -87,9 +91,11 @@ export function App() {
             {view.render()}
           </ErrorBoundary>
         </main>
+        <Footer />
         <Suspense fallback={null}>
           <OpeningDialog />
         </Suspense>
+        <LoginDialog />
         <Toaster />
       </ToastProvider>
     </TooltipProvider>

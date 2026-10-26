@@ -1,0 +1,453 @@
+{
+  "description": "status reports the fixed power of the wifi_power setting, and 19.5 for auto",
+  "steps": [
+    {
+      "send": "@PR 62396c2a {\"seq\":1,\"cmd\":\"settings_set\",\"wifi_power\":\"8.5\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "8.5",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "8.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 7460c130 {\"seq\":3,\"cmd\":\"settings_set\",\"wifi_power\":\"11\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "11",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR f7862428 {\"seq\":4,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "11",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 6a067c5b {\"seq\":5,\"cmd\":\"settings_set\",\"wifi_power\":\"13\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "13",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 23bab4ef {\"seq\":6,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "13",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 65d527ea {\"seq\":7,\"cmd\":\"settings_set\",\"wifi_power\":\"15\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "15",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 629e4c79 {\"seq\":8,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "15",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 56cb068d {\"seq\":9,\"cmd\":\"settings_set\",\"wifi_power\":\"17\"}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "17",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 0e9eacd0 {\"seq\":10,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "17",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR d75958a1 {\"seq\":11,\"cmd\":\"settings_set\",\"wifi_power\":\"18.5\"}"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "18.5",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR daa23c17 {\"seq\":12,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 12,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "18.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 641e9ce7 {\"seq\":13,\"cmd\":\"settings_set\",\"wifi_power\":\"19.5\"}"
+    },
+    {
+      "expect": {
+        "seq": 13,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "19.5",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 7d968b1f {\"seq\":14,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 14,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 791155a3 {\"seq\":15,\"cmd\":\"settings_set\",\"wifi_power\":\"auto\"}"
+    },
+    {
+      "expect": {
+        "seq": 15,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR a9aa1bd8 {\"seq\":16,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 16,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    }
+  ]
+}

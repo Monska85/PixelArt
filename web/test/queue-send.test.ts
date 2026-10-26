@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BoardClient, BoardError, deleteAll, listFiles, sha256Hex } from "../src/protocol";
 import { planAgainstBoard, type PlanEntry, type QueueFile } from "../src/queue/plan";

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Converts animation and playlist sources (YAML or JSON) to the JSON files the board reads.
 
     python3 tools/pixelart.py build [--source DIR] [--out DIR] [--schema]
-    python3 tools/pixelart.py board (--port DEVICE | --ws URL) COMMAND
+    python3 tools/pixelart.py board (--port DEVICE | --ws URL) [--token TOKEN] COMMAND
 
 Reads <source>/animations/*.yaml|*.json and <source>/playlists/*.yaml|*.json and
 writes compact JSON to <out>/animations/<id>.json and <out>/playlists/<id>.json,
@@ -11,17 +12,29 @@ the ID. With --schema, every file is also checked against the JSON Schemas in
 schema/ (needs the jsonschema package). The full validation, including
 references between sprites, runs in the engine: see `make validate`.
 
-The board command talks to a board over USB serial (--port, needs pyserial) or
-to the simulator over its WebSocket (--ws ws://127.0.0.1:8765), with the
-protocol of docs/protocol/protocol-v1.md. COMMAND is one of:
+The board command talks to a board over USB serial (--port, needs pyserial), to
+the simulator over its WebSocket (--ws ws://127.0.0.1:8765) or to a board over
+WiFi (--ws ws://pixelart-XXXX.local/ws), with the protocol of
+docs/protocol/protocol-v1.md. A board with network login on asks a WiFi client
+to log in: give the token in the environment variable PIXELART_TOKEN (or, less
+safely, as --token: other users can see a command line). The token is sent only
+as an HMAC and never printed. Commands reserved for USB (wifi, token, wipe
+--settings) are refused over WiFi. COMMAND is one of:
 
     info                           firmware, storage and limits of the board
     ls [--kind KIND]               stored animations and playlists
     put FILE [--id ID] [--kind KIND]   upload a YAML or JSON file
     get ID [--kind KIND] [-o FILE]     download a file, checked against its SHA-256
     rm ID [--kind KIND]            delete a file
-    settings [key=value ...]       show or change brightness and playlist
-    wipe [--settings] [--yes]      delete every animation and playlist, and with --settings reset the settings
+    settings [key=value ...]       show or change the settings (brightness, playlist, wifi_power, update_mode, ...)
+    status                         WiFi state, network name, address, signal, transmit power and update state
+    update check                   check for updates now and wait for the result
+    update install animations      install the animations and playlists the last check found, and wait
+    update install firmware [--force]  install the firmware the last check found, and wait for the restart;
+                                   --force also installs a version a rollback put on the skip list
+    wifi [--forget]                set up WiFi with Improv over USB (--port only), or forget the stored network
+    wipe [--settings] [--yes]      delete every animation and playlist, and with --settings reset the settings,
+                                   forget the WiFi network and make a new token
 
 The serial port can be open in one program only: close the serial monitor first.
 
@@ -30,8 +43,11 @@ Needs Python 3.9+ and PyYAML. --ws needs the websockets package, version 15 or l
 
 import argparse
 import base64
+import getpass
 import hashlib
+import hmac
 import json
+import os
 import re
 import secrets
 import sys
@@ -145,6 +161,7 @@ BAUD_RATE = 115200
 REQUEST_TIMEOUT = 2.0  # seconds to wait for a reply
 PUT_END_TIMEOUT = 10.0  # validating a large file takes longer
 TRIES = 5  # sends of one request, the first included
+CONNECT_DELAYS = (0.2, 0.4, 0.8, 1.6, 3.2)  # seconds waited after each refused WebSocket connection
 # A reply line is at most 16 KiB (protocol-v1.md, limits): a line or a fragmented message gets that plus margin.
 MAX_LINE = 64 * 1024
 DEFAULT_CHUNK = 512
@@ -254,6 +271,22 @@ class SerialTransport:
         self._serial.write(line + b"\n")
         self._serial.flush()
 
+    def send_raw(self, data):
+        """Bytes as they are, with no newline: an Improv frame."""
+        self._serial.write(data)
+        self._serial.flush()
+
+    def receive_raw(self, timeout):
+        """The bytes that arrive within `timeout` seconds, or b"". Text the line reader already held comes first."""
+        if self._buffer:
+            data, self._buffer = bytes(self._buffer), bytearray()
+            return data
+        self._serial.timeout = timeout
+        try:
+            return self._serial.read(max(1, self._serial.in_waiting))
+        finally:
+            self._serial.timeout = 0.05
+
     def receive(self, timeout):
         """The next line, or None when none arrives within `timeout` seconds."""
         deadline = time.monotonic() + timeout
@@ -274,22 +307,24 @@ class SerialTransport:
 
 
 class WebSocketTransport:
-    """The simulator's WebSocket, through the websockets package: one text message per protocol line."""
+    """A WebSocket of the simulator or of a board over WiFi, through the websockets package: one text message per protocol line."""
 
     def __init__(self, url, connect_timeout=5.0):
         parts = urllib.parse.urlsplit(url)
         if parts.scheme != "ws" or not parts.hostname:
-            raise BoardError(f"--ws expects a URL like ws://127.0.0.1:8765, got '{url}'")
+            raise BoardError(f"--ws expects a URL like ws://127.0.0.1:8765 or ws://pixelart-XXXX.local/ws, got '{url}'")
         try:
             from websockets.exceptions import InvalidStatus, WebSocketException
             from websockets.sync.client import connect
         except ImportError:
             raise BoardError("--ws needs the websockets package, version 15 or later (pip install websockets)")
         host, port = parts.hostname, parts.port or 80
-        # The simulator serves one client at a time and frees the slot a moment after a close.
-        for _ in range(TRIES):
+        # The simulator and the board serve one client at a time and free the slot a moment after a close. The board
+        # closes a holder that stays silent for 3 seconds after its ping, so the waits double until the last try
+        # comes about 6.2 seconds after the first, as in the web app.
+        for delay in (*CONNECT_DELAYS, None):
             try:
-                # No proxy, no compression and no keepalive pings: the simulator speaks plain RFC 6455.
+                # No proxy, no compression and no keepalive pings: both speak plain RFC 6455. No Origin header, as for any command line client.
                 # Entered by hand: websockets 17 deprecates a connection opened outside a with block.
                 self._ws = connect(url, open_timeout=connect_timeout, close_timeout=1.0, max_size=MAX_LINE,
                                    compression=None, ping_interval=None, proxy=None).__enter__()
@@ -298,12 +333,13 @@ class WebSocketTransport:
                 status = e.response.status_code
                 if status != 503:
                     raise BoardError(f"the server refused the WebSocket connection (HTTP {status})")
-                time.sleep(0.2)
+                if delay is not None:
+                    time.sleep(delay)
             except OSError as e:
-                raise BoardError(f"cannot connect to {host}:{port}: {e} (is `make serve` running?)")
+                raise BoardError(f"cannot connect to {host}:{port}: {e} (is `make serve` running, or the board on WiFi?)")
             except WebSocketException as e:
                 raise BoardError(f"the WebSocket handshake failed: {e}")
-        raise BoardError("the simulator already has a client")
+        raise BoardError("the server already has a client")
 
     def send(self, line):
         from websockets.exceptions import WebSocketException
@@ -324,7 +360,7 @@ class WebSocketTransport:
         except WebSocketException as e:
             raise _connection_error(e)
         if isinstance(message, bytes):
-            raise BoardError("the simulator sent a binary WebSocket message: protocol lines are text messages")
+            raise BoardError("the server sent a binary WebSocket message: protocol lines are text messages")
         return message.encode("utf-8")
 
     def close(self):
@@ -345,8 +381,9 @@ def _connection_error(error):
 class Board:
     """Requests and replies of the command protocol over a transport."""
 
-    def __init__(self, transport):
+    def __init__(self, transport, token=None):
         self.transport = transport
+        self._token = token
         self._seq = secrets.randbelow(2**31) + 1  # a fresh run never reuses a seq the board still remembers
         info = self.request("info")
         if not info.get("ok"):
@@ -375,8 +412,23 @@ class Board:
                 if reply.get("error") == "bad_frame" and "seq" not in reply:
                     break  # the board did not understand the line: send again at once
                 if reply.get("seq") == seq:
+                    if reply.get("error") == "unauthorized" and cmd not in AUTH_COMMANDS:
+                        self._log_in()
+                        return self.request(cmd, timeout, **fields)
                     return reply
         raise BoardError(f"no reply to '{cmd}' after {TRIES} tries")
+
+    def _log_in(self):
+        """Answers the board's login challenge with an HMAC of the nonce under the token, once per connection."""
+        if self._token is None:
+            raise BoardError("the board asks for a login: give the token in PIXELART_TOKEN or with --token")
+        token, self._token = self._token, None  # one try: a wrong token must not be sent again and again
+        nonce = self.command("auth_challenge").get("nonce")
+        if not isinstance(nonce, str):
+            raise BoardError("the board sent an unexpected reply")
+        reply = self.request("auth", hmac=login_hmac(token, nonce))
+        if not reply.get("ok"):
+            raise BoardError("the login failed: the token is not the board's")
 
     def command(self, cmd, timeout=REQUEST_TIMEOUT, **fields):
         """Like request(), but a failure reply raises BoardError carrying the board's diagnostics."""
@@ -404,6 +456,23 @@ class Board:
             if after is not None and last <= after:
                 raise BoardError(f"the board repeats a page of the {kind} list: it did not move past '{shown(after)}'")
             after = last
+
+
+TOKEN_PATTERN = re.compile(r"[a-z0-9]{16}")
+AUTH_COMMANDS = ("auth_challenge", "auth")
+
+
+def login_hmac(token, nonce):
+    """The answer to a login challenge: HMAC-SHA256 with the token as the key and the nonce text as the message."""
+    return hmac.new(token.encode("ascii"), nonce.encode("ascii"), hashlib.sha256).hexdigest()
+
+
+def board_token(args):
+    """The token from --token or PIXELART_TOKEN, or None. Never printed."""
+    token = args.token if args.token is not None else os.environ.get("PIXELART_TOKEN")
+    if token is not None and not TOKEN_PATTERN.fullmatch(token):
+        raise BoardError("the token is 16 characters from a-z and 0-9")
+    return token
 
 
 def describe_error(reply):
@@ -440,10 +509,16 @@ class UploadGone(BoardError):
     """The board has no upload in progress any more (no_upload): it timed out or restarted."""
 
 
+# The message of busy during an upload: the board holds one upload, and its other connection has it.
+UPLOAD_BUSY = "busy: the board is receiving a file over its other connection (USB or WiFi): try again when that upload ends"
+
+
 def raise_for(reply):
     """Raises the error of a failure reply: UploadGone for no_upload, BoardError otherwise."""
     if reply.get("error") == "no_upload":
         raise UploadGone(describe_error(reply))
+    if reply.get("error") == "busy":
+        raise BoardError(UPLOAD_BUSY)
     raise BoardError(describe_error(reply), reply.get("diagnostics"))
 
 
@@ -453,7 +528,9 @@ def upload_once(board, kind, file_id, data):
     A chunk the board did not expect (bad_offset) moves the next send to the offset it names, a limited number of times.
     Raises UploadGone when the board lost the upload, and BoardError on any other failure.
     """
-    board.command("put_begin", kind=kind, id=file_id, size=len(data), sha256=hashlib.sha256(data).hexdigest())
+    reply = board.request("put_begin", kind=kind, id=file_id, size=len(data), sha256=hashlib.sha256(data).hexdigest())
+    if not reply.get("ok"):
+        raise_for(reply)
     offset, resumes = 0, 0
     while offset < len(data):
         chunk = data[offset : offset + board.chunk_size]
@@ -631,13 +708,14 @@ def confirmed(prompt):
 # What `wipe --settings` puts back: the defaults of the settings table in docs/protocol/protocol-v1.md, also
 # DEFAULT_SETTINGS in web/src/protocol/files.ts.
 DEFAULT_SETTINGS = {"brightness": 100, "playlist": "default"}
-DEFAULTS_TEXT = f"brightness {DEFAULT_SETTINGS['brightness']}, playlist {DEFAULT_SETTINGS['playlist']}"
+DEFAULTS_TEXT = (f"brightness {DEFAULT_SETTINGS['brightness']}, playlist {DEFAULT_SETTINGS['playlist']} and the defaults "
+                 "of the WiFi power, update and login settings; the WiFi network is forgotten and the token is made again")
 
 
 def board_wipe(board, args):
     reset = args.settings
     question = ("Delete every animation and playlist on the board and put the settings back to their defaults "
-                f"({DEFAULTS_TEXT})? " if reset else "Delete every animation and playlist on the board? The settings stay. ")
+                f"({DEFAULTS_TEXT}, over USB only)? " if reset else "Delete every animation and playlist on the board? The settings stay. ")
     if not args.yes and not confirmed(question + "Type yes to continue: "):
         print("nothing deleted", file=sys.stderr)
         return 1
@@ -663,8 +741,19 @@ def board_wipe(board, args):
     return 0
 
 
+WIFI_POWERS = ("auto", "8.5", "11", "13", "15", "17", "18.5", "19.5")
+TEXT_SETTINGS = {"wifi_power", "update_mode", "timezone", "animation_source"}
+FLAG_SETTINGS = {"update_firmware", "update_animations", "network_login"}
+NUMBER_SETTINGS = {"check_hours": (1, 168), "install_start": (0, 1439), "install_end": (0, 1439)}
+SETTING_NAMES = ("brightness", "playlist", "wifi_power", "update_mode", "update_firmware", "update_animations",
+                 "check_hours", "install_start", "install_end", "timezone", "animation_source", "network_login")
+
+
 def parse_settings(pairs):
-    """{"brightness": int, "playlist": str} from key=value arguments."""
+    """The settings to change, from key=value arguments. The board checks each value again.
+
+    Numbers become integers, true and false become booleans, the rest stays text. The token is read only.
+    """
     changes = {}
     for pair in pairs:
         key, sep, value = pair.partition("=")
@@ -678,8 +767,29 @@ def parse_settings(pairs):
             if not ID_PATTERN.match(value):
                 raise BoardError("playlist is a playlist ID: lowercase letters, digits, _ and -")
             changes[key] = value
+        elif key == "wifi_power":
+            if value not in WIFI_POWERS:
+                raise BoardError("wifi_power is " + ", ".join(WIFI_POWERS))
+            changes[key] = value
+        elif key == "update_mode":
+            if value not in ("off", "notify", "automatic"):
+                raise BoardError("update_mode is off, notify or automatic")
+            changes[key] = value
+        elif key in FLAG_SETTINGS:
+            if value not in ("true", "false"):
+                raise BoardError(f"{key} is true or false")
+            changes[key] = value == "true"
+        elif key in NUMBER_SETTINGS:
+            low, high = NUMBER_SETTINGS[key]
+            if not re.fullmatch(r"[0-9]{1,4}", value) or not low <= int(value) <= high:
+                raise BoardError(f"{key} is a whole number from {low} to {high}")
+            changes[key] = int(value)
+        elif key in TEXT_SETTINGS:
+            changes[key] = value  # timezone and animation_source: the board has the rules
+        elif key == "token":
+            raise BoardError("token is read only: `board settings` shows it, and the board makes a new one on request")
         else:
-            raise BoardError(f"unknown setting '{key}' (brightness, playlist)")
+            raise BoardError(f"unknown setting '{key}' ({', '.join(SETTING_NAMES)})")
     return changes
 
 
@@ -691,14 +801,240 @@ def board_settings(board, args):
     return 0
 
 
+def age_text(seconds):
+    """Seconds as a short age: 40 seconds, 12 minutes, 3 hours, 2 days."""
+    if not isinstance(seconds, int) or isinstance(seconds, bool) or seconds < 0:
+        return "unknown"
+    for limit, unit, size in ((60, "second", 1), (3600, "minute", 60), (86400, "hour", 3600), (None, "day", 86400)):
+        if limit is None or seconds < limit:
+            count = seconds // size
+            return f"{count} {unit}{'' if count == 1 else 's'}"
+    return "unknown"
+
+
+NO_RELEASE_RESULT = ("http_error: no release is published at this address yet "
+                     "(check the animation source, or try again after the first release)")
+
+
+def print_update_state(update):
+    """The update state of a `status` reply, one fact per line. Text from the board is made safe for the terminal."""
+    update = shown(update)
+    state = update.get("state")
+    progress = update.get("progress")
+    working = state in ("checking", "downloading", "installing")
+    print(f"update    {state}" + (f", {progress} %" if working and isinstance(progress, int) else ""))
+    checked = update.get("last_check")
+    result = update.get("last_result")
+    if result == "http_error" and update.get("last_detail") == "no_release":
+        result = NO_RELEASE_RESULT
+    if checked is None:
+        print("checked   not since the board started" + (f", last result {result}" if result else ""))
+    else:
+        print(f"checked   {age_text(checked)} ago, {result if result else 'no result'}")
+    firmware = update.get("firmware")
+    print(f"firmware  {'none available' if firmware is None else f'{firmware} available'}")
+    files = update.get("files")
+    print(f"files     {files} to add or replace" if isinstance(files, int) else "files     unknown")
+    failed = update.get("failed_files")
+    if failed:
+        print(f"failed    {failed} file{'' if failed == 1 else 's'} in the last update")
+    last = update.get("last_install")
+    if isinstance(last, dict):
+        print(f"installed {last.get('result')}, from {last.get('from')} to {last.get('to')}")
+
+
+def board_status(board, args):
+    reply = board.command("status")
+    wifi, time_, update = (dict_of(reply.get(k)) for k in ("wifi", "time", "update"))
+    wifi = shown(wifi)
+    power = f"{wifi.get('power')} dBm" + (" (reduced)" if wifi.get("power_reduced") else "")
+    print(f"wifi      {wifi.get('state')}")
+    ssid = wifi.get("ssid")
+    print(f"network   {'none' if ssid is None else ssid}")
+    print(f"address   {wifi.get('ip') or 'none'}")
+    print(f"hostname  {wifi.get('hostname')}.local")
+    rssi = wifi.get("rssi")
+    print(f"signal    {'none' if rssi is None else f'{rssi} dBm, {signal_quality(rssi)}'}")
+    print(f"power     {power}")
+    print(f"time      {'known' if time_.get('known') else 'not known'}")
+    print_update_state(update)
+    return 0
+
+
+# How long `update check` and `update install` wait for the board, and how often they ask.
+UPDATE_WAIT = {"check": 120.0, "install": 600.0}
+UPDATE_POLL = 1.0
+
+
+def wait_for_firmware(board):
+    """Waits while the board writes the new firmware, until it restarts or the installation fails."""
+    boot_id = board.info.get("boot_id")
+    deadline = time.monotonic() + UPDATE_WAIT["install"]
+    installing = False
+    while True:
+        try:
+            update = dict_of(board.command("status").get("update"))
+        except BoardError:
+            if not installing:
+                raise
+            print("installed restarting: ask again with `status` once the board is back")
+            return 0
+        if update.get("state") == "installing":
+            installing = True
+        elif update.get("state") in ("idle", "waiting_for_time"):
+            info = board.request("info")
+            if installing and info.get("ok") and info.get("boot_id") != boot_id:
+                print(f"installed restarted, the board runs {shown(info.get('firmware'))} on trial until it shows its "
+                      "first frame: `status` then says updated or rolled_back")
+                return 0
+            print_update_state(update)
+            return 0 if update.get("last_result") in (None, "ok") else 1
+        if time.monotonic() > deadline:
+            raise BoardError("the board is still working: ask again with `status`")
+        time.sleep(UPDATE_POLL)
+
+
+def board_update(board, args):
+    """Starts a check or an installation and waits until the board is done, then prints the update state."""
+    if args.update_command == "check":
+        board.command("update_check")
+    elif args.target == "firmware":
+        board.command("update_install", target="firmware", **({"force": True} if getattr(args, "force", False) else {}))
+        return wait_for_firmware(board)
+    else:
+        if getattr(args, "force", False):
+            raise BoardError("--force applies to the firmware only")
+        board.command("update_install", target=args.target)
+    deadline = time.monotonic() + UPDATE_WAIT[args.update_command]
+    while True:
+        update = dict_of(board.command("status").get("update"))
+        if update.get("state") in ("idle", "waiting_for_time"):
+            break
+        if time.monotonic() > deadline:
+            raise BoardError("the board is still working: ask again with `status`")
+        time.sleep(UPDATE_POLL)
+    print_update_state(update)
+    return 0 if update.get("last_result") in (None, "ok") else 1
+
+
+def signal_quality(rssi):
+    """The word the legend of docs/board/wifi-and-updates-v1.md#transmit-power gives to a signal strength."""
+    if not isinstance(rssi, (int, float)) or isinstance(rssi, bool):
+        return "unknown"
+    if rssi >= -50:
+        return "excellent"
+    if rssi >= -67:
+        return "good"
+    if rssi >= -75:
+        return "fair"
+    return "weak"
+
+
+# ---- Improv Wi-Fi Serial, version 1: docs/board/wifi-and-updates-v1.md#setup-with-improv ----
+
+IMPROV_MAGIC = b"IMPROV"
+IMPROV_VERSION = 1
+IMPROV_STATE, IMPROV_ERROR, IMPROV_RPC, IMPROV_RESULT = 1, 2, 3, 4
+IMPROV_PROVISIONED = 4
+IMPROV_ERRORS = {1: "the board did not understand the request", 2: "the board does not know the command",
+                 3: "the board could not connect"}
+IMPROV_TIMEOUT = 40.0  # the board answers after 30 seconds
+
+
+def improv_frame(frame_type, data):
+    """A frame: IMPROV, the version, the type, the data length, the data and the checksum (the sum of the bytes before it)."""
+    if len(data) > 255:
+        raise ValueError("an Improv frame holds at most 255 bytes of data")
+    head = IMPROV_MAGIC + bytes([IMPROV_VERSION, frame_type, len(data)]) + data
+    return head + bytes([sum(head) % 256])
+
+
+def improv_wifi_settings(ssid, password):
+    """The frame that sends a network name and a password (both bytes) to the board."""
+    if not 1 <= len(ssid) <= 32:
+        raise BoardError("a network name is 1 to 32 bytes")
+    if len(password) > 64:
+        raise BoardError("a password is at most 64 bytes")
+    if b"\0" in ssid or b"\0" in password:
+        raise BoardError("a network name and a password cannot hold a NUL character")
+    args = bytes([len(ssid)]) + ssid + bytes([len(password)]) + password
+    return improv_frame(IMPROV_RPC, bytes([1, len(args)]) + args)
+
+
+def improv_frames(buffer):
+    """Takes the complete frames out of `buffer` (a bytearray) and returns them as (type, data).
+
+    Other bytes (log lines, protocol lines) and frames with a wrong checksum are dropped.
+    """
+    frames = []
+    while True:
+        start = buffer.find(IMPROV_MAGIC + bytes([IMPROV_VERSION]))
+        if start < 0:
+            del buffer[: max(0, len(buffer) - len(IMPROV_MAGIC))]  # keep a header that is still arriving
+            return frames
+        del buffer[:start]
+        if len(buffer) < 9:
+            return frames
+        total = 10 + buffer[8]
+        if len(buffer) < total:
+            return frames
+        frame = bytes(buffer[:total])
+        if sum(frame[:-1]) % 256 == frame[-1]:
+            del buffer[:total]
+            frames.append((frame[7], frame[9:-1]))
+        else:
+            del buffer[:1]  # not a frame: look for the next header
+
+
+def improv_connect(transport, ssid, password, timeout=None):
+    """Sends the network to the board and waits until it is provisioned. Raises BoardError when it is not."""
+    if not hasattr(transport, "send_raw"):
+        raise BoardError("WiFi setup needs the USB serial port (--port): Improv does not run over a WebSocket")
+    transport.send_raw(improv_wifi_settings(ssid, password))
+    buffer = bytearray()
+    deadline = time.monotonic() + (IMPROV_TIMEOUT if timeout is None else timeout)
+    error = None
+    while time.monotonic() < deadline:
+        buffer += transport.receive_raw(min(1.0, max(0.0, deadline - time.monotonic())))
+        for frame_type, data in improv_frames(buffer):
+            if frame_type == IMPROV_STATE and data[:1] == bytes([IMPROV_PROVISIONED]):
+                return
+            if frame_type == IMPROV_ERROR and data and data[0] != 0:
+                error = data[0]
+        if error is not None:
+            raise BoardError(IMPROV_ERRORS.get(error, "the board reported an error") +
+                             ": check the name and the password, and that the network is on 2.4 GHz. "
+                             "The board keeps the network and tries again")
+    raise BoardError("the board did not answer in time")
+
+
+def board_wifi(board, args):
+    if args.forget:
+        board.command("wifi_forget")
+        print("the WiFi network is forgotten")
+        return 0
+    if not hasattr(board.transport, "send_raw"):
+        raise BoardError("wifi needs the USB serial port (--port): Improv does not run over a WebSocket")
+    # Hidden input, so neither the name nor the password reaches the screen, the history or a log.
+    ssid = getpass.getpass("Network name (hidden): ").encode("utf-8")
+    password = getpass.getpass("Password (hidden, empty for an open network): ").encode("utf-8")
+    try:
+        improv_connect(board.transport, ssid, password)
+    finally:
+        ssid = password = b""
+    print("connected")
+    return board_status(board, args)
+
+
 BOARD_COMMANDS = {"info": board_info, "ls": board_ls, "put": board_put, "get": board_get, "rm": board_rm, "wipe": board_wipe,
-                  "settings": board_settings}
+                  "settings": board_settings, "status": board_status, "wifi": board_wifi, "update": board_update}
 
 
 def run_board(args):
+    token = board_token(args)
     transport = SerialTransport(args.port) if args.port else WebSocketTransport(args.ws)
     try:
-        return BOARD_COMMANDS[args.board_command](Board(transport), args)
+        return BOARD_COMMANDS[args.board_command](Board(transport, token), args)
     except (KeyError, TypeError, ValueError) as e:
         # A reply with a missing or wrongly typed field: one message instead of a traceback
         raise BoardError("the board sent an unexpected reply") from e
@@ -710,7 +1046,11 @@ def add_board_parser(sub):
     b = sub.add_parser("board", help="talk to a board over serial, or to the simulator over a WebSocket")
     target = b.add_mutually_exclusive_group(required=True)
     target.add_argument("--port", help="serial device of the board, for example /dev/ttyACM0 (needs pyserial)")
-    target.add_argument("--ws", metavar="URL", help="the simulator's WebSocket, for example ws://127.0.0.1:8765")
+    target.add_argument("--ws", metavar="URL",
+                        help="a WebSocket: the simulator's, for example ws://127.0.0.1:8765, or a board's over WiFi, "
+                             "ws://pixelart-XXXX.local/ws")
+    b.add_argument("--token", help="the board's token, for a board over WiFi with network login on "
+                                   "(safer: the environment variable PIXELART_TOKEN)")
     commands = b.add_subparsers(dest="board_command", required=True)
     kinds = ("animation", "playlist")
     commands.add_parser("info", help="firmware, storage and limits")
@@ -730,9 +1070,21 @@ def add_board_parser(sub):
     wipe = commands.add_parser("wipe", help="delete every animation and playlist; the settings stay unless --settings")
     wipe.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     wipe.add_argument("--settings", action="store_true",
-                      help=f"also put the settings back to their defaults ({DEFAULTS_TEXT})")
+                      help=f"also put the settings back to their defaults ({DEFAULTS_TEXT}; USB only)")
     settings = commands.add_parser("settings", help="show the settings, or change them with key=value")
-    settings.add_argument("pairs", nargs="*", metavar="key=value", help="brightness=0..255, playlist=ID")
+    settings.add_argument("pairs", nargs="*", metavar="key=value",
+                          help="any of: " + ", ".join(SETTING_NAMES) + ". The token is read only and shown by `settings`")
+    commands.add_parser("status", help="WiFi state, network name, address, signal and update state")
+    update = commands.add_parser("update", help="check for updates, or install what a check found, and wait for the board")
+    update_commands = update.add_subparsers(dest="update_command", required=True)
+    update_commands.add_parser("check", help="check now")
+    install = update_commands.add_parser("install", help="install what the last check found, ignoring the install window")
+    install.add_argument("target", choices=("animations", "firmware"),
+                         help="animations: the animations and playlists; firmware: the firmware, which restarts the board")
+    install.add_argument("--force", action="store_true",
+                         help="firmware only: also install the version a rollback put on the skip list")
+    wifi = commands.add_parser("wifi", help="set up WiFi with Improv over USB, asking for the name and password")
+    wifi.add_argument("--forget", action="store_true", help="forget the stored network instead")
 
 
 def main():

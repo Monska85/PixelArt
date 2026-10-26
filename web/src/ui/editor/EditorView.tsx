@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useEffect, useState } from "react";
 import { paletteEntries, spriteNames, spriteOf, isComposite, type Path, itemAt } from "../../editor/doc";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";

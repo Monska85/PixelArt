@@ -1,0 +1,11 @@
+{
+  "name": "PixelUpdate",
+  "version": "0.1.0",
+  "description": "Decisions of the updates over the network (docs/board/wifi-and-updates-v1.md#updates): manifest reading, URL rules, versions, the sync plan, the schedule and the install window. Plain C++17, no Arduino dependency.",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": {
+    "PixelEngine": "*",
+    "PixelCodec": "*"
+  }
+}

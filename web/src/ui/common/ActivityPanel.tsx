@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Loader2 } from "lucide-react";
 import { Button } from "../components/button";
 import { Progress } from "../components/progress";

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { ChevronRight, Usb } from "lucide-react";
 import { useState } from "react";
 import { SERIAL_UNSUPPORTED } from "../../protocol/serial";
@@ -7,6 +9,7 @@ import { cn } from "../components/cn";
 import { SERIAL_SUPPORTED } from "../session";
 import { ConnectBoardButton } from "./ConnectBoardButton";
 import { SimulatorForm } from "./SimulatorForm";
+import { WifiConnectForm } from "./WifiConnectForm";
 
 /** Shown by the Board view while nothing is connected: Connect board, and the simulator folded under it. */
 export function ConnectCard() {
@@ -29,6 +32,13 @@ export function ConnectCard() {
             <Usb aria-hidden="true" />
             Connect board
           </ConnectBoardButton>
+        </div>
+        <div className="flex max-w-xl flex-col gap-3 border-t border-border pt-4" data-testid="wifi-connect">
+          <p className="text-sm font-medium">Or connect over WiFi</p>
+          <p className="text-sm text-muted-foreground">
+            A board that has joined a WiFi network can be managed without the cable. Set up its WiFi over USB first.
+          </p>
+          <WifiConnectForm />
         </div>
         <div className="flex flex-col gap-3 border-t border-border pt-4">
           <button

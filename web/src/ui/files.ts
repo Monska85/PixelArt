@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Saving files and reading what the user picked.
 
 import { jsonBytes } from "../yaml/writeJson";

@@ -1,0 +1,37 @@
+{
+  "description": "status in the simulator reports the fixed WiFi values and an idle update state",
+  "steps": [
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    }
+  ]
+}

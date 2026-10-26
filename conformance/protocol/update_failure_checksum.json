@@ -1,0 +1,152 @@
+{
+  "description": "A file whose content differs from the manifest's SHA-256 fails with checksum_mismatch and is not stored",
+  "update_source": {
+    "files": {
+      "manifest.json": {
+        "json": {
+          "format": "pixelart-manifest/1",
+          "version": "1.2.0",
+          "released": "2026-11-02",
+          "firmware": [
+            {
+              "board": "esp32c3",
+              "chip": "ESP32-C3",
+              "part": "app",
+              "offset": 65536,
+              "file": "firmware/esp32c3/app-1.2.0.bin",
+              "size": 365568,
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "animations": [
+            {
+              "id": "red",
+              "name": "Red",
+              "version": 1,
+              "file": "animations/red.json",
+              "size": 147,
+              "sha256": "c578d329190c36c2b023ba25a889bdd5096aefda89cd38c32473a31efb3f2588"
+            },
+            {
+              "id": "green",
+              "name": "Green",
+              "version": 1,
+              "file": "animations/green.json",
+              "size": 149,
+              "sha256": "b4b91478bd71d10f7ca46417b2ae89ea86c1a0332d7ac5bc7eae4ee7cc73ded4"
+            }
+          ],
+          "playlists": []
+        }
+      },
+      "animations/red.json": "{\"format\":\"pixelart/1\",\"name\":\"Red\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+      "animations/green.json": "{\"format\":\"pixelart/1\",\"name\":\"Green\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#00ff00\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+    },
+    "fail": [
+      {
+        "kind": "corrupt",
+        "path": "animations/green.json"
+      }
+    ]
+  },
+  "settings": {
+    "update_mode": "notify"
+  },
+  "steps": [
+    {
+      "send": "@PR 935d27e0 {\"seq\":1,\"cmd\":\"update_check\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": 0,
+          "last_result": "ok",
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 2,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 5ecab104 {\"seq\":3,\"cmd\":\"update_install\",\"target\":\"animations\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "send": "@PR f7862428 {\"seq\":4,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": 0,
+          "last_result": "checksum_mismatch",
+          "last_detail": null,
+          "failed_files": 1,
+          "firmware": null,
+          "files": 1,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "expect_files": {
+        "animations/red.json": "{\"format\":\"pixelart/1\",\"name\":\"Red\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+        "animations/green.json": null,
+        "update.tmp": null
+      }
+    }
+  ]
+}

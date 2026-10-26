@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { newAnimation, setTopField, type Doc } from "../src/editor/doc";
 import type { BoardFiles } from "../src/editor/saves";

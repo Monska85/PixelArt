@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { addPart, movePart, readParts, removePart, setPart, spriteNames, spriteOf, type Doc } from "../../editor/doc";

@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { expect, test as base, type Page } from "@playwright/test";
 import { spawn, type ChildProcess } from "node:child_process";
-import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, connect } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { decodeLine, type Body } from "../src/protocol/framing";
 
@@ -42,24 +44,44 @@ function accepts(port: number): Promise<boolean> {
   });
 }
 
-export const test = base.extend<{ simulator: Simulator; consoleProblems: string[] }>({
-  // Playwright reads the fixtures a function uses from its first parameter, which must be a destructuring pattern.
-  // eslint-disable-next-line no-empty-pattern
-  simulator: async ({}, use) => {
+export const test = base.extend<{
+  simulator: Simulator;
+  consoleProblems: string[];
+  /** The files of the simulated update server, by path (`manifest.json`, `animations/a.json`), or null for none. */
+  updateSource: Record<string, string> | null;
+  /** The failures the simulated update server injects, as the simulator's `--update-fail` takes them. */
+  updateFail: string[];
+  /** More options for the simulator, such as `--firmware-version 1.2.0`. */
+  simulatorArgs: string[];
+}>({
+  updateSource: [null, { option: true }],
+  updateFail: [[], { option: true }],
+  simulatorArgs: [[], { option: true }],
+  simulator: async ({ page, updateSource, updateFail, simulatorArgs }, use) => {
     const folder = mkdtempSync(join(tmpdir(), "pixelart-e2e-"));
     const dataDir = join(folder, "data");
     cpSync(DATA, dataDir, { recursive: true });
+    const args = ["--data", dataDir, "--realtime", "--no-files", "--loops", "0"];
+    if (updateSource) {
+      const updateDir = join(folder, "update");
+      for (const [path, content] of Object.entries(updateSource)) {
+        mkdirSync(dirname(join(updateDir, path)), { recursive: true });
+        writeFileSync(join(updateDir, path), content);
+      }
+      args.push("--update-source", updateDir);
+    }
+    for (const failure of updateFail) args.push("--update-fail", failure);
+    args.push(...simulatorArgs);
     const port = await freePort();
-    const child: ChildProcess = spawn(
-      SIMULATOR,
-      ["--data", dataDir, "--realtime", "--no-files", "--loops", "0", "--ws", String(port)],
-      { stdio: "ignore" },
-    );
+    const child: ChildProcess = spawn(SIMULATOR, [...args, "--ws", String(port)], { stdio: "ignore" });
     const stop = (): void => void child.kill("SIGTERM");
     try {
       for (let i = 0; i < 100 && !(await accepts(port)); i++) await new Promise((r) => setTimeout(r, 100));
       await use({ address: `ws://127.0.0.1:${port}`, dataDir, stop });
     } finally {
+      // The page goes first: its sockets close by themselves, not through a simulator that has just been killed,
+      // which would log an error to the console while the page is still open. Errors of the test are kept.
+      await page.close().catch(() => undefined);
       stop();
       rmSync(folder, { recursive: true, force: true });
     }
@@ -188,4 +210,16 @@ export function watchReplies(page: Page, cmd: string): { count: () => number; re
     });
   });
   return { count: () => replies.length, replies };
+}
+
+/** Collects the requests the page sent for a command, over any WebSocket it opens afterwards. */
+export function watchRequests(page: Page, cmd: string): Body[] {
+  const requests: Body[] = [];
+  page.on("websocket", (socket) => {
+    socket.on("framesent", (frame) => {
+      const request = decodeLine(new TextEncoder().encode(String(frame.payload)));
+      if (request?.cmd === cmd) requests.push(request);
+    });
+  });
+  return requests;
 }

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { MoreHorizontal, type LucideIcon } from "lucide-react";
 import { useRef, type RefObject } from "react";
 import {

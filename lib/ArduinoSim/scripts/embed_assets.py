@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """PlatformIO library build script: embeds assets/player.html in the simulator.
 
 Writes player_html.h (a NUL-terminated byte array named PLAYER_HTML) into the

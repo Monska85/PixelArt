@@ -1,0 +1,75 @@
+{
+  "description": "With network login on, status over WiFi is unauthorized before the login and so sends no network name; after the login it answers with wifi.ssid",
+  "transport": "wifi",
+  "settings": {
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f"
+  ],
+  "steps": [
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 72abb930 {\"seq\":2,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR 7eb8020c {\"seq\":3,\"cmd\":\"auth\",\"hmac\":\"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR f7862428 {\"seq\":4,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    }
+  ]
+}

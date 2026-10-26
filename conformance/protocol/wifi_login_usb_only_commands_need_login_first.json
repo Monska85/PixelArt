@@ -1,0 +1,132 @@
+{
+  "description": "Before the login, the commands reserved for USB are unauthorized over WiFi, not usb_only, and change nothing",
+  "transport": "wifi",
+  "settings": {
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f"
+  ],
+  "steps": [
+    {
+      "send": "@PR 4e706339 {\"seq\":1,\"cmd\":\"wifi_forget\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 72c9530a {\"seq\":2,\"cmd\":\"token_regenerate\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 83cb2103 {\"seq\":3,\"cmd\":\"delete_all\",\"settings\":true}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 5dd383d3 {\"seq\":4,\"cmd\":\"cert_regenerate\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR bcfb4598 {\"seq\":5,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR 5104dfe5 {\"seq\":6,\"cmd\":\"auth\",\"hmac\":\"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 3c8139b9 {\"seq\":7,\"cmd\":\"wifi_forget\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "usb_only",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 6d53b302 {\"seq\":8,\"cmd\":\"token_regenerate\"}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "usb_only",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 85fca402 {\"seq\":9,\"cmd\":\"delete_all\",\"settings\":true}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": false,
+        "error": "usb_only",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ed937fc2 {\"seq\":10,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": true
+        }
+      }
+    }
+  ]
+}

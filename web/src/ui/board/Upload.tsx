@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useRef, useState, type DragEvent, type ReactNode } from "react";
 import type { BoardClient } from "../../protocol";
 import { blockedOrBusy } from "../upload";

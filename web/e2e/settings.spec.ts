@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { Page } from "@playwright/test";
 import { decodeLine } from "../src/protocol/framing";
 import { connectSimulator, dragBrightness, expect, test, type Simulator } from "./fixtures";

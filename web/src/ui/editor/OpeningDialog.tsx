@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { documentName, editorStore, useEditor } from "./store";
 

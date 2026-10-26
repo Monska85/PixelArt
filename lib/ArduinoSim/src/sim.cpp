@@ -64,6 +64,7 @@ void reset()
   s.serial.clear();
   s.serial_buf.clear();
   s.serial_in.clear();
+  s.ws_events.clear();
   s.shown_frames = 0;
   s.live_log.clear();
 }
@@ -161,7 +162,7 @@ void on_serial(char c)
 
   // Replies of the command protocol go to the WebSocket client. In live mode
   // they stay out of the log below the matrix, where a long line would wrap.
-  const bool to_client = ws_active() && s.serial_buf.compare(0, 4, "@PR ") == 0;
+  const bool to_client = ws_active() && !s.opts.ws_wifi && s.serial_buf.compare(0, 4, "@PR ") == 0;
   if (to_client)
     detail::ws_send_line(s.serial_buf);
 

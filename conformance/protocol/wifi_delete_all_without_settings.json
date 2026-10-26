@@ -1,0 +1,65 @@
+{
+  "description": "Over WiFi, delete_all without settings works as over USB",
+  "transport": "wifi",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 822b57f4 {\"seq\":1,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 0,
+        "animations": 1
+      }
+    },
+    {
+      "send": "@PR 2d586851 {\"seq\":2,\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "protocol": 1,
+        "firmware": "<any>",
+        "board": "<any>",
+        "boot_id": "<any>",
+        "formats": {
+          "animation": [
+            "pixelart/1"
+          ],
+          "playlist": [
+            "pixelart-playlist/1"
+          ]
+        },
+        "canvas": {
+          "width": 16,
+          "height": 16
+        },
+        "storage": {
+          "total": "<any>",
+          "used": "<any>"
+        },
+        "memory": {
+          "free": "<any>",
+          "largest": "<any>"
+        },
+        "limits": {
+          "line": 1024,
+          "chunk": 512,
+          "page": 8,
+          "animation": 65536,
+          "playlist": 16384
+        }
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": null
+      }
+    }
+  ]
+}

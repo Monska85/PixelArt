@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // How PyYAML (YAML 1.1) turns a plain scalar into a value. The `yaml` package
 // resolves numbers and booleans a little differently (`1e3`, `1.0e3` and `y`),
 // so the reader applies these rules to the text of every plain scalar.

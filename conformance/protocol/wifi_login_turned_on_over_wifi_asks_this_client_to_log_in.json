@@ -1,0 +1,145 @@
+{
+  "description": "A client that turns network login on over WiFi has to log in as well before its next request, also when it logged in earlier and the setting was turned off and on again",
+  "transport": "wifi",
+  "settings": {
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f"
+  ],
+  "steps": [
+    {
+      "send": "@PR 3ea7998f {\"seq\":1,\"cmd\":\"settings_set\",\"network_login\":true}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": true
+        }
+      }
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR d720293e {\"seq\":3,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR 997c04f5 {\"seq\":4,\"cmd\":\"auth\",\"hmac\":\"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR bcbb619b {\"seq\":5,\"cmd\":\"settings_set\",\"network_login\":false}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false
+        }
+      }
+    },
+    {
+      "send": "@PR 57eafb23 {\"seq\":6,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false
+        }
+      }
+    },
+    {
+      "send": "@PR c25708c3 {\"seq\":7,\"cmd\":\"settings_set\",\"network_login\":true}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": true
+        }
+      }
+    },
+    {
+      "send": "@PR ba99ca7f {\"seq\":8,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    }
+  ]
+}

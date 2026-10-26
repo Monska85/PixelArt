@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 import { IconButton } from "../components/icon-button";
 import { theme, useTheme, type ThemeChoice } from "../theme";

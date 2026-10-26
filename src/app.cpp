@@ -5,17 +5,24 @@
 #include <cstring>
 #include <set>
 
+#include "firmware.h"
 #include "pixel_art.h"
 #include "platform.h"
 #include "protocol.h"
 #include "settings.h"
 #include "storage.h"
+#include "task_sync.h"
+#include "update_icon.h"
+#include "updates.h"
 
 namespace
 {
 
 const char *JSON_SUFFIX = ".json";
+const char *BUSY_CODE = "busy";
 constexpr uint32_t NO_ANIMATIONS_MS = 2000;
+// How long the player waits before it tries again when an update connection holds the memory.
+constexpr uint32_t BUSY_RETRY_MS = 200;
 // Distinct problems remembered by report_once; beyond this they are not
 // printed again, so the memory used stays bounded.
 constexpr size_t MAX_REPORTED = 64;
@@ -34,6 +41,8 @@ bool has_deadline = false;
 // Starts a new schedule at the next wait: the first frame of an animation.
 void restart_schedule() { has_deadline = false; }
 
+void show_update_icon();
+
 // Waits for the end of a frame of `ms` milliseconds, handling protocol
 // commands meanwhile. A command that runs long delays this frame only.
 void wait(uint32_t ms)
@@ -46,6 +55,12 @@ void wait(uint32_t ms)
   for (;;)
   {
     protocol::poll();
+    updates::poll();
+    if (updates::firmware_installing())
+    {
+      show_update_icon();
+      return; // the animation's schedule is gone
+    }
     now = platform::now_us();
     if (now >= deadline_us)
       return;
@@ -53,14 +68,63 @@ void wait(uint32_t ms)
   }
 }
 
-// Applies the board setting limited by the percentage of the playing animation,
-// so a change made through the protocol reaches the next frame. Only a change
-// is applied, because setBrightness() rescales what the matrix holds.
 void apply_brightness(uint8_t percent)
 {
   const uint8_t target = pixelart::effective_brightness(settings::brightness(), percent);
   if (matrix.getBrightness() != target)
     matrix.setBrightness(target);
+}
+
+bool restart_pending()
+{
+#ifdef PIXELART_SIM
+  return firmware::sim_restart_requested(); // the simulated board does not restart by itself
+#else
+  return false;
+#endif
+}
+
+// The update icon is shown again this often, so the network task, which writes the firmware to flash only
+// after a frame, never waits long. The picture is drawn only when it changes.
+constexpr uint64_t ICON_FRAME_US = 25000;
+
+// Shows the update icon, at the brightness of the board's setting, for as long as a firmware installs.
+// The animation stops. It resumes with a new schedule when the installation fails; when it succeeds the
+// board restarts and this does not return.
+void show_update_icon()
+{
+  int drawn_progress = -1;
+  int drawn_brightness = -1;
+  while (updates::firmware_installing() && !restart_pending())
+  {
+    apply_brightness(100);
+    const uint8_t progress = updates::firmware_progress();
+    if (progress != drawn_progress || matrix.getBrightness() != drawn_brightness)
+    {
+      for (int y = 0; y < update_icon::SIZE; y++)
+        for (int x = 0; x < update_icon::SIZE; x++)
+        {
+          const uint32_t c = update_icon::pixel(x, y, progress);
+          matrix.drawPixel(x, y, Adafruit_NeoMatrix::Color(c >> 16, c >> 8, c));
+        }
+      matrix.show();
+      drawn_progress = progress;
+      drawn_brightness = matrix.getBrightness();
+    }
+    task_sync::frame_shown();
+    // platform::wait_us returns after about a millisecond on the board, so wait out the whole period.
+    const uint64_t period_end = platform::now_us() + ICON_FRAME_US;
+    for (;;)
+    {
+      protocol::poll();
+      updates::poll();
+      const uint64_t now = platform::now_us();
+      if (now >= period_end || !updates::firmware_installing() || restart_pending())
+        break;
+      platform::wait_us(period_end - now);
+    }
+  }
+  restart_schedule();
 }
 
 // Reports each problem once per boot, so a broken file does not flood the
@@ -76,6 +140,12 @@ void report_once(const std::string &file, const std::vector<pixelart::Diagnostic
     if (reported.insert(line).second)
       Serial.printf("pixelart: %s\n", line.c_str());
   }
+}
+
+// Whether a load failed only because an update connection holds the memory: nothing is wrong with the file.
+bool is_busy(const std::vector<pixelart::Diagnostic> &diagnostics)
+{
+  return !diagnostics.empty() && diagnostics.front().code == BUSY_CODE;
 }
 
 // Reads a file for the engine, turning read failures into diagnostics.
@@ -129,6 +199,8 @@ void draw(const pixelart::Frame &frame, uint8_t percent)
         matrix.drawPixel(x, y, Adafruit_NeoMatrix::Color(c >> 16, c >> 8, c));
     }
   matrix.show();
+  task_sync::frame_shown();
+  firmware::first_frame_shown();
   wait(frame.ms);
 }
 
@@ -142,6 +214,8 @@ void show_no_animations()
   for (const auto &p : QUESTION_MARK)
     matrix.drawPixel(p[0], p[1], Adafruit_NeoMatrix::Color(96, 96, 96));
   matrix.show();
+  task_sync::frame_shown();
+  firmware::first_frame_shown();
   wait(NO_ANIMATIONS_MS);
 }
 
@@ -158,6 +232,12 @@ std::vector<std::string> stored_playlists() { return json_names(PLAYLISTS_FOLDER
 bool load_stored_animation(const std::string &id, pixelart::Animation &animation,
                            std::vector<pixelart::Diagnostic> &diagnostics)
 {
+  task_sync::HeapLock lock(task_sync::Owner::Loop);
+  if (!lock.held())
+  {
+    diagnostics.push_back({pixelart::Severity::Error, BUSY_CODE, "", "an update holds the memory"});
+    return false;
+  }
   storage::Buffer buffer;
   if (!read_for_engine(animation_file(id), pixelart::MAX_FILE_SIZE, buffer, diagnostics))
     return false;
@@ -167,6 +247,12 @@ bool load_stored_animation(const std::string &id, pixelart::Animation &animation
 bool load_stored_playlist(const std::string &name, pixelart::Playlist &playlist,
                           std::vector<pixelart::Diagnostic> &diagnostics)
 {
+  task_sync::HeapLock lock(task_sync::Owner::Loop);
+  if (!lock.held())
+  {
+    diagnostics.push_back({pixelart::Severity::Error, BUSY_CODE, "", "an update holds the memory"});
+    return false;
+  }
   storage::Buffer buffer;
   if (!read_for_engine(playlist_file(name), pixelart::MAX_PLAYLIST_FILE_SIZE, buffer, diagnostics))
     return false;
@@ -179,6 +265,13 @@ bool play_stored_animation(const std::string &id, uint16_t times)
   std::vector<pixelart::Diagnostic> diagnostics;
   if (!load_stored_animation(id, animation, diagnostics))
   {
+    if (is_busy(diagnostics))
+    {
+      // The last frame stays on the matrix. Counted as played, so the playlist is not given up.
+      restart_schedule();
+      wait(BUSY_RETRY_MS);
+      return true;
+    }
     report_once(animation_file(id), diagnostics);
     return false;
   }
@@ -210,6 +303,12 @@ void play_from_storage()
   std::vector<pixelart::Diagnostic> diagnostics;
   if (load_stored_playlist(active, playlist, diagnostics))
     items = playlist.items();
+  else if (is_busy(diagnostics))
+  {
+    restart_schedule();
+    wait(BUSY_RETRY_MS); // the next pass reads the playlist again
+    return;
+  }
   else if (diagnostics.empty() || diagnostics.front().code != "missing_file")
     report_once(playlist_file(active), diagnostics); // no playlist at all is normal
 

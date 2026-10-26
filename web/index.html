@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Scripts come only from the site itself and there is no inline script. Styles may be inline because Radix inserts a <style> element while a dialog is open, to stop the page scrolling behind it. ESP Web Tools, loaded on the Firmware view, needs no other source: its chunks and the manifests it reads come from 'self'. An end-to-end test opens its dialog under this policy. -->
+    <!-- Scripts come only from the site itself and there is no inline script. Styles may be inline because Radix inserts a <style> element while a dialog is open, to stop the page scrolling behind it. ESP Web Tools, loaded on the Firmware view, needs no other source: its chunks and the manifests it reads come from 'self'. An end-to-end test opens its dialog under this policy. WebSockets are allowed to any host (ws:) because the address of a board on the network is not known in advance. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' ws:; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>PixelArt</title>
     <script src="./theme-init.js"></script>

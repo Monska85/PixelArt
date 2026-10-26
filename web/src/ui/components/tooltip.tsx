@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Based on shadcn/ui (MIT): see THIRD_PARTY_NOTICES.txt of the web app.
+
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "./cn";

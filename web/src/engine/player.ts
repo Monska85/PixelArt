@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Port of lib/PixelEngine/src/player.cpp: walks the timeline and renders
 // frames, applying the effects in the order of docs/format/pixelart-v1.md#effects.
 

@@ -130,9 +130,8 @@ void Sha256::update(const void *data, size_t size)
   }
 }
 
-std::string Sha256::hex_digest()
+void Sha256::digest(uint8_t out[DIGEST_SIZE])
 {
-  static const char hex[] = "0123456789abcdef";
   uint64_t bits = length_ * 8;
   const uint8_t pad = 0x80;
   update(&pad, 1);
@@ -144,12 +143,76 @@ std::string Sha256::hex_digest()
     tail[i] = (uint8_t)(bits >> (56 - 8 * i));
   update(tail, 8);
 
+  for (int i = 0; i < 8; i++)
+    for (int b = 0; b < 4; b++)
+      out[i * 4 + b] = (uint8_t)(state_[i] >> (24 - 8 * b));
+}
+
+namespace
+{
+
+std::string to_hex(const uint8_t *bytes, size_t size)
+{
+  static const char hex[] = "0123456789abcdef";
   std::string out;
-  out.reserve(64);
-  for (uint32_t word : state_)
-    for (int shift = 28; shift >= 0; shift -= 4)
-      out += hex[(word >> shift) & 15];
+  out.reserve(size * 2);
+  for (size_t i = 0; i < size; i++)
+  {
+    out += hex[bytes[i] >> 4];
+    out += hex[bytes[i] & 15];
+  }
   return out;
+}
+
+} // namespace
+
+std::string Sha256::hex_digest()
+{
+  uint8_t bytes[DIGEST_SIZE];
+  digest(bytes);
+  return to_hex(bytes, DIGEST_SIZE);
+}
+
+std::string hmac_sha256_hex(const void *key, size_t key_size, const void *message, size_t message_size)
+{
+  constexpr size_t BLOCK = 64;
+  uint8_t block[BLOCK] = {};
+  if (key_size > BLOCK)
+  {
+    Sha256 hashed_key;
+    hashed_key.update(key, key_size);
+    hashed_key.digest(block);
+  }
+  else if (key_size > 0)
+    memcpy(block, key, key_size);
+
+  uint8_t pad[BLOCK];
+  for (size_t i = 0; i < BLOCK; i++)
+    pad[i] = block[i] ^ 0x36;
+  Sha256 inner;
+  inner.update(pad, BLOCK);
+  inner.update(message, message_size);
+  uint8_t inner_digest[Sha256::DIGEST_SIZE];
+  inner.digest(inner_digest);
+
+  for (size_t i = 0; i < BLOCK; i++)
+    pad[i] = block[i] ^ 0x5c;
+  Sha256 outer;
+  outer.update(pad, BLOCK);
+  outer.update(inner_digest, sizeof(inner_digest));
+  uint8_t mac[Sha256::DIGEST_SIZE];
+  outer.digest(mac);
+  return to_hex(mac, sizeof(mac));
+}
+
+bool constant_time_equal(const void *a, const void *b, size_t size)
+{
+  const volatile uint8_t *x = static_cast<const volatile uint8_t *>(a);
+  const volatile uint8_t *y = static_cast<const volatile uint8_t *>(b);
+  uint8_t difference = 0;
+  for (size_t i = 0; i < size; i++)
+    difference |= (uint8_t)(x[i] ^ y[i]);
+  return difference == 0;
 }
 
 std::string base64_encode(const void *data, size_t size)
@@ -252,6 +315,27 @@ size_t utf8_sequence_length(const char *text, size_t size, size_t index)
     if (((unsigned char)text[index + k] & 0xC0) != 0x80)
       return 0;
   return length;
+}
+
+std::string utf8_lossy(const char *text, size_t size)
+{
+  std::string out;
+  out.reserve(size);
+  for (size_t i = 0; i < size;)
+  {
+    const size_t length = utf8_sequence_length(text, size, i);
+    if (length == 0)
+    {
+      out += "\xEF\xBF\xBD";
+      i++;
+    }
+    else
+    {
+      out.append(text + i, length);
+      i += length;
+    }
+  }
+  return out;
 }
 
 } // namespace pixelart

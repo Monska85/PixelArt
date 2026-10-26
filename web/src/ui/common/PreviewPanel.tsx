@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { Animation } from "../../engine";
 import { Alert, AlertDescription } from "../components/alert";
 import { SidePanel } from "../components/sheet";

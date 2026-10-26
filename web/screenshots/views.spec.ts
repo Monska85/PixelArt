@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Reference images of one main state per view, at 1,280 and 375 px, in both themes. Every state, these included, also
 // gets the layout checks of layout.spec.ts. See states.ts for how to add a state, and playwright.screenshots.config.ts.
 

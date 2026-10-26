@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { ChevronDown } from "lucide-react";
 import { Button } from "../components/button";
 import { cn } from "../components/cn";

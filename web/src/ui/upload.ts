@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useSyncExternalStore } from "react";
 import { createEmitter } from "./emitter";
 import { BoardError, CONNECTION_LOST, NO_REPLY, UploadCancelled, uploadFile, type BoardClient } from "../protocol";

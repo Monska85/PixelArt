@@ -1,0 +1,72 @@
+{
+  "description": "each transport remembers its own last reply: a request over the other transport in between does not make a repeated request run again, and a new WiFi connection forgets only the WiFi reply",
+  "transport": "wifi",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/dot2.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR d5d87b51 {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR c10ab9fe {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot2\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR d5d87b51 {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR c10ab9fe {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot2\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "wifi_connect": true
+    },
+    {
+      "send": "@PR d5d87b51 {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR c10ab9fe {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot2\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    }
+  ]
+}

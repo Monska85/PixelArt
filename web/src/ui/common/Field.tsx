@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useId, type ReactNode } from "react";
 import { Label } from "../components/label";
 import { cn } from "../components/cn";

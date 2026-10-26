@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Operations on an animation document held as strict JSON values (maps keep the
 // order of the fields, numbers keep integer and float apart). Every function
 // returns a new document and shares what it did not change, so a document is

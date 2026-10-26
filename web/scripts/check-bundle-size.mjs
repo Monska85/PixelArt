@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Fails when the JavaScript the page loads at start goes over the budget.
 //
 // That is the entry chunk index.html names and every chunk it preloads (the modules the entry imports), each gzipped

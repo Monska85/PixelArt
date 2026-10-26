@@ -16,6 +16,7 @@
 #include "pixel_art.h"
 #include "protocol.h"
 #include "settings.h"
+#include "task_sync.h"
 #include "pixelart_test.h"
 
 namespace fs = std::filesystem;
@@ -69,7 +70,7 @@ void setUp()
   setup();
 }
 
-void tearDown() {}
+void tearDown() { task_sync::sim_block_loop(false); }
 
 struct Run
 {
@@ -113,7 +114,7 @@ static void test_traffic_leaves_the_repository_animations_unchanged()
 
 // A slow command: the memory probe that `info` calls takes 300 ms of virtual time.
 static uint64_t slow_probe_calls = 0;
-static protocol::Memory slow_probe()
+static install::Memory slow_probe()
 {
   if (slow_probe_calls++ == 0)
     sim::advance_us(300000);
@@ -136,7 +137,7 @@ static void test_a_slow_command_delays_one_frame_and_the_schedule_holds()
   sim::reset();
   setup();
   slow_probe_calls = 0;
-  protocol::set_memory_probe(slow_probe);
+  install::set_memory_probe(slow_probe);
   sim::serial_input(request(1, R"("cmd":"info")"));
   play_stored_animation("a");
 
@@ -310,6 +311,29 @@ static void test_no_animations_image_waits_for_commands_too()
   TEST_ASSERT_EQUAL_UINT64(2000000, sim::now_us());
 }
 
+static void test_a_busy_heap_keeps_the_last_frame_and_retries_after_200_ms()
+{
+  TempData data("playback");
+  data.write("animations/a.json", dot_animation("#ff0000", 3, 100));
+  data.write("playlists/default.json", playlist_of({"a"}));
+  setup();
+  const uint64_t start = sim::now_us();
+
+  task_sync::sim_block_loop(true);
+  play_stored_animation("a");
+  TEST_ASSERT_EQUAL(0, sim::frames().size());
+  TEST_ASSERT_EQUAL_UINT64(200000, sim::now_us() - start);
+
+  play_from_storage(); // the playlist is busy too
+  task_sync::sim_block_loop(false);
+  TEST_ASSERT_EQUAL(0, sim::frames().size());
+  TEST_ASSERT_EQUAL_UINT64(400000, sim::now_us() - start);
+  TEST_ASSERT_EQUAL_STRING("", logs_without_protocol_lines().c_str());
+
+  play_from_storage(); // the memory is free: the playlist plays
+  TEST_ASSERT_EQUAL_STRING("aaa", shown().c_str());
+}
+
 int main(int, char **)
 {
   UNITY_BEGIN();
@@ -326,5 +350,6 @@ int main(int, char **)
   RUN_TEST(test_an_upload_is_open_while_chunks_arrive);
   RUN_TEST(test_boot_removes_a_leftover_temporary_file);
   RUN_TEST(test_no_animations_image_waits_for_commands_too);
+  RUN_TEST(test_a_busy_heap_keeps_the_last_frame_and_retries_after_200_ms);
   return UNITY_END();
 }

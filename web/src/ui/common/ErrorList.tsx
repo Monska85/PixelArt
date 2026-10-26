@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useState } from "react";
 import type { ShownError } from "../errors";
 import { ShownErrorAlert } from "./ErrorAlert";

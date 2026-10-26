@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import type { BoardInfo } from "../../protocol";
@@ -9,6 +11,7 @@ import { formatSize } from "../format";
 import { session, useSession, type ConnectionState } from "../session";
 import { ConnectBoardButton } from "./ConnectBoardButton";
 import { SimulatorForm } from "./SimulatorForm";
+import { WifiConnectForm } from "./WifiConnectForm";
 
 const LABELS: Record<ConnectionState, string> = {
   disconnected: "Not connected",
@@ -88,6 +91,10 @@ export function ConnectionChip() {
         {(state === "disconnected" || state === "connecting") && (
           <>
             <ConnectBoardButton onDone={close}>Connect board</ConnectBoardButton>
+            <div className="flex flex-col gap-3 border-t border-border pt-4">
+              <p className="text-sm font-medium">Connect over WiFi</p>
+              <WifiConnectForm onDone={close} />
+            </div>
             <div className="flex flex-col gap-3 border-t border-border pt-4">
               <p className="text-sm font-medium">Use the simulator</p>
               <SimulatorForm onDone={close} />

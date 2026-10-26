@@ -2,6 +2,8 @@
 
 #include "storage.h"
 
+#include <pixel_codec.h>
+
 #include <algorithm>
 #include <new>
 
@@ -381,6 +383,22 @@ ReadResult Reader::read_all(Buffer &out, size_t max_size)
     return ReadResult::Unreadable;
 #endif
   return out.size == size_ ? ReadResult::Ok : ReadResult::Unreadable;
+}
+
+bool sha256_hex(Reader &file, std::string &digest)
+{
+  pixelart::Sha256 hash;
+  uint8_t block[256];
+  for (size_t offset = 0; offset < file.size();)
+  {
+    const size_t got = file.read_at(offset, block, std::min(sizeof(block), file.size() - offset));
+    if (got == 0)
+      return false;
+    hash.update(block, got);
+    offset += got;
+  }
+  digest = hash.hex_digest();
+  return true;
 }
 
 } // namespace storage

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 export { loadAnimation } from "./animation";
 export { loadPlaylist } from "./playlist";
 export { Player } from "./player";

@@ -1,0 +1,24 @@
+{
+  "description": "delete_all without the reset does not close the WiFi client",
+  "transport": "wifi",
+  "settings": {
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "steps": [
+    {
+      "send": "@PR 822b57f4 {\"seq\":1,\"cmd\":\"delete_all\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 0,
+        "animations": 0
+      }
+    },
+    {
+      "expect_closed": false
+    }
+  ]
+}

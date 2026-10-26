@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 /**
  * Runs `disconnect` before the click on an ESP Web Tools install button reaches the component.
  *

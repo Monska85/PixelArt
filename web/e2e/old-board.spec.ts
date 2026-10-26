@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { connectScripted, scriptedBoard } from "./scripted";
@@ -28,4 +30,23 @@ test("offers the Firmware view where uploads are blocked by the file formats of 
   }
   await page.getByTestId("blocked-note").getByRole("link", { name: "Open the Firmware view" }).click();
   await expect(page.getByRole("link", { name: "Firmware", exact: true })).toHaveAttribute("aria-current", "page");
+});
+
+test("tells a board on the old flash layout to use Install from scratch once", async ({ page }) => {
+  const board = await scriptedBoard(page);
+  board.storage = { total: 0x160000, used: 8192 };
+  await connectScripted(page, board);
+  await page.getByRole("link", { name: "Firmware", exact: true }).click();
+  const warning = page.getByTestId("old-layout");
+  await expect(warning).toContainText("This board needs Install from scratch once");
+  await expect(warning).toContainText("Update firmware cannot move its stored files");
+});
+
+test("does not warn a board on the current flash layout", async ({ page }) => {
+  const board = await scriptedBoard(page);
+  board.storage = { total: 0xf0000, used: 8192 };
+  await connectScripted(page, board);
+  await page.getByRole("link", { name: "Firmware", exact: true }).click();
+  await expect(page.getByTestId("firmware-check")).toBeVisible();
+  await expect(page.getByTestId("old-layout")).toHaveCount(0);
 });

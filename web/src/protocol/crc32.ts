@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // CRC-32 of zlib, PNG and Ethernet (reflected polynomial 0xEDB88320).
 
 const TABLE = Uint32Array.from({ length: 256 }, (_, n) => {

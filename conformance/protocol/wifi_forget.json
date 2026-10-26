@@ -1,0 +1,25 @@
+{
+  "description": "wifi_forget succeeds with no fields over USB, and refuses a field",
+  "steps": [
+    {
+      "send": "@PR 4e706339 {\"seq\":1,\"cmd\":\"wifi_forget\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR c9917fe6 {\"seq\":2,\"cmd\":\"wifi_forget\",\"extra\":1}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    }
+  ]
+}
