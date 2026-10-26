@@ -1868,6 +1868,15 @@ std::string error_of(const std::string &fields)
   return doc["error"].as<std::string>();
 }
 
+std::string error_message_of(const std::string &fields)
+{
+  JsonDocument doc = ask(fields);
+  return doc["message"].as<std::string>();
+}
+
+// The time a failed store or read waits before it is tried again, in microseconds.
+constexpr uint64_t RETRY_US = 2000000;
+
 JsonDocument status_update()
 {
   JsonDocument doc = ask("\"cmd\":\"status\"");
@@ -2703,8 +2712,8 @@ static void test_a_confirmation_retry_that_overlaps_a_second_installation_does_n
         for (int i = 0; i < 300 && !network_done; ++i)
           std::this_thread::sleep_for(std::chrono::milliseconds(1));
       });
-  for (int i = 0; i < 100; ++i)
-    firmware::first_frame_shown();
+  sim::advance_us(RETRY_US);
+  firmware::first_frame_shown();
   TEST_ASSERT_TRUE(network.joinable());
   network.join();
   TEST_ASSERT_TRUE(activated);
@@ -2734,6 +2743,9 @@ static void test_a_second_installation_cannot_start_while_the_first_firmware_is_
   TEST_ASSERT_EQUAL_STRING("busy", error_of("\"cmd\":\"update_install\",\"target\":\"firmware\"").c_str());
   TEST_ASSERT_EQUAL_STRING("busy",
                            error_of("\"cmd\":\"update_install\",\"target\":\"firmware\",\"force\":true").c_str());
+  // The reason is the trial, not another running check or installation.
+  TEST_ASSERT_EQUAL_STRING("the running firmware is still confirming itself, try again after it has",
+                           error_message_of("\"cmd\":\"update_install\",\"target\":\"firmware\"").c_str());
 
   // Even an installation that reaches the slot is refused: nothing changes in the record of the trial.
   const std::string newer = "pixelart-sim-firmware-1.4.0";
@@ -2778,10 +2790,7 @@ static void test_a_first_frame_that_finds_the_store_busy_keeps_the_trial_until_i
   frame_during_a_network_store();
   TEST_ASSERT_TRUE(firmware::sim_on_trial()); // not valid without the evidence
   TEST_ASSERT_TRUE(firmware::is_on_trial());
-  TEST_ASSERT_EQUAL_UINT(1, firmware::sim_failures_logged());
-  for (int i = 0; i < 99; ++i)
-    firmware::first_frame_shown();
-  TEST_ASSERT_TRUE(firmware::sim_on_trial()); // the next attempt is the 100th frame after the failed one
+  // A busy store is not a failed one: the next frame tries again, however long frames last.
   firmware::first_frame_shown();
   TEST_ASSERT_FALSE(firmware::sim_on_trial());
   TEST_ASSERT_FALSE(firmware::is_on_trial());
@@ -2790,6 +2799,90 @@ static void test_a_first_frame_that_finds_the_store_busy_keeps_the_trial_until_i
   JsonDocument done = last_install();
   TEST_ASSERT_EQUAL_STRING("updated", done["result"].as<const char *>());
   TEST_ASSERT_EQUAL_STRING("1.2.0", done["from"].as<const char *>());
+}
+
+static void test_a_failed_evidence_store_is_tried_again_after_a_time_not_a_number_of_frames()
+{
+  Board board("sim-firmware-evidence-retry-time", NOTIFY);
+  install_skipped_firmware_and_boot_it();
+  firmware::sim_fail_saves(true);
+  firmware::first_frame_shown();
+  TEST_ASSERT_EQUAL_UINT(1, firmware::sim_failures_logged());
+  firmware::sim_fail_saves(false);
+  for (int i = 0; i < 300; ++i)
+    firmware::first_frame_shown(); // frames that come at once do not retry
+  TEST_ASSERT_TRUE(firmware::sim_on_trial());
+  sim::advance_us(RETRY_US - 1);
+  firmware::first_frame_shown();
+  TEST_ASSERT_TRUE(firmware::sim_on_trial());
+  // A valid animation may show a frame for a minute: the first frame after the retry time confirms.
+  sim::advance_us(60 * 1000000ULL);
+  firmware::first_frame_shown();
+  TEST_ASSERT_FALSE(firmware::sim_on_trial());
+  TEST_ASSERT_FALSE(firmware::is_on_trial());
+  TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
+}
+
+// Force-installs the published firmware over a skipped 1.3.0, up to the restart that boots it on trial.
+static void stage_skipped_firmware()
+{
+  firmware::sim_set_version("1.2.0");
+  firmware::sim_set_skipped("1.3.0");
+  publish_firmware();
+  TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_check\"").c_str());
+  drive();
+  TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_install\",\"target\":\"firmware\",\"force\":true").c_str());
+  drive_install();
+}
+
+static void test_a_record_that_cannot_be_read_at_a_trial_boot_is_not_confirmed_from_nothing()
+{
+  Board board("sim-firmware-load-failure", NOTIFY);
+  board.data.write("animations/dot.json", DOT);
+  stage_skipped_firmware();
+  firmware::sim_fail_loads(true);
+  restart_board();
+  TEST_ASSERT_TRUE(firmware::sim_on_trial());
+  TEST_ASSERT_TRUE(play_stored_animation("dot"));
+  for (int i = 0; i < 3; ++i)
+  {
+    sim::advance_us(RETRY_US);
+    firmware::first_frame_shown();
+  }
+  // Still on trial: no installation is reported from an empty record, and none is stored over the real one.
+  TEST_ASSERT_TRUE(firmware::sim_on_trial());
+  TEST_ASSERT_TRUE(firmware::is_on_trial());
+  TEST_ASSERT_TRUE(last_install().isNull());
+  TEST_ASSERT_EQUAL_UINT(2, firmware::sim_failures_logged()); // one line for the boot, one for the trial
+
+  // The record can be read again: the pending installation and the skip are there, and it confirms.
+  firmware::sim_fail_loads(false);
+  sim::advance_us(RETRY_US);
+  firmware::first_frame_shown();
+  TEST_ASSERT_FALSE(firmware::sim_on_trial());
+  JsonDocument done = last_install();
+  TEST_ASSERT_EQUAL_STRING("updated", done["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.2.0", done["from"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", done["to"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("", firmware::skipped().c_str());
+}
+
+static void test_a_record_that_cannot_be_read_keeps_the_pending_installation_for_the_next_boot()
+{
+  Board board("sim-firmware-load-failure-rollback", NOTIFY);
+  stage_skipped_firmware();
+  firmware::sim_fail_loads(true);
+  restart_board();
+  TEST_ASSERT_TRUE(firmware::sim_on_trial());
+  restart_board(); // the bootloader rolls back; the record is unreadable and nothing is stored
+  TEST_ASSERT_EQUAL_STRING("1.2.0", platform::firmware_version());
+  firmware::sim_fail_loads(false);
+  restart_board(); // the record is read: the rollback is reported and the version skipped
+  JsonDocument back = last_install();
+  TEST_ASSERT_EQUAL_STRING("rolled_back", back["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.2.0", back["from"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", back["to"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", firmware::skipped().c_str());
 }
 
 static void test_a_restart_before_the_evidence_is_stored_rolls_the_trial_back()
@@ -2824,8 +2917,8 @@ static void test_a_confirmation_that_cannot_be_stored_is_stored_again_while_the_
   for (int i = 0; i < 300; ++i)
     firmware::first_frame_shown(); // the attempts fail while the store does
   firmware::sim_fail_saves(false);
-  for (int i = 0; i < 100; ++i)
-    firmware::first_frame_shown();
+  sim::advance_us(RETRY_US);
+  firmware::first_frame_shown();
   restart_board();
   TEST_ASSERT_EQUAL_STRING("1.3.0", platform::firmware_version());
   TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
@@ -3470,6 +3563,9 @@ int main(int, char **)
   RUN_TEST(test_a_confirmation_that_cannot_be_stored_is_stored_again_while_the_board_runs);
   RUN_TEST(test_a_second_installation_cannot_start_while_the_first_firmware_is_on_trial);
   RUN_TEST(test_a_first_frame_that_finds_the_store_busy_keeps_the_trial_until_its_evidence_is_stored);
+  RUN_TEST(test_a_failed_evidence_store_is_tried_again_after_a_time_not_a_number_of_frames);
+  RUN_TEST(test_a_record_that_cannot_be_read_at_a_trial_boot_is_not_confirmed_from_nothing);
+  RUN_TEST(test_a_record_that_cannot_be_read_keeps_the_pending_installation_for_the_next_boot);
   RUN_TEST(test_a_restart_before_the_evidence_is_stored_rolls_the_trial_back);
   RUN_TEST(test_the_store_failing_between_any_two_writes_never_loses_a_confirmed_installation);
   RUN_TEST(test_the_store_failing_between_any_two_writes_never_loses_a_rollback);

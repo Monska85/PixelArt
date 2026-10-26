@@ -109,6 +109,8 @@ void sim_set_save_hook(std::function<void()> hook);
 std::string sim_pending_version();
 // Makes marking the running firmware valid or invalid fail, as the bootloader's call can.
 void sim_fail_marks(bool fail);
+// Makes reading the stored record fail, as the board's storage can at boot.
+void sim_fail_loads(bool fail);
 // Makes the next activate() restart after storing its record and before the boot slot changes,
 // as a power loss there would.
 void sim_restart_before_switch();

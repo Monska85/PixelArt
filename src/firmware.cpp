@@ -20,21 +20,29 @@ std::atomic<bool> on_trial{false};
 std::atomic<uint8_t> written_percent{0};
 std::atomic<bool> mark_failure_logged{false};
 std::atomic<bool> confirm_unsaved{false};
-std::atomic<uint16_t> confirm_frames{0};
+std::atomic<uint64_t> confirm_retry_us{0};
+std::atomic<bool> record_loaded{true};
 
 bool valid_version(const std::string &version) { return !version.empty() && version.size() <= MAX_VERSION; }
 
 namespace
 {
 
-// Frames between two attempts to store a confirmation that could not be stored.
-constexpr uint16_t CONFIRM_RETRY_FRAMES = 100;
+// Time between two attempts to store, or to read, a record after one failed. A store that is only busy is
+// tried again at the next frame; frames can last a minute, and the trial holds the next installation.
+constexpr uint64_t RETRY_US = 2000000;
+
+enum class Stored
+{
+  Done,
+  Busy, // another store was running: nothing was tried
+  Failed
+};
 
 std::mutex store_lock; // one store at a time, from the copy of the record to the last write
 std::atomic<bool> evidence_stored{false};
-std::atomic<bool> evidence_failed{false}; // the last attempt to store it failed
 std::atomic<bool> evidence_logged{false};
-std::atomic<uint16_t> evidence_frames{0}; // frames since that attempt
+std::atomic<uint64_t> evidence_retry_us{0}; // not before this time after a failed attempt
 
 // Records the running firmware as installed. The caller holds `lock`.
 void record_confirmed(const std::string &running)
@@ -60,29 +68,60 @@ void clear_pending()
   record.pending_to.clear();
 }
 
+// Stores the record. Nothing is stored while it was not loaded: an empty record would erase the stored one.
+Stored try_persist(bool after_frame)
+{
+  // The loop task never waits for the network task's store, which waits for the loop task's frames.
+  std::unique_lock<std::mutex> guard(store_lock, std::defer_lock);
+  if (after_frame)
+    guard.lock();
+  else if (!guard.try_lock())
+    return Stored::Busy;
+  static Record snapshot; // under store_lock: no stack use on the loop task
+  {
+    std::lock_guard<std::mutex> state(lock);
+    if (!record_loaded)
+      return Stored::Failed;
+    snapshot = record;
+  }
+  return save(snapshot, after_frame) ? Stored::Done : Stored::Failed;
+}
+
 // Stores the confirmation again, now and then, until it works.
 void retry_unsaved_confirmation()
 {
-  if (!confirm_unsaved || ++confirm_frames < CONFIRM_RETRY_FRAMES)
+  if (!confirm_unsaved || platform::now_us() < confirm_retry_us)
     return;
-  confirm_frames = 0;
-  if (persist(false))
+  const Stored stored = try_persist(false);
+  if (stored == Stored::Done)
     confirm_unsaved = false;
+  else if (stored == Stored::Failed)
+    confirm_retry_us = platform::now_us() + RETRY_US;
 }
 
 // While the new firmware is still on trial, stores that it booted, before it marks itself valid. A board
 // that restarts after the mark and before the result is stored finds this and reports the installation;
 // without it, a firmware flashed over USB with the same version would be taken for the installed one.
-// False while it is not stored: the firmware then stays on trial and tries again every CONFIRM_RETRY_FRAMES
-// frames, so a store that is busy or failing never lets it mark itself valid without the evidence.
+// False while it is not stored: the firmware then stays on trial, so a store that is busy or failing never
+// lets it mark itself valid without the evidence. A busy store is tried again at the next frame, a failed
+// one, or a record that cannot be read, after RETRY_US. If it never works the board restarts on the
+// previous firmware.
 bool store_evidence()
 {
   if (evidence_stored)
     return true;
-  if (evidence_failed && ++evidence_frames < CONFIRM_RETRY_FRAMES)
+  if (platform::now_us() < evidence_retry_us)
     return false;
   {
     std::lock_guard<std::mutex> guard(lock);
+    if (!ensure_loaded())
+    {
+      // An empty record does not prove that no installation is pending: nothing is confirmed from it.
+      evidence_retry_us = platform::now_us() + RETRY_US;
+      if (!evidence_logged.exchange(true))
+        log_failure("the record of the installation could not be read");
+      return false;
+    }
     if (!record.pending || record.pending_to != running_version())
     {
       evidence_stored = true; // nothing was recorded for this boot
@@ -90,15 +129,18 @@ bool store_evidence()
     }
     record.confirmed = true;
   }
-  if (persist(false))
+  const Stored stored = try_persist(false);
+  if (stored == Stored::Done)
   {
     evidence_stored = true;
     return true;
   }
-  evidence_failed = true;
-  evidence_frames = 0;
-  if (!evidence_logged.exchange(true))
-    log_failure("the installation could not be recorded as booted");
+  if (stored == Stored::Failed)
+  {
+    evidence_retry_us = platform::now_us() + RETRY_US;
+    if (!evidence_logged.exchange(true))
+      log_failure("the installation could not be recorded as booted");
+  }
   return false;
 }
 
@@ -136,20 +178,16 @@ Boot reconcile(const BootState &state, const std::string &running)
 
 } // namespace
 
-bool persist(bool after_frame)
+bool persist(bool after_frame) { return try_persist(after_frame) == Stored::Done; }
+
+bool ensure_loaded()
 {
-  // The loop task never waits for the network task's store, which waits for the loop task's frames.
-  std::unique_lock<std::mutex> guard(store_lock, std::defer_lock);
-  if (after_frame)
-    guard.lock();
-  else if (!guard.try_lock())
+  if (record_loaded)
+    return true;
+  if (!load(record))
     return false;
-  static Record snapshot; // under store_lock: no stack use on the loop task
-  {
-    std::lock_guard<std::mutex> state(lock);
-    snapshot = record;
-  }
-  return save(snapshot, after_frame);
+  record_loaded = true;
+  return true;
 }
 
 bool store_pending(const std::string &from, const std::string &to)
@@ -157,7 +195,7 @@ bool store_pending(const std::string &from, const std::string &to)
   {
     std::lock_guard<std::mutex> guard(lock);
     // The record of a trial that is not confirmed yet is not touched: its confirmation reads it.
-    if (on_trial)
+    if (on_trial || !ensure_loaded())
       return false;
     record.pending = true;
     record.confirmed = false;
@@ -186,17 +224,20 @@ void begin()
   Boot outcome = Boot::Nothing;
   {
     std::lock_guard<std::mutex> guard(lock);
-    load(record);
+    record_loaded = load(record);
+    if (!record_loaded)
+      log_failure("the record of the installation could not be read");
     state = boot();
     on_trial = state.trial;
     mark_failure_logged = false;
     evidence_stored = false;
-    evidence_failed = false;
     evidence_logged = false;
-    evidence_frames = 0;
+    evidence_retry_us = 0;
     confirm_unsaved = false;
-    confirm_frames = 0;
-    if (state.trial)
+    confirm_retry_us = 0;
+    // A record that could not be read says nothing about a pending installation: it is not reconciled, and
+    // an invalid slot stays, so the next boot reports the rollback.
+    if (state.trial || !record_loaded)
       return;
     outcome = reconcile(state, running_version());
   }
@@ -253,7 +294,7 @@ void first_frame_shown()
   }
   if (!persist(false))
   {
-    confirm_frames = 0;
+    confirm_retry_us = platform::now_us() + RETRY_US;
     confirm_unsaved = true;
     log_failure("the installation result could not be stored");
   }
@@ -277,7 +318,7 @@ void clear_skipped()
 {
   {
     std::lock_guard<std::mutex> guard(lock);
-    if (record.skip.empty())
+    if (!ensure_loaded() || record.skip.empty())
       return;
     record.skip.clear();
   }

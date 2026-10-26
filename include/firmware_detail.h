@@ -42,8 +42,11 @@ extern std::atomic<bool> on_trial;
 extern std::atomic<uint8_t> written_percent;
 extern std::atomic<bool> mark_failure_logged; // one log line per trial, however often the mark is retried
 
-extern std::atomic<bool> confirm_unsaved;    // the confirmed installation is not stored yet
-extern std::atomic<uint16_t> confirm_frames; // frames since the last attempt to store it
+extern std::atomic<bool> confirm_unsaved;      // the confirmed installation is not stored yet
+extern std::atomic<uint64_t> confirm_retry_us; // not before this time is another attempt made to store it
+// False while the stored record could not be read: `record` is empty then and stands for nothing, so
+// nothing is stored from it and nothing is confirmed by it.
+extern std::atomic<bool> record_loaded;
 
 bool valid_version(const std::string &version);
 
@@ -51,6 +54,9 @@ bool valid_version(const std::string &version);
 // later one always writes the newer record. `after_frame` is for the network task: it waits for a frame
 // before the write. Without it (the loop task, boot) a store that finds the store busy returns false.
 bool persist(bool after_frame);
+// Reads the stored record again when the boot could not. The caller holds `lock`. False while it cannot be
+// read; the record is then neither used nor stored.
+bool ensure_loaded();
 // Records the installation as pending and stores it. False when it was not stored; nothing is pending then.
 bool store_pending(const std::string &from, const std::string &to);
 // Forgets the pending installation, in memory only.
@@ -58,7 +64,8 @@ void drop_pending();
 
 // Each platform's slots and records.
 void log_failure(const char *what);
-void load(Record &out);
+// Reads the stored record. False when it cannot be read; `out` is not touched then.
+bool load(Record &out);
 // Only persist() calls it, one call at a time. It writes the values in this order and stops at the first
 // failure: skip, result, from, to, confirmed, pending from, pending to. So the pending installation, which
 // is written and removed last, stays stored until everything before it is. True only when every value was

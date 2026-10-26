@@ -35,6 +35,7 @@ struct SimFlash
   std::function<void()> save_hook;
   bool fail_health = false;
   bool fail_marks = false;
+  bool fail_loads = false;
   bool restart_before_switch = false;
   bool restart_requested = false;
   std::function<void()> restart_hook;
@@ -59,7 +60,14 @@ unsigned failures_logged = 0;
 
 void log_failure(const char *) { ++failures_logged; }
 
-void load(Record &out) { out = flash().record; }
+bool load(Record &out)
+{
+  if (flash().fail_loads)
+    return false;
+  out = flash().record;
+  return true;
+}
+
 // Writes the values one at a time, in the order of the board's NVS writes, and stops at the first one
 // that fails, so a test can break the store between any two of them.
 bool save(const Record &in, bool)
@@ -251,7 +259,8 @@ void sim_reset(const std::string &version)
   written_percent = 0;
   mark_failure_logged = false;
   confirm_unsaved = false;
-  confirm_frames = 0;
+  confirm_retry_us = 0;
+  record_loaded = true;
   failures_logged = 0;
 }
 
@@ -277,6 +286,7 @@ std::string sim_pending_version()
   return record.pending ? record.pending_to : "";
 }
 void sim_fail_marks(bool fail) { flash().fail_marks = fail; }
+void sim_fail_loads(bool fail) { flash().fail_loads = fail; }
 void sim_restart_before_switch() { flash().restart_before_switch = true; }
 unsigned sim_failures_logged() { return failures_logged; }
 bool sim_on_trial() { return flash().trial; }

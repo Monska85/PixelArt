@@ -69,7 +69,8 @@ enum class Request
   UpdatesOff,       // update_mode is `off`, or the switch of what the request asks for is off
   NothingToInstall, // the last check found nothing for the target
   NoNetwork,
-  Busy
+  Busy,
+  FirmwareConfirming // the running firmware is on trial and cannot be replaced yet
 };
 
 // `update_check`, and `update_install` for animations and playlists and for the firmware (`force`

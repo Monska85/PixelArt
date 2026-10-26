@@ -1044,6 +1044,8 @@ Status update_status(updates::Request request)
     return fail("no_network", "the board is not connected to WiFi");
   case updates::Request::Busy:
     return fail("busy", "a check or an installation is already running");
+  case updates::Request::FirmwareConfirming:
+    return fail("busy", "the running firmware is still confirming itself, try again after it has");
   }
   return fail("busy", "a check or an installation is already running");
 }

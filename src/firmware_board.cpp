@@ -61,12 +61,12 @@ bool put_text(Preferences &prefs, const char *key, const std::string &value)
 
 void log_failure(const char *what) { Serial.printf("pixelart: %s\n", what); }
 
-void load(Record &out)
+bool load(Record &out)
 {
-  out = Record();
   Preferences prefs;
   if (!prefs.begin(NAMESPACE, true))
-    return;
+    return false;
+  out = Record();
   out.skip = read_text(prefs, KEY_SKIP);
   const uint8_t result = prefs.getUChar(KEY_RESULT, 0);
   out.last.from = read_text(prefs, KEY_FROM);
@@ -78,6 +78,7 @@ void load(Record &out)
   out.pending_to = read_text(prefs, KEY_PENDING_TO);
   out.pending = !out.pending_to.empty();
   prefs.end();
+  return true;
 }
 
 // A write to NVS stops the flash cache, so the network task waits for a frame to be shown first. The loop

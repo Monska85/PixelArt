@@ -1,5 +1,5 @@
 {
-  "description": "A firmware on its trial boot answers update_install for firmware with busy, whatever the check found, until it shows its first frame",
+  "description": "A firmware on its trial boot answers update_install for firmware with busy, whatever the check found, until it shows its first frame and confirms itself (the healthy path: a delayed confirmation keeps the trial longer)",
   "firmware_version": "1.2.0",
   "update_source": {
     "files": {

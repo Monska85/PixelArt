@@ -257,7 +257,8 @@ enum class Work
 };
 
 // Leaves a request for the update task. The answers come in this order: updates off (the update mode, or the
-// switch of what is asked for), no network, busy (a request is waiting or running), and, for an installation,
+// switch of what is asked for), no network, busy (a request is waiting or running; for a firmware, also the
+// running one still on trial), and, for an installation,
 // nothing to install. Returns Started when it was queued.
 Request request(Work work, bool force = false)
 {
@@ -273,8 +274,10 @@ Request request(Work work, bool force = false)
     return Request::NoNetwork;
   {
     Locked guard;
-    if (shared.busy || (work == Work::Firmware && firmware::is_on_trial()))
-      return Request::Busy; // a firmware is installed only when the running one has ended its trial
+    if (shared.busy)
+      return Request::Busy;
+    if (work == Work::Firmware && firmware::is_on_trial())
+      return Request::FirmwareConfirming; // a firmware is installed only when the running one has ended its trial
     if (work == Work::Animations && shared.status.files == 0)
       return Request::NothingToInstall;
     if (work == Work::Firmware && (shared.status.firmware.empty() || (shared.status.firmware_skipped && !force)))

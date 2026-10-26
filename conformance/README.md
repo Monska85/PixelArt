@@ -106,7 +106,7 @@ A case is one JSON object:
   - `update_fail`: a list of failures in the form of `update_source.fail`, which the update server injects from this step on, in addition to those it injects already. A case uses it when a check succeeds and a later one fails.
   - `reboot`: restarts the board. The files stay, the settings go back to their defaults, and any upload is gone. The firmware slots stay too, with the skip list and the record of the last installation: a firmware that was installed boots on trial, and one that is restarted before its `first_frame` is rolled back to the previous firmware.
   - `reboot_unhealthy`: restarts the board as `reboot` does, and the health check of a firmware on trial fails, so it marks itself invalid and the board restarts into the previous firmware. Without a trial it is a plain `reboot`.
-  - `first_frame`: the board shows its first frame, which confirms a firmware on trial.
+  - `first_frame`: the board shows its first frame, which confirms a firmware on trial when its record is stored and its mark works, as it does in every case here.
   - `wifi_connect`: the WiFi client's connection ends and a new one opens, not logged in. The board forgets the login and the reply it remembered for the WiFi transport.
   - `expect_closed`: `true` when the board has asked to close the WiFi connection since the last `expect_closed` step (after 3 failed logins, a new token), `false` when it has not. After the board closed the connection, a case continues with `wifi_connect`: lines sent before it get no reply.
   - `expect_files`: a map from path to content. A string is the exact content the file must have, and `null` means the file must not exist. Other files are not checked.
