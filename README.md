@@ -28,7 +28,7 @@ The web app runs entirely in your browser, and nothing personal leaves your brow
 
 ## 3D printed frame
 
-You can find the 3D model files to print a frame for the 16x16 LEDs matrix [here](https://www.printables.com/model/1497091-pixel-art-frame). The frame holds the LEDs matrix and has a back support to increase stability and hold the ESP32 board and connection wires.
+Download the [3D printable frame model](https://www.printables.com/model/1497091-pixel-art-frame) for the 16x16 LED matrix. The frame holds the matrix and has a back support for the ESP32 board and connection wires.
 
 ## Quick start: flash an empty board
 
@@ -66,15 +66,15 @@ The firmware builds with Arduino-ESP32 3.3.12 (ESP-IDF 5.5.5), through PlatformI
 
 ## Wiring
 
-- Connect the `5V` and `GND` pins of the ESP32 C3 Supermini to the `DC IN` and `GND` pins of the LED matrix.
-- Connect the `GPIO4` pin of the ESP32 C3 Supermini to the `DIN` pin of the LED matrix.
+- Connect the `5V` and `GND` pins of the ESP32-C3 SuperMini to the `DC IN` and `GND` pins of the LED matrix.
+- Connect the `GPIO4` pin of the ESP32-C3 SuperMini to the `DIN` pin of the LED matrix.
 
 ### Power supply improvement
 
-You can improve the power supply avoiding to power the LED matrix through the ESP32 C3 Supermini board USB connector. Instead, you can use a separate 5V power supply and wire it as follows, keeping the `GPIO4` to `DIN` wire:
+To power the LED matrix without routing its current through the ESP32-C3 SuperMini board's USB connector, use a separate 5V supply. Keep the `GPIO4` to `DIN` wire and connect the supply as follows:
 
-- connect the `5V` pin of the power supply to the `DC IN` pin of the LED matrix and to the `5V` pin of the ESP32 C3 Supermini board.
-- Connect the `GND` pin of the power supply to the `GND` pin of the LED matrix and to the `GND` pin of the ESP32 C3 Supermini board.
+- Connect the `5V` pin of the power supply to the `DC IN` pin of the LED matrix and to the `5V` pin of the ESP32-C3 SuperMini board.
+- Connect the `GND` pin of the power supply to the `GND` pin of the LED matrix and to the `GND` pin of the ESP32-C3 SuperMini board.
 
 This keeps the supply stable and prevents voltage drops when bright images or many LEDs are lit, and the computer's USB port is then used only to program the board.
 
@@ -451,7 +451,7 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 | `tools/ws_bridge.py`           | Serves the simulator's command protocol on a WebSocket, started by the simulator's `--ws`                                                                                       |
 | `tools/test_*.py`              | Unit tests of the tools, run by `make check`                                                                                                                                    |
 | `tools/fw_version.py`          | The firmware version rules, shared by `tools/release.py` and the PlatformIO version script                                                                                      |
-| `tools/crt_bundle.py`          | Makes the firmware's certificate bundle again from esp-idf at a pinned tag (`certs/README.md`)                                                                                  |
+| `tools/crt_bundle.py`          | Makes the firmware's certificate bundle again from ESP-IDF at a pinned tag (`certs/README.md`)                                                                                  |
 | `tools/release.py`             | Builds the firmware release site (parts, ESP Web Tools manifests, animations, playlists, `manifest.json`) and merges it with the web app                                        |
 | `tools/check_pr_title.py`      | Checks that a pull request title is a conventional commit release-please accepts, for the `pr-title` check                                                                      |
 | `web/`                         | The web app: React and TypeScript, its own `package.json`, tests and changelog, see [`web/README.md`](web/README.md)                                                            |
@@ -467,7 +467,14 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 
 ### Continuous integration
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and on every push to `main`, once per change: a newer run of the same pull request or of `main` cancels the one still running. It checks the C++ formatting, converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests (among them the check that the GitHub Pages certificate chain verifies against the firmware's bundle), drives the simulator's WebSocket with `tools/pixelart.py board` (info, upload, list, download, delete and a rejected file), builds every board and the firmware release site (checking its manifest against the JSON Schema and the limits a board reads, and that every firmware leaves 64 KiB of its slot free), and attaches a rendered preview of every animation to each run. A second job, `web`, lints the web app, checks its formatting, runs its unit tests, builds it (which type checks it), checks the size of the JavaScript it loads at start, runs its end-to-end tests and the layout checks in Chromium against the simulator, and compares the reference images in the Playwright container. A third job, `actionlint`, checks the workflows with a pinned actionlint release and the `run:` blocks with shellcheck. A fourth, `certificates`, makes the firmware's certificate bundle again from the pinned esp-idf files and checks that it is the one in `certs/`, byte for byte. `.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and every push to `main`. A newer run of the same pull request or of `main` cancels the one still running. It has four jobs:
+
+- **`check`:** Checks C++ formatting, converts animations, checks them against the JSON Schemas and validates them with the engine. It runs the tests, including the GitHub Pages certificate chain check. It drives the simulator's WebSocket with `tools/pixelart.py board` to test board information, uploads, listings, downloads, deletions and file rejection. It builds every board and the firmware release site, checks the manifest against its JSON Schema and the board limits, checks that each firmware leaves 64 KiB of its slot free, and attaches a rendered preview of every animation.
+- **`web`:** Lints and tests the web app, checks formatting and startup JavaScript size, and builds it with type checking. It runs the end-to-end and layout checks against the simulator in Chromium and compares reference images in the Playwright container.
+- **`actionlint`:** Checks the workflows with a pinned actionlint release and their `run:` blocks with shellcheck.
+- **`certificates`:** Rebuilds the firmware's certificate bundle from the pinned ESP-IDF files and compares it byte for byte with `certs/`.
+
+`.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
 
 ### Code style
 
@@ -503,6 +510,7 @@ A board test that runs the whole update path against a local copy of the release
    ```
 
    Repeat the `status` command until it prints the board's state instead of an error. An answer only shows that the board is back. The test passed only when `status` prints `installed updated, from 0.0.1 to 99.0.1`, with the version the board ran before in place of 0.0.1 and this run's version in place of 99.0.1. Then run `python3 tools/pixelart.py board --port /dev/ttyACM0 info`: its `firmware` line must show that version, which proves the new firmware kept running. If it prints `installed rolled_back` instead, the new firmware did not start properly, the board went back to the previous one and the update failed. A board still on trial may show the installation before this one until its first frame, so repeat `status` once more; a result that names another version is not this run's. Only after you have read this result, put the previous mode back: `python3 tools/pixelart.py board --port /dev/ttyACM0 settings update_mode=automatic`. The Updates card of the web app does the same checks and installs. To test the automatic path instead, set `update_mode=automatic`, run `update check` and wait for the board to install and restart.
+
 5. Go back to normal firmware: run `make upload-firmware` without `PLATFORMIO_BUILD_FLAGS` and `PIXELART_VERSION`, and `make upload` too if the animations changed. After a successful test the board runs the test version, and no real release is newer, so it would never update again. A board left on the test build also accepts firmware over plain `http://` from that address, so use a spare board or go back right after the test.
 
 ### Loop task stack
