@@ -125,7 +125,7 @@ void test_no_animations_image_ignores_the_animation_brightness()
 void test_repository_playlist_plays_every_animation()
 {
   play_from_storage();
-  TEST_ASSERT_EQUAL(30, stored_animations().size());
+  TEST_ASSERT_EQUAL(41, stored_animations().size());
   TEST_ASSERT_EQUAL(374, sim::frames().size());
   TEST_ASSERT_EQUAL_STRING("", serial_text().c_str());
 }

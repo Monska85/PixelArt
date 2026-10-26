@@ -1,0 +1,87 @@
+format: pixelart/1
+name: Bubbling Cauldron
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 200
+
+palette:
+  pot: "#55556e"
+  rim: "#8a8aa8"
+  shine: "#c0c0d8"
+  brew: "#5cff5c"
+  brew_dark: "#2eb84a"
+  bubble: "#b8ffa8"
+  bubble_pink: "#ff9ee0"
+  flame: "#ff7a00"
+  flame_tip: "#ffd84a"
+
+sprites:
+  pot:
+    at: [0, 8]
+    points:
+      rim: [
+          [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [9, 0], [10, 0],
+          [11, 0], [12, 0], [13, 0], [14, 0]]
+      pot: [
+          [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1],
+          [12, 1], [13, 1], [1, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2],
+          [10, 2], [11, 2], [12, 2], [13, 2], [14, 2], [1, 3], [3, 3], [4, 3], [5, 3], [6, 3],
+          [7, 3], [8, 3], [9, 3], [10, 3], [11, 3], [12, 3], [13, 3], [14, 3], [1, 4], [2, 4],
+          [3, 4], [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4], [11, 4], [12, 4],
+          [13, 4], [14, 4], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5],
+          [10, 5], [11, 5], [12, 5], [13, 5], [3, 6], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6],
+          [9, 6], [10, 6], [11, 6], [12, 6], [4, 7], [11, 7]]
+      shine: [[2, 2], [2, 3]]
+  brew_a:
+    at: [0, 6]
+    points:
+      brew: [
+          [3, 0], [4, 0], [6, 0], [8, 0], [9, 0], [11, 0], [12, 0], [3, 1], [4, 1], [5, 1],
+          [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [13, 1]]
+      brew_dark: [[7, 0], [2, 1], [12, 1]]
+  brew_b:
+    at: [0, 6]
+    points:
+      brew: [
+          [4, 0], [6, 0], [7, 0], [9, 0], [10, 0], [12, 0], [2, 1], [4, 1], [5, 1], [6, 1],
+          [7, 1], [8, 1], [9, 1], [11, 1], [12, 1], [13, 1]]
+      brew_dark: [[5, 0], [11, 0], [3, 1], [10, 1]]
+  fire_a:
+    at: [3, 14]
+    points:
+      flame_tip: [[2, 0], [5, 0], [8, 0], [2, 1], [6, 1], [9, 1]]
+      flame: [[1, 1], [3, 1], [5, 1], [7, 1], [8, 1]]
+  fire_b:
+    at: [3, 14]
+    points:
+      flame_tip: [[1, 0], [4, 0], [7, 0], [10, 0], [1, 1], [6, 1], [10, 1]]
+      flame: [[0, 1], [2, 1], [3, 1], [5, 1], [7, 1], [9, 1]]
+  bubble:
+    points:
+      bubble: [[1, 0], [0, 1], [2, 1], [1, 2]]
+  bubble_small:
+    points:
+      bubble_pink: [[0, 0]]
+  pop:
+    points:
+      bubble: [[0, 0], [2, 0], [0, 2], [2, 2]]
+
+timeline:
+  - show: [pot, { sprite: pop, at: [7, -1] }, { sprite: bubble, at: [10, 1] }, { sprite: bubble, at: [4, 4] }, brew_a, fire_a]
+  - show: [pot, { sprite: bubble_small, at: [8, 5] }, { sprite: bubble, at: [10, 0] }, { sprite: bubble, at: [4, 3] }, brew_b, fire_b]
+  - show: [pot, { sprite: bubble_small, at: [8, 4] }, { sprite: pop, at: [10, -1] }, { sprite: bubble, at: [4, 2] }, brew_a, fire_a]
+  - show: [pot, { sprite: bubble_small, at: [8, 3] }, { sprite: bubble, at: [10, 4] }, { sprite: bubble, at: [4, 1] }, brew_b, fire_b]
+  - show: [pot, { sprite: bubble_small, at: [8, 2] }, { sprite: bubble, at: [10, 3] }, { sprite: bubble, at: [4, 0] }, brew_a, fire_a]
+  - show: [pot, { sprite: bubble_small, at: [8, 1] }, { sprite: bubble, at: [10, 2] }, { sprite: pop, at: [4, -1] }, brew_b, fire_b]
+  - show: [pot, { sprite: pop, at: [7, -1] }, { sprite: bubble, at: [10, 1] }, { sprite: bubble, at: [4, 4] }, brew_a, fire_a]
+  - show: [pot, { sprite: bubble_small, at: [8, 5] }, { sprite: bubble, at: [10, 0] }, { sprite: bubble, at: [4, 3] }, brew_b, fire_b]
+  - show: [pot, { sprite: bubble_small, at: [8, 4] }, { sprite: pop, at: [10, -1] }, { sprite: bubble, at: [4, 2] }, brew_a, fire_a]
+  - show: [pot, { sprite: bubble_small, at: [8, 3] }, { sprite: bubble, at: [10, 4] }, { sprite: bubble, at: [4, 1] }, brew_b, fire_b]
+  - show: [pot, { sprite: bubble_small, at: [8, 2] }, { sprite: bubble, at: [10, 3] }, { sprite: bubble, at: [4, 0] }, brew_a, fire_a]
+  - show: [pot, { sprite: bubble_small, at: [8, 1] }, { sprite: bubble, at: [10, 2] }, { sprite: pop, at: [4, -1] }, brew_b, fire_b]
+  - show: [pot, { sprite: pop, at: [7, -1] }, { sprite: bubble, at: [10, 1] }, { sprite: bubble, at: [4, 4] }, brew_a, fire_a]
+  - show: [pot, { sprite: bubble_small, at: [8, 5] }, { sprite: bubble, at: [10, 0] }, { sprite: bubble, at: [4, 3] }, brew_b, fire_b]
+  - show: [pot, { sprite: bubble_small, at: [8, 4] }, { sprite: pop, at: [10, -1] }, { sprite: bubble, at: [4, 2] }, brew_a, fire_a]
+  - show: [pot, { sprite: bubble_small, at: [8, 3] }, { sprite: bubble, at: [10, 4] }, { sprite: bubble, at: [4, 1] }, brew_b, fire_b]
+  - show: [pot, { sprite: bubble_small, at: [8, 2] }, { sprite: bubble, at: [10, 3] }, { sprite: bubble, at: [4, 0] }, brew_a, fire_a]
+  - show: [pot, { sprite: bubble_small, at: [8, 1] }, { sprite: bubble, at: [10, 2] }, { sprite: pop, at: [4, -1] }, brew_b, fire_b]

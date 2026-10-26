@@ -82,7 +82,7 @@ This keeps the supply stable and prevents voltage drops when bright images or ma
 
 Every animation is a YAML file in [`animations/`](animations/), and [`playlists/default.yaml`](playlists/default.yaml) decides which ones play and in which order. The formats are specified in [`docs/format/pixelart-v1.md`](docs/format/pixelart-v1.md) and [`docs/format/playlist-v1.md`](docs/format/playlist-v1.md).
 
-`make data` converts them to the JSON files the board reads, in `data/` (the layout of the board's file system: `data/animations/<id>.json`, `data/playlists/default.json`). The file name is the animation ID. The board plays the default playlist; without one, it plays every animation in alphabetical order.
+`make data` converts them to the JSON files the board reads, in `data/` (the layout of the board's file system: `data/animations/<id>.json`, `data/playlists/default.json`). The file name is the animation ID. The board plays the playlist named by its `playlist` setting, `default` unless changed; without a valid one, it plays every animation in alphabetical order. Other playlists, such as `playlists/halloween.yaml`, stay idle until you select them, with `settings playlist=halloween` (see [Commands from a terminal](#commands-from-a-terminal)) or in the Board view of the web app.
 
 An animation can play softer than the board's brightness setting with the optional field `brightness`, a percentage from 1 to 100 (for example `brightness: 50`), never brighter: see [Brightness](docs/format/pixelart-v1.md#brightness).
 
