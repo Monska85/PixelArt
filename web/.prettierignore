@@ -1,3 +1,5 @@
+# release-please writes this file
+CHANGELOG.md
 dist
 node_modules
 test-results*
