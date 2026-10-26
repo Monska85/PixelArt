@@ -120,7 +120,7 @@ Coordinates are integers. `x` grows to the right and `y` grows downwards, starti
 
 ### Coordinates and canvas
 
-The canvas declares which matrix a file is made for, so tools, the web app and update manifests can tell at a glance whether a file fits a board. [Playlists](playlist-v1.md) declare it too. The canvas is always 16x16 in version 1, the size of the matrix in the frame. Larger canvases can be allowed later without breaking existing files, because every 16x16 file stays valid.
+The canvas declares which matrix a file is made for. Tools and the web app can check it when they read the file, and [playlists](playlist-v1.md) declare their canvas too. Version 1 supports only 16x16, the size of the matrix in the frame. Larger canvases can be allowed later without breaking existing files because every 16x16 file stays valid.
 
 Coordinates, `at`, `move` and `pivot` values go from -128 to 127. The range is much wider than the canvas on purpose: sprites enter and leave the screen, so positions such as `x = 16` (just right of the screen) or negative values are normal. The bound protects the board from absurd values, and it fits one signed byte, which lets the board store each point in 3 bytes.
 
@@ -188,7 +188,7 @@ A frame says what is visible and for how long:
 | `repeat`  | Show this frame `repeat` times in a row. Default `1`. Each repetition can differ through [motion](#motion) and [spin](#rotation).                                  |
 | `recolor` | Color substitutions for this frame, see [Recolor](#recolor).                                                                                                       |
 
-A frame with `repeat: N` produces N frames on the matrix. The repetitions are numbered `k = 0, 1, ..., N-1`.
+A frame with `repeat: N` produces `N` frames on the matrix. The repetitions are numbered `k = 0, 1, ..., N-1`.
 
 ### Loop
 
@@ -248,7 +248,7 @@ With the bounding box from `min_x` to `max_x` and from `min_y` to `max_y`:
 
 The angle for repetition `k` is `rotate + k * spin`, reduced to 0, 90, 180 or 270 degrees. The sprite turns clockwise around its pivot `[px, py]`. Turning by 90 degrees moves a pixel at `[x, y]` to:
 
-```
+```text
 x' = px - (y - py)
 y' = py + (x - px)
 ```

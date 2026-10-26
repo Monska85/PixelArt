@@ -28,7 +28,7 @@ The web app runs entirely in your browser, and nothing personal leaves your brow
 
 ## 3D printed frame
 
-You can find the 3D model files to print a frame for the 16x16 LEDs matrix [here](https://www.printables.com/model/1497091-pixel-art-frame). The frame holds the LEDs matrix and has a back support to increase stability and hold the ESP32 board and connection wires.
+You can find the 3D model files to print a frame for the 16x16 LED matrix [here](https://www.printables.com/model/1497091-pixel-art-frame). The frame holds the LED matrix and has a back support to increase stability and hold the ESP32 board and connection wires.
 
 ## Quick start: flash an empty board
 
@@ -66,15 +66,15 @@ The firmware builds with Arduino-ESP32 3.3.12 (ESP-IDF 5.5.5), through PlatformI
 
 ## Wiring
 
-- Connect the `5V` and `GND` pins of the ESP32 C3 Supermini to the `DC IN` and `GND` pins of the LED matrix.
-- Connect the `GPIO4` pin of the ESP32 C3 Supermini to the `DIN` pin of the LED matrix.
+- Connect the `5V` and `GND` pins of the ESP32-C3 SuperMini to the `DC IN` and `GND` pins of the LED matrix.
+- Connect the `GPIO4` pin of the ESP32-C3 SuperMini to the `DIN` pin of the LED matrix.
 
 ### Power supply improvement
 
-You can improve the power supply avoiding to power the LED matrix through the ESP32 C3 Supermini board USB connector. Instead, you can use a separate 5V power supply and wire it as follows, keeping the `GPIO4` to `DIN` wire:
+You can improve the power supply by connecting a separate supply instead of powering the LED matrix through the ESP32-C3 SuperMini board's USB connector. Instead, you can use a separate 5V power supply and wire it as follows, keeping the `GPIO4` to `DIN` wire:
 
-- connect the `5V` pin of the power supply to the `DC IN` pin of the LED matrix and to the `5V` pin of the ESP32 C3 Supermini board.
-- Connect the `GND` pin of the power supply to the `GND` pin of the LED matrix and to the `GND` pin of the ESP32 C3 Supermini board.
+- Connect the `5V` pin of the power supply to the `DC IN` pin of the LED matrix and to the `5V` pin of the ESP32-C3 SuperMini board.
+- Connect the `GND` pin of the power supply to the `GND` pin of the LED matrix and to the `GND` pin of the ESP32-C3 SuperMini board.
 
 This keeps the supply stable and prevents voltage drops when bright images or many LEDs are lit, and the computer's USB port is then used only to program the board.
 
@@ -503,6 +503,7 @@ A board test that runs the whole update path against a local copy of the release
    ```
 
    Repeat the `status` command until it prints the board's state instead of an error. An answer only shows that the board is back. The test passed only when `status` prints `installed updated, from 0.0.1 to 99.0.1`, with the version the board ran before in place of 0.0.1 and this run's version in place of 99.0.1. Then run `python3 tools/pixelart.py board --port /dev/ttyACM0 info`: its `firmware` line must show that version, which proves the new firmware kept running. If it prints `installed rolled_back` instead, the new firmware did not start properly, the board went back to the previous one and the update failed. A board still on trial may show the installation before this one until its first frame, so repeat `status` once more; a result that names another version is not this run's. Only after you have read this result, put the previous mode back: `python3 tools/pixelart.py board --port /dev/ttyACM0 settings update_mode=automatic`. The Updates card of the web app does the same checks and installs. To test the automatic path instead, set `update_mode=automatic`, run `update check` and wait for the board to install and restart.
+
 5. Go back to normal firmware: run `make upload-firmware` without `PLATFORMIO_BUILD_FLAGS` and `PIXELART_VERSION`, and `make upload` too if the animations changed. After a successful test the board runs the test version, and no real release is newer, so it would never update again. A board left on the test build also accepts firmware over plain `http://` from that address, so use a spare board or go back right after the test.
 
 ### Loop task stack

@@ -49,7 +49,7 @@ A field that is present is always checked, and `null` is a value like any other:
 
 The same animation can appear more than once.
 
-Every animation in a playlist must have the same `canvas` as the playlist. Declaring the size in both files lets the tools, the web app and update manifests tell at a glance which matrix a file is made for, without opening the animations.
+Every animation in a playlist must have the same `canvas` as the playlist. Declaring the size in both files lets tools and the web app check compatibility when they read the files.
 
 ## How the board chooses what to play
 

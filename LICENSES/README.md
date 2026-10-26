@@ -6,7 +6,7 @@ PixelArt is licensed under GPL-3.0-or-later with the additional permission in [`
 
 `tools/firmware_notices.py` writes `firmware/THIRD_PARTY_NOTICES.txt` into the release site, called by `tools/release.py build` (`make release-firmware`, `make release-site`). It reads the link map (`firmware.map`) of each board, so it lists what the firmware really links, and it:
 
-- names every linked archive with a section of [`firmware.json`](firmware.json), with its license, its source and the files of its license text. An archive no section names fails the release, so a new dependency cannot be shipped without its notice.
+- names every linked archive with a section of [`firmware.json`](firmware.json), with its license, its source and the files of its license text. The release fails if no section names an archive, so a new dependency cannot be shipped without its notice.
 - reads the versions from the build: ESP-IDF and the managed components from `versions.txt` of the framework's library package, Arduino-ESP32 from that package's `package.json`, the compiler from its own `package.json`, and each PlatformIO library from its `library.json` or `library.properties`.
 - fails when the build uses another ESP-IDF, Arduino-ESP32 or component version than `pins` in `firmware.json`: the texts in `firmware/` were taken from those versions.
 - takes the texts of the PlatformIO libraries (Adafruit GFX, NeoMatrix, NeoPixel, ArduinoJson) from the libraries themselves, and those of newlib and of the GCC runtime from the compiler package (`share/licenses/`), so they always match the build.
@@ -34,7 +34,7 @@ The texts in `firmware/`, taken on 2026-10-25:
 
 ## Updating
 
-When the framework moves to another ESP-IDF or Arduino-ESP32 release, or a managed component to another version, the release build stops with the name and both versions. Take each text in `firmware/` again from the new version, as the table says, update `pins` in `firmware.json` and the table above, and build the release site again. When the build links an archive no section names, add it to the section of the component it comes from, or a new section with its license and text. A new PlatformIO library goes into `libraries` in `firmware.json` with its license and the names of its license files.
+When the framework moves to another ESP-IDF or Arduino-ESP32 release, or a managed component to another version, the release build stops with the name and both versions. Take each text in `firmware/` again from the new version, as the table says, update `pins` in `firmware.json` and the table above, and build the release site again. When the build links an archive that no section names, add it to the section of the component it comes from, or a new section with its license and text. A new PlatformIO library goes into `libraries` in `firmware.json` with its license and the names of its license files.
 
 ## Web app
 
