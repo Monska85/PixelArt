@@ -397,7 +397,9 @@ class SourceTest(unittest.TestCase):
                 raise
             self.skipTest("needs the jsonschema package")
         manifest = {"format": release.FORMAT, "version": "1.2.0", "released": "2026-11-02",
-                    "source": "https://github.com/Owner/Fork/tree/v1.2.0", "firmware": [], "animations": [], "playlists": []}
+                    "source": "https://github.com/Owner/Fork/tree/v1.2.0", "animations": [], "playlists": [],
+                    "firmware": [{"board": "esp32c3", "chip": "ESP32-C3", "part": "app", "offset": 65536,
+                                  "file": "firmware/esp32c3/app-1.2.0.bin", "size": 1, "sha256": "0" * 64}]}
         release.validate(manifest)
         for bad in ("http://example.org/src", "https://example.org/" + "x" * 200, 7):
             manifest["source"] = bad
