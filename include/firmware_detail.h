@@ -40,6 +40,9 @@ extern std::atomic<bool> on_trial;
 extern std::atomic<uint8_t> written_percent;
 extern std::atomic<bool> mark_failure_logged; // one log line per trial, however often the mark is retried
 
+extern std::atomic<bool> confirm_unsaved;    // the confirmed installation is not stored yet
+extern std::atomic<uint16_t> confirm_frames; // frames since the last attempt to store it
+
 bool valid_version(const std::string &version);
 
 // Each platform's slots and records.

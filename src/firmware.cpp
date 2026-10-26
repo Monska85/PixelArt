@@ -19,8 +19,47 @@ Record record;
 std::atomic<bool> on_trial{false};
 std::atomic<uint8_t> written_percent{0};
 std::atomic<bool> mark_failure_logged{false};
+std::atomic<bool> confirm_unsaved{false};
+std::atomic<uint16_t> confirm_frames{0};
 
 bool valid_version(const std::string &version) { return !version.empty() && version.size() <= MAX_VERSION; }
+
+namespace
+{
+
+// Frames between two attempts to store a confirmation that could not be stored.
+constexpr uint16_t CONFIRM_RETRY_FRAMES = 100;
+
+// Records the running firmware as installed. The caller holds `lock`.
+void record_confirmed(const std::string &running)
+{
+  record.last.present = true;
+  record.last.rolled_back = false;
+  record.last.from = record.pending_from;
+  record.last.to = running;
+  if (record.skip == running)
+    record.skip.clear(); // a skipped version that was installed by force, and held
+  record.pending = false;
+  record.pending_from.clear();
+  record.pending_to.clear();
+}
+
+// Stores the confirmation again, now and then, until it works.
+void retry_unsaved_confirmation()
+{
+  if (!confirm_unsaved || ++confirm_frames < CONFIRM_RETRY_FRAMES)
+    return;
+  confirm_frames = 0;
+  Record copy;
+  {
+    std::lock_guard<std::mutex> guard(lock);
+    copy = record;
+  }
+  if (save(copy, false))
+    confirm_unsaved = false;
+}
+
+} // namespace
 
 } // namespace detail
 
@@ -33,10 +72,24 @@ void begin()
   const BootState state = boot();
   on_trial = state.trial;
   mark_failure_logged = false;
+  confirm_unsaved = false;
+  confirm_frames = 0;
   if (state.trial)
     return;
   if (record.pending)
   {
+    const std::string running = running_version();
+    if (valid_version(record.pending_to) && record.pending_to == running)
+    {
+      // The new firmware confirmed itself, but the board restarted before the result was stored.
+      record_confirmed(running);
+      if (!save(record, false))
+      {
+        confirm_unsaved = true;
+        log_failure("the installation result could not be stored");
+      }
+      return;
+    }
     // An installation was started and this is not the new firmware. When its slot was marked invalid
     // the bootloader rolled back; otherwise the board restarted before the switch.
     if (state.invalid && valid_version(record.pending_to))
@@ -76,7 +129,10 @@ void health(bool ok)
 void first_frame_shown()
 {
   if (!on_trial.exchange(false))
+  {
+    retry_unsaved_confirmation();
     return;
+  }
   if (!mark_valid())
   {
     on_trial = true; // no successful installation is recorded; the next call tries again
@@ -87,20 +143,15 @@ void first_frame_shown()
   Record copy;
   {
     std::lock_guard<std::mutex> guard(lock);
-    const std::string running = running_version();
-    record.last.present = true;
-    record.last.rolled_back = false;
-    record.last.from = record.pending_from;
-    record.last.to = running;
-    if (record.skip == running)
-      record.skip.clear(); // a skipped version that was installed by force, and held
-    record.pending = false;
-    record.pending_from.clear();
-    record.pending_to.clear();
+    record_confirmed(running_version());
     copy = record;
   }
   if (!save(copy, false))
+  {
+    confirm_frames = 0;
+    confirm_unsaved = true;
     log_failure("the installation result could not be stored");
+  }
 }
 
 LastInstall last_install()

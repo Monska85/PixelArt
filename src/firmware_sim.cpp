@@ -207,6 +207,8 @@ void sim_reset(const std::string &version)
   on_trial = false;
   written_percent = 0;
   mark_failure_logged = false;
+  confirm_unsaved = false;
+  confirm_frames = 0;
   failures_logged = 0;
 }
 

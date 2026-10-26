@@ -2484,6 +2484,64 @@ static void test_a_failed_mark_valid_records_no_installation_and_keeps_the_trial
   TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
 }
 
+static void test_a_confirmation_that_cannot_be_stored_is_recorded_at_the_next_boot()
+{
+  Board board("sim-firmware-confirm-boot", NOTIFY);
+  firmware::sim_set_version("1.2.0");
+  firmware::sim_set_skipped("1.3.0");
+  board.data.write("animations/dot.json", DOT);
+  publish_firmware();
+  TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_check\"").c_str());
+  drive();
+  TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_install\",\"target\":\"firmware\",\"force\":true").c_str());
+  drive_install();
+  restart_board();
+  TEST_ASSERT_TRUE(firmware::sim_on_trial());
+
+  // The slot is confirmed, but the result is not stored before the board restarts.
+  firmware::sim_fail_saves(true);
+  TEST_ASSERT_TRUE(play_stored_animation("dot"));
+  TEST_ASSERT_FALSE(firmware::sim_on_trial());
+  TEST_ASSERT_EQUAL_UINT(1, firmware::sim_failures_logged());
+  firmware::sim_fail_saves(false);
+  restart_board();
+  TEST_ASSERT_EQUAL_STRING("1.3.0", platform::firmware_version());
+  JsonDocument done = last_install();
+  TEST_ASSERT_EQUAL_STRING("updated", done["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.2.0", done["from"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", done["to"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("", firmware::skipped().c_str());
+  restart_board(); // the record was stored: it stays, and nothing is recorded twice
+  TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("", firmware::skipped().c_str());
+}
+
+static void test_a_confirmation_that_cannot_be_stored_is_stored_again_while_the_board_runs()
+{
+  Board board("sim-firmware-confirm-retry", NOTIFY);
+  firmware::sim_set_version("1.2.0");
+  firmware::sim_set_skipped("1.3.0");
+  board.data.write("animations/dot.json", DOT);
+  publish_firmware();
+  TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_check\"").c_str());
+  drive();
+  TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_install\",\"target\":\"firmware\",\"force\":true").c_str());
+  drive_install();
+  restart_board();
+
+  firmware::sim_fail_saves(true);
+  TEST_ASSERT_TRUE(play_stored_animation("dot"));
+  for (int i = 0; i < 300; ++i)
+    firmware::first_frame_shown(); // the attempts fail while the store does
+  firmware::sim_fail_saves(false);
+  for (int i = 0; i < 100; ++i)
+    firmware::first_frame_shown();
+  restart_board();
+  TEST_ASSERT_EQUAL_STRING("1.3.0", platform::firmware_version());
+  TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("", firmware::skipped().c_str());
+}
+
 static void test_a_failed_mark_invalid_restarts_and_the_trial_is_treated_as_a_restart()
 {
   Board board("sim-firmware-mark-invalid", NOTIFY);
@@ -3117,6 +3175,8 @@ int main(int, char **)
   RUN_TEST(test_a_firmware_that_restarts_before_its_first_frame_is_rolled_back_and_skipped);
   RUN_TEST(test_a_failed_health_check_marks_the_firmware_invalid_and_the_previous_one_runs);
   RUN_TEST(test_a_failed_mark_valid_records_no_installation_and_keeps_the_trial);
+  RUN_TEST(test_a_confirmation_that_cannot_be_stored_is_recorded_at_the_next_boot);
+  RUN_TEST(test_a_confirmation_that_cannot_be_stored_is_stored_again_while_the_board_runs);
   RUN_TEST(test_a_failed_mark_invalid_restarts_and_the_trial_is_treated_as_a_restart);
   RUN_TEST(test_a_restart_before_the_switch_is_not_a_rollback);
   RUN_TEST(test_a_restart_before_the_switch_after_an_earlier_rollback_is_not_a_rollback);
