@@ -370,6 +370,10 @@ static void run_case(const fs::path &file)
     {
       firmware::sim_fail_clears(step["rollback_mark_stuck"].as<bool>());
     }
+    else if (!step["network_busy"].isNull())
+    {
+      network::sim_forget_succeeds(!step["network_busy"].as<bool>());
+    }
     else if (!step["reboot"].isNull())
     {
       reboot(false);
@@ -831,7 +835,7 @@ static void test_wifi_forget_says_so_when_the_network_task_cannot_take_it()
   TEST_ASSERT_TRUE_MESSAGE(json.find("\"ok\":true") != std::string::npos, json.c_str());
 }
 
-static void test_delete_all_with_settings_says_so_when_the_network_cannot_be_forgotten()
+static void test_delete_all_with_settings_changes_nothing_when_the_network_cannot_be_forgotten()
 {
   sim::reset();
   TempData data("protocol");
@@ -845,9 +849,9 @@ static void test_delete_all_with_settings_says_so_when_the_network_cannot_be_for
   std::string json = reply_json(replies.pop(), "delete_all");
   network::sim_forget_succeeds(true);
   TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\":\"busy\"") != std::string::npos, json.c_str());
-  TEST_ASSERT_TRUE_MESSAGE(json.find("repeat the command") != std::string::npos, json.c_str());
-  TEST_ASSERT_FALSE(fs::exists(data.root / "animations/dot.json"));
-  TEST_ASSERT_EQUAL(closes + 1, network::sim_close_requests()); // the old token is gone either way
+  TEST_ASSERT_TRUE_MESSAGE(json.find("nothing was changed") != std::string::npos, json.c_str());
+  TEST_ASSERT_TRUE(fs::exists(data.root / "animations/dot.json"));
+  TEST_ASSERT_EQUAL(closes, network::sim_close_requests());
 
   replies.send(request(2, R"("cmd":"delete_all","settings":true)"));
   json = reply_json(replies.pop(), "delete_all");
@@ -1293,7 +1297,7 @@ int main(int, char **)
   RUN_TEST(test_delete_all_keeps_the_settings_when_they_cannot_be_reset);
   RUN_TEST(test_delete_all_says_so_when_the_settings_are_partly_reset);
   RUN_TEST(test_wifi_forget_says_so_when_the_network_task_cannot_take_it);
-  RUN_TEST(test_delete_all_with_settings_says_so_when_the_network_cannot_be_forgotten);
+  RUN_TEST(test_delete_all_with_settings_changes_nothing_when_the_network_cannot_be_forgotten);
   RUN_TEST(test_info_reports_the_memory_probe);
   RUN_TEST(test_status_reports_the_stored_network_name_as_valid_json);
   RUN_TEST(test_status_reports_no_network_name_when_none_is_stored);

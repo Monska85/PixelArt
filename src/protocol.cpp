@@ -828,6 +828,9 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   if (reset)
     if (Status s = usb_only("delete_all with settings"); s.code)
       return s;
+  // The network is asked first: when the request cannot be queued nothing has changed yet, so the client repeats it.
+  if (reset && !network::forget())
+    return fail("busy", "the board could not take the request now; nothing was changed, repeat the command");
   cancel_upload();
   updates::cancel_install(); // before the files go, so an installation does not store them again
   size_t playlists = 0, animations = 0;
@@ -841,12 +844,7 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   {
     if (const char *failure = save_settings(settings::defaults_with_new_token()))
       return fail("storage_error", std::string("the files are removed but ") + failure);
-    // The old token is gone whether or not the network could be forgotten.
-    const bool forgotten = network::forget();
-    close_wifi_client();
-    if (!forgotten)
-      return fail("busy", "the files and settings are reset but the stored WiFi network is not erased yet; "
-                          "repeat the command");
+    close_wifi_client(); // the old token is gone
     add_settings(reply);
   }
   reply["playlists"] = playlists;

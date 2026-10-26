@@ -200,6 +200,25 @@ test("a storage error offers to run Delete everything again", async ({ page }) =
   expect(board.files.animation.size).toBe(0);
 });
 
+test("a busy answer changes nothing, shows its message and lets Delete everything run again", async ({ page }) => {
+  const board = await scriptedBoard(page);
+  board.files.animation.set("a", Buffer.from("{}"));
+  board.deleteAll = (call) =>
+    call === 1
+      ? { ok: false, error: "busy", message: "the board could not take the request now; nothing was changed" }
+      : { ok: true, playlists: 0, animations: 1 };
+  await connectScripted(page, board);
+  await openDeleteEverything(page);
+  await page.getByRole("dialog").getByRole("button", { name: "Delete 1 file" }).click();
+  await expect(page.getByText("nothing was changed")).toBeVisible();
+  expect(board.files.animation.size).toBe(1);
+  await openDeleteEverything(page);
+  await page.getByRole("dialog").getByRole("button", { name: "Delete 1 file" }).click();
+  await expect(toastWith(page, "Deleted 1 animation")).toBeVisible();
+  expect(board.requests.filter((r) => r.cmd === "delete_all")).toHaveLength(2);
+  expect(board.files.animation.size).toBe(0);
+});
+
 test("the activity panel shows while Delete everything runs and no upload can start", async ({ page, simulator }) => {
   const watch = await watchBoard(page, simulator);
   await connectSimulator(page, simulator);
