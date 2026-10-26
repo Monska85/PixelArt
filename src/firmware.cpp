@@ -31,7 +31,10 @@ namespace
 constexpr uint16_t CONFIRM_RETRY_FRAMES = 100;
 
 std::mutex store_lock; // one store at a time, from the copy of the record to the last write
-std::atomic<bool> evidence_tried{false};
+std::atomic<bool> evidence_stored{false};
+std::atomic<bool> evidence_failed{false}; // the last attempt to store it failed
+std::atomic<bool> evidence_logged{false};
+std::atomic<uint16_t> evidence_frames{0}; // frames since that attempt
 
 // Records the running firmware as installed. The caller holds `lock`.
 void record_confirmed(const std::string &running)
@@ -70,19 +73,33 @@ void retry_unsaved_confirmation()
 // While the new firmware is still on trial, stores that it booted, before it marks itself valid. A board
 // that restarts after the mark and before the result is stored finds this and reports the installation;
 // without it, a firmware flashed over USB with the same version would be taken for the installed one.
-// Once per boot, so a mark that keeps failing does not write at every frame.
-void store_evidence()
+// False while it is not stored: the firmware then stays on trial and tries again every CONFIRM_RETRY_FRAMES
+// frames, so a store that is busy or failing never lets it mark itself valid without the evidence.
+bool store_evidence()
 {
-  if (evidence_tried.exchange(true))
-    return;
+  if (evidence_stored)
+    return true;
+  if (evidence_failed && ++evidence_frames < CONFIRM_RETRY_FRAMES)
+    return false;
   {
     std::lock_guard<std::mutex> guard(lock);
     if (!record.pending || record.pending_to != running_version())
-      return;
+    {
+      evidence_stored = true; // nothing was recorded for this boot
+      return true;
+    }
     record.confirmed = true;
   }
-  if (!persist(false))
+  if (persist(false))
+  {
+    evidence_stored = true;
+    return true;
+  }
+  evidence_failed = true;
+  evidence_frames = 0;
+  if (!evidence_logged.exchange(true))
     log_failure("the installation could not be recorded as booted");
+  return false;
 }
 
 enum class Boot
@@ -139,6 +156,9 @@ bool store_pending(const std::string &from, const std::string &to)
 {
   {
     std::lock_guard<std::mutex> guard(lock);
+    // The record of a trial that is not confirmed yet is not touched: its confirmation reads it.
+    if (on_trial)
+      return false;
     record.pending = true;
     record.confirmed = false;
     record.pending_from = from;
@@ -170,7 +190,10 @@ void begin()
     state = boot();
     on_trial = state.trial;
     mark_failure_logged = false;
-    evidence_tried = false;
+    evidence_stored = false;
+    evidence_failed = false;
+    evidence_logged = false;
+    evidence_frames = 0;
     confirm_unsaved = false;
     confirm_frames = 0;
     if (state.trial)
@@ -208,22 +231,25 @@ void health(bool ok)
 
 void first_frame_shown()
 {
-  if (!on_trial.exchange(false))
+  if (!on_trial)
   {
     retry_unsaved_confirmation();
     return;
   }
-  store_evidence();
+  // Only the loop task gets here. The firmware stays on trial, which keeps a second installation from
+  // changing the record, until the evidence is stored, the mark worked and the result is in the record.
+  if (!store_evidence())
+    return;
   if (!mark_valid())
   {
-    on_trial = true; // no successful installation is recorded; the next call tries again
-    if (!mark_failure_logged.exchange(true))
+    if (!mark_failure_logged.exchange(true)) // no successful installation is recorded; the next frame tries again
       log_failure("the new firmware could not be marked valid");
     return;
   }
   {
     std::lock_guard<std::mutex> guard(lock);
     record_confirmed(running_version());
+    on_trial = false;
   }
   if (!persist(false))
   {
@@ -232,6 +258,8 @@ void first_frame_shown()
     log_failure("the installation result could not be stored");
   }
 }
+
+bool is_on_trial() { return on_trial; }
 
 LastInstall last_install()
 {

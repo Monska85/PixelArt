@@ -47,6 +47,7 @@ public:
   std::string firmware_board() override { return platform::board_name(); }
   std::string skipped_firmware() override { return firmware::skipped(); }
   void clear_skipped_firmware() override { firmware::clear_skipped(); }
+  bool firmware_on_trial() override { return firmware::is_on_trial(); }
   bool firmware_slot_size(size_t &bytes) override { return firmware::slot_size(bytes); }
 
   pixelart_update::Error activate_firmware(const std::string &version) override

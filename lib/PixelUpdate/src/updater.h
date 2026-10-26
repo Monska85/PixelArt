@@ -126,6 +126,8 @@ public:
   // The version on the skip list, empty when there is none, and ending the skip.
   virtual std::string skipped_firmware() { return ""; }
   virtual void clear_skipped_firmware() {}
+  // Whether the running firmware is still on its trial boot. No new firmware is installed until the trial ends.
+  virtual bool firmware_on_trial() { return false; }
   // Size of the slot a new firmware goes to, false when there is none.
   virtual bool firmware_slot_size(size_t &) { return false; }
   // Streams the image at `url` into the inactive slot, stopping as soon as the body passes
@@ -203,7 +205,8 @@ public:
   // nothing was found.
   bool request_install();
   // Asks to install the firmware the last check found. False when it is busy, the updates or the firmware switch
-  // are off, nothing was found, or the version is on the skip list and `force` is false.
+  // are off, nothing was found, the version is on the skip list and `force` is false, or the running firmware is
+  // still on its trial boot.
   bool request_firmware(bool force);
 
   // Stops what installs animations and playlists, and forgets the files the last check found: a running
@@ -240,6 +243,7 @@ private:
   Error read_manifest(const std::string &url, bool allow_http, Manifest &manifest);
   Error check_animations(Manifest &manifest);
   Error check_firmware(const Manifest &manifest);
+  bool automatic_firmware() const;
   bool automatic_work() const;
   void start_automatic_install();
   void start_install();

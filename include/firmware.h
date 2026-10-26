@@ -43,6 +43,10 @@ void first_frame_shown();
 
 LastInstall last_install();
 
+// Whether the running firmware is still on its trial boot: not marked valid, with its installation not recorded.
+// No new firmware is installed meanwhile.
+bool is_on_trial();
+
 // The version on the skip list, empty when there is none. A newer release than this version ends the
 // skip. The list holds one version: the one the last rollback left.
 std::string skipped();

@@ -273,8 +273,8 @@ Request request(Work work, bool force = false)
     return Request::NoNetwork;
   {
     Locked guard;
-    if (shared.busy)
-      return Request::Busy;
+    if (shared.busy || (work == Work::Firmware && firmware::is_on_trial()))
+      return Request::Busy; // a firmware is installed only when the running one has ended its trial
     if (work == Work::Animations && shared.status.files == 0)
       return Request::NothingToInstall;
     if (work == Work::Firmware && (shared.status.firmware.empty() || (shared.status.firmware_skipped && !force)))

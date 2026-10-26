@@ -145,7 +145,8 @@ bool Updater::request_install()
 
 bool Updater::request_firmware(bool force)
 {
-  if (!config_.enabled || !config_.firmware || busy() || firmware_version_.empty() || (firmware_skipped_ && !force))
+  if (!config_.enabled || !config_.firmware || busy() || firmware_version_.empty() || (firmware_skipped_ && !force) ||
+      host_.firmware_on_trial())
     return false;
   firmware_requested_ = true;
   return true;
@@ -315,19 +316,22 @@ Error Updater::check_firmware(const Manifest &manifest)
   return Error::None;
 }
 
-// Whether a check left something an automatic install does: files, or a firmware that is not skipped.
-bool Updater::automatic_work() const
+// Whether an automatic install takes the firmware the last check found: it is not skipped, and the running firmware
+// is not on trial, so two installations never overlap. The next check installs it once the trial has ended.
+bool Updater::automatic_firmware() const
 {
-  return (config_.animations && !plan_.empty()) ||
-         (config_.firmware && !firmware_version_.empty() && !firmware_skipped_);
+  return config_.firmware && !firmware_version_.empty() && !firmware_skipped_ && !host_.firmware_on_trial();
 }
+
+// Whether a check left something an automatic install does: files, or a firmware that is not skipped.
+bool Updater::automatic_work() const { return (config_.animations && !plan_.empty()) || automatic_firmware(); }
 
 void Updater::start_automatic_install()
 {
-  firmware_after_ = config_.firmware && !firmware_version_.empty() && !firmware_skipped_;
+  firmware_after_ = automatic_firmware();
   if (config_.animations && !plan_.empty())
     start_install();
-  else
+  else if (firmware_after_)
     start_firmware();
 }
 
@@ -468,7 +472,7 @@ void Updater::after_install()
   if (firmware_after_)
   {
     firmware_after_ = false;
-    if (!firmware_version_.empty() && !firmware_skipped_)
+    if (automatic_firmware())
       start_firmware();
   }
 }
