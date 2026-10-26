@@ -71,7 +71,7 @@ The firmware builds with Arduino-ESP32 3.3.12 (ESP-IDF 5.5.5), through PlatformI
 
 ### Power supply improvement
 
-You can improve the power supply by connecting a separate supply instead of powering the LED matrix through the ESP32-C3 SuperMini board's USB connector. Instead, you can use a separate 5V power supply and wire it as follows, keeping the `GPIO4` to `DIN` wire:
+To power the LED matrix without routing its current through the ESP32-C3 SuperMini board's USB connector, use a separate 5V supply. Keep the `GPIO4` to `DIN` wire and connect the supply as follows:
 
 - Connect the `5V` pin of the power supply to the `DC IN` pin of the LED matrix and to the `5V` pin of the ESP32-C3 SuperMini board.
 - Connect the `GND` pin of the power supply to the `GND` pin of the LED matrix and to the `GND` pin of the ESP32-C3 SuperMini board.
