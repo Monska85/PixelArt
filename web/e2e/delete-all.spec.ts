@@ -200,22 +200,29 @@ test("a storage error offers to run Delete everything again", async ({ page }) =
   expect(board.files.animation.size).toBe(0);
 });
 
-test("a busy answer changes nothing, shows its message and lets Delete everything run again", async ({ page }) => {
+test("a busy answer to a settings reset changes nothing and lets Delete everything run again", async ({ page }) => {
   const board = await scriptedBoard(page);
   board.files.animation.set("a", Buffer.from("{}"));
   board.deleteAll = (call) =>
     call === 1
       ? { ok: false, error: "busy", message: "the board could not take the request now; nothing was changed" }
-      : { ok: true, playlists: 0, animations: 1 };
+      : { ok: true, playlists: 0, animations: 1, settings: { brightness: 100, playlist: "default" } };
   await connectScripted(page, board);
+  const resetLabel = "Delete 1 file and reset the settings";
   await openDeleteEverything(page);
-  await page.getByRole("dialog").getByRole("button", { name: "Delete 1 file" }).click();
+  await resetBox(page.getByRole("dialog")).check();
+  await page.getByRole("dialog").getByRole("button", { name: resetLabel }).click();
   await expect(page.getByText("nothing was changed")).toBeVisible();
   expect(board.files.animation.size).toBe(1);
+  // The dialog opens unchecked again, so the repeat asks for the reset once more.
   await openDeleteEverything(page);
-  await page.getByRole("dialog").getByRole("button", { name: "Delete 1 file" }).click();
-  await expect(toastWith(page, "Deleted 1 animation")).toBeVisible();
-  expect(board.requests.filter((r) => r.cmd === "delete_all")).toHaveLength(2);
+  await resetBox(page.getByRole("dialog")).check();
+  await page.getByRole("dialog").getByRole("button", { name: resetLabel }).click();
+  await expect(toastWith(page, "and reset the settings")).toBeVisible();
+  const sent = board.requests.filter((r) => r.cmd === "delete_all");
+  expect(sent).toHaveLength(2);
+  expect(sent[0]).toMatchObject({ settings: true });
+  expect(sent[1]).toMatchObject({ settings: true });
   expect(board.files.animation.size).toBe(0);
 });
 
