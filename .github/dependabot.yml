@@ -25,6 +25,11 @@ updates:
       web:
         patterns:
           - "*"
+    # typescript-eslint supports only TypeScript 6 for now: remove this when it supports 7
+    ignore:
+      - dependency-name: typescript
+        update-types:
+          - "version-update:semver-major"
     commit-message:
       prefix: "build"
       include: "scope"
