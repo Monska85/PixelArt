@@ -37,6 +37,7 @@ struct SimFlash
   bool fail_marks = false;
   bool fail_loads = false;
   int loads_left = -1; // reads of a load that still work before the rest fail; -1 for no limit
+  bool fail_clears = false;
   bool namespace_exists = false;
   std::string boot_as; // the version the next trial boot reports, when it differs from the installed one
   bool restart_before_switch = false;
@@ -63,18 +64,68 @@ unsigned failures_logged = 0;
 
 void log_failure(const char *) { ++failures_logged; }
 
-// The board reads 7 values one at a time, and the record is unreadable when any of them fails.
+// The board reads 7 values one at a time, in this order, into a record it keeps only when all of them are
+// read. A read that fails at one value, as an error or a stored value that does not fit, leaves it unreadable.
 bool load(Record &out)
 {
   SimFlash &f = flash();
-  if (f.fail_loads || (f.loads_left >= 0 && f.loads_left < 7))
+  if (f.fail_loads)
     return false;
   if (!f.namespace_exists)
   {
     out = Record();
     return true;
   }
-  out = f.record;
+  int reads = 0;
+  const auto read = [&f, &reads](const std::function<void()> &copy)
+  {
+    if (f.loads_left >= 0 && reads++ >= f.loads_left)
+      return false;
+    copy();
+    return true;
+  };
+  Record in;
+  const Record &stored = f.record;
+  const bool ok = read(
+                      [&]
+                      {
+                        in.skip = stored.skip;
+                      }) &&
+                  read(
+                      [&]
+                      {
+                        in.last.present = stored.last.present;
+                        in.last.rolled_back = stored.last.rolled_back;
+                      }) &&
+                  read(
+                      [&]
+                      {
+                        in.last.from = stored.last.from;
+                      }) &&
+                  read(
+                      [&]
+                      {
+                        in.last.to = stored.last.to;
+                      }) &&
+                  read(
+                      [&]
+                      {
+                        in.confirmed = stored.confirmed;
+                      }) &&
+                  read(
+                      [&]
+                      {
+                        in.pending_from = stored.pending_from;
+                      }) &&
+                  read(
+                      [&]
+                      {
+                        in.pending = stored.pending;
+                        in.pending_to = stored.pending_to;
+                      });
+  if (!ok)
+    return false;
+  out = in;
   return true;
 }
 
@@ -173,6 +224,8 @@ bool mark_valid()
 // Forgets the invalid state of the other slot, as the board erases its slot of the OTA data.
 bool clear_invalid()
 {
+  if (flash().fail_clears)
+    return false;
   flash().invalid = false;
   return true;
 }
@@ -306,6 +359,7 @@ void sim_fail_loads(bool fail)
   flash().loads_left = -1;
 }
 void sim_fail_loads_after(unsigned reads) { flash().loads_left = static_cast<int>(reads); }
+void sim_fail_clears(bool fail) { flash().fail_clears = fail; }
 bool sim_namespace_exists() { return flash().namespace_exists; }
 void sim_boot_as(const std::string &version) { flash().boot_as = version; }
 void sim_restart_before_switch() { flash().restart_before_switch = true; }

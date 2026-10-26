@@ -360,7 +360,7 @@ An `http_error` has a detail when the request that failed was for a manifest (th
 
 Starts a check at once, in the background. No fields. The reply comes before the check ends; `status` follows it.
 
-It is `updates_off` when `update_mode` is `off` or both `update_firmware` and `update_animations` are `false`, `no_network` when the board is not connected, and `busy` when a check or an installation is running. The board tests them in this order.
+It is `updates_off` when `update_mode` is `off` or both `update_firmware` and `update_animations` are `false`, `no_network` when the board is not connected, and `busy` when a check or an installation is running. The board tests them in this order. While the board has not settled its last boot (it cannot read the record of its installations, has not stored a rollback, or has not cleared the mark of the slot it rolled back from), a check finds no firmware: `update.firmware` stays `null` and `update_install` for `firmware` answers `nothing_to_install`. The board retries every two seconds, and a check made after it has settled finds the firmware as usual.
 
 ### `update_install`
 

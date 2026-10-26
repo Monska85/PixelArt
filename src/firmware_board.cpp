@@ -43,7 +43,8 @@ bool image_open = false;
 size_t image_limit = 0;
 
 // Preferences' getters hide the error of a failed read behind the default value, so the record is read with
-// NVS itself. A key that is absent is a valid empty value; any other error makes the whole record unreadable.
+// NVS itself. A key that is absent is a valid empty value; any other error makes the whole record unreadable,
+// a value too long for the buffer (ESP_ERR_NVS_INVALID_LENGTH) included: it exists, so it is evidence not read.
 bool read_text(nvs_handle_t handle, const char *key, std::string &out)
 {
   static char buffer[MAX_VERSION + 1]; // load() runs on the loop task only, one call at a time
@@ -52,8 +53,7 @@ bool read_text(nvs_handle_t handle, const char *key, std::string &out)
   out.clear();
   if (err == ESP_OK)
     out = buffer;
-  // A value longer than any version is not one this firmware wrote: it counts as absent.
-  return err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND || err == ESP_ERR_NVS_INVALID_LENGTH;
+  return err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND;
 }
 
 bool read_byte(nvs_handle_t handle, const char *key, uint8_t &out)

@@ -362,6 +362,14 @@ static void run_case(const fs::path &file)
     {
       inject_failures(step["update_fail"]);
     }
+    else if (!step["record_unreadable"].isNull())
+    {
+      firmware::sim_fail_loads(step["record_unreadable"].as<bool>());
+    }
+    else if (!step["rollback_mark_stuck"].isNull())
+    {
+      firmware::sim_fail_clears(step["rollback_mark_stuck"].as<bool>());
+    }
     else if (!step["reboot"].isNull())
     {
       reboot(false);

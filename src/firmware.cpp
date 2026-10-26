@@ -46,6 +46,7 @@ std::atomic<bool> evidence_logged{false};
 std::atomic<uint64_t> evidence_retry_us{0}; // not before this time after a failed attempt
 BootState boot_state;                       // what the boot found, kept for the reconciliation
 std::atomic<bool> settle_logged{false};
+std::atomic<bool> clear_logged{false};
 std::atomic<uint64_t> settle_retry_us{0};
 
 // Records the running firmware as installed. The caller holds `lock`.
@@ -136,9 +137,10 @@ Boot reconcile(const BootState &state, const std::string &running)
 }
 
 // Reads the record when the boot could not, and reconciles the installation that was pending before this boot
-// with it, once. Only the loop task calls it. True once the record is read and the boot is recorded. A
-// reconciliation whose result cannot be stored is undone: the boot stays unsettled and is tried again, so
-// nothing new is installed over a rollback that was not recorded.
+// with it, once. Only the loop task calls it. True once the record is read, the boot is recorded and the
+// invalid mark of a rolled back slot is cleared. A reconciliation whose result cannot be stored is undone,
+// and a mark that cannot be cleared is tried again: the boot stays unsettled, so nothing new is installed over
+// a rollback that was not recorded, or next to a mark that would later be taken for the new version's.
 bool settle()
 {
   static Record before; // the loop task's stack stays small
@@ -170,12 +172,18 @@ bool settle()
       log_failure("the installation result could not be stored");
     return false;
   }
-  boot_unsettled = false;
   // The invalid state of a slot lasts until a new firmware is switched to. Once recorded it is
   // forgotten, so a restart between the next installation's record and its switch is not taken
-  // for a rollback of the new version.
+  // for a rollback of the new version. Until it is forgotten the boot stays unsettled: the rollback is
+  // recorded already, so the next attempt only clears the mark.
   if (boot_state.invalid && !clear_invalid())
-    log_failure("the rolled back slot could not be cleared");
+  {
+    settle_retry_us = platform::now_us() + RETRY_US;
+    if (!clear_logged.exchange(true))
+      log_failure("the rolled back slot could not be cleared");
+    return false;
+  }
+  boot_unsettled = false;
   return true;
 }
 
@@ -284,6 +292,7 @@ void begin()
     evidence_logged = false;
     evidence_retry_us = 0;
     settle_logged = false;
+    clear_logged = false;
     settle_retry_us = record_loaded ? 0 : platform::now_us() + RETRY_US;
     confirm_unsaved = false;
     confirm_retry_us = 0;

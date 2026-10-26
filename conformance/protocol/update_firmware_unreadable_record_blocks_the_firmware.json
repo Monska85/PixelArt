@@ -1,0 +1,270 @@
+{
+  "description": "While the record of the installations cannot be read, a board that rolled back offers no firmware and installs none; once it can be read, the rollback is recorded, the version is skipped, and only force installs it",
+  "firmware_version": "1.2.0",
+  "update_source": {
+    "files": {
+      "manifest.json": {
+        "json": {
+          "format": "pixelart-manifest/1",
+          "version": "1.3.0",
+          "released": "2026-11-02",
+          "firmware": [
+            {
+              "board": "simulator",
+              "chip": "ESP32-C3",
+              "part": "app",
+              "offset": 65536,
+              "file": "firmware/simulator/app-1.3.0.bin",
+              "size": 28,
+              "sha256": "23ba1f1584f0255331e91c12e5cf91a0af8ea2cce2b48852e8f79d174a307c1e"
+            }
+          ],
+          "animations": [],
+          "playlists": []
+        }
+      },
+      "firmware/simulator/app-1.3.0.bin": "pixelart-sim-firmware 1.3.0\n"
+    }
+  },
+  "settings": {
+    "update_mode": "notify"
+  },
+  "steps": [
+    {
+      "send": "@PR 935d27e0 {\"seq\":1,\"cmd\":\"update_check\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "send": "@PR 643bdae2 {\"seq\":2,\"cmd\":\"update_install\",\"target\":\"firmware\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "record_unreadable": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "send": "@PR d7145863 {\"seq\":3,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 08726ca7 {\"seq\":4,\"cmd\":\"update_check\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "send": "@PR 7020ef6b {\"seq\":5,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": "<any>",
+          "last_result": "ok",
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 87f07111 {\"seq\":6,\"cmd\":\"update_install\",\"target\":\"firmware\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "nothing_to_install",
+        "message": "<any>"
+      }
+    },
+    {
+      "record_unreadable": false
+    },
+    {
+      "advance_ms": 2000
+    },
+    {
+      "first_frame": true
+    },
+    {
+      "send": "@PR a41c7fac {\"seq\":7,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": "<any>",
+          "last_result": "ok",
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": {
+            "result": "rolled_back",
+            "from": "1.2.0",
+            "to": "1.3.0"
+          }
+        }
+      }
+    },
+    {
+      "send": "@PR 08978e12 {\"seq\":8,\"cmd\":\"update_check\"}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "send": "@PR e538873a {\"seq\":9,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": "<any>",
+          "last_result": "ok",
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": "1.3.0",
+          "files": 0,
+          "last_install": {
+            "result": "rolled_back",
+            "from": "1.2.0",
+            "to": "1.3.0"
+          }
+        }
+      }
+    },
+    {
+      "send": "@PR 581244f4 {\"seq\":10,\"cmd\":\"update_install\",\"target\":\"firmware\"}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": false,
+        "error": "nothing_to_install",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR c6376ecb {\"seq\":11,\"cmd\":\"update_install\",\"target\":\"firmware\",\"force\":true}"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    }
+  ]
+}

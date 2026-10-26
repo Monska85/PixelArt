@@ -104,6 +104,8 @@ A case is one JSON object:
   - `advance_ms`: lets this many milliseconds of virtual time pass, with no traffic. The board's update task runs meanwhile, so a check that is due starts.
   - `run_update`: lets the board's update task run until it has nothing more to do: a check or an installation that was started ends, and `status` then reports its result.
   - `update_fail`: a list of failures in the form of `update_source.fail`, which the update server injects from this step on, in addition to those it injects already. A case uses it when a check succeeds and a later one fails.
+  - `record_unreadable`: `true` makes the record of the firmware installations unreadable from now on, as a failing flash can at boot; `false` makes it readable again. A case uses it before a `reboot`, so the board starts with a record it cannot read.
+  - `rollback_mark_stuck`: `true` makes the board unable to forget the invalid mark of a slot it rolled back from, from now on; `false` lets it. A case uses it before the `reboot` that rolls back.
   - `reboot`: restarts the board. The files stay, the settings go back to their defaults, and any upload is gone. The firmware slots stay too, with the skip list and the record of the last installation: a firmware that was installed boots on trial, and one that is restarted before its `first_frame` is rolled back to the previous firmware.
   - `reboot_unhealthy`: restarts the board as `reboot` does, and the health check of a firmware on trial fails, so it marks itself invalid and the board restarts into the previous firmware. Without a trial it is a plain `reboot`.
   - `first_frame`: the board shows its first frame, which confirms a firmware on trial when its record is stored and its mark works, as it does in every case here.

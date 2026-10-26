@@ -116,9 +116,13 @@ std::string sim_pending_version();
 void sim_fail_marks(bool fail);
 // Makes reading the stored record fail, as the board's storage can at boot.
 void sim_fail_loads(bool fail);
-// Lets `reads` of the 7 single reads of the stored record work, then fails the rest, as NVS can in the
-// middle of a read: the whole record is then unreadable. sim_fail_loads(false) ends it.
+// Lets `reads` of the 7 single reads of the stored record work, then fails the next one and the rest, as NVS
+// can in the middle of a read, or for a stored value that does not fit its buffer: the whole record is then
+// unreadable. The reads go in the order skip, result, from, to, confirmed, pending from, pending to, so
+// 6 fails at the pending target. sim_fail_loads(false) ends it.
 void sim_fail_loads_after(unsigned reads);
+// Makes clearing the invalid mark of the other slot fail, as the board's erase of its OTA data can.
+void sim_fail_clears(bool fail);
 // Whether the namespace of the stored record exists. A new board has none until its first write; reading
 // it then gives an empty record, not an error.
 bool sim_namespace_exists();
