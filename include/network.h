@@ -68,8 +68,10 @@ void set_power(const std::string &wifi_power_setting);
 // background. False when the request cannot be queued or the names are too long.
 bool provision(const char *ssid, const char *password);
 
-// Erases the stored network and disconnects. The snapshot says `not_configured` at once.
-void forget();
+// Asks the network task to erase the stored network and disconnect, and the snapshot says
+// `not_configured` at once. False when the request cannot be queued: the snapshot is then as it was and
+// the network stays stored.
+bool forget();
 
 // Closes the connection of the WiFi client of the protocol, if one is open, after the replies already
 // given. The login of a closed connection is gone: the client connects again and logs in again.
@@ -89,6 +91,8 @@ void sim_set_networks(const std::vector<Network> &networks);
 void sim_provision_connects(bool connects);
 // How many times close_client() was called since begin().
 unsigned sim_close_requests();
+// Makes forget() fail, as a full queue of the network task does. `begin()` puts it back.
+void sim_forget_succeeds(bool succeeds);
 #endif
 
 } // namespace network

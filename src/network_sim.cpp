@@ -28,6 +28,7 @@ Snapshot sim_snapshot;
 std::vector<Network> sim_networks;
 ScanState sim_scan = ScanState::Idle;
 bool sim_connects = true;
+bool sim_forgets = true;
 wifi_logic::PowerPolicy sim_power;
 unsigned sim_closes = 0;
 
@@ -54,6 +55,7 @@ void begin(const std::string &wifi_power_setting)
   sim_networks.clear();
   sim_scan = ScanState::Idle;
   sim_connects = true;
+  sim_forgets = true;
   sim_closes = 0;
   sim_snapshot = fixed_snapshot();
 }
@@ -75,7 +77,7 @@ bool provision(const char *ssid, const char *password)
 }
 
 // The simulator always reports the fixed WiFi values of the protocol specification.
-void forget() {}
+bool forget() { return sim_forgets; }
 
 bool request_scan()
 {
@@ -106,6 +108,8 @@ unsigned sim_close_requests() { return sim_closes; }
 void sim_set_snapshot(const Snapshot &snapshot) { sim_snapshot = snapshot; }
 void sim_set_networks(const std::vector<Network> &networks) { sim_networks = networks; }
 void sim_provision_connects(bool connects) { sim_connects = connects; }
+
+void sim_forget_succeeds(bool succeeds) { sim_forgets = succeeds; }
 
 } // namespace network
 

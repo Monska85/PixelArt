@@ -813,6 +813,47 @@ static void test_delete_all_keeps_the_settings_when_they_cannot_be_reset()
                            json.c_str());
 }
 
+static void test_wifi_forget_says_so_when_the_network_task_cannot_take_it()
+{
+  sim::reset();
+  TempData data("protocol");
+  setup();
+  Replies replies;
+
+  network::sim_forget_succeeds(false);
+  replies.send(request(1, R"("cmd":"wifi_forget")"));
+  std::string json = reply_json(replies.pop(), "wifi_forget");
+  network::sim_forget_succeeds(true);
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\":\"busy\"") != std::string::npos, json.c_str());
+
+  replies.send(request(2, R"("cmd":"wifi_forget")"));
+  json = reply_json(replies.pop(), "wifi_forget");
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"ok\":true") != std::string::npos, json.c_str());
+}
+
+static void test_delete_all_with_settings_says_so_when_the_network_cannot_be_forgotten()
+{
+  sim::reset();
+  TempData data("protocol");
+  data.write("animations/dot.json", DOT);
+  setup();
+  Replies replies;
+  const unsigned closes = network::sim_close_requests();
+
+  network::sim_forget_succeeds(false);
+  replies.send(request(1, R"("cmd":"delete_all","settings":true)"));
+  std::string json = reply_json(replies.pop(), "delete_all");
+  network::sim_forget_succeeds(true);
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\":\"busy\"") != std::string::npos, json.c_str());
+  TEST_ASSERT_TRUE_MESSAGE(json.find("repeat the command") != std::string::npos, json.c_str());
+  TEST_ASSERT_FALSE(fs::exists(data.root / "animations/dot.json"));
+  TEST_ASSERT_EQUAL(closes + 1, network::sim_close_requests()); // the old token is gone either way
+
+  replies.send(request(2, R"("cmd":"delete_all","settings":true)"));
+  json = reply_json(replies.pop(), "delete_all");
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"settings\":{") != std::string::npos, json.c_str());
+}
+
 static void test_delete_all_says_so_when_the_settings_are_partly_reset()
 {
   sim::reset();
@@ -1251,6 +1292,8 @@ int main(int, char **)
   RUN_TEST(test_settings_set_says_so_when_the_playlist_cannot_be_put_back);
   RUN_TEST(test_delete_all_keeps_the_settings_when_they_cannot_be_reset);
   RUN_TEST(test_delete_all_says_so_when_the_settings_are_partly_reset);
+  RUN_TEST(test_wifi_forget_says_so_when_the_network_task_cannot_take_it);
+  RUN_TEST(test_delete_all_with_settings_says_so_when_the_network_cannot_be_forgotten);
   RUN_TEST(test_info_reports_the_memory_probe);
   RUN_TEST(test_status_reports_the_stored_network_name_as_valid_json);
   RUN_TEST(test_status_reports_no_network_name_when_none_is_stored);

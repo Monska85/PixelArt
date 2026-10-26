@@ -841,8 +841,12 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   {
     if (const char *failure = save_settings(settings::defaults_with_new_token()))
       return fail("storage_error", std::string("the files are removed but ") + failure);
-    network::forget();
+    // The old token is gone whether or not the network could be forgotten.
+    const bool forgotten = network::forget();
     close_wifi_client();
+    if (!forgotten)
+      return fail("busy", "the files and settings are reset but the stored WiFi network is not erased yet; "
+                          "repeat the command");
     add_settings(reply);
   }
   reply["playlists"] = playlists;
@@ -1081,7 +1085,8 @@ Status cmd_wifi_forget(JsonObjectConst request, JsonDocument &)
     return s;
   if (Status s = usb_only("wifi_forget"); s.code)
     return s;
-  network::forget();
+  if (!network::forget())
+    return fail("busy", "the board could not take the request now; repeat it");
   return {};
 }
 

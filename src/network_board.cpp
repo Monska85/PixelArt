@@ -424,10 +424,12 @@ bool provision(const char *new_ssid, const char *new_password)
   return queued;
 }
 
-void forget()
+bool forget()
 {
+  Snapshot before;
   {
     Locked guard;
+    before = shared;
     shared.state = State::NotConfigured;
     shared.has_ip = false;
     shared.has_rssi = false;
@@ -436,8 +438,15 @@ void forget()
   }
   Message m = {};
   m.type = Message::Type::Forget;
-  if (!inbox.send(m, SEND_WAIT))
+  const bool queued = inbox.send(m, SEND_WAIT);
+  if (!queued)
+  {
     Serial.printf("pixelart: the network could not be forgotten\n");
+    Locked guard;
+    shared = before;
+    wipe(&before, sizeof(before));
+  }
+  return queued;
 }
 
 void wake()

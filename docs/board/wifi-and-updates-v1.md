@@ -50,7 +50,7 @@ The board supports these Improv commands:
 
 When the connection fails, the board answers with the Improv error "unable to connect" after 30 seconds and keeps the new credentials, so a network that comes back later still works. The "provisioned" answer carries no URL.
 
-The web app's WiFi screen and the ESP Web Tools install dialog both use Improv. The protocol command `wifi_forget` erases the stored network, over USB only.
+The web app's WiFi screen and the ESP Web Tools install dialog both use Improv. The protocol command `wifi_forget` erases the stored network, over USB only. Its reply says that the network task has the request, not that the erase is done; when the request cannot be queued, the answer is `busy` and the network stays stored.
 
 The board sends the name of the stored network in [`status`](../protocol/protocol-v1.md#status) (`wifi.ssid`) and never sends the password back, over any transport. It never writes either to its log. Over USB the name goes to any client. Over WiFi `status` follows the rule of every command: with the [network login](#protocol-over-wifi) on, only a client that has logged in gets it, and with the login off every client does. Bytes of the name that are not valid UTF-8 (the standard allows any bytes in a name of up to 32) are sent as U+FFFD, one for each byte that does not belong to a well-formed UTF-8 sequence, so the reply is always valid JSON. Credentials are stored in NVS in plain text: anyone who holds the board can read its flash.
 
