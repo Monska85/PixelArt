@@ -173,7 +173,7 @@ The stored files of one kind, sorted by ID in byte order, one page at a time.
 | `kind`  | yes      | `animation` or `playlist`.                                          |
 | `after` | no       | An ID. The page starts with the first file whose ID sorts after it. |
 
-The reply holds `kind`, `entries` (at most 8) and `more`, which is `true` when files remain after the last entry. The client asks for the next page with `after` set to the last ID it received. `after` does not have to name an existing file, but it must follow the ID rule. While an update holds the memory for more than 2 seconds, the board answers `out_of_memory`, over USB as over WiFi, and the client asks again later.
+The reply holds `kind`, `entries` (at most 8) and `more`, which is `true` when files remain after the last entry. The client asks for the next page with `after` set to the last ID it received. `after` does not have to name an existing file, but it must follow the ID rule, and a value that is not text, `null` included, is `bad_request`. While an update holds the memory for more than 2 seconds, the board answers `out_of_memory`, over USB as over WiFi, and the client asks again later.
 
 Each entry has:
 

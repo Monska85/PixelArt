@@ -88,6 +88,17 @@
         "error": "invalid_id",
         "message": "<any>"
       }
+    },
+    {
+      "send": "@PR 8b896954 {\"seq\":9,\"cmd\":\"list\",\"kind\":\"animation\",\"after\":null}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
     }
   ]
 }

@@ -626,6 +626,24 @@ class SimulatorTest(unittest.TestCase):
         self.assertIn("sim: the WebSocket bridge did not start", errors)
 
 
+@unittest.skipUnless(SIMULATOR.is_file(), "needs the simulator (make sim-build)")
+class SimulatorValidateTest(unittest.TestCase):
+    """The simulator's --validate keeps at most 32 messages per file, as the playlist specification says."""
+
+    def test_the_unknown_animation_warnings_of_a_playlist_stop_at_32(self):
+        with tempfile.TemporaryDirectory() as folder:
+            (Path(folder) / "playlists").mkdir()
+            items = [{"animation": f"missing{number}"} for number in range(40)]
+            playlist = {"format": "pixelart-playlist/1", "name": "Many", "canvas": {"width": 16, "height": 16},
+                        "items": items}
+            (Path(folder) / "playlists" / "many.json").write_text(json.dumps(playlist))
+            process = subprocess.run([str(SIMULATOR), "--validate", "--data", folder], capture_output=True,
+                                     text=True, timeout=20)
+        self.assertEqual(process.returncode, 0)
+        warnings = [line for line in process.stdout.splitlines() if " warning unknown_animation" in line]
+        self.assertEqual(len(warnings), 32)
+
+
 class SimulatorWifiTest(SimulatorTest):
     """The simulator's --ws-transport wifi: the WebSocket is the board's WiFi transport."""
 

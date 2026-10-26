@@ -59,7 +59,7 @@ int validate()
     bool loaded = load_stored_playlist(name, playlist, diagnostics);
     if (loaded)
       for (const pixelart::PlaylistItem &item : playlist.items())
-        if (!valid_ids.count(item.animation))
+        if (!valid_ids.count(item.animation) && diagnostics.size() < pixelart::MAX_DIAGNOSTICS)
           diagnostics.push_back({pixelart::Severity::Warning, "unknown_animation", "",
                                  "\"" + item.animation + "\" is missing or invalid"});
     print(playlist_file(name), loaded, diagnostics, errors);

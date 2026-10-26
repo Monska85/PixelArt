@@ -226,11 +226,12 @@ Status allow_only(JsonObjectConst request, std::initializer_list<const char *> n
   return {};
 }
 
-// A required or optional text field. A missing optional field leaves `out` alone.
+// A required or optional text field. A missing optional field leaves `out` alone; a field that is present as
+// `null` is not missing and fails as text of the wrong type.
 Status get_text(JsonObjectConst request, const char *key, bool required, std::string &out, bool &present)
 {
   JsonVariantConst value = request[key];
-  present = !value.isNull();
+  present = !value.isUnbound();
   if (!present)
     return required ? fail("bad_request", std::string("missing field \"") + key + "\"") : Status{};
   if (!value.is<const char *>())
