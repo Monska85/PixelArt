@@ -15,10 +15,13 @@
 #include <updater.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <map>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "app.h"
@@ -2484,12 +2487,20 @@ static void test_a_failed_mark_valid_records_no_installation_and_keeps_the_trial
   TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
 }
 
-static void test_a_confirmation_that_cannot_be_stored_is_recorded_at_the_next_boot()
+namespace
 {
-  Board board("sim-firmware-confirm-boot", NOTIFY);
+
+// Writes in one stored record, see sim_fail_saves_after().
+constexpr unsigned RECORD_WRITES = 7;
+// Writes of the first record to be stored for the evidence that the new firmware booted: the one that sets
+// `confirmed` is the fifth.
+constexpr unsigned WRITES_TO_EVIDENCE = 5;
+
+// Force-installs the published firmware over a skipped 1.3.0, restarts into its trial and returns.
+void install_skipped_firmware_and_boot_it()
+{
   firmware::sim_set_version("1.2.0");
   firmware::sim_set_skipped("1.3.0");
-  board.data.write("animations/dot.json", DOT);
   publish_firmware();
   TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_check\"").c_str());
   drive();
@@ -2497,9 +2508,18 @@ static void test_a_confirmation_that_cannot_be_stored_is_recorded_at_the_next_bo
   drive_install();
   restart_board();
   TEST_ASSERT_TRUE(firmware::sim_on_trial());
+}
+
+} // namespace
+
+static void test_a_confirmation_that_cannot_be_stored_is_recorded_at_the_next_boot()
+{
+  Board board("sim-firmware-confirm-boot", NOTIFY);
+  board.data.write("animations/dot.json", DOT);
+  install_skipped_firmware_and_boot_it();
 
   // The slot is confirmed, but the result is not stored before the board restarts.
-  firmware::sim_fail_saves(true);
+  firmware::sim_fail_saves_after(RECORD_WRITES);
   TEST_ASSERT_TRUE(play_stored_animation("dot"));
   TEST_ASSERT_FALSE(firmware::sim_on_trial());
   TEST_ASSERT_EQUAL_UINT(1, firmware::sim_failures_logged());
@@ -2514,6 +2534,160 @@ static void test_a_confirmation_that_cannot_be_stored_is_recorded_at_the_next_bo
   restart_board(); // the record was stored: it stays, and nothing is recorded twice
   TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
   TEST_ASSERT_EQUAL_STRING("", firmware::skipped().c_str());
+}
+
+static void test_the_store_failing_between_any_two_writes_never_loses_a_confirmed_installation()
+{
+  // The store breaks after `works` writes, over the evidence that the firmware booted and over the result,
+  // and the board restarts. With the evidence stored the installation is reported whatever else was
+  // stored; without it nothing is reported and the skip stays.
+  for (unsigned works = 0; works <= 2 * RECORD_WRITES; ++works)
+  {
+    Board board("sim-firmware-confirm-writes", NOTIFY);
+    board.data.write("animations/dot.json", DOT);
+    install_skipped_firmware_and_boot_it();
+    firmware::sim_fail_saves_after(works);
+    TEST_ASSERT_TRUE(play_stored_animation("dot"));
+    firmware::sim_fail_saves(false);
+    restart_board();
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("1.3.0", platform::firmware_version(), "running");
+    char message[48];
+    snprintf(message, sizeof(message), "%u writes work", works);
+    if (works >= WRITES_TO_EVIDENCE)
+    {
+      JsonDocument done = last_install();
+      TEST_ASSERT_EQUAL_STRING_MESSAGE("updated", done["result"].as<const char *>(), message);
+      TEST_ASSERT_EQUAL_STRING_MESSAGE("1.2.0", done["from"].as<const char *>(), message);
+      TEST_ASSERT_EQUAL_STRING_MESSAGE("1.3.0", done["to"].as<const char *>(), message);
+      TEST_ASSERT_EQUAL_STRING_MESSAGE("", firmware::skipped().c_str(), message);
+    }
+    else
+    {
+      TEST_ASSERT_TRUE_MESSAGE(last_install().isNull(), message);
+      TEST_ASSERT_EQUAL_STRING_MESSAGE("1.3.0", firmware::skipped().c_str(), message);
+    }
+    restart_board(); // nothing is recorded twice, and nothing is lost
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(works >= WRITES_TO_EVIDENCE ? "updated" : "",
+                                     last_install().isNull() ? "" : last_install()["result"].as<const char *>(),
+                                     message);
+  }
+}
+
+static void test_the_store_failing_between_any_two_writes_never_loses_a_rollback()
+{
+  for (unsigned works = 0; works <= RECORD_WRITES; ++works)
+  {
+    Board board("sim-firmware-rollback-writes", NOTIFY);
+    firmware::sim_set_version("1.2.0");
+    publish_firmware();
+    check_and_install();
+    restart_board();
+    firmware::sim_fail_saves_after(works);
+    restart_board(); // the new firmware restarts before its first frame: the bootloader rolls back
+    firmware::sim_fail_saves(false);
+    restart_board(); // an interrupted record is made again
+    char message[48];
+    snprintf(message, sizeof(message), "%u writes work", works);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("1.2.0", platform::firmware_version(), message);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("rolled_back", last_install()["result"].as<const char *>(), message);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("1.3.0", last_install()["to"].as<const char *>(), message);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("1.3.0", firmware::skipped().c_str(), message);
+  }
+}
+
+static void test_a_firmware_flashed_over_usb_with_the_pending_version_is_not_reported_as_installed()
+{
+  Board board("sim-firmware-usb", NOTIFY);
+  firmware::sim_set_version("1.2.0");
+  firmware::sim_set_skipped("1.3.0");
+  publish_firmware();
+  TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_check\"").c_str());
+  drive();
+  // The record of the installation is stored, and the board restarts before the boot slot changes.
+  TEST_ASSERT_TRUE(firmware::begin_image(IMAGE.size()));
+  TEST_ASSERT_TRUE(firmware::write_image(IMAGE.data(), IMAGE.size()));
+  TEST_ASSERT_TRUE(firmware::end_image());
+  firmware::sim_restart_before_switch();
+  TEST_ASSERT_FALSE(firmware::activate("1.2.0", "1.3.0"));
+  TEST_ASSERT_EQUAL_STRING("1.3.0", firmware::sim_pending_version().c_str());
+
+  firmware::sim_set_version("1.3.0"); // 1.3.0 is flashed over USB
+  restart_board();
+  TEST_ASSERT_EQUAL_STRING("1.3.0", platform::firmware_version());
+  TEST_ASSERT_FALSE(firmware::sim_on_trial());
+  TEST_ASSERT_TRUE(last_install().isNull());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", firmware::skipped().c_str());
+  TEST_ASSERT_EQUAL_STRING("", firmware::sim_pending_version().c_str());
+  restart_board();
+  TEST_ASSERT_TRUE(last_install().isNull());
+}
+
+static void test_a_new_firmware_that_booted_but_could_not_confirm_is_rolled_back_and_the_evidence_is_dropped()
+{
+  Board board("sim-firmware-booted-not-confirmed", NOTIFY);
+  board.data.write("animations/dot.json", DOT);
+  install_skipped_firmware_and_boot_it();
+  firmware::sim_fail_marks(true);
+  TEST_ASSERT_TRUE(play_stored_animation("dot")); // the evidence is stored, the mark fails
+  firmware::sim_fail_marks(false);
+  restart_board(); // the bootloader rolls back
+  TEST_ASSERT_EQUAL_STRING("1.2.0", platform::firmware_version());
+  TEST_ASSERT_EQUAL_STRING("rolled_back", last_install()["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", firmware::skipped().c_str());
+  TEST_ASSERT_EQUAL_STRING("", firmware::sim_pending_version().c_str());
+}
+
+static void test_a_confirmation_retry_that_overlaps_a_second_installation_does_not_erase_it()
+{
+  Board board("sim-firmware-retry-overlap", NOTIFY);
+  board.data.write("animations/dot.json", DOT);
+  install_skipped_firmware_and_boot_it();
+  firmware::sim_fail_saves_after(RECORD_WRITES); // the evidence is stored, the result is not
+  TEST_ASSERT_TRUE(play_stored_animation("dot"));
+  firmware::sim_fail_saves(false);
+
+  // The retry copies the record and starts to store it. While it does, the network task records the next
+  // installation, 1.4.0, and waits for the store.
+  const std::string newer = "pixelart-sim-firmware-1.4.0";
+  TEST_ASSERT_TRUE(firmware::begin_image(newer.size()));
+  TEST_ASSERT_TRUE(firmware::write_image(newer.data(), newer.size()));
+  TEST_ASSERT_TRUE(firmware::end_image());
+  std::atomic<bool> activated{false};
+  std::atomic<bool> network_done{false};
+  std::thread network;
+  firmware::sim_set_save_hook(
+      [&]
+      {
+        network = std::thread(
+            [&]
+            {
+              activated = firmware::activate("1.3.0", "1.4.0");
+              network_done = true;
+            });
+        // Waits until the installation is recorded, then gives it time to be stored: it must wait for this store.
+        for (int i = 0; i < 5000 && firmware::sim_pending_version() != "1.4.0"; ++i)
+          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        for (int i = 0; i < 300 && !network_done; ++i)
+          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      });
+  for (int i = 0; i < 100; ++i)
+    firmware::first_frame_shown();
+  TEST_ASSERT_TRUE(network.joinable());
+  network.join();
+  TEST_ASSERT_TRUE(activated);
+
+  // The stored record holds both: the installation of 1.3.0 and the pending 1.4.0.
+  restart_board();
+  TEST_ASSERT_EQUAL_STRING("1.4.0", platform::firmware_version());
+  TEST_ASSERT_TRUE(firmware::sim_on_trial());
+  TEST_ASSERT_EQUAL_STRING("updated", last_install()["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", last_install()["to"].as<const char *>());
+  TEST_ASSERT_TRUE(play_stored_animation("dot"));
+  TEST_ASSERT_FALSE(firmware::sim_on_trial());
+  JsonDocument done = last_install();
+  TEST_ASSERT_EQUAL_STRING("updated", done["result"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.3.0", done["from"].as<const char *>());
+  TEST_ASSERT_EQUAL_STRING("1.4.0", done["to"].as<const char *>());
 }
 
 static void test_a_confirmation_that_cannot_be_stored_is_stored_again_while_the_board_runs()
@@ -3177,6 +3351,11 @@ int main(int, char **)
   RUN_TEST(test_a_failed_mark_valid_records_no_installation_and_keeps_the_trial);
   RUN_TEST(test_a_confirmation_that_cannot_be_stored_is_recorded_at_the_next_boot);
   RUN_TEST(test_a_confirmation_that_cannot_be_stored_is_stored_again_while_the_board_runs);
+  RUN_TEST(test_the_store_failing_between_any_two_writes_never_loses_a_confirmed_installation);
+  RUN_TEST(test_the_store_failing_between_any_two_writes_never_loses_a_rollback);
+  RUN_TEST(test_a_firmware_flashed_over_usb_with_the_pending_version_is_not_reported_as_installed);
+  RUN_TEST(test_a_new_firmware_that_booted_but_could_not_confirm_is_rolled_back_and_the_evidence_is_dropped);
+  RUN_TEST(test_a_confirmation_retry_that_overlaps_a_second_installation_does_not_erase_it);
   RUN_TEST(test_a_failed_mark_invalid_restarts_and_the_trial_is_treated_as_a_restart);
   RUN_TEST(test_a_restart_before_the_switch_is_not_a_rollback);
   RUN_TEST(test_a_restart_before_the_switch_after_an_earlier_rollback_is_not_a_rollback);

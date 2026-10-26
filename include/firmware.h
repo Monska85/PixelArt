@@ -96,6 +96,13 @@ void sim_set_slot_size(size_t bytes);
 void sim_fail_writes(bool fail);
 // Makes every write of the stored record fail, as a full or broken NVS would.
 void sim_fail_saves(bool fail);
+// Lets `writes` single writes of the stored record work, then fails every one after them, as NVS can
+// between two of its separate writes. A record is stored in 7 writes.
+void sim_fail_saves_after(unsigned writes);
+// Runs `hook` once, at the start of the next write of the record, while the store is held.
+void sim_set_save_hook(std::function<void()> hook);
+// The installation the running firmware has recorded as pending, empty when none.
+std::string sim_pending_version();
 // Makes marking the running firmware valid or invalid fail, as the bootloader's call can.
 void sim_fail_marks(bool fail);
 // Makes the next activate() restart after storing its record and before the boot slot changes,

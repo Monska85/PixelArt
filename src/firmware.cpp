@@ -30,6 +30,9 @@ namespace
 // Frames between two attempts to store a confirmation that could not be stored.
 constexpr uint16_t CONFIRM_RETRY_FRAMES = 100;
 
+std::mutex store_lock; // one store at a time, from the copy of the record to the last write
+std::atomic<bool> evidence_tried{false};
+
 // Records the running firmware as installed. The caller holds `lock`.
 void record_confirmed(const std::string &running)
 {
@@ -40,6 +43,16 @@ void record_confirmed(const std::string &running)
   if (record.skip == running)
     record.skip.clear(); // a skipped version that was installed by force, and held
   record.pending = false;
+  record.confirmed = false;
+  record.pending_from.clear();
+  record.pending_to.clear();
+}
+
+// Forgets the installation that was started. The caller holds `lock`.
+void clear_pending()
+{
+  record.pending = false;
+  record.confirmed = false;
   record.pending_from.clear();
   record.pending_to.clear();
 }
@@ -50,16 +63,98 @@ void retry_unsaved_confirmation()
   if (!confirm_unsaved || ++confirm_frames < CONFIRM_RETRY_FRAMES)
     return;
   confirm_frames = 0;
-  Record copy;
-  {
-    std::lock_guard<std::mutex> guard(lock);
-    copy = record;
-  }
-  if (save(copy, false))
+  if (persist(false))
     confirm_unsaved = false;
 }
 
+// While the new firmware is still on trial, stores that it booted, before it marks itself valid. A board
+// that restarts after the mark and before the result is stored finds this and reports the installation;
+// without it, a firmware flashed over USB with the same version would be taken for the installed one.
+// Once per boot, so a mark that keeps failing does not write at every frame.
+void store_evidence()
+{
+  if (evidence_tried.exchange(true))
+    return;
+  {
+    std::lock_guard<std::mutex> guard(lock);
+    if (!record.pending || record.pending_to != running_version())
+      return;
+    record.confirmed = true;
+  }
+  if (!persist(false))
+    log_failure("the installation could not be recorded as booted");
+}
+
+enum class Boot
+{
+  Nothing,
+  Confirmed, // the installation booted and confirmed itself before the board restarted
+  Dropped    // the installation did not boot: rolled back, or the board restarted before the switch
+};
+
+// What the record says about the installation that was pending before this boot. The caller holds `lock`.
+Boot reconcile(const BootState &state, const std::string &running)
+{
+  if (!record.pending)
+    return Boot::Nothing;
+  if (record.confirmed && valid_version(record.pending_to) && record.pending_to == running)
+  {
+    record_confirmed(running);
+    return Boot::Confirmed;
+  }
+  // The installation did not run to its confirmation. When its slot was marked invalid the bootloader rolled
+  // back; otherwise the board restarted before the switch, or another firmware of the same version was
+  // flashed, and nothing is reported.
+  if (state.invalid && valid_version(record.pending_to))
+  {
+    record.skip = record.pending_to;
+    record.last.present = true;
+    record.last.rolled_back = true;
+    record.last.from = record.pending_from;
+    record.last.to = record.pending_to;
+  }
+  clear_pending();
+  return Boot::Dropped;
+}
+
 } // namespace
+
+bool persist(bool after_frame)
+{
+  // The loop task never waits for the network task's store, which waits for the loop task's frames.
+  std::unique_lock<std::mutex> guard(store_lock, std::defer_lock);
+  if (after_frame)
+    guard.lock();
+  else if (!guard.try_lock())
+    return false;
+  static Record snapshot; // under store_lock: no stack use on the loop task
+  {
+    std::lock_guard<std::mutex> state(lock);
+    snapshot = record;
+  }
+  return save(snapshot, after_frame);
+}
+
+bool store_pending(const std::string &from, const std::string &to)
+{
+  {
+    std::lock_guard<std::mutex> guard(lock);
+    record.pending = true;
+    record.confirmed = false;
+    record.pending_from = from;
+    record.pending_to = to;
+  }
+  if (persist(true))
+    return true;
+  drop_pending();
+  return false;
+}
+
+void drop_pending()
+{
+  std::lock_guard<std::mutex> guard(lock);
+  clear_pending();
+}
 
 } // namespace detail
 
@@ -67,44 +162,29 @@ using namespace detail;
 
 void begin()
 {
-  std::lock_guard<std::mutex> guard(lock);
-  load(record);
-  const BootState state = boot();
-  on_trial = state.trial;
-  mark_failure_logged = false;
-  confirm_unsaved = false;
-  confirm_frames = 0;
-  if (state.trial)
-    return;
-  if (record.pending)
+  BootState state;
+  Boot outcome = Boot::Nothing;
   {
-    const std::string running = running_version();
-    if (valid_version(record.pending_to) && record.pending_to == running)
-    {
-      // The new firmware confirmed itself, but the board restarted before the result was stored.
-      record_confirmed(running);
-      if (!save(record, false))
-      {
-        confirm_unsaved = true;
-        log_failure("the installation result could not be stored");
-      }
+    std::lock_guard<std::mutex> guard(lock);
+    load(record);
+    state = boot();
+    on_trial = state.trial;
+    mark_failure_logged = false;
+    evidence_tried = false;
+    confirm_unsaved = false;
+    confirm_frames = 0;
+    if (state.trial)
       return;
-    }
-    // An installation was started and this is not the new firmware. When its slot was marked invalid
-    // the bootloader rolled back; otherwise the board restarted before the switch.
-    if (state.invalid && valid_version(record.pending_to))
+    outcome = reconcile(state, running_version());
+  }
+  if (outcome != Boot::Nothing && !persist(false))
+  {
+    if (outcome == Boot::Confirmed)
     {
-      record.skip = record.pending_to;
-      record.last.present = true;
-      record.last.rolled_back = true;
-      record.last.from = record.pending_from;
-      record.last.to = record.pending_to;
+      confirm_unsaved = true;
+      log_failure("the installation result could not be stored");
     }
-    record.pending = false;
-    record.pending_from.clear();
-    record.pending_to.clear();
-    if (!save(record, false))
-      return; // the invalid slot stays, so the next boot records the rollback again
+    return; // an invalid slot stays, so the next boot records the rollback again
   }
   // The invalid state of a slot lasts until a new firmware is switched to. Once recorded it is
   // forgotten, so a restart between the next installation's record and its switch is not taken
@@ -133,6 +213,7 @@ void first_frame_shown()
     retry_unsaved_confirmation();
     return;
   }
+  store_evidence();
   if (!mark_valid())
   {
     on_trial = true; // no successful installation is recorded; the next call tries again
@@ -140,13 +221,11 @@ void first_frame_shown()
       log_failure("the new firmware could not be marked valid");
     return;
   }
-  Record copy;
   {
     std::lock_guard<std::mutex> guard(lock);
     record_confirmed(running_version());
-    copy = record;
   }
-  if (!save(copy, false))
+  if (!persist(false))
   {
     confirm_frames = 0;
     confirm_unsaved = true;
@@ -168,15 +247,13 @@ std::string skipped()
 
 void clear_skipped()
 {
-  Record copy;
   {
     std::lock_guard<std::mutex> guard(lock);
     if (record.skip.empty())
       return;
     record.skip.clear();
-    copy = record;
   }
-  if (!save(copy, true))
+  if (!persist(true))
     log_failure("the skip list could not be stored");
 }
 

@@ -24,13 +24,12 @@ namespace detail
 namespace
 {
 
-std::mutex store_lock; // one write to NVS at a time
-
 const char *NAMESPACE = "pixelart_fw";
 const char *KEY_SKIP = "skip";
 const char *KEY_RESULT = "res";
 const char *KEY_FROM = "from";
 const char *KEY_TO = "to";
+const char *KEY_CONFIRMED = "conf";
 const char *KEY_PENDING_FROM = "pfrom";
 const char *KEY_PENDING_TO = "pto";
 constexpr uint8_t RESULT_UPDATED = 1;
@@ -74,6 +73,7 @@ void load(Record &out)
   out.last.to = read_text(prefs, KEY_TO);
   out.last.present = (result == RESULT_UPDATED || result == RESULT_ROLLED_BACK) && !out.last.to.empty();
   out.last.rolled_back = result == RESULT_ROLLED_BACK;
+  out.confirmed = prefs.getUChar(KEY_CONFIRMED, 0) == 1;
   out.pending_from = read_text(prefs, KEY_PENDING_FROM);
   out.pending_to = read_text(prefs, KEY_PENDING_TO);
   out.pending = !out.pending_to.empty();
@@ -81,22 +81,21 @@ void load(Record &out)
 }
 
 // A write to NVS stops the flash cache, so the network task waits for a frame to be shown first. The loop
-// task writes right after one, or at boot when it shows none. True only when every value was stored.
+// task writes right after one, or at boot when it shows none. Each put or removal commits on its own, so the
+// writes stop at the first failure: a later write must never land when an earlier one did not.
 bool save(const Record &in, bool after_frame)
 {
-  std::lock_guard<std::mutex> guard(store_lock);
   if (after_frame)
     task_sync::wait_for_safe_write(WRITE_WAIT_MS);
   Preferences prefs;
   if (!prefs.begin(NAMESPACE, false))
     return false;
   const uint8_t result = !in.last.present ? 0 : (in.last.rolled_back ? RESULT_ROLLED_BACK : RESULT_UPDATED);
-  bool ok = put_text(prefs, KEY_SKIP, in.skip);
-  ok = prefs.putUChar(KEY_RESULT, result) == 1 && ok;
-  ok = put_text(prefs, KEY_FROM, in.last.from) && ok;
-  ok = put_text(prefs, KEY_TO, in.last.to) && ok;
-  ok = put_text(prefs, KEY_PENDING_FROM, in.pending_from) && ok;
-  ok = put_text(prefs, KEY_PENDING_TO, in.pending ? in.pending_to : "") && ok;
+  const bool ok = put_text(prefs, KEY_SKIP, in.skip) && prefs.putUChar(KEY_RESULT, result) == 1 &&
+                  put_text(prefs, KEY_FROM, in.last.from) && put_text(prefs, KEY_TO, in.last.to) &&
+                  prefs.putUChar(KEY_CONFIRMED, in.confirmed ? 1 : 0) == 1 &&
+                  put_text(prefs, KEY_PENDING_FROM, in.pending_from) &&
+                  put_text(prefs, KEY_PENDING_TO, in.pending ? in.pending_to : "");
   prefs.end();
   return ok;
 }
@@ -180,25 +179,14 @@ bool activate(const std::string &from, const std::string &to)
 {
   if (!target || !valid_version(to) || from.size() > MAX_VERSION)
     return false;
-  Record before, pending;
-  {
-    std::lock_guard<std::mutex> guard(lock);
-    before = record;
-    record.pending = true;
-    record.pending_from = from;
-    record.pending_to = to;
-    pending = record;
-  }
-  const bool stored = save(pending, true);
-  task_sync::wait_for_safe_write(WRITE_WAIT_MS);
   // Without the stored record a rollback could not skip this version, so the boot slot stays as it is.
-  if (stored && esp_ota_set_boot_partition(target) == ESP_OK)
+  if (!store_pending(from, to))
+    return false;
+  task_sync::wait_for_safe_write(WRITE_WAIT_MS);
+  if (esp_ota_set_boot_partition(target) == ESP_OK)
     return true;
-  {
-    std::lock_guard<std::mutex> guard(lock);
-    record = before;
-  }
-  save(before, true);
+  drop_pending();
+  persist(true);
   return false;
 }
 

@@ -31,7 +31,8 @@ struct SimFlash
   size_t image_limit = 0;
   size_t slot = 0x180000;
   bool fail_writes = false;
-  bool fail_saves = false;
+  int saves_left = -1; // writes that still work before every write fails; -1 for no limit
+  std::function<void()> save_hook;
   bool fail_health = false;
   bool fail_marks = false;
   bool restart_before_switch = false;
@@ -59,12 +60,64 @@ unsigned failures_logged = 0;
 void log_failure(const char *) { ++failures_logged; }
 
 void load(Record &out) { out = flash().record; }
+// Writes the values one at a time, in the order of the board's NVS writes, and stops at the first one
+// that fails, so a test can break the store between any two of them.
 bool save(const Record &in, bool)
 {
-  if (flash().fail_saves)
-    return false;
-  flash().record = in;
-  return true;
+  SimFlash &f = flash();
+  if (f.save_hook)
+  {
+    const std::function<void()> hook = std::move(f.save_hook);
+    f.save_hook = nullptr;
+    hook();
+  }
+  Record &out = f.record;
+  const auto write = [&f](const std::function<void()> &apply)
+  {
+    if (f.saves_left == 0)
+      return false;
+    if (f.saves_left > 0)
+      --f.saves_left;
+    apply();
+    return true;
+  };
+  return write(
+             [&]
+             {
+               out.skip = in.skip;
+             }) &&
+         write(
+             [&]
+             {
+               out.last.present = in.last.present;
+               out.last.rolled_back = in.last.rolled_back;
+             }) &&
+         write(
+             [&]
+             {
+               out.last.from = in.last.from;
+             }) &&
+         write(
+             [&]
+             {
+               out.last.to = in.last.to;
+             }) &&
+         write(
+             [&]
+             {
+               out.confirmed = in.confirmed;
+             }) &&
+         write(
+             [&]
+             {
+               out.pending_from = in.pending_from;
+             }) &&
+         write(
+             [&]
+             {
+               out.pending = in.pending;
+               out.pending_to = in.pending ? in.pending_to : "";
+             });
 }
 
 // The bootloader: a firmware that was staged boots on trial; one that was still on trial at this boot
@@ -165,18 +218,8 @@ bool activate(const std::string &from, const std::string &to)
   SimFlash &f = flash();
   if (!f.image_open || !valid_version(to) || from.size() > MAX_VERSION)
     return false;
-  {
-    std::lock_guard<std::mutex> guard(lock);
-    const Record before = record;
-    record.pending = true;
-    record.pending_from = from;
-    record.pending_to = to;
-    if (!save(record, true))
-    {
-      record = before;
-      return false;
-    }
-  }
+  if (!store_pending(from, to))
+    return false;
   if (f.restart_before_switch)
   {
     f.restart_before_switch = false; // a power loss after the record, before the boot slot changed
@@ -225,7 +268,14 @@ void sim_clear_restart() { flash().restart_requested = false; }
 void sim_set_restart_hook(std::function<void()> hook) { flash().restart_hook = std::move(hook); }
 void sim_set_slot_size(size_t bytes) { flash().slot = bytes; }
 void sim_fail_writes(bool fail) { flash().fail_writes = fail; }
-void sim_fail_saves(bool fail) { flash().fail_saves = fail; }
+void sim_fail_saves(bool fail) { flash().saves_left = fail ? 0 : -1; }
+void sim_fail_saves_after(unsigned writes) { flash().saves_left = static_cast<int>(writes); }
+void sim_set_save_hook(std::function<void()> hook) { flash().save_hook = std::move(hook); }
+std::string sim_pending_version()
+{
+  std::lock_guard<std::mutex> guard(lock);
+  return record.pending ? record.pending_to : "";
+}
 void sim_fail_marks(bool fail) { flash().fail_marks = fail; }
 void sim_restart_before_switch() { flash().restart_before_switch = true; }
 unsigned sim_failures_logged() { return failures_logged; }
