@@ -1,0 +1,47 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "palette": {
+    "unused": "#123456",
+    "red": "#ff0000"
+  },
+  "sprites": {
+    "dot": {
+      "points": {
+        "red": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    "ghost": {
+      "points": {
+        "red": [
+          [
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        {
+          "sprite": "dot",
+          "move": [
+            1,
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

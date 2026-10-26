@@ -1,0 +1,65 @@
+{
+  "description": "busy for an upload of the other transport comes before the fields are checked: a put_begin without its fields, a put_chunk with fields of the wrong type, and a put_end and a put_abort with an unknown field are all busy",
+  "transport": "wifi",
+  "steps": [
+    {
+      "send": "@PR 41df5761 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"dot\",\"size\":147,\"sha256\":\"3c878c7d9776ae2066e60d164ef9d7f3d245fd1a844ba99d76ce31162d8fb225\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 118821b0 {\"seq\":1,\"cmd\":\"put_begin\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "busy",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 1c7fdee8 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":\"zero\",\"data\":7}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "busy",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 9f6db147 {\"seq\":3,\"cmd\":\"put_end\",\"extra\":true}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "busy",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 19c8931b {\"seq\":4,\"cmd\":\"put_abort\",\"extra\":true}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "busy",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_files": {
+        "upload.tmp": ""
+      }
+    }
+  ]
+}

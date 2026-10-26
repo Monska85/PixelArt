@@ -1,0 +1,44 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "frame_ms": 100,
+  "background": "#000033",
+  "sprites": {
+    "low": {
+      "points": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    },
+    "high": {
+      "points": {
+        "#00ff00": [
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        "low",
+        "high"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,228 @@
+name: CI
+
+# Every change is checked once: in its pull request, and on main after the merge. A push to a branch with an open
+# pull request no longer starts a second, identical run. Releases run their own checks in release.yml.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# The jobs only read the repository and upload artifacts
+permissions:
+  contents: read
+
+jobs:
+  # actionlint checks the workflows, and the run: blocks with the runner's shellcheck
+  actionlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # The release archive of rhysd/actionlint, checked against its SHA-256. Dependabot does not update it: change
+      # both values together, the hash from actionlint_<version>_checksums.txt of the same release.
+      - name: Lint the workflows
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -eu
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$archive"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+
+  # Makes the firmware's certificate bundle again from the pinned esp-idf files (it downloads them) and fails unless it
+  # is byte for byte the one in certs/, see certs/README.md
+  certificates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Make the certificate bundle again and compare it with certs/
+        run: |
+          set -eu
+          pip install "$(grep '^cryptography==' requirements-ci.txt)"
+          python tools/crt_bundle.py check
+
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # The firmware version comes from git describe
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/checks
+
+      - name: Smoke test the command line client against the simulator
+        id: smoke
+        run: |
+          set -eu
+          cp -r data "$RUNNER_TEMP/board-data"
+          .pio/build/native/program --data "$RUNNER_TEMP/board-data" --realtime --no-files --loops 0 --ws \
+            >/dev/null 2>"$RUNNER_TEMP/simulator.log" &
+          simulator=$!
+          trap 'kill "$simulator" 2>/dev/null || true' EXIT
+          board() { python tools/pixelart.py board --ws ws://127.0.0.1:8765 "$@"; }
+
+          for _ in $(seq 1 30); do
+            board info >/dev/null 2>&1 && break
+            sleep 1
+          done
+          board info
+
+          cat > "$RUNNER_TEMP/dot.yaml" <<'EOF'
+          format: pixelart/1
+          name: Dot
+          canvas: {width: 16, height: 16}
+          sprites:
+            dot:
+              points: [[7, 7, "#ff0000"]]
+          timeline:
+            - show: [dot]
+          EOF
+          board put "$RUNNER_TEMP/dot.yaml" --kind animation
+          board ls --kind animation | grep -q "dot "
+          board get dot -o "$RUNNER_TEMP/dot.json"
+          test "$(wc -c < "$RUNNER_TEMP/dot.json")" -eq 147
+          board rm dot
+          if board ls --kind animation | grep -q "dot "; then echo "dot was not deleted"; exit 1; fi
+
+          sed 's/#ff0000/#gren/' "$RUNNER_TEMP/dot.yaml" > "$RUNNER_TEMP/bad.yaml"
+          if board put "$RUNNER_TEMP/bad.yaml" --kind animation 2>"$RUNNER_TEMP/bad.log"; then
+            echo "a rejected file must give a non-zero exit status"; exit 1
+          fi
+          cat "$RUNNER_TEMP/bad.log"
+          grep -q unknown_color "$RUNNER_TEMP/bad.log"
+          if board ls --kind animation | grep -q "bad "; then echo "the rejected file was stored"; exit 1; fi
+
+      - name: Show the simulator log of the failed smoke test
+        if: failure() && steps.smoke.conclusion == 'failure'
+        run: cat "$RUNNER_TEMP/simulator.log" || true
+
+      # The web job builds the web app; tools/test_release.py covers the merge of the two sites
+      - name: Build the firmware for every board and the firmware release site, check its manifest against the JSON Schema
+        run: make release-firmware
+
+      - name: Render previews of every animation
+        run: .pio/build/native/program --out sim-out
+
+      - name: Upload previews
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: previews
+          path: sim-out/
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          node: true
+
+      # The end-to-end tests run against the simulator, and the YAML tests compare with the converted files
+      - name: Build the simulator and convert the animations and playlists
+        run: |
+          python3 tools/pixelart.py build
+          pio run -e native
+
+      - name: Install the web app's dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Lint
+        working-directory: web
+        run: npm run lint
+
+      - name: Check formatting
+        working-directory: web
+        run: npm run format:check
+
+      - name: Run the unit tests and the conformance suite
+        working-directory: web
+        run: npm test
+
+      - name: Build the web app
+        working-directory: web
+        run: npm run build
+
+      - name: Check the size of the JavaScript the app loads at start
+        working-directory: web
+        run: npm run size
+
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('./web/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Playwright browsers
+        id: browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-shell-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # The tests run the headless shell only. The runner image already has the system libraries Chromium needs, so
+      # apt is not run: Playwright's install-deps adds only optional fonts, and Ubuntu's mirror can take minutes for them.
+      - name: Install Chromium for the end-to-end tests
+        if: steps.browsers.outputs.cache-hit != 'true'
+        working-directory: web
+        run: npx playwright install --only-shell chromium
+
+      - name: Run the end-to-end tests and the layout checks against the simulator
+        id: e2e
+        working-directory: web
+        # Two workers, as before JOBS existed: the end-to-end tests are timing sensitive
+        env:
+          PIXELART_JOBS: "2"
+        run: npm run e2e
+
+      # The same comparison as `make web-screenshots`, in the official Playwright container. The digest belongs to the
+      # version of @playwright/test in web/package.json: the script refuses an image of another version.
+      - name: Compare one main state per view with its reference image
+        id: screenshots
+        env:
+          PIXELART_JOBS: "2"
+          PLAYWRIGHT_IMAGE: mcr.microsoft.com/playwright:v1.62.0-noble@sha256:baed2032d533817f3dbe6425de795788430ba345e819a1201337009ba17c9d07
+        run: web/scripts/run-screenshots.sh compare
+
+      - name: Upload the end-to-end report and traces
+        if: failure() && (steps.e2e.outcome == 'failure' || steps.screenshots.outcome == 'failure')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: web-test-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+            web/playwright-report-layout/
+            web/test-results-layout/
+            web/playwright-report-screenshots/
+            web/test-results-screenshots/
+          if-no-files-found: ignore
+          retention-days: 7

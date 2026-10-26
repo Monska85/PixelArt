@@ -1,0 +1,49 @@
+# Patterns with a leading / match at the repository root only; the others match in any folder.
+
+# --- Build output and generated files -------------------------------------------------------
+# PlatformIO build output, downloaded libraries and toolchains
+/.pio/
+# Board files generated from animations/ and playlists/ (make data)
+/data/
+# Simulator output (make sim)
+/sim-out/
+# Release site built by `make release-site` and `make release-firmware`
+/site/
+
+# --- Tool caches ----------------------------------------------------------------------------
+# Python bytecode from the monitor filter, the tools and the build scripts
+__pycache__/
+*.py[cod]
+# Python test, lint and type checker caches
+/.pytest_cache/
+/.ruff_cache/
+/.mypy_cache/
+# clangd: compile database from `pio run -t compiledb` and its index cache
+/compile_commands.json
+/.cache/
+
+# --- Web app (web/) -------------------------------------------------------------------------
+# Dependencies (the Vite and Vitest caches live inside them) and the build output
+/web/node_modules/
+/web/dist/
+# Playwright output of the end-to-end, layout and screenshot runs: test-results, test-results-layout,
+# test-results-screenshots, playwright-report, playwright-report-layout and playwright-report-screenshots
+/web/test-results*/
+/web/playwright-report*/
+# Coverage output, should a run ask for it
+/web/coverage/
+
+# --- Local agent files ------------------------------------------------------------------------
+# Claude Code: worktrees it makes and the settings of one machine
+/.claude/worktrees/
+/.claude/settings.local.json
+
+# --- Editors and operating systems ----------------------------------------------------------
+# PlatformIO IDE regenerates .vscode, except the extension list
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db

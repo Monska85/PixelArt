@@ -1,0 +1,109 @@
+{
+  "description": "A manifest path with a plus sign, as an untagged build's release has in its file names, is accepted and its file is installed",
+  "update_source": {
+    "files": {
+      "manifest.json": {
+        "json": {
+          "format": "pixelart-manifest/1",
+          "version": "0.0.0-dev.42+gabc1234",
+          "released": "2026-11-02",
+          "firmware": [
+            {
+              "board": "esp32c3",
+              "chip": "ESP32-C3",
+              "part": "app",
+              "offset": 65536,
+              "file": "firmware/esp32c3/app-0.0.0-dev.42+gabc1234.bin",
+              "size": 365568,
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "animations": [
+            {
+              "id": "red",
+              "name": "Red",
+              "version": 1,
+              "file": "animations/red-0.0.0-dev.42+gabc1234.json",
+              "size": 147,
+              "sha256": "c578d329190c36c2b023ba25a889bdd5096aefda89cd38c32473a31efb3f2588"
+            }
+          ],
+          "playlists": []
+        }
+      },
+      "animations/red-0.0.0-dev.42+gabc1234.json": "{\"format\":\"pixelart/1\",\"name\":\"Red\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+    }
+  },
+  "settings": {
+    "update_mode": "notify"
+  },
+  "steps": [
+    {
+      "send": "@PR 935d27e0 {\"seq\":1,\"cmd\":\"update_check\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "send": "@PR d7145863 {\"seq\":3,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": 0,
+          "last_result": "ok",
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 1,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "expect_files": {
+        "animations/red.json": null
+      }
+    },
+    {
+      "send": "@PR f2ad8c1b {\"seq\":5,\"cmd\":\"update_install\",\"target\":\"animations\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "expect_files": {
+        "animations/red.json": "{\"format\":\"pixelart/1\",\"name\":\"Red\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+        "update.tmp": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "description": "the same seq with the same CRC gets the cached reply and runs once",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR d5d87b51 {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR d5d87b51 {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR d5d87b51 {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": null
+      }
+    },
+    {
+      "send": "@PR 6e5366fe {\"seq\":2,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 6e5366fe {\"seq\":2,\"cmd\":\"delete\",\"kind\":\"animation\",\"id\":\"dot\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    }
+  ]
+}

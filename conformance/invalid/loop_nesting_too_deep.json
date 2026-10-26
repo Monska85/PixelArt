@@ -1,0 +1,52 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "sprites": {
+    "d": {
+      "points": {
+        "#ff0000": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "loop": 1,
+      "steps": [
+        {
+          "loop": 1,
+          "steps": [
+            {
+              "loop": 1,
+              "steps": [
+                {
+                  "loop": 1,
+                  "steps": [
+                    {
+                      "loop": 1,
+                      "steps": [
+                        {
+                          "show": [
+                            "d"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "description": "lines without the @PR marker, and marker lookalikes, are ignored silently",
+  "steps": [
+    {
+      "send": "hello"
+    },
+    {
+      "send": ""
+    },
+    {
+      "send": "   "
+    },
+    {
+      "send": "@PX 3 ff0000"
+    },
+    {
+      "send": "pixelart: cannot mount the file system"
+    },
+    {
+      "send": "@PRO 3c250228 {\"seq\":1,\"cmd\":\"info\"}"
+    },
+    {
+      "send": "@pr 3c250228 {\"seq\":1,\"cmd\":\"info\"}"
+    },
+    {
+      "send": " @PR 3c250228 {\"seq\":1,\"cmd\":\"info\"}"
+    },
+    {
+      "send": "x@PR 3c250228 {\"seq\":1,\"cmd\":\"info\"}"
+    },
+    {
+      "send": "@PR3c250228 {\"seq\":1,\"cmd\":\"info\"}"
+    },
+    {
+      "send": "\u00ff\u00fe binary \u0001\u0002"
+    },
+    {
+      "expect_nothing": true
+    },
+    {
+      "send": "@PR 3c250228 {\"seq\":1,\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "protocol": 1,
+        "firmware": "<any>",
+        "board": "simulator",
+        "boot_id": "<any>",
+        "formats": {
+          "animation": [
+            "pixelart/1"
+          ],
+          "playlist": [
+            "pixelart-playlist/1"
+          ]
+        },
+        "canvas": {
+          "width": 16,
+          "height": 16
+        },
+        "storage": {
+          "total": 983040,
+          "used": "<any>"
+        },
+        "memory": {
+          "free": "<any>",
+          "largest": "<any>"
+        },
+        "limits": {
+          "line": 1024,
+          "chunk": 512,
+          "page": 8,
+          "animation": 65536,
+          "playlist": 16384
+        }
+      }
+    }
+  ]
+}

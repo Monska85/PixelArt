@@ -1,0 +1,95 @@
+{
+  "description": "JSON cut short, even with a CRC that matches the cut text, gets bad_frame",
+  "steps": [
+    {
+      "send": "@PR 298c897f {\"seq\":1,\"cmd\":\"info\""
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR b4ce0777 {\"seq\":1,\"cmd\":\"info\",\"x\":"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR c93f6ff4 {\"seq\":1,\"cmd\":\"info\"}}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR eadf136b {\"seq\":1,\"cmd\":\"info\"} {\"seq\":2,\"cmd\":\"info\"}"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 39d03cf0 {\"seq\":1,\"cmd\":\"info\"} x"
+    },
+    {
+      "expect": {
+        "ok": false,
+        "error": "bad_frame",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR dce542bd {\"seq\":1,\"cmd\":\"info\"} "
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "protocol": 1,
+        "firmware": "<any>",
+        "board": "simulator",
+        "boot_id": "<any>",
+        "formats": {
+          "animation": [
+            "pixelart/1"
+          ],
+          "playlist": [
+            "pixelart-playlist/1"
+          ]
+        },
+        "canvas": {
+          "width": 16,
+          "height": 16
+        },
+        "storage": {
+          "total": 983040,
+          "used": "<any>"
+        },
+        "memory": {
+          "free": "<any>",
+          "largest": "<any>"
+        },
+        "limits": {
+          "line": 1024,
+          "chunk": 512,
+          "page": 8,
+          "animation": 65536,
+          "playlist": 16384
+        }
+      }
+    }
+  ]
+}

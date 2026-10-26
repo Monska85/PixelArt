@@ -1,0 +1,31 @@
+{
+  "description": "wifi_forget answers busy when the network task cannot take the request, and succeeds when repeated",
+  "steps": [
+    {
+      "network_busy": true
+    },
+    {
+      "send": "@PR 4e706339 {\"seq\":1,\"cmd\":\"wifi_forget\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "busy",
+        "message": "<any>"
+      }
+    },
+    {
+      "network_busy": false
+    },
+    {
+      "send": "@PR 7708ce79 {\"seq\":2,\"cmd\":\"wifi_forget\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true
+      }
+    }
+  ]
+}

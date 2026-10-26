@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Based on shadcn/ui (MIT): see THIRD_PARTY_NOTICES.txt of the web app.
+
+import type { ComponentProps } from "react";
+import { cn } from "./cn";
+
+export function Label({ className, ...props }: ComponentProps<"label">) {
+  return <label className={cn("text-sm font-medium leading-none", className)} {...props} />;
+}

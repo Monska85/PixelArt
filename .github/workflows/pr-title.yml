@@ -1,0 +1,32 @@
+name: PR title
+
+# The title becomes the squash commit release-please reads. Rule: README.md, Contributing.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    # A stable name: the main ruleset requires the check "pr-title".
+    name: pr-title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: tools/check_pr_title.py
+          sparse-checkout-cone-mode: false
+
+      - name: Check the title
+        # The title comes in through the environment, never pasted into the script.
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: python3 tools/check_pr_title.py "$TITLE"

@@ -1,0 +1,106 @@
+{
+  "description": "update_install needs a target of animations or firmware, force must be true or false, and no other field is allowed",
+  "update_source": {
+    "files": {
+      "manifest.json": {
+        "json": {
+          "format": "pixelart-manifest/1",
+          "version": "1.2.0",
+          "released": "2026-11-02",
+          "firmware": [
+            {
+              "board": "esp32c3",
+              "chip": "ESP32-C3",
+              "part": "app",
+              "offset": 65536,
+              "file": "firmware/esp32c3/app-1.2.0.bin",
+              "size": 365568,
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "animations": [],
+          "playlists": []
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "send": "@PR 56a86aa2 {\"seq\":1,\"cmd\":\"update_install\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR fa96a7e1 {\"seq\":2,\"cmd\":\"update_install\",\"target\":\"all\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR cb43f2d2 {\"seq\":3,\"cmd\":\"update_install\",\"target\":1}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 3ad602e4 {\"seq\":4,\"cmd\":\"update_install\",\"target\":\"firmware\",\"force\":\"yes\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR c874262d {\"seq\":5,\"cmd\":\"update_install\",\"target\":\"firmware\",\"force\":null}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR fd9bda3b {\"seq\":6,\"cmd\":\"update_install\",\"target\":\"animations\",\"extra\":1}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR abadfc6f {\"seq\":7,\"cmd\":\"update_check\",\"force\":true}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    }
+  ]
+}

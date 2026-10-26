@@ -1,0 +1,26 @@
+{
+  "description": "list reports a zero-byte file with size 0 and the SHA-256 of empty input, and no name or version",
+  "files": {
+    "animations/empty.json": ""
+  },
+  "steps": [
+    {
+      "send": "@PR 1af0c9a8 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "animation",
+        "entries": [
+          {
+            "id": "empty",
+            "size": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "more": false
+      }
+    }
+  ]
+}

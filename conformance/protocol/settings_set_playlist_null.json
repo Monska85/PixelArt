@@ -1,0 +1,51 @@
+{
+  "description": "settings_set with playlist null gets bad_request and changes nothing, even with a valid brightness",
+  "steps": [
+    {
+      "send": "@PR a615716c {\"seq\":1,\"cmd\":\"settings_set\",\"playlist\":null}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 7c2f76e5 {\"seq\":2,\"cmd\":\"settings_set\",\"brightness\":40,\"playlist\":null}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ccc5b064 {\"seq\":3,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    }
+  ]
+}

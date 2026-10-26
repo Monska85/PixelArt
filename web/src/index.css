@@ -1,0 +1,212 @@
+@import "tailwindcss";
+
+/*
+ * Theme tokens. Light is the base; dark applies for `data-theme="dark"`, which public/theme-init.js sets before the
+ * first paint. Every text and control pair meets WCAG AA (4.5:1 for text, 3:1 for the borders of fields), disabled and
+ * muted text included.
+ */
+:root {
+  color-scheme: light;
+  --background: #fafafa;
+  --card: #ffffff;
+  --foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #52525b;
+  --border: #d4d4d8;
+  --input: #71717a;
+  --ring: #1d4ed8;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #e4e4e7;
+  --accent: #e4e4e7;
+  --accent-foreground: #18181b;
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #fef2f2;
+  --success: #15803d;
+  --success-soft: #f0fdf4;
+  --warning: #a16207;
+  --warning-soft: #fefce8;
+  --info: #1d4ed8;
+  --info-soft: #eff6ff;
+  --overlay: rgb(0 0 0 / 50%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #09090b;
+  --card: #18181b;
+  --foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --border: #3f3f46;
+  --input: #71717a;
+  --ring: #60a5fa;
+  --primary: #60a5fa;
+  --primary-foreground: #09090b;
+  --secondary: #27272a;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  --destructive: #f87171;
+  --destructive-foreground: #09090b;
+  --destructive-soft: #2a1215;
+  --success: #4ade80;
+  --success-soft: #0f2417;
+  --warning: #facc15;
+  --warning-soft: #2a2208;
+  --info: #60a5fa;
+  --info-soft: #0f1b33;
+  --overlay: rgb(0 0 0 / 70%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-overlay: var(--overlay);
+  --font-sans: system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-slide-up: slide-up 200ms ease-out;
+  --animate-toast-in: toast-in 200ms ease-out;
+  --animate-toast-out: fade-out 100ms ease-in;
+  --animate-spin-slow: spin 1s linear infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@layer base {
+  html {
+    background: var(--background);
+  }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+  }
+
+  /* Radix scroll lock adds a style element; the page never scrolls sideways either way. */
+  html,
+  body {
+    overflow-x: clip;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The pixel grid of the editor: 16 by 16 cells that behave like a canvas (pointer capture, no scrolling). */
+@layer components {
+  .grid-board {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    width: min(100%, 32rem);
+    aspect-ratio: 1;
+    background: #000;
+    border: 1px solid var(--input);
+    touch-action: none;
+    user-select: none;
+    cursor: crosshair;
+  }
+
+  .grid-board:focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  .cell {
+    border: 1px solid rgb(128 128 128 / 25%);
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .cell.is-origin {
+    box-shadow: inset 0 0 0 2px rgb(255 255 255 / 45%);
+  }
+
+  .cell.is-pivot::after {
+    content: "+";
+    display: block;
+    text-align: center;
+    color: #fff;
+    mix-blend-mode: difference;
+    line-height: 1;
+  }
+
+  .cell.is-cursor {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+}

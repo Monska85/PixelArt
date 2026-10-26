@@ -1,0 +1,65 @@
+{
+  "description": "an upload needs free space for the whole file rounded up to 4,096 bytes",
+  "capacity": 12288,
+  "files": {
+    "animations/one.json": "{\"format\":\"pixelart/1\",\"name\":\"One\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 6c70750d {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":8193,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "no_space",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_files": {
+        "upload.tmp": null
+      }
+    },
+    {
+      "send": "@PR d0101ba6 {\"seq\":2,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":8192,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR fa21f56d {\"seq\":3,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":4097,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR b3d40254 {\"seq\":4,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"x\",\"size\":20000,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "no_space",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR d6fc59a7 {\"seq\":5,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"QQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    }
+  ]
+}

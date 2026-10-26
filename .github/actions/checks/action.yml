@@ -1,0 +1,37 @@
+name: Checks
+description: Checks the C++ formatting, converts the animations, validates them and runs every test suite. Needs the repository checked out. The firmware version is read from git tags, so full history is needed only where the real version matters, as in the release site build.
+
+inputs:
+  node:
+    description: Also set up Node, for the steps after the checks that build or test the web app
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup
+      with:
+        node: ${{ inputs.node }}
+
+    # clang-format is pinned in requirements-ci.txt, so CI formats like a local `make format`
+    - name: Check the formatting of the C++ sources
+      shell: bash
+      run: make format-check
+
+    - name: Convert animations and playlists, check them against the JSON Schemas
+      shell: bash
+      run: python tools/pixelart.py build --schema
+
+    - name: Check animations and playlists with the board's engine
+      shell: bash
+      run: |
+        pio run -e native
+        .pio/build/native/program --validate
+
+    - name: Run the tests on the simulator
+      shell: bash
+      run: pio test -e native_test
+
+    - name: Run the tests of the command line client and the release tool
+      shell: bash
+      run: python -m unittest discover -s tools

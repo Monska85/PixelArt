@@ -1,0 +1,14 @@
+PixelArt is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version (see LICENSE), with the following additional permission.
+
+Additional permission under GNU GPL version 3 section 7
+
+If you modify this Program, or any covered work, by linking or combining it
+with the binary-only libraries that Espressif Systems distributes with ESP-IDF
+and Arduino-ESP32, such as the WiFi, PHY, Bluetooth and coexistence libraries,
+and with the code in the ROM of Espressif chips (or a modified version of those
+libraries), containing parts covered by the terms of their licenses, the
+licensors of this Program grant you additional permission to convey the
+resulting work.

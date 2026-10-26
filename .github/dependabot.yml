@@ -1,0 +1,43 @@
+version: 2
+updates:
+  # The actions are pinned to commit SHAs with the version in a comment: Dependabot updates both
+  - package-ecosystem: github-actions
+    directories:
+      - "/"
+      - "/.github/actions/checks"
+      - "/.github/actions/setup"
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Dependency updates of the web app are build changes, so they stay out of the changelogs
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+    groups:
+      web:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+
+  # The Python tools of CI and the release build, pinned in requirements-ci.txt
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

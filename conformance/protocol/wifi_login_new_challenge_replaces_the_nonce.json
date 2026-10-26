@@ -1,0 +1,65 @@
+{
+  "description": "A new auth_challenge replaces the nonce that waits, so the answer to the first one fails",
+  "transport": "wifi",
+  "settings": {
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f",
+    "ffeeddccbbaa99887766554433221100",
+    "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+  ],
+  "steps": [
+    {
+      "send": "@PR 47460f63 {\"seq\":1,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR 72abb930 {\"seq\":2,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "nonce": "ffeeddccbbaa99887766554433221100"
+      }
+    },
+    {
+      "send": "@PR 7eb8020c {\"seq\":3,\"cmd\":\"auth\",\"hmac\":\"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 1970d596 {\"seq\":4,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "nonce": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+      }
+    },
+    {
+      "send": "@PR 49f1e782 {\"seq\":5,\"cmd\":\"auth\",\"hmac\":\"09e4b0f1ae153d4176eaa6683d19dba8c9bc90fefa00ab1fc95b560f0f3342cf\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true
+      }
+    }
+  ]
+}

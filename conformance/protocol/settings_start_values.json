@@ -1,0 +1,36 @@
+{
+  "description": "the board starts with the settings it was given",
+  "files": {
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "settings": {
+    "brightness": 7,
+    "playlist": "christmas"
+  },
+  "steps": [
+    {
+      "send": "@PR 2153638d {\"seq\":1,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 7,
+          "playlist": "christmas",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    }
+  ]
+}

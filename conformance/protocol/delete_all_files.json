@@ -1,0 +1,86 @@
+{
+  "description": "delete_all removes every file in /playlists and /animations, including names that are not valid IDs, and replies the counts; the settings stay",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/blob.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "animations/Not A Valid ID.json": "{\"format\":\"nope\"",
+    "animations/readme.txt": "x",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/also bad.json": "{\"format\":\"nope\""
+  },
+  "settings": {
+    "brightness": 7,
+    "playlist": "christmas"
+  },
+  "steps": [
+    {
+      "send": "@PR 822b57f4 {\"seq\":1,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 2,
+        "animations": 4
+      }
+    },
+    {
+      "send": "@PR 77763af2 {\"seq\":2,\"cmd\":\"list\",\"kind\":\"animation\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "kind": "animation",
+        "entries": [],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR 425d127a {\"seq\":3,\"cmd\":\"list\",\"kind\":\"playlist\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "kind": "playlist",
+        "entries": [],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR ba7c28ca {\"seq\":4,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "settings": {
+          "brightness": 7,
+          "playlist": "christmas",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": null,
+        "animations/blob.json": null,
+        "animations/Not A Valid ID.json": null,
+        "animations/readme.txt": null,
+        "playlists/christmas.json": null,
+        "playlists/also bad.json": null
+      }
+    }
+  ]
+}

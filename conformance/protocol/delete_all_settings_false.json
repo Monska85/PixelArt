@@ -1,0 +1,54 @@
+{
+  "description": "delete_all with settings false removes every file and keeps the settings; the reply has no settings",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "settings": {
+    "brightness": 7,
+    "playlist": "christmas"
+  },
+  "steps": [
+    {
+      "send": "@PR 7ba3945e {\"seq\":1,\"cmd\":\"delete_all\",\"settings\":false}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 1,
+        "animations": 1
+      }
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": {
+          "brightness": 7,
+          "playlist": "christmas",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": null,
+        "playlists/christmas.json": null
+      }
+    }
+  ]
+}

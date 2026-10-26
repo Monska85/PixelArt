@@ -1,0 +1,20 @@
+{
+  "format": "pixelart/1",
+  "name": "test",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "sprites": {
+    "d": {
+      "points": []
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        "d"
+      ]
+    }
+  ]
+}

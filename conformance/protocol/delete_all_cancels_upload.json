@@ -1,0 +1,72 @@
+{
+  "description": "delete_all cancels the upload in progress and removes its temporary file; a later put_chunk is no_upload",
+  "files": {
+    "animations/blob.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 41df5761 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"dot\",\"size\":147,\"sha256\":\"3c878c7d9776ae2066e60d164ef9d7f3d245fd1a844ba99d76ce31162d8fb225\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 551c5207 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IkRvdCIsImNhbnZhcyI6eyJ3aWQ=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 50
+      }
+    },
+    {
+      "expect_files": {
+        "upload.tmp": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"wid"
+      }
+    },
+    {
+      "send": "@PR 66ef5689 {\"seq\":3,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "playlists": 0,
+        "animations": 1
+      }
+    },
+    {
+      "expect_files": {
+        "upload.tmp": null,
+        "animations/dot.json": null,
+        "animations/blob.json": null
+      }
+    },
+    {
+      "send": "@PR 46ededc9 {\"seq\":4,\"cmd\":\"put_chunk\",\"offset\":50,\"data\":\"dGgiOjE2LCJoZWlnaHQiOjE2fSwic3ByaXRlcyI6eyJkb3QiOnsicG9pbnRzIjpbWzcsNywiI2ZmMDAwMCJdXX19LCJ0aW1lbGluZSI6W3sic2hvdyI6WyJkb3QiXX1dfQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 00aba8dd {\"seq\":5,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    }
+  ]
+}

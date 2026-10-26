@@ -1,0 +1,103 @@
+{
+  "description": "delete_all with settings true answers busy when the network task cannot take the forget request: no file is removed, no setting changes and the WiFi client stays open; the same request repeated succeeds",
+  "transport": "wifi",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "settings": {
+    "brightness": 7,
+    "playlist": "christmas",
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "steps": [
+    {
+      "network_busy": true
+    },
+    {
+      "send": "@PR 595a097c {\"seq\":1,\"cmd\":\"delete_all\",\"settings\":true}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "busy",
+        "message": "<any>"
+      }
+    },
+    {
+      "expect_closed": false
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+        "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+      }
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": {
+          "brightness": 7,
+          "playlist": "christmas",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "k3j9x0q7w2m5z8a1"
+        }
+      }
+    },
+    {
+      "network_busy": false
+    },
+    {
+      "send": "@PR 83cb2103 {\"seq\":3,\"cmd\":\"delete_all\",\"settings\":true}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "playlists": 1,
+        "animations": 1,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "expect_closed": true
+    },
+    {
+      "expect_files": {
+        "animations/dot.json": null,
+        "playlists/christmas.json": null
+      }
+    }
+  ]
+}

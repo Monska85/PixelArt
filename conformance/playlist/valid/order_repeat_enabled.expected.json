@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "animation": "b",
+      "repeat": 2
+    },
+    {
+      "animation": "a",
+      "repeat": 1
+    },
+    {
+      "animation": "x-1_y",
+      "repeat": 1000
+    }
+  ]
+}
