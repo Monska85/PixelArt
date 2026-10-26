@@ -28,7 +28,7 @@ The web app runs entirely in your browser, and nothing personal leaves your brow
 
 ## 3D printed frame
 
-You can find the 3D model files to print a frame for the 16x16 LED matrix [here](https://www.printables.com/model/1497091-pixel-art-frame). The frame holds the LED matrix and has a back support to increase stability and hold the ESP32 board and connection wires.
+Download the [3D printable frame model](https://www.printables.com/model/1497091-pixel-art-frame) for the 16x16 LED matrix. The frame holds the matrix and has a back support for the ESP32 board and connection wires.
 
 ## Quick start: flash an empty board
 
@@ -467,7 +467,14 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 
 ### Continuous integration
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and on every push to `main`, once per change: a newer run of the same pull request or of `main` cancels the one still running. It checks the C++ formatting, converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests (among them the check that the GitHub Pages certificate chain verifies against the firmware's bundle), drives the simulator's WebSocket with `tools/pixelart.py board` (info, upload, list, download, delete and a rejected file), builds every board and the firmware release site (checking its manifest against the JSON Schema and the limits a board reads, and that every firmware leaves 64 KiB of its slot free), and attaches a rendered preview of every animation to each run. A second job, `web`, lints the web app, checks its formatting, runs its unit tests, builds it (which type checks it), checks the size of the JavaScript it loads at start, runs its end-to-end tests and the layout checks in Chromium against the simulator, and compares the reference images in the Playwright container. A third job, `actionlint`, checks the workflows with a pinned actionlint release and the `run:` blocks with shellcheck. A fourth, `certificates`, makes the firmware's certificate bundle again from the pinned esp-idf files and checks that it is the one in `certs/`, byte for byte. `.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and every push to `main`. A newer run of the same pull request or of `main` cancels the one still running. It has four jobs:
+
+- **`check`:** Checks C++ formatting, converts animations, checks them against the JSON Schemas and validates them with the engine. It runs the tests, including the GitHub Pages certificate chain check. It drives the simulator's WebSocket with `tools/pixelart.py board` to test board information, uploads, listings, downloads, deletions and file rejection. It builds every board and the firmware release site, checks the manifest against its JSON Schema and the board limits, checks that each firmware leaves 64 KiB of its slot free, and attaches a rendered preview of every animation.
+- **`web`:** Lints and tests the web app, checks formatting and startup JavaScript size, and builds it with type checking. It runs the end-to-end and layout checks against the simulator in Chromium and compares reference images in the Playwright container.
+- **`actionlint`:** Checks the workflows with a pinned actionlint release and their `run:` blocks with shellcheck.
+- **`certificates`:** Rebuilds the firmware's certificate bundle from the pinned esp-idf files and compares it byte for byte with `certs/`.
+
+`.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
 
 ### Code style
 

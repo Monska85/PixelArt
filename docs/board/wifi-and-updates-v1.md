@@ -1,6 +1,6 @@
 # WiFi and updates, version 1
 
-Status: **implemented** by the firmware and simulator.
+Status: **implemented** by the firmware, with simulator support for tests.
 
 This document specifies how a PixelArt board joins a WiFi network, keeps its animations and firmware up to date from a release manifest, and speaks the [command protocol](../protocol/protocol-v1.md) over the network. Why it works this way is recorded in [ADR 0005](../adr/0005-wifi-and-updates.md). The protocol commands and settings it mentions are specified in the protocol document; the screens of the web app in the [web app specification](../web/web-app-v1.md).
 

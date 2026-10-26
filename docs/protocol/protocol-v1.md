@@ -42,7 +42,7 @@ Uploads and deletions through the simulator change its data folder (`data/` or t
 
 ### WebSocket (board over WiFi)
 
-A board connected to WiFi serves the protocol on a WebSocket, with the framing of the simulator's WebSocket above: one line per text message, the same limits and close codes, one client at a time. Its address, the accepted origins, what differs from the simulator and the network login are specified in [WiFi and updates](../board/wifi-and-updates-v1.md#protocol-over-wifi). A few commands are reserved for USB and answer `usb_only` over WiFi. With network login on, a WiFi client [authenticates](#authentication) first.
+A board connected to WiFi serves the protocol on a WebSocket, with the framing of the simulator's WebSocket above: one line per text message, the same limits and close codes, one client at a time. Its address, the accepted origins, what differs from the simulator and the network login are specified in [WiFi and updates](../board/wifi-and-updates-v1.md#protocol-over-wifi). The board reserves a few commands for USB and answers them with `usb_only` over WiFi. With network login on, a WiFi client [authenticates](#authentication) first.
 
 The WebSocket carries no checksum in its own right, but the lines keep theirs, and a client uses the same sequence numbers and retries as on the serial port. The board remembers the last reply of each transport separately, and forgets the one of the WiFi transport when a WiFi connection opens or closes, so a reply made for one client is never sent to the next.
 

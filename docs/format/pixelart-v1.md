@@ -342,7 +342,7 @@ Animations can come from any source, including URLs typed by users, so every imp
 | Limit                                                               | Value              |
 | ------------------------------------------------------------------- | ------------------ |
 | File size (JSON, as stored on the board)                            | 64 KiB             |
-| Canvas                                                              | exactly 16 x 16    |
+| Canvas                                                              | exactly 16x16      |
 | Palette entries                                                     | 256                |
 | Different colors in the whole animation                             | 256                |
 | Sprites                                                             | 64                 |
