@@ -241,7 +241,7 @@ row 15  PPPPPPPP........   (progress, here half done)
 
 ### Status
 
-[`status`](../protocol/protocol-v1.md#status) reports the WiFi state and the name of the stored network, whether the time is known, and the update state: whether a check or an installation is running and its progress (`installing` while a firmware is written, and until the board restarts), when the last check ran (seconds ago), its result and its detail (`no_release`), the available firmware version, the number of animation and playlist changes waiting, and the result of the last firmware installation (`updated` or `rolled_back`, with the versions).
+[`status`](../protocol/protocol-v1.md#status) reports the WiFi state, the name of the stored network and whether the time is known. It also reports whether a check or an installation is running and its progress (`installing` while firmware is written and until the board restarts). The update details include when the last check ran (seconds ago), its result and detail (`no_release`), the available firmware version, the number of animation and playlist changes waiting, and the result of the last firmware installation (`updated` or `rolled_back`, with the versions).
 
 ## Protocol over WiFi
 
