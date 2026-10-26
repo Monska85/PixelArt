@@ -1,6 +1,6 @@
 # Agent rules
 
-Rules for coding agents working on this repository. `CLAUDE.md` is a symbolic link to this file, so both names keep working: edit `AGENTS.md`. Facts live elsewhere: the formats in `docs/format/`, the command protocol in `docs/protocol/`, WiFi and updates in `docs/board/`, the web app in `docs/web/`, decisions in `docs/adr/`, commands, layout and contribution rules in `README.md`, the conformance cases in `conformance/README.md`. Read those instead of trusting a summary here.
+Read the relevant specifications in `docs/`, the commands and contribution guidance in `README.md`, and the conformance instructions in `conformance/README.md` before making a change. Edit `AGENTS.md` when agent rules change, not `CLAUDE.md`.
 
 ## Behavior
 
