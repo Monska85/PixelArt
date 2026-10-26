@@ -1,0 +1,55 @@
+{
+  "description": "delete_all over WiFi cancels an upload a USB client has in progress, as it cancels any upload: the USB client's next chunk is no_upload",
+  "transport": "wifi",
+  "steps": [
+    {
+      "send": "@PR 41df5761 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"animation\",\"id\":\"dot\",\"size\":147,\"sha256\":\"3c878c7d9776ae2066e60d164ef9d7f3d245fd1a844ba99d76ce31162d8fb225\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 551c5207 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC8xIiwibmFtZSI6IkRvdCIsImNhbnZhcyI6eyJ3aWQ=\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 50
+      }
+    },
+    {
+      "send": "@PR 822b57f4 {\"seq\":1,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "playlists": 0,
+        "animations": 0
+      }
+    },
+    {
+      "expect_files": {
+        "upload.tmp": null
+      }
+    },
+    {
+      "send": "@PR 94930a76 {\"seq\":3,\"cmd\":\"put_chunk\",\"offset\":50,\"data\":\"dGgiOjE2LCJoZWlnaHQiOjE2fSwic3ByaXRlcyI6eyJkb3QiOnsicG9pbnRzIjpbWzcsNywiI2ZmMDAwMCJdXX19LCJ0aW1lbGluZSI6W3sic2hvdyI6WyJkb3QiXX1dfQ==\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "no_upload",
+        "message": "<any>"
+      }
+    }
+  ]
+}

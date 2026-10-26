@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BoardClient,
@@ -16,6 +18,7 @@ import {
   listFiles,
   setSettings,
   toBase64,
+  UPLOAD_BUSY_MESSAGE,
   uploadFile,
   UploadCancelled,
 } from "../src/protocol";
@@ -493,6 +496,15 @@ describe("files", () => {
       await uploadFile(client, "animation", "dot", data);
       expect(board.files.animation.get("dot")).toEqual(data);
       expect(board.requests.filter((r) => r.cmd === "put_begin")).toHaveLength(2);
+    });
+
+    it("says which upload holds the board when put_begin is busy", async () => {
+      board.override = (r) => (r.cmd === "put_begin" ? { ok: false, error: "busy", message: "other" } : undefined);
+      await expect(uploadFile(client, "animation", "dot", data)).rejects.toMatchObject({
+        code: "busy",
+        message: UPLOAD_BUSY_MESSAGE,
+      });
+      expect(board.requests.filter((r) => r.cmd === "put_chunk")).toHaveLength(0);
     });
 
     it("fails on a second no_upload and aborts", async () => {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Button } from "../components/button";
 import { FirmwareLink } from "../common/BlockedNote";
 import { ErrorAlert } from "../common/ErrorAlert";

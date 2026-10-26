@@ -158,6 +158,25 @@ static void test_utf8_sequence_length()
     TEST_ASSERT_EQUAL_MESSAGE(0, utf8_length(text), text);
 }
 
+static std::string lossy(const std::string &text) { return utf8_lossy(text.data(), text.size()); }
+
+static void test_utf8_lossy()
+{
+  TEST_ASSERT_EQUAL_STRING("", lossy("").c_str());
+  TEST_ASSERT_EQUAL_STRING("Example Home WiFi", lossy("Example Home WiFi").c_str());
+  TEST_ASSERT_EQUAL_STRING("Caf\xC3\xA9 \xC3\x9C 2.4G", lossy("Caf\xC3\xA9 \xC3\x9C 2.4G").c_str());
+  // One U+FFFD (EF BF BD) per bad byte: a stray 0xFF, then a valid euro sign, then a truncated lead byte.
+  TEST_ASSERT_EQUAL_STRING("A\xC3\xA9\xEF\xBF\xBD\xE2\x82\xAC"
+                           "B\xEF\xBF\xBD",
+                           lossy("A\xC3\xA9\xFF\xE2\x82\xAC"
+                                 "B\xC3")
+                               .c_str());
+  // A surrogate (ED A0 80) is three bad bytes, a lead byte before ASCII costs one.
+  TEST_ASSERT_EQUAL_STRING("\xEF\xBF\xBD\xEF\xBF\xBD\xEF\xBF\xBD", lossy("\xED\xA0\x80").c_str());
+  TEST_ASSERT_EQUAL_STRING("\xEF\xBF\xBD(", lossy("\xC3(").c_str());
+  TEST_ASSERT_EQUAL_UINT32(96, lossy(std::string(32, '\x80')).size());
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -174,5 +193,6 @@ int main(int, char **)
   RUN_TEST(test_base64_rejects_invalid_text);
   RUN_TEST(test_base64_respects_size_limit);
   RUN_TEST(test_utf8_sequence_length);
+  RUN_TEST(test_utf8_lossy);
   return UNITY_END();
 }

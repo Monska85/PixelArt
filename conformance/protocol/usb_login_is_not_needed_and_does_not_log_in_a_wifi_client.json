@@ -1,0 +1,171 @@
+{
+  "description": "Over USB the commands need no login; an auth over USB works, never closes anything, and does not log in the WiFi client",
+  "transport": "wifi",
+  "settings": {
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f",
+    "ffeeddccbbaa99887766554433221100",
+    "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+    "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+  ],
+  "steps": [
+    {
+      "send": "@PR 2153638d {\"seq\":1,\"cmd\":\"settings_get\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": true,
+          "token": "k3j9x0q7w2m5z8a1"
+        }
+      }
+    },
+    {
+      "send": "@PR 72abb930 {\"seq\":2,\"cmd\":\"auth_challenge\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR 7eb8020c {\"seq\":3,\"cmd\":\"auth\",\"hmac\":\"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR ba7c28ca {\"seq\":4,\"cmd\":\"settings_get\"}",
+      "via": "wifi"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR bcfb4598 {\"seq\":5,\"cmd\":\"auth_challenge\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "nonce": "ffeeddccbbaa99887766554433221100"
+      }
+    },
+    {
+      "send": "@PR f041e53e {\"seq\":6,\"cmd\":\"auth\",\"hmac\":\"0000000000000000000000000000000000000000000000000000000000000000\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 2c9d63c5 {\"seq\":7,\"cmd\":\"auth_challenge\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "nonce": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+      }
+    },
+    {
+      "send": "@PR e4b8ee8d {\"seq\":8,\"cmd\":\"auth\",\"hmac\":\"0000000000000000000000000000000000000000000000000000000000000000\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 6b4d9cd4 {\"seq\":9,\"cmd\":\"auth_challenge\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": true,
+        "nonce": "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+      }
+    },
+    {
+      "send": "@PR 34a88556 {\"seq\":10,\"cmd\":\"auth\",\"hmac\":\"0000000000000000000000000000000000000000000000000000000000000000\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 76e09516 {\"seq\":11,\"cmd\":\"settings_get\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": true,
+          "token": "k3j9x0q7w2m5z8a1"
+        }
+      }
+    },
+    {
+      "expect_closed": false
+    }
+  ]
+}

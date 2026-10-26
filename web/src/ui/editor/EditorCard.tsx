@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
 import type { Doc } from "../../editor/doc";

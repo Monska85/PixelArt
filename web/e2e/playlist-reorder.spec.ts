@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { copyFileSync, readFileSync } from "node:fs";
 import type { Locator, Page } from "@playwright/test";
 import { connectSimulator, expect, showPlaylists, type Simulator, stored, test } from "./fixtures";

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """PlatformIO monitor filter that draws the LED matrix live in the terminal.
 
 Firmware built with -DPIXELART_MIRROR sends each frame as one serial line:

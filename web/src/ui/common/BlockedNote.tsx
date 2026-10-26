@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Alert, AlertDescription } from "../components/alert";
 import { useSession } from "../session";
 

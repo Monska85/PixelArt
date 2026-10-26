@@ -27,7 +27,7 @@ The unit tests read `../conformance`, and the YAML tests compare with `../data`,
 2. Install the browser once: `npx playwright install chromium`.
 3. `npm run build && npm run e2e`.
 
-The built app is served by `e2e/serve-site.mjs` with a fixture release next to it, as Pages serves it: a `manifest.json` made from the animations and playlists of `e2e/site/published.json` (with their real SHA-256), and the ESP Web Tools manifests of `e2e/site/firmware/`. Each test starts its own simulator on a free port, with a temporary copy of `data/`. The tests use `.pio/build/native/program` and `data/`; set `PIXELART_SIM` and `PIXELART_DATA` to use other copies.
+The built app is served by `e2e/serve-site.mjs` with a fixture release next to it, as Pages serves it: a `manifest.json` made from the animations and playlists of `e2e/site/published.json` (with their real SHA-256), and the ESP Web Tools manifests of `e2e/site/firmware/`. Each test starts its own simulator on a free port, with a temporary copy of `data/`. The tests use `.pio/build/native/program` and `data/`; set `PIXELART_SIM` and `PIXELART_DATA` to use other copies. A test can pass more options to its simulator with `test.use({ simulatorArgs: [...] })`: `--ws-transport wifi --token TOKEN` makes it stand for a board over WiFi, as the tests of the network login do.
 
 ## Screenshot tests
 

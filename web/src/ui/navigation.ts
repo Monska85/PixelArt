@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 let navigations = 0;
 if (typeof window !== "undefined") window.addEventListener("hashchange", () => (navigations += 1));
 

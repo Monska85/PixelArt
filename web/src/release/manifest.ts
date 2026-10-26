@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The release manifest (docs/format/manifest-v1.md) as the web app reads it.
 
 import { FILE_LIMITS, isValidId } from "../engine";

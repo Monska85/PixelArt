@@ -15,6 +15,13 @@ runs:
         cache: pip
         cache-dependency-path: requirements-ci.txt
 
+    # The make and just targets read these (Makefile, justfile): a runner has no one else to share it with
+    - name: Use every core of the runner at normal priority
+      shell: bash
+      run: |
+        echo "JOBS=$(nproc)" >> "$GITHUB_ENV"
+        echo "NICE=0" >> "$GITHUB_ENV"
+
     - name: Cache PlatformIO toolchains and libraries
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:

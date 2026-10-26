@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Checks that a pull request title is a conventional commit release-please accepts.
 
 main takes squash merges only, and the squash commit takes the pull request's title, so the title becomes the commit

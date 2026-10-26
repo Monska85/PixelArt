@@ -1,8 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Client of the command protocol, with the rules of tools/pixelart.py
 // (docs/protocol/protocol-v1.md): one request in flight, a random first seq,
 // retries with the same seq, an immediate resend on bad_frame.
 
 import { FILE_LIMITS, MAX_DIAGNOSTICS } from "../engine/types";
+import { NONCE_PATTERN, loginHmac, type Login } from "./auth";
 import { decodeLine, encodeLine, type Body } from "./framing";
 import { isCount, isRecord } from "./guards";
 import type { Transport } from "./transport";
@@ -122,6 +125,8 @@ export class BoardClient {
   onLost: ((reason: string) => void) | null = null;
   /** Called when `info` reports another boot_id than before: the board restarted. */
   onRestart: (() => void) | null = null;
+  /** Set on a connection over WiFi: how to log in when the board answers `unauthorized`. */
+  login: Login | null = null;
 
   constructor(
     private readonly transport: Transport,
@@ -179,29 +184,56 @@ export class BoardClient {
     return { outcome, cancel: () => finish({ kind: "closed" }) };
   }
 
-  /** Sends a request and returns the reply, whether it succeeded or not. Throws BoardError when no reply comes. */
+  /**
+   * Sends a request and returns the reply, whether it succeeded or not. Throws BoardError when no reply comes. A board
+   * that answers `unauthorized` is logged in to once, then the request goes again.
+   */
   request(cmd: string, fields: Body = {}, timeoutMs: number = REQUEST_TIMEOUT_MS): Promise<Body> {
     return this.serial(async () => {
-      if (this.closed) throw new BoardError(CONNECTION_LOST, "the connection is closed");
-      this.seq = (this.seq + 1) % 2 ** 32;
-      const seq = this.seq;
-      const line = encodeLine({ seq, cmd, ...fields });
-      for (let attempt = 0; attempt < TRIES; attempt++) {
-        const waiting = this.wait(seq, timeoutMs);
-        try {
-          await this.transport.send(line);
-        } catch {
-          waiting.cancel();
-          this.linkClosed("the connection failed");
-          throw new BoardError(CONNECTION_LOST, "the connection failed");
-        }
-        const outcome = await waiting.outcome;
-        if (outcome.kind === "reply") return outcome.reply;
-        if (outcome.kind === "closed") throw new BoardError(CONNECTION_LOST, "the connection closed");
-      }
-      this.linkClosed(`no reply to '${cmd}' after ${TRIES} tries`);
-      throw new BoardError(NO_REPLY, `no reply to '${cmd}' after ${TRIES} tries`);
+      const reply = await this.exchange(cmd, fields, timeoutMs);
+      if (reply.error !== "unauthorized" || !this.login || cmd === "auth_challenge" || cmd === "auth") return reply;
+      await this.logIn(this.login);
+      return this.exchange(cmd, fields, timeoutMs);
     });
+  }
+
+  /** One request with its retries: the part of request() that talks to the board. */
+  private async exchange(cmd: string, fields: Body, timeoutMs: number): Promise<Body> {
+    if (this.closed) throw new BoardError(CONNECTION_LOST, "the connection is closed");
+    this.seq = (this.seq + 1) % 2 ** 32;
+    const seq = this.seq;
+    const line = encodeLine({ seq, cmd, ...fields });
+    for (let attempt = 0; attempt < TRIES; attempt++) {
+      const waiting = this.wait(seq, timeoutMs);
+      try {
+        await this.transport.send(line);
+      } catch {
+        waiting.cancel();
+        this.linkClosed("the connection failed");
+        throw new BoardError(CONNECTION_LOST, "the connection failed");
+      }
+      const outcome = await waiting.outcome;
+      if (outcome.kind === "reply") return outcome.reply;
+      if (outcome.kind === "closed") throw new BoardError(CONNECTION_LOST, "the connection closed");
+    }
+    this.linkClosed(`no reply to '${cmd}' after ${TRIES} tries`);
+    throw new BoardError(NO_REPLY, `no reply to '${cmd}' after ${TRIES} tries`);
+  }
+
+  /** Answers the board's challenge with an HMAC of the nonce under the token. Never sends the token. */
+  private async logIn(login: Login): Promise<void> {
+    const token = await login.getToken();
+    if (token === null) throw new BoardError("unauthorized", "The board asks for a login, and none was given");
+    const challenge = await this.exchange("auth_challenge", {}, REQUEST_TIMEOUT_MS);
+    if (challenge.ok !== true) throw errorFromReply(challenge);
+    if (typeof challenge.nonce !== "string" || !NONCE_PATTERN.test(challenge.nonce))
+      throw new BoardError("protocol", "the board sent an invalid login challenge");
+    const answer = await this.exchange("auth", { hmac: await loginHmac(token, challenge.nonce) }, REQUEST_TIMEOUT_MS);
+    if (answer.ok !== true) {
+      const failure = errorFromReply(answer);
+      if (failure.code === "unauthorized") login.refused();
+      throw failure;
+    }
   }
 
   /** Like request(), but a failure reply throws a BoardError carrying the board's diagnostics. */

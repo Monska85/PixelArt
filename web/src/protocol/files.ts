@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // What the board stores: listing, download, upload, delete, settings
 // (docs/protocol/protocol-v1.md#commands) with the recovery of tools/pixelart.py.
 
@@ -11,6 +13,7 @@ import {
   type WireDiagnostic,
   parseDiagnostics,
 } from "./client";
+import { isToken } from "./auth";
 import type { Body } from "./framing";
 import { isCount, isRecord } from "./guards";
 
@@ -29,7 +32,23 @@ export const sameSha = (entry: Entry, sha256: string): boolean =>
 export interface Settings {
   brightness: number;
   playlist: string;
+  // The settings of WiFi and updates (docs/protocol/protocol-v1.md): present when the board's firmware has them.
+  wifi_power?: string;
+  update_mode?: string;
+  update_firmware?: boolean;
+  update_animations?: boolean;
+  check_hours?: number;
+  install_start?: number;
+  install_end?: number;
+  timezone?: string;
+  animation_source?: string;
+  network_login?: boolean;
+  /** Read only, and only over USB. */
+  token?: string;
 }
+
+/** The settings a client can change: every one but the token. */
+export type SettingsChanges = Partial<Omit<Settings, "token">>;
 
 /** The settings of a board that was never set up, and after `delete_all` with `settings`. */
 export const DEFAULT_SETTINGS: Readonly<Settings> = { brightness: 100, playlist: "default" };
@@ -172,20 +191,37 @@ export async function deleteAll(client: BoardClient, { resetSettings = false } =
   return { ...removed, settings: parseSettings(reply) };
 }
 
+const TEXT_SETTINGS = ["wifi_power", "update_mode", "timezone", "animation_source", "token"] as const;
+const FLAG_SETTINGS = ["update_firmware", "update_animations", "network_login"] as const;
+const NUMBER_SETTINGS = ["check_hours", "install_start", "install_end"] as const;
+
 function parseSettings(reply: Body): Settings {
   const s = isRecord(reply.settings) ? reply.settings : {};
-  return {
+  const settings: Settings = {
     brightness: isCount(s.brightness) ? s.brightness : 0,
     playlist: typeof s.playlist === "string" ? s.playlist : "",
   };
+  // A setting is kept only when it has the right type: an older firmware lacks them, a newer one may add more.
+  for (const key of TEXT_SETTINGS) if (typeof s[key] === "string") settings[key] = s[key];
+  for (const key of FLAG_SETTINGS) if (typeof s[key] === "boolean") settings[key] = s[key];
+  for (const key of NUMBER_SETTINGS) if (isCount(s[key])) settings[key] = s[key];
+  return settings;
 }
 
 export async function getSettings(client: BoardClient): Promise<Settings> {
   return parseSettings(await client.command("settings_get"));
 }
 
-export async function setSettings(client: BoardClient, changes: Partial<Settings>): Promise<Settings> {
+export async function setSettings(client: BoardClient, changes: SettingsChanges): Promise<Settings> {
   return parseSettings(await client.command("settings_set", changes));
+}
+
+/** `token_regenerate`, over USB only: a new token replaces the old one, and the board closes its WiFi client. */
+export async function regenerateToken(client: BoardClient): Promise<string> {
+  const reply = await client.command("token_regenerate");
+  if (typeof reply.token !== "string" || !isToken(reply.token))
+    throw new BoardError("protocol", "the board sent an invalid token");
+  return reply.token;
 }
 
 export class UploadCancelled extends Error {
@@ -224,8 +260,13 @@ async function bootChanged(client: BoardClient): Promise<boolean> {
   }
 }
 
+/** The message of `busy` during an upload: the board holds one upload, and another connection has it. */
+export const UPLOAD_BUSY_MESSAGE =
+  "the board is receiving a file over its other connection (USB or WiFi): try again when that upload ends";
+
 function fail(reply: Body): never {
   if (reply.error === "no_upload") throw new UploadGone(errorFromReply(reply).message);
+  if (reply.error === "busy") throw new BoardError("busy", UPLOAD_BUSY_MESSAGE, [], reply);
   throw errorFromReply(reply);
 }
 
@@ -236,7 +277,8 @@ async function uploadOnce(
   data: Uint8Array,
   options: UploadOptions,
 ): Promise<WireDiagnostic[]> {
-  await client.command("put_begin", { kind, id, size: data.length, sha256: await sha256Hex(data) });
+  const begun = await client.request("put_begin", { kind, id, size: data.length, sha256: await sha256Hex(data) });
+  if (begun.ok !== true) fail(begun);
   let offset = 0;
   let resumes = 0;
   options.onProgress?.(0, data.length);

@@ -1,0 +1,16 @@
+{
+  "description": "This protocol version has no certificate: cert_regenerate is unknown_command",
+  "steps": [
+    {
+      "send": "@PR 905ab39a {\"seq\":1,\"cmd\":\"cert_regenerate\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "unknown_command",
+        "message": "<any>"
+      }
+    }
+  ]
+}

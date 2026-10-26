@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Where the editor's document is saved: the two real copies (a file on a board, a YAML file on the computer) and
 // what the header says about them (docs/web/web-app-v1.md#where-the-work-is-saved). Pure, so it runs in the tests.
 

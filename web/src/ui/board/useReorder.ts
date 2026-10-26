@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
 import { EDGE_SCROLL, edgeSpeed, scrollDistance } from "./edgeScroll";
 

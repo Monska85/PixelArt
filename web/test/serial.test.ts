@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CLOSE_STEP_MS, PORT_BUSY, SerialTransport, type SerialPortLike } from "../src/protocol/serial";
 import { session } from "../src/ui/session";
@@ -79,8 +81,8 @@ class FakePort implements SerialPortLike {
   }
 
   /** Bytes from the device. */
-  receive(text: string): void {
-    this.source?.enqueue(new TextEncoder().encode(text));
+  receive(data: string | Uint8Array): void {
+    this.source?.enqueue(typeof data === "string" ? new TextEncoder().encode(data) : data);
   }
 
   /** The readable ends, as when the port is closed from the other side. */
@@ -93,6 +95,35 @@ class FakePort implements SerialPortLike {
     this.source?.error(new DOMException("The device has been lost.", "NetworkError"));
   }
 }
+
+describe("Improv on the serial port", () => {
+  it("sends a frame as it is, with no newline", async () => {
+    const port = new FakePort("port", []);
+    const transport = await SerialTransport.open(port);
+    const frame = Uint8Array.from([...new TextEncoder().encode("IMPROV"), 1, 3, 2, 4, 0, 0xe7]);
+    await transport.improv.send(frame);
+    // The fake port decodes what it is given as text: the bytes are all below 0x80.
+    expect(port.written).toEqual([new TextDecoder().decode(frame)]);
+    await transport.close();
+  });
+
+  it("hands the board's frames to the link and keeps the lines for the protocol", async () => {
+    const port = new FakePort("port", []);
+    const transport = await SerialTransport.open(port);
+    const lines: string[] = [];
+    const frames: number[] = [];
+    transport.onLine = (line) => lines.push(new TextDecoder().decode(line));
+    transport.improv.onFrame = (frame) => frames.push(frame.type);
+    // IMPROV, 1, type 1 (state), length 1, the state 4, checksum: 477 + 1 + 1 + 1 + 4 = 484 = 0xE4.
+    const state = Uint8Array.from([...new TextEncoder().encode("IMPROV"), 1, 1, 1, 4, 0xe4]);
+    port.receive(
+      Uint8Array.from([...new TextEncoder().encode("@PR a\n"), ...state, ...new TextEncoder().encode("log\n")]),
+    );
+    await vi.waitFor(() => expect(lines).toEqual(["@PR a", "log"]));
+    expect(frames).toEqual([1]);
+    await transport.close();
+  });
+});
 
 describe("opening a serial port", () => {
   it("opens at 115,200 baud with an 8 KiB buffer and keeps DTR and RTS low", async () => {

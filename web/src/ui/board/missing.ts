@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Which animations a stored playlist names that the board does not store, and where each could come from.
 
 import type { Manifest, Published } from "../../release/manifest";

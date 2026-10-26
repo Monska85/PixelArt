@@ -1,6 +1,6 @@
 # Agent rules
 
-Rules for coding agents working on this repository. `CLAUDE.md` is a symbolic link to this file, so both names keep working: edit `AGENTS.md`. Facts live elsewhere: the formats in `docs/format/`, the command protocol in `docs/protocol/`, the web app in `docs/web/`, decisions in `docs/adr/`, commands, layout and contribution rules in `README.md`, the conformance cases in `conformance/README.md`. Read those instead of trusting a summary here.
+Rules for coding agents working on this repository. `CLAUDE.md` is a symbolic link to this file, so both names keep working: edit `AGENTS.md`. Facts live elsewhere: the formats in `docs/format/`, the command protocol in `docs/protocol/`, WiFi and updates in `docs/board/`, the web app in `docs/web/`, decisions in `docs/adr/`, commands, layout and contribution rules in `README.md`, the conformance cases in `conformance/README.md`. Read those instead of trusting a summary here.
 
 ## Behaviour
 
@@ -14,9 +14,23 @@ Rules for coding agents working on this repository. `CLAUDE.md` is a symbolic li
 - Without a board, the change says explicitly that the stack was not measured. Never skip the measurement silently.
 - The debug code and the test files used for a measurement are never committed.
 
+## Privacy
+
+- The privacy promise of the web app is a contract with the user. A change that makes any private or sensitive information (animations, settings, WiFi details, the token, drafts, anything the user enters or the board stores) leave the browser or the board, or that adds an outside service, request, analytics, telemetry or third-party script, updates the in-app Privacy view, the footer and the notes where data is entered, `docs/web/web-app-v1.md` and README.md in the same change, and is called out to the user for approval. A change that keeps data local needs no update.
+
+## Builds and tests
+
+- Run builds, tests and checks only through the `make` or `just` targets, with their default limits (`JOBS` and `NICE`, see README.md, "Resource limits"), unless the user asks for other limits. Never use hand-made `pio`, `make -j`, `npm run e2e` or Playwright commands with other parallelism.
+- Run one build or test at a time, never two in parallel.
+
 ## History
 
 - `v0/` holds the original Arduino sketch and its README as history. Never edit, format, move or delete anything in it, and keep every tool from building, linting or formatting it.
+
+## Licenses
+
+- Every C, C++, assembly, TypeScript, JavaScript and Python source file starts with `SPDX-License-Identifier: GPL-3.0-or-later` in a comment, as the existing ones do; build, configuration, markup, style and shell files carry none. Copied third-party code keeps its own notice.
+- A new third-party dependency of the firmware or the web app gets its notice in the same change, as `LICENSES/README.md` says; the release and web builds fail without it. Its license must be one the web allowlist or GPL-3.0-or-later accepts.
 
 ## Writing
 

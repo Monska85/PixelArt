@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Based on shadcn/ui (MIT): see THIRD_PARTY_NOTICES.txt of the web app.
+
 import { CheckCircle2, Info, XCircle } from "lucide-react";
 import { dismissToast, Toast, ToastClose, ToastDescription, ToastTitle, ToastViewport, useToasts } from "./toast";
 

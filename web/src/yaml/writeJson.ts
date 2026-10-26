@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // JSON text byte-equal to Python's json.dumps(doc, separators=(",", ":"),
 // ensure_ascii=False), which `tools/pixelart.py build` uses for the board's files. JSON.stringify
 // escapes strings the same way, except that it writes a lone surrogate as an escape.

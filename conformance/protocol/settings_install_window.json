@@ -1,0 +1,305 @@
+{
+  "description": "install_start and install_end are minutes after midnight from 0 to 1439; an end before the start is accepted",
+  "steps": [
+    {
+      "send": "@PR 5a20ad79 {\"seq\":1,\"cmd\":\"settings_set\",\"install_start\":1439}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 1439,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 236e4f87 {\"seq\":2,\"cmd\":\"settings_set\",\"install_start\":600}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 600,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 46a7d92b {\"seq\":3,\"cmd\":\"settings_set\",\"install_start\":0}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 0c25d95f {\"seq\":4,\"cmd\":\"settings_set\",\"install_start\":1440}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 68099a59 {\"seq\":5,\"cmd\":\"settings_set\",\"install_start\":-1}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 1248d0ac {\"seq\":6,\"cmd\":\"settings_set\",\"install_start\":1.5}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 80e96c2f {\"seq\":7,\"cmd\":\"settings_set\",\"install_start\":\"60\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR c3fff794 {\"seq\":8,\"cmd\":\"settings_set\",\"install_start\":null}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 44d3add1 {\"seq\":9,\"cmd\":\"settings_set\",\"install_start\":false}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR db1d9190 {\"seq\":10,\"cmd\":\"settings_set\",\"install_end\":1439}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 1439,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 8167e0ff {\"seq\":11,\"cmd\":\"settings_set\",\"install_end\":600}"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 600,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR c82791e6 {\"seq\":12,\"cmd\":\"settings_set\",\"install_end\":0}"
+    },
+    {
+      "expect": {
+        "seq": 12,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 37abb72f {\"seq\":13,\"cmd\":\"settings_set\",\"install_end\":1440}"
+    },
+    {
+      "expect": {
+        "seq": 13,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR a85cd3ea {\"seq\":14,\"cmd\":\"settings_set\",\"install_end\":-1}"
+    },
+    {
+      "expect": {
+        "seq": 14,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 61c3ec7f {\"seq\":15,\"cmd\":\"settings_set\",\"install_end\":1.5}"
+    },
+    {
+      "expect": {
+        "seq": 15,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 8d53d76c {\"seq\":16,\"cmd\":\"settings_set\",\"install_end\":\"60\"}"
+    },
+    {
+      "expect": {
+        "seq": 16,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 3394a446 {\"seq\":17,\"cmd\":\"settings_set\",\"install_end\":null}"
+    },
+    {
+      "expect": {
+        "seq": 17,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR d46e268d {\"seq\":18,\"cmd\":\"settings_set\",\"install_end\":false}"
+    },
+    {
+      "expect": {
+        "seq": 18,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 92273ee5 {\"seq\":19,\"cmd\":\"settings_set\",\"install_start\":1320,\"install_end\":360}"
+    },
+    {
+      "expect": {
+        "seq": 19,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 1320,
+          "install_end": 360,
+          "timezone": "UTC0",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    }
+  ]
+}

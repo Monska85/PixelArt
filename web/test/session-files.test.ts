@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { newAnimation, setTopField } from "../src/editor/doc";
 import { deleteFile, sha256Hex } from "../src/protocol";

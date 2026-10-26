@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Check, ChevronDown, CircleDashed, Download, GitCompare, Pencil, Play } from "lucide-react";
 import { useState } from "react";
 import { loadAnimation } from "../../engine";

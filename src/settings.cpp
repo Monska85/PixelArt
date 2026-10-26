@@ -4,6 +4,12 @@
 
 #include <pixelart_engine.h>
 
+#include <cctype>
+#include <vector>
+
+#include "platform.h"
+#include "wifi_logic.h"
+
 #ifndef PIXELART_SIM
 #include <Preferences.h>
 #endif
@@ -16,83 +22,407 @@ namespace
 
 #ifdef PIXELART_SIM
 bool brightness_saves_fail = false;
+bool token_saves_fail = false;
+std::string start_token;
 int playlist_saves_left = -1; // -1: every save works
 #endif
 
-uint8_t current_brightness = DEFAULT_BRIGHTNESS;
-std::string current_playlist = DEFAULT_PLAYLIST;
+Values values;
+
+// The order the settings are saved in, and put back in reverse.
+enum class Field
+{
+  Playlist,
+  Brightness,
+  WifiPower,
+  UpdateMode,
+  UpdateFirmware,
+  UpdateAnimations,
+  CheckHours,
+  InstallStart,
+  InstallEnd,
+  Timezone,
+  AnimationSource,
+  NetworkLogin,
+  Token,
+  Count
+};
+constexpr int FIELD_COUNT = (int)Field::Count;
+
+bool differs(Field field, const Values &a, const Values &b)
+{
+  switch (field)
+  {
+  case Field::Playlist:
+    return a.playlist != b.playlist;
+  case Field::Brightness:
+    return a.brightness != b.brightness;
+  case Field::WifiPower:
+    return a.wifi_power != b.wifi_power;
+  case Field::UpdateMode:
+    return a.update_mode != b.update_mode;
+  case Field::UpdateFirmware:
+    return a.update_firmware != b.update_firmware;
+  case Field::UpdateAnimations:
+    return a.update_animations != b.update_animations;
+  case Field::CheckHours:
+    return a.check_hours != b.check_hours;
+  case Field::InstallStart:
+    return a.install_start != b.install_start;
+  case Field::InstallEnd:
+    return a.install_end != b.install_end;
+  case Field::Timezone:
+    return a.timezone != b.timezone;
+  case Field::AnimationSource:
+    return a.animation_source != b.animation_source;
+  case Field::NetworkLogin:
+    return a.network_login != b.network_login;
+  case Field::Token:
+    return a.token != b.token;
+  case Field::Count:
+    break;
+  }
+  return false;
+}
 
 #ifndef PIXELART_SIM
 const char *NAMESPACE = "pixelart";
 const char *KEY_SCHEMA = "schema";
-const char *KEY_BRIGHTNESS = "brightness";
-const char *KEY_PLAYLIST = "playlist";
 constexpr uint8_t SCHEMA = 1;
 
+// NVS keys are at most 15 characters.
+// A switch, not a table in the order of Field: each key sits next to its field,
+// so adding or moving a field cannot store it under another field's key.
+const char *key_of(Field field)
+{
+  switch (field)
+  {
+  case Field::Playlist:
+    return "playlist";
+  case Field::Brightness:
+    return "brightness";
+  case Field::WifiPower:
+    return "wifi_power";
+  case Field::UpdateMode:
+    return "update_mode";
+  case Field::UpdateFirmware:
+    return "upd_firmware";
+  case Field::UpdateAnimations:
+    return "upd_anims";
+  case Field::CheckHours:
+    return "check_hours";
+  case Field::InstallStart:
+    return "inst_start";
+  case Field::InstallEnd:
+    return "inst_end";
+  case Field::Timezone:
+    return "timezone";
+  case Field::AnimationSource:
+    return "anim_source";
+  case Field::NetworkLogin:
+    return "net_login";
+  case Field::Token:
+    return "token";
+  case Field::Count:
+    break;
+  }
+  return ""; // not a valid NVS key: a write with it fails and is reported
+}
+
 Preferences prefs;
+
+bool put_text(Field field, const std::string &text)
+{
+  return prefs.putString(key_of(field), text.c_str()) == text.size();
+}
+bool put_number(Field field, uint16_t value) { return prefs.putUShort(key_of(field), value) == sizeof(uint16_t); }
+bool put_flag(Field field, bool value) { return prefs.putBool(key_of(field), value) == sizeof(uint8_t); }
+
+// A stored text, or `fallback` when the key was never written (getString logs an error then) or is not valid.
+std::string stored_text(Field field, const std::string &fallback, bool (*valid)(const std::string &))
+{
+  if (!prefs.isKey(key_of(field)))
+    return fallback;
+  String text = prefs.getString(key_of(field), fallback.c_str());
+  return valid(text.c_str()) ? std::string(text.c_str()) : fallback;
+}
+
+uint16_t stored_number(Field field, uint16_t fallback, bool (*valid)(uint32_t))
+{
+  uint16_t value = prefs.getUShort(key_of(field), fallback);
+  return valid(value) ? value : fallback;
+}
+
+bool valid_playlist_id(const std::string &id) { return pixelart::is_valid_id(id.c_str()); }
 #endif
 
-} // namespace
-
-void begin()
+// Saves one field of `v`. Returns false when it cannot be saved.
+bool write(Field field, const Values &v)
 {
-  current_brightness = DEFAULT_BRIGHTNESS;
-  current_playlist = DEFAULT_PLAYLIST;
-#ifndef PIXELART_SIM
-  if (!prefs.begin(NAMESPACE, false))
-    return;
-  if (prefs.getUChar(KEY_SCHEMA, 0) != SCHEMA)
-    prefs.putUChar(KEY_SCHEMA, SCHEMA);
-  current_brightness = prefs.getUChar(KEY_BRIGHTNESS, DEFAULT_BRIGHTNESS);
-  // getString logs an error for a key that was never written
-  if (prefs.isKey(KEY_PLAYLIST))
+#ifdef PIXELART_SIM
+  if (field == Field::Brightness && brightness_saves_fail)
+    return false;
+  if (field == Field::Token && token_saves_fail)
+    return false;
+  if (field == Field::Playlist)
   {
-    String playlist = prefs.getString(KEY_PLAYLIST, DEFAULT_PLAYLIST);
-    if (pixelart::is_valid_id(playlist.c_str()))
-      current_playlist = playlist.c_str();
+    if (playlist_saves_left == 0)
+      return false;
+    if (playlist_saves_left > 0)
+      playlist_saves_left--;
   }
+  (void)v;
+  return true;
+#else
+  switch (field)
+  {
+  case Field::Playlist:
+    return put_text(field, v.playlist);
+  case Field::Brightness:
+    return prefs.putUChar(key_of(field), v.brightness) == sizeof(uint8_t);
+  case Field::WifiPower:
+    return put_text(field, v.wifi_power);
+  case Field::UpdateMode:
+    return put_text(field, v.update_mode);
+  case Field::UpdateFirmware:
+    return put_flag(field, v.update_firmware);
+  case Field::UpdateAnimations:
+    return put_flag(field, v.update_animations);
+  case Field::CheckHours:
+    return put_number(field, v.check_hours);
+  case Field::InstallStart:
+    return put_number(field, v.install_start);
+  case Field::InstallEnd:
+    return put_number(field, v.install_end);
+  case Field::Timezone:
+    return put_text(field, v.timezone);
+  case Field::AnimationSource:
+    return put_text(field, v.animation_source);
+  case Field::NetworkLogin:
+    return put_flag(field, v.network_login);
+  case Field::Token:
+    return put_text(field, v.token);
+  case Field::Count:
+    break;
+  }
+  return false;
 #endif
 }
 
-uint8_t brightness() { return current_brightness; }
+// Copies the saved field of `from` into `to`.
+void take(Field field, Values &to, const Values &from)
+{
+  switch (field)
+  {
+  case Field::Playlist:
+    to.playlist = from.playlist;
+    break;
+  case Field::Brightness:
+    to.brightness = from.brightness;
+    break;
+  case Field::WifiPower:
+    to.wifi_power = from.wifi_power;
+    break;
+  case Field::UpdateMode:
+    to.update_mode = from.update_mode;
+    break;
+  case Field::UpdateFirmware:
+    to.update_firmware = from.update_firmware;
+    break;
+  case Field::UpdateAnimations:
+    to.update_animations = from.update_animations;
+    break;
+  case Field::CheckHours:
+    to.check_hours = from.check_hours;
+    break;
+  case Field::InstallStart:
+    to.install_start = from.install_start;
+    break;
+  case Field::InstallEnd:
+    to.install_end = from.install_end;
+    break;
+  case Field::Timezone:
+    to.timezone = from.timezone;
+    break;
+  case Field::AnimationSource:
+    to.animation_source = from.animation_source;
+    break;
+  case Field::NetworkLogin:
+    to.network_login = from.network_login;
+    break;
+  case Field::Token:
+    to.token = from.token;
+    break;
+  case Field::Count:
+    break;
+  }
+}
 
-const std::string &playlist() { return current_playlist; }
+bool printable_ascii(const std::string &text, bool allow_space)
+{
+  for (unsigned char c : text)
+    if (c < (allow_space ? 0x20 : 0x21) || c > 0x7E)
+      return false;
+  return true;
+}
+
+} // namespace
+
+bool valid_wifi_power(const std::string &value) { return wifi_logic::is_valid_power_setting(value); }
+
+bool valid_update_mode(const std::string &value) { return value == "off" || value == "notify" || value == "automatic"; }
+
+bool valid_check_hours(uint32_t value) { return value >= 1 && value <= MAX_CHECK_HOURS; }
+
+bool valid_minutes(uint32_t value) { return value < MINUTES_PER_DAY; }
+
+bool valid_timezone(const std::string &value)
+{
+  return !value.empty() && value.size() <= MAX_TIMEZONE && printable_ascii(value, true);
+}
+
+bool valid_animation_source(const std::string &value)
+{
+  if (value.size() > MAX_ANIMATION_SOURCE || !printable_ascii(value, false))
+    return false;
+  size_t start;
+  if (value.compare(0, 8, "https://") == 0)
+    start = 8;
+  else if (value.compare(0, 7, "http://") == 0)
+    start = 7;
+  else
+    return false;
+  // The host: up to the path, query or fragment. It starts with a letter, a digit or `[`. User info
+  // (`user:pass@host`) is refused: the URL is returned by settings_get and would hold a credential.
+  size_t end = value.find_first_of("/?#", start);
+  std::string host = value.substr(start, end == std::string::npos ? std::string::npos : end - start);
+  return !host.empty() && host.find('@') == std::string::npos && (isalnum((unsigned char)host[0]) || host[0] == '[');
+}
+
+bool valid_token(const std::string &value)
+{
+  if (value.size() != TOKEN_SIZE)
+    return false;
+  for (char c : value)
+    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')))
+      return false;
+  return true;
+}
+
+std::string make_token()
+{
+  static const char ALPHABET[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+  constexpr unsigned SYMBOLS = 36;
+  // Bytes from 252 up are skipped, so every symbol is equally likely.
+  constexpr unsigned LIMIT = 256 / SYMBOLS * SYMBOLS;
+  std::string token;
+  while (token.size() < TOKEN_SIZE)
+  {
+    uint8_t bytes[TOKEN_SIZE];
+    platform::secret_bytes(bytes, sizeof(bytes));
+    for (uint8_t byte : bytes)
+      if (byte < LIMIT && token.size() < TOKEN_SIZE)
+        token += ALPHABET[byte % SYMBOLS];
+  }
+  return token;
+}
+
+Values defaults_with_new_token()
+{
+  Values fresh;
+  fresh.token = make_token();
+  return fresh;
+}
+
+void begin()
+{
+  values = Values();
+#ifndef PIXELART_SIM
+  if (prefs.begin(NAMESPACE, false))
+  {
+    if (prefs.getUChar(KEY_SCHEMA, 0) != SCHEMA)
+      prefs.putUChar(KEY_SCHEMA, SCHEMA);
+    values.brightness = prefs.getUChar(key_of(Field::Brightness), DEFAULT_BRIGHTNESS);
+    values.playlist = stored_text(Field::Playlist, DEFAULT_PLAYLIST, valid_playlist_id);
+    values.wifi_power = stored_text(Field::WifiPower, DEFAULT_WIFI_POWER, valid_wifi_power);
+    values.update_mode = stored_text(Field::UpdateMode, DEFAULT_UPDATE_MODE, valid_update_mode);
+    values.update_firmware = prefs.getBool(key_of(Field::UpdateFirmware), true);
+    values.update_animations = prefs.getBool(key_of(Field::UpdateAnimations), true);
+    values.check_hours = stored_number(Field::CheckHours, DEFAULT_CHECK_HOURS, valid_check_hours);
+    values.install_start = stored_number(Field::InstallStart, 0, valid_minutes);
+    values.install_end = stored_number(Field::InstallEnd, 0, valid_minutes);
+    values.timezone = stored_text(Field::Timezone, DEFAULT_TIMEZONE, valid_timezone);
+    values.animation_source = stored_text(Field::AnimationSource, DEFAULT_ANIMATION_SOURCE, valid_animation_source);
+    values.network_login = prefs.getBool(key_of(Field::NetworkLogin), false);
+    values.token = stored_text(Field::Token, "", valid_token);
+  }
+#endif
+#ifdef PIXELART_SIM
+  values.token = start_token;
+#endif
+  if (values.token.empty())
+  {
+    // First start, or an unusable token: make one. When it cannot be stored it lasts until the next restart.
+    values.token = make_token();
+    write(Field::Token, values);
+  }
+}
+
+const Values &current() { return values; }
+
+uint8_t brightness() { return values.brightness; }
+
+const std::string &playlist() { return values.playlist; }
+
+Commit commit(const Values &next)
+{
+  const Values previous = values;
+  std::vector<Field> saved;
+  for (int i = 0; i < FIELD_COUNT; i++)
+  {
+    const Field field = (Field)i;
+    if (!differs(field, values, next))
+      continue;
+    if (write(field, next))
+    {
+      saved.push_back(field);
+      continue;
+    }
+    // Put back what was saved, newest first. A value that cannot be put back stays as saved.
+    Values after = previous;
+    bool partly = false;
+    for (auto it = saved.rbegin(); it != saved.rend(); ++it)
+      if (!write(*it, previous))
+      {
+        take(*it, after, next);
+        partly = true;
+      }
+    values = after;
+    return partly ? Commit::PartlyChanged : Commit::Failed;
+  }
+  values = next;
+  return Commit::Ok;
+}
 
 bool set_brightness(uint8_t value)
 {
-  if (value == current_brightness)
-    return true;
-#ifdef PIXELART_SIM
-  if (brightness_saves_fail)
-    return false;
-#else
-  if (prefs.putUChar(KEY_BRIGHTNESS, value) != sizeof(uint8_t))
-    return false;
-#endif
-  current_brightness = value;
-  return true;
+  Values next = values;
+  next.brightness = value;
+  return commit(next) == Commit::Ok;
 }
 
 bool set_playlist(const std::string &id)
 {
-  if (id == current_playlist)
-    return true;
-#ifdef PIXELART_SIM
-  if (playlist_saves_left == 0)
-    return false;
-  if (playlist_saves_left > 0)
-    playlist_saves_left--;
-#else
-  if (prefs.putString(KEY_PLAYLIST, id.c_str()) != id.size())
-    return false;
-#endif
-  current_playlist = id;
-  return true;
+  Values next = values;
+  next.playlist = id;
+  return commit(next) == Commit::Ok;
 }
 
 #ifdef PIXELART_SIM
 void fail_brightness_saves(bool fail) { brightness_saves_fail = fail; }
 void fail_playlist_saves_after(int successes) { playlist_saves_left = successes; }
+void fail_token_saves(bool fail) { token_saves_fail = fail; }
+void sim_set_start_token(const std::string &token) { start_token = token; }
 #endif
 
 } // namespace settings

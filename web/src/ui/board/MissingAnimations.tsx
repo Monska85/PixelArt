@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { Download, TriangleAlert } from "lucide-react";
 import type { Published } from "../../release/manifest";
 import { Alert, AlertDescription } from "../components/alert";

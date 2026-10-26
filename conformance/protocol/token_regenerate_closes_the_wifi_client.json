@@ -1,0 +1,71 @@
+{
+  "description": "token_regenerate over USB closes the WiFi client; the login made with the old token no longer works",
+  "transport": "wifi",
+  "settings": {
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "nonces": [
+    "000102030405060708090a0b0c0d0e0f",
+    "ffeeddccbbaa99887766554433221100"
+  ],
+  "steps": [
+    {
+      "send": "@PR 47460f63 {\"seq\":1,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "nonce": "000102030405060708090a0b0c0d0e0f"
+      }
+    },
+    {
+      "send": "@PR 1a846f84 {\"seq\":2,\"cmd\":\"auth\",\"hmac\":\"8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 1c45484b {\"seq\":3,\"cmd\":\"token_regenerate\"}",
+      "via": "usb"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "token": "<any>"
+      }
+    },
+    {
+      "expect_closed": true
+    },
+    {
+      "wifi_connect": true
+    },
+    {
+      "send": "@PR 1970d596 {\"seq\":4,\"cmd\":\"auth_challenge\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "nonce": "ffeeddccbbaa99887766554433221100"
+      }
+    },
+    {
+      "send": "@PR 00b99baf {\"seq\":5,\"cmd\":\"auth\",\"hmac\":\"946f681804cafe5398415149e0c67c04f19bc6fdfed76cb6554ed63a130e85c8\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    }
+  ]
+}

@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Assemble the release site: firmware files, ESP Web Tools manifests, animations, playlists and manifest.json.
 
   tools/release.py version
       Print the firmware version of this checkout (PIXELART_VERSION, else git).
   tools/release.py build [--out site] [--schema]
       Collect the files of every board from the PlatformIO build folders and
-      the converted files in data/, and write the site. Run
+      the converted files in data/, write the third-party notices of the
+      firmware (tools/firmware_notices.py), and write the site. Run
       `make release-firmware` to build everything first.
+  tools/release.py check-site URL
+      Fail when URL (the address GitHub Pages announces or serves the site at) is not the site address computed
+      from this environment by the rules of tools/site_url.py, the address a firmware built here looks for. It
+      reads no firmware. Used by the release workflow before and after the deployment.
   tools/release.py assemble --out DIR [--firmware DIR] [--web DIR]
       Merge a firmware site (the output of `build`) and a built web app into the
       site GitHub Pages serves. Used by the release workflow and `make release-site`.
@@ -29,7 +35,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import firmware_notices  # noqa: E402
 import fw_version  # noqa: E402
+import site_url  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD_DIR = ROOT / ".pio" / "build"
@@ -46,6 +54,14 @@ PARTITIONS_OFFSET = 0x8000
 BOOT_APP0_OFFSET = 0xE000
 
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
+
+# What a board accepts in a manifest (docs/board/wifi-and-updates-v1.md, "Checks")
+# A board reads up to 64 KiB over http, but over HTTPS the manifest must fit next to the TLS connection: about
+# 26 KB on an ESP32-C3 (docs/board/wifi-and-updates-v1.md, Checks). A release stays under that with room to spare.
+MAX_MANIFEST_BYTES = 20 * 1024
+MAX_MANIFEST_FILES = 200
+# Room each application keeps in its slot, so the next releases still fit the layout
+SLOT_MARGIN = 64 * 1024
 
 # Partition table entry types and subtypes (ESP-IDF)
 TYPE_APP, TYPE_DATA = 0x00, 0x01
@@ -71,6 +87,26 @@ def sha256_of(path):
         for block in iter(lambda: f.read(1 << 16), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def source_url():
+    """Where the source code of this build is: the tree of the release tag (RELEASE_TAG, set by the release workflow),
+    else of the commit checked out, in the repository of GitHub Actions or else the project's own."""
+    server = os.environ.get("GITHUB_SERVER_URL", "").strip().rstrip("/") or "https://github.com"
+    repository = os.environ.get("GITHUB_REPOSITORY", "").strip() if os.environ.get("GITHUB_ACTIONS") == "true" else ""
+    if repository:
+        try:
+            site_url.from_repository(repository)  # the same rules as the site address
+        except ValueError as e:
+            raise ReleaseError(str(e))
+    base = f"{server}/{repository}" if repository else firmware_notices.REPOSITORY
+    ref = os.environ.get("RELEASE_TAG", "").strip()
+    if not ref:
+        try:
+            ref = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()
+        except (OSError, subprocess.CalledProcessError) as e:
+            raise ReleaseError(f"cannot read the commit of this checkout: {e}")
+    return f"{base}/tree/{ref}"
 
 
 def released_date():
@@ -166,12 +202,14 @@ def build_board(board, version, site, boot_app0):
     app = read_partitions(sources["partitions"])
     app_entry = find_partition(app, TYPE_APP, SUBTYPE_OTA_0, "first application")
     fs_entry = find_partition(app, TYPE_DATA, SUBTYPE_SPIFFS, "file system")
-    if sources["app"].stat().st_size > app_entry[4]:
-        raise ReleaseError(f"{board}: the application does not fit its partition")
+    room = check_app_room(board, sources["app"].stat().st_size, app_entry[4])
+    print(f"release: {board} application leaves {room} bytes free in its {app_entry[4]}-byte partition")
     if sources["filesystem"].stat().st_size != fs_entry[4]:
         raise ReleaseError(f"{board}: the file system image is not the size of its partition")
-    if version.encode("ascii") not in sources["app"].read_bytes():
+    app_bytes = sources["app"].read_bytes()
+    if version.encode("ascii") not in app_bytes:
         raise ReleaseError(f"{board}: the firmware was not built with version {version}")
+    check_firmware_address(board, app_bytes, site_address())
 
     offsets = {
         "bootloader": spec["bootloader"],
@@ -197,6 +235,40 @@ def build_board(board, version, site, boot_app0):
         entry.update(entry_of(files[part], site))
         entries.append(entry)
     return entries
+
+
+def site_address():
+    """The site address of this build, by the rules of tools/site_url.py (PIXELART_SITE_URL, GITHUB_REPOSITORY)."""
+    try:
+        return site_url.site_url(os.environ)
+    except ValueError as e:
+        raise ReleaseError(str(e))
+
+
+def check_firmware_address(board, app_bytes, site):
+    """The firmware must carry the manifest address of the site it is published to, as a C string."""
+    expected = site_url.manifest_url(site)
+    if expected.encode("ascii") + b"\0" not in app_bytes:
+        raise ReleaseError(f"{board}: the firmware does not carry {expected}: it was built for another site address "
+                           "(set PIXELART_SITE_URL the same for the build and the release, and build again)")
+
+
+def check_site(url):
+    """The address Pages serves the site at must be the site address of this environment, the one a firmware built
+    here looks for its manifest at. The firmware images themselves are checked at build time (check_firmware_address)."""
+    expected = site_address()
+    got = url if url.endswith("/") else url + "/"
+    if got != expected:
+        raise ReleaseError(f"the site is served at {got} but a firmware built here looks for {expected}: set the "
+                           "PIXELART_SITE_URL repository variable to the address Pages serves, and release again")
+    print(f"release: the site is served at {expected}, the address a firmware built here looks for")
+
+
+def check_app_room(board, size, slot):
+    """The bytes an application leaves free in its slot, at least SLOT_MARGIN."""
+    if size + SLOT_MARGIN > slot:
+        raise ReleaseError(f"{board}: the application ({size} bytes) leaves less than {SLOT_MARGIN} bytes free in its {slot}-byte partition")
+    return slot - size
 
 
 def web_tools_manifest(version, firmware, parts, erase):
@@ -239,8 +311,23 @@ def collect_documents(data, kind, site, with_version):
     return entries
 
 
+def json_text(document):
+    return json.dumps(document, indent=2, ensure_ascii=False) + "\n"
+
+
 def write_json(path, document):
-    path.write_text(json.dumps(document, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(json_text(document), encoding="utf-8")
+
+
+def check_manifest_limits(manifest):
+    """Refuses a manifest every board would refuse for its number of files or its size. A manifest of 200 files is over
+    the size limit already, so the number is checked first and each limit gives its own message."""
+    files = len(manifest["animations"]) + len(manifest["playlists"])
+    if files > MAX_MANIFEST_FILES:
+        raise ReleaseError(f"manifest.json lists {files} animations and playlists, more than the {MAX_MANIFEST_FILES} a board takes")
+    size = len(json_text(manifest).encode("utf-8"))
+    if size > MAX_MANIFEST_BYTES:
+        raise ReleaseError(f"manifest.json takes {size} bytes, more than the {MAX_MANIFEST_BYTES} a board reads over HTTPS")
 
 
 def validate(manifest):
@@ -316,17 +403,25 @@ def build_site(out, version, data, use_schema):
     if not animations or not playlists:
         raise ReleaseError(f"{data} has no animations or no playlists: run make data")
 
+    source = source_url()
     manifest = {
         "format": FORMAT,
         "version": version,
         "released": released_date(),
+        "source": source,
         "firmware": firmware,
         "animations": animations,
         "playlists": playlists,
     }
     if use_schema:
         validate(manifest)
+    check_manifest_limits(manifest)
     write_json(site / "manifest.json", manifest)
+    try:
+        notices = firmware_notices.build_notices(version, source)
+    except firmware_notices.NoticesError as e:
+        raise ReleaseError(f"third-party notices: {e}")
+    (site / "firmware" / "THIRD_PARTY_NOTICES.txt").write_text(notices, encoding="utf-8")
 
     update_parts = ["bootloader", "partitions", "boot_app0", "app"]
     write_json(site / "firmware" / "install.json", web_tools_manifest(version, firmware, update_parts + ["filesystem"], True))
@@ -400,6 +495,8 @@ def main():
     build = commands.add_parser("build", help="assemble the release site from the build folders")
     build.add_argument("--out", default="site", help="site folder, replaced if it exists (default: site)")
     build.add_argument("--schema", action="store_true", help="check manifest.json against the JSON Schema")
+    check = commands.add_parser("check-site", help="check the address the site is served at against the firmware's")
+    check.add_argument("url", help="the address Pages serves the site at")
     assemble = commands.add_parser("assemble", help="merge a firmware site and a web app into one site")
     assemble.add_argument("--out", required=True, help="site folder, replaced if it is site/ or a site built by this tool")
     assemble.add_argument("--firmware", help="the firmware site made by `build`")
@@ -409,6 +506,8 @@ def main():
     try:
         if args.command == "version":
             print(describe_version())
+        elif args.command == "check-site":
+            check_site(args.url)
         elif args.command == "assemble":
             assemble_site(args.out, args.firmware, args.web)
         else:

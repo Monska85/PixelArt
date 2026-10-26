@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // A scripted board for the protocol client tests: an in-memory implementation
 // of the commands, with hooks to damage, drop or reorder what it says.
 
@@ -21,7 +23,7 @@ export class FakeBoard implements Transport {
   files: Record<"animation" | "playlist", Map<string, Uint8Array>> = { animation: new Map(), playlist: new Map() };
   settings = { brightness: 100, playlist: "default" };
   /** What `info` reports as storage. */
-  storage = { total: 1441792, used: 8192 };
+  storage = { total: 983040, used: 8192 };
   bootId = 111;
   chunk = 512;
   page = 8;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The layout checks of screenshots/layout.ts, each shown failing on a small page that breaks its rule, so a check that
 // stops seeing its problem fails here rather than passing every state quietly.
 

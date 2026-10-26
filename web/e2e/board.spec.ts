@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { readdirSync, readFileSync, existsSync, writeFileSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";

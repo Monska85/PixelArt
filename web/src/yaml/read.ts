@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Reads YAML the way tools/pixelart.py does (PyYAML SafeLoader with a strict
 // mapping constructor), so a file gives the same JSON in the app and on the
 // command line.

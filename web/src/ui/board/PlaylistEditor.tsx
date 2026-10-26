@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { isValidId, loadPlaylist, MAX_PLAYLIST_REPEAT } from "../../engine";
@@ -292,7 +294,7 @@ export function PlaylistEditor({
                 {...control}
                 ref={nameField}
                 value={model.name}
-                maxLength={256}
+                maxLength={128}
                 onChange={(e) => setModel({ ...model, name: e.target.value })}
               />
             )}

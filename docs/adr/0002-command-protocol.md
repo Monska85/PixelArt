@@ -6,6 +6,8 @@ Status: accepted
 
 Note: decision 8 is replaced in part by [ADR 0004](0004-web-app.md), decision 5. The repository now has two release packages, the firmware and the web app. The firmware release itself is unchanged.
 
+Note: superseded in part by [ADR 0005](0005-wifi-and-updates.md). Decision 5 is carried out by its decision 10, the protocol over WiFi on a WebSocket served by the board. The last consequence, that authentication must come before the protocol runs over WiFi, is replaced by its decisions 10 and 11: a network login with a token, off by default.
+
 ## Context
 
 The board plays animations stored in its file system, but only PlatformIO can change them today, by flashing a whole file system image. The web app planned in phase 3 must read what is on a board and change it from a browser, and boards will update themselves over WiFi in phase 4. Both need a way to talk to the board and a place to download firmware and animations from.

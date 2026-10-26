@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Serves the simulator's command protocol on a WebSocket.
 
-    python3 tools/ws_bridge.py [--port PORT] [--origin ORIGIN ...]
+    python3 tools/ws_bridge.py [--port PORT] [--origin ORIGIN ...] [--transport usb|wifi]
 
 The simulator starts this bridge for --ws and talks to it over the bridge's
 standard input and output. Each text message from the client becomes one line
@@ -9,6 +10,13 @@ on standard output, and each line read from standard input goes to the client
 as one text message. The first line written is "ready PORT", once the bridge
 listens. The bridge ends when its standard input closes. The WebSocket rules
 are in docs/protocol/protocol-v1.md#websocket-simulator.
+
+With --transport wifi the WebSocket stands for the board's WiFi transport, and
+the lines carry a prefix so the simulator can tell connections apart. To the
+simulator: "open" when a client connects, "close" when it is gone and "line
+TEXT" for each message. From the simulator: "reply TEXT" is sent to the client
+as one message, and "close CODE" closes the client with that status once the
+replies before it are sent. Without the option the lines carry no prefix.
 
 Needs Python 3.9+ and the websockets package, version 15 or later.
 """
@@ -28,14 +36,16 @@ MAX_PENDING = 64 * 1024  # requests buffered for the simulator above which the c
 HANDSHAKE_TIMEOUT = 5.0
 CLOSE_TIMEOUT = 1.0
 # No Origin (command line clients), local pages on any port and the project's site. --origin adds more.
+# The last entry is the project's site; tools/test_site_url.py (ProjectAddressTest) keeps it in step with site_url.py.
 ORIGINS = [None, re.compile(r"http://(localhost|127\.0\.0\.1)(:[0-9]{1,5})?"), "https://monska85.github.io"]
 
 
 class Bridge:
     """One client at a time between the WebSocket and the simulator's pipes."""
 
-    def __init__(self, to_simulator):
+    def __init__(self, to_simulator, wifi=False):
         self.to_simulator = to_simulator
+        self.wifi = wifi
         self.client = None  # the connection holding the slot, from its request until it closes
         self.replies = None  # lines waiting for the open client
         self.queued = 0
@@ -61,24 +71,37 @@ class Bridge:
         replies = self.replies = asyncio.Queue()
         self.queued = 0
         sender = asyncio.ensure_future(self.send_replies(connection, replies))
+        prefix = b"line " if self.wifi else b""
         try:
+            if self.wifi:
+                await self.to_simulator.write(b"open\n")
             async for message in connection:
                 if isinstance(message, bytes):
                     await connection.close(1003)
                 elif "\n" in message:
                     await connection.close(1008)  # one message is one line
                 else:
-                    await self.to_simulator.write(message.encode("utf-8") + b"\n")
+                    await self.to_simulator.write(prefix + message.encode("utf-8") + b"\n")
         except ConnectionClosed:
             pass
         finally:
             sender.cancel()
+            if self.wifi:
+                await self.to_simulator.write(b"close\n")
 
     async def send_replies(self, connection, replies):
         while True:
             line = await replies.get()
+            if isinstance(line, int):
+                await connection.close(line)
+                continue
             await connection.send(line)
             self.queued -= len(line)
+
+    def close_client(self, code):
+        """Closes the open client with `code` after the replies queued so far; ignored when no client is open."""
+        if self.replies is not None:
+            self.replies.put_nowait(code)
 
     def reply(self, line):
         """Queues a line from the simulator for the client; dropped when no client is open."""
@@ -155,12 +178,18 @@ def forward_replies(bridge, fd, ended):
             return
         *lines, pending = (pending + chunk).split(b"\n")
         for line in lines:
-            bridge.reply(line.decode("utf-8", "replace"))
+            text = line.decode("utf-8", "replace")
+            if not bridge.wifi:
+                bridge.reply(text)
+            elif text.startswith("reply "):
+                bridge.reply(text[6:])
+            elif text.startswith("close ") and text[6:].isdigit():
+                bridge.close_client(int(text[6:]))
 
     asyncio.get_running_loop().add_reader(fd, readable)
 
 
-async def run(port, origins, stdin, stdout):
+async def run(port, origins, stdin, stdout, wifi=False):
     """Serves until `stdin` (the simulator's replies) ends; requests go to `stdout`."""
     from websockets.asyncio.server import ServerConnection, serve
 
@@ -177,7 +206,7 @@ async def run(port, origins, stdin, stdout):
     os.set_blocking(stdin, False)
     os.set_blocking(stdout, False)
     writer = Pipe(stdout)
-    bridge = Bridge(writer)
+    bridge = Bridge(writer, wifi)
     ended = loop.create_future()
     try:
         # No compression and no keepalive pings: plain RFC 6455, as the clients expect.
@@ -201,6 +230,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Serves the simulator's command protocol on a WebSocket.")
     parser.add_argument("--port", type=int, default=8765, help="port on 127.0.0.1 (0 picks a free one)")
     parser.add_argument("--origin", action="append", default=[], help="also accept this Origin (repeatable)")
+    parser.add_argument("--transport", choices=["usb", "wifi"], default="usb",
+                        help="wifi: the WebSocket stands for the board's WiFi transport, with prefixed lines")
     args = parser.parse_args(argv)
     try:
         import websockets.asyncio.server  # noqa: F401
@@ -213,7 +244,7 @@ def main(argv=None):
     logging.getLogger("websockets").addHandler(logging.NullHandler())
     logging.getLogger("websockets").propagate = False
     try:
-        asyncio.run(run(args.port, args.origin, sys.stdin, sys.stdout))
+        asyncio.run(run(args.port, args.origin, sys.stdin, sys.stdout, args.transport == "wifi"))
     except OSError as e:
         sys.exit(f"ws_bridge: cannot listen on 127.0.0.1:{args.port}: {os.strerror(e.errno) if e.errno else e}")
 

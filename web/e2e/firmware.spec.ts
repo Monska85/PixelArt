@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { Page } from "@playwright/test";
-import { connectSimulator, expect, test } from "./fixtures";
+import { decodeLine } from "../src/protocol/framing";
+import { animationYaml, connectSimulator, expect, pick, test, toastWith, upload } from "./fixtures";
+import { watchBoard } from "./board";
 
 /** A Web Serial that records, when a port is asked for, whether every WebSocket of the page was already closing. */
 async function stubSerial(page: Page): Promise<void> {
@@ -104,4 +108,29 @@ test("ESP Web Tools opens its dialog under the Content Security Policy", async (
   await expect(page.locator("ewt-install-dialog ew-dialog[open]")).toBeVisible();
   await expect(page.locator("ewt-install-dialog").getByText("Error", { exact: true })).toBeVisible();
   // Any Content Security Policy violation is a console error and fails the test.
+});
+
+test("the Firmware view does not read the board status while an upload runs", async ({ page, simulator }) => {
+  const watch = await watchBoard(page, simulator);
+  const sent: string[] = [];
+  page.on("websocket", (socket) =>
+    socket.on("framesent", (frame) => {
+      const request = decodeLine(new TextEncoder().encode(String(frame.payload)));
+      if (typeof request?.cmd === "string") sent.push(request.cmd);
+    }),
+  );
+  await connectSimulator(page, simulator);
+  watch.hold("put_end");
+  await pick(page, upload("first.yaml", animationYaml("First")), upload("second.yaml", animationYaml("Second")));
+  await expect.poll(() => sent.includes("put_end")).toBe(true);
+  const opened = sent.length;
+  await page.getByRole("link", { name: "Firmware" }).click();
+  await expect(page.getByText("Updates over WiFi", { exact: true })).toBeVisible();
+  watch.release();
+  await expect(toastWith(page, "Uploaded 2 animations")).toBeVisible();
+  // The second file follows the first with no status request between them; the view reads it once the upload ends.
+  const during = sent.slice(opened, sent.lastIndexOf("put_end"));
+  expect(during).toContain("put_begin");
+  expect(during).not.toContain("status");
+  await expect.poll(() => sent.slice(opened).includes("status")).toBe(true);
 });

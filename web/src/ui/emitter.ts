@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Change notification for the app's small stores, read with useSyncExternalStore. It imports nothing, so any module
 // can use it without pulling in another chunk.
 

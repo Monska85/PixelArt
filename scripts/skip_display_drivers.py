@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """PlatformIO pre-build script for the native simulator env.
 
 Adafruit GFX ships TFT and OLED display drivers (Adafruit_SPITFT.cpp,

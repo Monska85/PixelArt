@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Tests for the board client in tools/pixelart.py: framing, retries, uploads and the WebSocket transport.
 
 Run with: python3 -m unittest discover -s tools   (part of `make check`)
@@ -214,6 +215,20 @@ class UploadTest(unittest.TestCase):
         t, begins = self.lost_upload(1)
         pixelart.upload(pixelart.Board(t), "animation", "x", b"a" * 700)
         self.assertEqual(len(begins), 2)
+
+    def test_busy_says_the_other_connection_holds_the_upload(self):
+        def handler(body):
+            if body["cmd"] == "info":
+                return INFO
+            if body["cmd"] == "put_begin":
+                return {"ok": False, "error": "busy", "message": "other"}
+            return {"ok": True}
+
+        t = Responder(handler)
+        with self.assertRaises(pixelart.BoardError) as caught:
+            pixelart.upload(pixelart.Board(t), "animation", "x", b"a" * 10)
+        self.assertEqual(str(caught.exception), pixelart.UPLOAD_BUSY)
+        self.assertNotIn("put_chunk", [pixelart.decode_line(line)["cmd"] for line in t.sent])
 
     def test_no_upload_twice_gives_up_with_an_abort(self):
         t, begins = self.lost_upload(2)
@@ -588,6 +603,367 @@ class ArgumentTest(unittest.TestCase):
                 pixelart.parse_settings([bad])
 
 
+
+class ImprovFake:
+    """A transport that records the raw bytes sent and answers them with queued raw chunks."""
+
+    def __init__(self, handler, protocol_handler=None):
+        self.raw_sent = []
+        self.chunks = []
+        self.handler = handler
+        self.protocol = Responder(protocol_handler or serve({"ok": True}))
+
+    def send(self, line):
+        self.protocol.send(line)
+
+    def receive(self, timeout):
+        return self.protocol.receive(timeout)
+
+    def send_raw(self, data):
+        self.raw_sent.append(data)
+        self.chunks += self.handler(data)
+
+    def receive_raw(self, timeout):
+        return self.chunks.pop(0) if self.chunks else b""
+
+    def close(self):
+        pass
+
+
+class ImprovTest(unittest.TestCase):
+    def test_a_frame_is_built_like_the_specification(self):
+        # IMPROV is 477; 477 + 1 + 3 + 2 + 2 + 0 = 485, which is 0xE5.
+        self.assertEqual(pixelart.improv_frame(3, bytes([2, 0])), b"IMPROV" + bytes([1, 3, 2, 2, 0, 0xE5]))
+
+    def test_wifi_settings_carry_the_lengths_and_both_texts(self):
+        frame = pixelart.improv_wifi_settings(b"ab", b"xyz")
+        args = bytes([2]) + b"ab" + bytes([3]) + b"xyz"
+        self.assertEqual(frame[:9], b"IMPROV" + bytes([1, 3, len(args) + 2]))
+        self.assertEqual(frame[9:-1], bytes([1, len(args)]) + args)
+        self.assertEqual(frame[-1], sum(frame[:-1]) % 256)
+
+    def test_wifi_settings_refuse_what_the_board_would(self):
+        for ssid, password in [(b"", b"x"), (b"a" * 33, b""), (b"a", b"p" * 65), (b"a\0", b"p"), (b"a", b"p\0")]:
+            with self.assertRaises(pixelart.BoardError):
+                pixelart.improv_wifi_settings(ssid, password)
+        pixelart.improv_wifi_settings(b"a" * 32, b"p" * 64)
+        pixelart.improv_wifi_settings(b"a", b"")
+
+    def test_frames_are_found_in_a_stream_with_other_bytes_and_split_reads(self):
+        state = pixelart.improv_frame(1, bytes([4]))
+        error = pixelart.improv_frame(2, bytes([3]))
+        stream = bytearray(b"pixelart: boot\n@PR 12345678 {}\n" + state[:5])
+        self.assertEqual(pixelart.improv_frames(stream), [])
+        stream += state[5:] + b"noise" + error
+        self.assertEqual(pixelart.improv_frames(stream), [(1, bytes([4])), (2, bytes([3]))])
+
+    def test_a_frame_with_a_newline_and_a_bad_checksum(self):
+        good = pixelart.improv_frame(4, b"a\nb")
+        bad = good[:-1] + bytes([(good[-1] + 1) % 256])
+        stream = bytearray(bad + good)
+        self.assertEqual(pixelart.improv_frames(stream), [(4, b"a\nb")])
+
+    def reply(self, *frames):
+        return lambda data: [b"".join(frames)]
+
+    def run_wifi(self, transport, forget=False, answers=("HomeNet", "pw")):
+        out, err = io.StringIO(), io.StringIO()
+        board = pixelart.Board(transport)
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                mock.patch("getpass.getpass", side_effect=list(answers)) as asked:
+            code = pixelart.board_wifi(board, types.SimpleNamespace(forget=forget))
+        return code, out.getvalue(), err.getvalue(), asked
+
+    def test_wifi_sends_the_network_and_waits_for_provisioned(self):
+        provisioning = pixelart.improv_frame(1, bytes([3]))
+        provisioned = pixelart.improv_frame(1, bytes([4]))
+        status = {"ok": True, "wifi": {"state": "connected", "ip": "10.0.0.5", "rssi": -58, "power": "19.5",
+                                       "power_reduced": False, "hostname": "pixelart-118c"},
+                  "time": {"known": False}, "update": {"state": "idle"}}
+        transport = ImprovFake(self.reply(provisioning, provisioned),
+                               lambda body: INFO if body["cmd"] == "info" else status)
+        code, out, err, asked = self.run_wifi(transport, answers=("SecretNet", "SecretPass"))
+        self.assertEqual(code, 0)
+        self.assertEqual(transport.raw_sent, [pixelart.improv_wifi_settings(b"SecretNet", b"SecretPass")])
+        self.assertIn("connected", out)
+        self.assertIn("10.0.0.5", out)
+        self.assertIn("good", out)  # -58 dBm
+        # The name and the password are asked for with hidden input and never printed.
+        self.assertEqual(asked.call_count, 2)
+        for text in (out, err):
+            self.assertNotIn("SecretNet", text)
+            self.assertNotIn("SecretPass", text)
+
+    def test_wifi_reports_unable_to_connect_without_the_secrets(self):
+        transport = ImprovFake(self.reply(pixelart.improv_frame(2, bytes([3]))), lambda body: INFO)
+        with self.assertRaises(pixelart.BoardError) as e:
+            self.run_wifi(transport, answers=("SecretNet", "SecretPass"))
+        self.assertIn("could not connect", str(e.exception))
+        self.assertNotIn("SecretNet", str(e.exception))
+        self.assertNotIn("SecretPass", str(e.exception))
+
+    def test_wifi_ignores_error_none_and_times_out(self):
+        transport = ImprovFake(self.reply(pixelart.improv_frame(2, bytes([0]))), lambda body: INFO)
+        with mock.patch.object(pixelart, "IMPROV_TIMEOUT", 0.05), self.assertRaises(pixelart.BoardError) as e:
+            self.run_wifi(transport)
+        self.assertIn("did not answer", str(e.exception))
+
+    def test_wifi_over_the_websocket_says_it_needs_usb(self):
+        board = pixelart.Board(Responder(serve({"ok": True})))
+        with self.assertRaises(pixelart.BoardError) as e, mock.patch("getpass.getpass") as asked:
+            pixelart.board_wifi(board, types.SimpleNamespace(forget=False))
+        self.assertIn("--port", str(e.exception))
+        asked.assert_not_called()
+
+    def test_forget_sends_wifi_forget_and_asks_for_nothing(self):
+        responder = Responder(serve({"ok": True}))
+        board = pixelart.Board(responder)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), mock.patch("getpass.getpass") as asked:
+            self.assertEqual(pixelart.board_wifi(board, types.SimpleNamespace(forget=True)), 0)
+        asked.assert_not_called()
+        self.assertEqual([pixelart.decode_line(l)["cmd"] for l in responder.sent][-1], "wifi_forget")
+
+    def test_the_command_line_has_wifi_and_status(self):
+        parser = argparse.ArgumentParser()
+        pixelart.add_board_parser(parser.add_subparsers(dest="command"))
+        self.assertTrue(parser.parse_args(["board", "--port", "x", "wifi", "--forget"]).forget)
+        self.assertFalse(parser.parse_args(["board", "--port", "x", "wifi"]).forget)
+        self.assertEqual(parser.parse_args(["board", "--ws", "ws://x", "status"]).board_command, "status")
+
+
+class UpdateCommandTest(unittest.TestCase):
+    """`board update check` and `board update install animations`: a request, then status until the board is idle."""
+
+    @staticmethod
+    def args(command, target=None, force=False):
+        return types.SimpleNamespace(update_command=command, target=target, force=force)
+
+    @staticmethod
+    def scripted(updates, start_error=None, boot_ids=None):
+        """A board that answers the update request and then a status per entry of `updates`, the last one repeating."""
+        requests = []
+        states = list(updates)
+
+        def answer(body):
+            requests.append(body)
+            if body["cmd"] == "info":
+                if boot_ids is None:
+                    return INFO
+                # The first info is the one the Board reads when it starts: the boot before the restart.
+                return {**INFO, "boot_id": 1} if len(requests) == 1 else {**INFO, "boot_id": boot_ids.pop(0), "firmware": "1.3.0"}
+            if body["cmd"] in ("update_check", "update_install"):
+                return {"ok": False, "error": start_error, "message": "no"} if start_error else {"ok": True}
+            update = states.pop(0) if len(states) > 1 else states[0]
+            return {"ok": True, "wifi": {}, "time": {}, "update": update}
+
+        return requests, Responder(answer)
+
+    def run_update(self, args, updates, start_error=None, boot_ids=None):
+        requests, responder = self.scripted(updates, start_error, boot_ids)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), mock.patch.object(pixelart, "UPDATE_POLL", 0):
+            code = pixelart.board_update(pixelart.Board(responder), args)
+        return code, out.getvalue(), requests
+
+    def test_check_waits_for_the_board_and_prints_the_result(self):
+        running = {"state": "checking", "progress": 0, "last_check": None, "last_result": None, "files": 0}
+        done = {"state": "idle", "progress": 0, "last_check": 0, "last_result": "ok", "failed_files": 0, "firmware": None,
+                "files": 3, "last_install": None}
+        code, out, requests = self.run_update(self.args("check"), [running, running, done])
+        self.assertEqual(code, 0)
+        self.assertEqual([r["cmd"] for r in requests][1:], ["update_check", "status", "status", "status"])
+        self.assertIn("3 to add or replace", out)
+        self.assertIn("0 seconds ago, ok", out)
+
+    def test_a_check_without_a_published_release_says_so_and_fails(self):
+        done = {"state": "idle", "progress": 0, "last_check": 0, "last_result": "http_error", "last_detail": "no_release",
+                "failed_files": 0, "firmware": None, "files": 0, "last_install": None}
+        code, out, _ = self.run_update(self.args("check"), [done])
+        self.assertEqual(code, 1)
+        self.assertIn("http_error: no release is published at this address yet", out)
+
+    def test_install_sends_its_target_and_fails_when_the_update_did(self):
+        done = {"state": "idle", "progress": 0, "last_check": 5, "last_result": "network_error", "failed_files": 1,
+                "firmware": None, "files": 1, "last_install": None}
+        code, out, requests = self.run_update(self.args("install", "animations"), [done])
+        self.assertEqual(code, 1)
+        self.assertEqual(requests[1]["cmd"], "update_install")
+        self.assertEqual(requests[1]["target"], "animations")
+        self.assertIn("network_error", out)
+        self.assertIn("1 file in the last update", out)
+
+    def test_waiting_for_the_install_window_counts_as_done(self):
+        waiting = {"state": "waiting_for_time", "progress": 0, "last_check": 0, "last_result": "ok", "files": 1}
+        code, out, _ = self.run_update(self.args("check"), [waiting])
+        self.assertEqual(code, 0)
+        self.assertIn("waiting_for_time", out)
+
+    def test_a_refused_request_is_an_error_with_the_boards_code(self):
+        with self.assertRaises(pixelart.BoardError) as e:
+            self.run_update(self.args("check"), [{"state": "idle"}], start_error="updates_off")
+        self.assertIn("updates_off", str(e.exception))
+
+    def test_a_board_that_never_finishes_ends_the_wait(self):
+        running = {"state": "downloading", "progress": 10}
+        with mock.patch.dict(pixelart.UPDATE_WAIT, {"check": 0.0}), self.assertRaises(pixelart.BoardError) as e:
+            self.run_update(self.args("check"), [running])
+        self.assertIn("still working", str(e.exception))
+
+    def test_the_command_line_has_update_check_and_install_animations(self):
+        parser = argparse.ArgumentParser()
+        pixelart.add_board_parser(parser.add_subparsers(dest="command"))
+        self.assertEqual(parser.parse_args(["board", "--ws", "ws://x", "update", "check"]).update_command, "check")
+        args = parser.parse_args(["board", "--ws", "ws://x", "update", "install", "animations"])
+        self.assertEqual((args.update_command, args.target), ("install", "animations"))
+        args = parser.parse_args(["board", "--ws", "ws://x", "update", "install", "firmware", "--force"])
+        self.assertEqual((args.target, args.force), ("firmware", True))
+        self.assertFalse(parser.parse_args(["board", "--ws", "ws://x", "update", "install", "firmware"]).force)
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            parser.parse_args(["board", "--ws", "ws://x", "update", "install", "other"])
+
+    def test_firmware_install_sends_force_only_when_asked_and_waits_for_the_restart(self):
+        installing = {"state": "installing", "progress": 40}
+        idle = {"state": "idle", "progress": 0, "last_check": None, "last_result": None, "firmware": None, "files": 0}
+        code, out, requests = self.run_update(self.args("install", "firmware"), [installing, installing, idle],
+                                              boot_ids=[2])
+        self.assertEqual(code, 0)
+        self.assertEqual(requests[1], {"seq": requests[1]["seq"], "cmd": "update_install", "target": "firmware"})
+        self.assertIn("restarted", out)
+        self.assertIn("1.3.0", out)
+        _, _, requests = self.run_update(self.args("install", "firmware", force=True), [installing, idle], boot_ids=[2])
+        self.assertIs(requests[1]["force"], True)
+
+    def test_a_failed_firmware_install_prints_the_state_and_fails(self):
+        installing = {"state": "installing", "progress": 40}
+        failed = {"state": "idle", "progress": 0, "last_check": 3, "last_result": "checksum_mismatch", "firmware": "1.3.0",
+                  "files": 0, "last_install": None}
+        code, out, _ = self.run_update(self.args("install", "firmware"), [installing, failed], boot_ids=[1])
+        self.assertEqual(code, 1)
+        self.assertIn("checksum_mismatch", out)
+
+    def test_force_is_for_the_firmware_only(self):
+        with self.assertRaises(pixelart.BoardError) as e:
+            self.run_update(self.args("install", "animations", force=True), [{"state": "idle"}])
+        self.assertIn("firmware only", str(e.exception))
+
+
+class RequestLineTest(unittest.TestCase):
+    def test_every_setting_at_its_longest_fits_the_1024_byte_request_line(self):
+        body = {"seq": 4294967295, "cmd": "settings_set", "brightness": 255, "playlist": "p" * 32, "wifi_power": "18.5",
+                "update_mode": "automatic", "update_firmware": False, "update_animations": False, "check_hours": 168,
+                "install_start": 1439, "install_end": 1439, "timezone": "Z" * 64,
+                "animation_source": "https://example.com/" + "a" * 492, "network_login": False}
+        self.assertEqual(len(body["animation_source"]), 512)
+        line = pixelart.encode_line(body)
+        # 13 bytes of marker and CRC, then the JSON: 903 bytes in all, 121 under the limit.
+        self.assertEqual(len(line), 903)
+        self.assertLessEqual(len(line), 1024)
+
+
+class StatusTest(unittest.TestCase):
+    def test_status_prints_the_wifi_and_update_state(self):
+        status = {"ok": True, "wifi": {"state": "network_not_found", "ip": None, "rssi": None, "power": "8.5",
+                                       "power_reduced": True, "hostname": "pixelart-118c"},
+                  "time": {"known": True}, "update": {"state": "idle", "last_check": None, "files": 0}}
+        board = pixelart.Board(Responder(serve(status)))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            pixelart.board_status(board, None)
+        text = out.getvalue()
+        for expected in ("network_not_found", "none", "pixelart-118c.local", "8.5 dBm (reduced)", "known",
+                         "update    idle", "not since the board started", "none available", "0 to add or replace"):
+            self.assertIn(expected, text)
+
+    def status_text(self, wifi, update=None):
+        status = {"ok": True, "wifi": wifi, "time": {"known": True}, "update": update or {"state": "idle"}}
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            pixelart.board_status(pixelart.Board(Responder(serve(status))), None)
+        return out.getvalue()
+
+    def test_status_prints_the_network_name_through_safe(self):
+        text = self.status_text({"state": "connected", "ssid": "Caf\u00e9 \u00dc 2.4G"})
+        self.assertIn("network   Caf\u00e9 \u00dc 2.4G\n", text)
+        self.assertIn("network   none\n", self.status_text({"state": "not_configured", "ssid": None}))
+        self.assertIn("network   none\n", self.status_text({"state": "connected"}))
+        hostile = self.status_text({"state": "connected", "ssid": "Net\x1b[2J\x07\u202e\ufffd"})
+        self.assertNotIn("\x1b", hostile)
+        self.assertNotIn("\x07", hostile)
+        self.assertNotIn("\u202e", hostile)
+        self.assertIn("network   Net\\x1b[2J\\x07\\u202e\ufffd\n", hostile)
+
+    def test_status_says_when_no_release_is_published_yet(self):
+        update = {"state": "idle", "last_check": 120, "last_result": "http_error", "last_detail": "no_release"}
+        text = self.status_text({"state": "connected"}, update)
+        self.assertIn("checked   2 minutes ago, http_error: no release is published at this address yet", text)
+        self.assertIn("check the animation source", text)
+        # Another HTTP error keeps its code alone, and so does a detail on another result.
+        plain = self.status_text({"state": "connected"}, dict(update, last_detail=None))
+        self.assertIn("checked   2 minutes ago, http_error\n", plain)
+        other = self.status_text({"state": "connected"}, dict(update, last_result="network_error"))
+        self.assertIn("checked   2 minutes ago, network_error\n", other)
+        before = self.status_text({"state": "connected"}, dict(update, last_check=None))
+        self.assertIn("not since the board started, last result http_error: no release", before)
+
+    def test_status_describes_a_running_and_a_finished_update_readably(self):
+        wifi = {"state": "connected", "ip": "10.0.0.5", "rssi": -58, "power": "19.5", "power_reduced": False,
+                "hostname": "pixelart-118c"}
+        update = {"state": "downloading", "progress": 42, "last_check": 720, "last_result": "ok", "failed_files": 2,
+                  "firmware": "1.3.0", "files": 3, "last_install": {"result": "updated", "from": "1.2.0", "to": "1.3.0"}}
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            pixelart.board_status(pixelart.Board(Responder(serve({"ok": True, "wifi": wifi, "time": {"known": True},
+                                                                  "update": update}))), None)
+        text = out.getvalue()
+        for expected in ("update    downloading, 42 %", "checked   12 minutes ago, ok", "firmware  1.3.0 available",
+                         "files     3 to add or replace", "failed    2 files in the last update",
+                         "installed updated, from 1.2.0 to 1.3.0"):
+            self.assertIn(expected, text)
+        self.assertNotIn("update.", text)
+
+    def test_ages_are_short_words(self):
+        for seconds, text in [(0, "0 seconds"), (1, "1 second"), (59, "59 seconds"), (60, "1 minute"), (3599, "59 minutes"),
+                              (3600, "1 hour"), (86399, "23 hours"), (86400, "1 day"), (200000, "2 days"),
+                              (None, "unknown"), (-1, "unknown"), (True, "unknown")]:
+            self.assertEqual(pixelart.age_text(seconds), text, seconds)
+
+    def test_status_escapes_text_from_the_board(self):
+        status = {"ok": True, "wifi": {"state": "x\x1b[2J", "hostname": "h\x07"}, "time": {}, "update": {"state": "a\x1b"}}
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            pixelart.board_status(pixelart.Board(Responder(serve(status))), None)
+        self.assertNotIn("\x1b", out.getvalue())
+        self.assertNotIn("\x07", out.getvalue())
+
+    def test_signal_words_follow_the_legend(self):
+        for rssi, word in [(-30, "excellent"), (-50, "excellent"), (-51, "good"), (-67, "good"), (-68, "fair"),
+                           (-75, "fair"), (-76, "weak"), (None, "unknown")]:
+            self.assertEqual(pixelart.signal_quality(rssi), word, rssi)
+
+    def test_new_settings_parse_to_their_types(self):
+        self.assertEqual(
+            pixelart.parse_settings(["wifi_power=8.5", "update_mode=automatic", "update_firmware=false", "check_hours=12",
+                                     "install_start=0", "install_end=1439", "network_login=true", "timezone=CET-1",
+                                     "animation_source=http://localhost:8000/manifest.json"]),
+            {"wifi_power": "8.5", "update_mode": "automatic", "update_firmware": False, "check_hours": 12, "install_start": 0,
+             "install_end": 1439, "network_login": True, "timezone": "CET-1",
+             "animation_source": "http://localhost:8000/manifest.json"})
+        for bad in ["wifi_power=20", "update_mode=on", "update_firmware=yes", "check_hours=0", "check_hours=169",
+                    "install_start=1440", "install_end=-1", "network_login=1", "token=abc"]:
+            with self.assertRaises(pixelart.BoardError, msg=bad):
+                pixelart.parse_settings([bad])
+
+    def test_settings_prints_the_new_settings_and_the_token(self):
+        reply = {"ok": True, "settings": {"brightness": 100, "wifi_power": "auto", "token": "abcdefghijklmnop"}}
+        board = pixelart.Board(Responder(serve(reply)))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            pixelart.board_settings(board, types.SimpleNamespace(pairs=[]))
+        self.assertIn("wifi_power=auto", out.getvalue())
+        self.assertIn("token=abcdefghijklmnop", out.getvalue())
+
+
 class BuildTest(unittest.TestCase):
     def test_values_without_a_json_form_are_errors_of_their_file(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -642,7 +1018,7 @@ class RunBoardTest(unittest.TestCase):
     def test_a_reply_with_a_missing_field_is_one_error(self):
         responder = Responder(serve({"ok": True, "entries": [{"id": "x"}], "more": False}))
         responder.close = mock.Mock()
-        args = types.SimpleNamespace(port="/dev/null", ws=None, board_command="get", kind="animation", id="x",
+        args = types.SimpleNamespace(port="/dev/null", ws=None, token=None, board_command="get", kind="animation", id="x",
                                      output=None)
         with mock.patch.object(pixelart, "SerialTransport", return_value=responder):
             with self.assertRaises(pixelart.BoardError) as e:
@@ -655,6 +1031,87 @@ try:
     from websockets.sync.server import serve as websocket_server
 except ImportError:
     websocket_server = None
+
+
+class LoginTest(unittest.TestCase):
+    """A board over WiFi with network login on: the client answers the challenge with an HMAC of the nonce."""
+
+    TOKEN = "k3j9x0q7w2m5z8a1"
+    NONCE = "000102030405060708090a0b0c0d0e0f"
+    # Worked out with Python's hmac module, outside this tool: HMAC-SHA256(TOKEN, NONCE) as hex.
+    ANSWER = "8a2422fe7ca97df26f5b82ca480c6f0362cb0e3eb9ebc9e8c0dd7467c28ffe23"
+
+    def board(self, token, accepts=ANSWER):
+        state = {"logged_in": False, "log": []}
+
+        def handler(body):
+            state["log"].append(body)
+            if body["cmd"] == "info":
+                return INFO
+            if body["cmd"] == "auth_challenge":
+                return {"ok": True, "nonce": self.NONCE}
+            if body["cmd"] == "auth":
+                state["logged_in"] = body.get("hmac") == accepts
+                return {"ok": True} if state["logged_in"] else {"ok": False, "error": "unauthorized", "message": "the login failed"}
+            if not state["logged_in"]:
+                return {"ok": False, "error": "unauthorized", "message": "log in first with auth_challenge and auth"}
+            return {"ok": True, "settings": {}}
+
+        return pixelart.Board(Responder(handler), token), state
+
+    def test_the_answer_is_the_hmac_of_the_nonce_text_under_the_token(self):
+        self.assertEqual(pixelart.login_hmac(self.TOKEN, self.NONCE), self.ANSWER)
+
+    def test_a_request_that_is_unauthorized_logs_in_and_goes_again(self):
+        board, state = self.board(self.TOKEN)
+        self.assertTrue(board.command("settings_get")["ok"])
+        self.assertEqual([b["cmd"] for b in state["log"]], ["info", "settings_get", "auth_challenge", "auth", "settings_get"])
+        self.assertEqual(state["log"][3]["hmac"], self.ANSWER)
+
+    def test_the_token_never_goes_over_the_link(self):
+        board, state = self.board(self.TOKEN)
+        board.command("settings_get")
+        self.assertNotIn(self.TOKEN, repr(state["log"]))
+        self.assertNotIn(self.TOKEN.encode(), b"".join(board.transport.sent))
+
+    def test_the_login_is_made_once(self):
+        board, state = self.board(self.TOKEN)
+        board.command("settings_get")
+        board.command("settings_get")
+        self.assertEqual(sum(b["cmd"] == "auth" for b in state["log"]), 1)
+
+    def test_no_login_without_a_request_that_needs_it(self):
+        board, state = self.board(self.TOKEN)
+        self.assertEqual([b["cmd"] for b in state["log"]], ["info"])
+
+    def test_without_a_token_the_error_says_what_to_give(self):
+        board, _ = self.board(None)
+        with self.assertRaises(pixelart.BoardError) as e:
+            board.command("settings_get")
+        self.assertIn("PIXELART_TOKEN", str(e.exception))
+
+    def test_a_wrong_token_is_tried_once_and_not_shown(self):
+        board, state = self.board("a1z8m5w2q7x0j9k3")
+        with self.assertRaises(pixelart.BoardError) as e:
+            board.command("settings_get")
+        self.assertIn("login failed", str(e.exception))
+        self.assertNotIn("a1z8m5w2q7x0j9k3", str(e.exception))
+        self.assertEqual(sum(b["cmd"] == "auth" for b in state["log"]), 1)
+
+    def test_a_token_comes_from_the_option_or_the_environment(self):
+        args = types.SimpleNamespace(token=None)
+        with mock.patch.dict("os.environ", {"PIXELART_TOKEN": self.TOKEN}):
+            self.assertEqual(pixelart.board_token(args), self.TOKEN)
+            self.assertEqual(pixelart.board_token(types.SimpleNamespace(token="a1z8m5w2q7x0j9k3")), "a1z8m5w2q7x0j9k3")
+        with mock.patch.dict("os.environ", clear=True):
+            self.assertIsNone(pixelart.board_token(args))
+
+    def test_a_token_in_the_wrong_form_is_refused_without_echoing_it(self):
+        for token in ("short", "UPPERCASE0123456", "k3j9x0q7w2m5z8a1x", "k3j9x0q7w2m5z8a!", "k3j9x0q7w2m5z8a1\n", ""):
+            with self.assertRaises(pixelart.BoardError) as e:
+                pixelart.board_token(types.SimpleNamespace(token=token))
+            self.assertNotIn(token or "\0", str(e.exception))
+            self.assertIn("16 characters", str(e.exception))
 
 
 class WebSocketTest(unittest.TestCase):
@@ -749,11 +1206,12 @@ class WebSocketServerTest(unittest.TestCase):
             return connection.respond(503, "busy\n")
 
         url = self.start(self.answer, busy)
-        with mock.patch.object(pixelart.time, "sleep"):
+        with mock.patch.object(pixelart.time, "sleep") as sleep:
             with self.assertRaises(pixelart.BoardError) as e:
                 pixelart.WebSocketTransport(url)
-        self.assertEqual(str(e.exception), "the simulator already has a client")
-        self.assertEqual(len(calls), pixelart.TRIES)
+        self.assertEqual(str(e.exception), "the server already has a client")
+        self.assertEqual(len(calls), 6)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [0.2, 0.4, 0.8, 1.6, 3.2])
 
     def test_another_refusal_names_the_http_status(self):
         url = self.start(self.answer, lambda connection, request: connection.respond(404, "no\n"))

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useRef, useState, type ElementType } from "react";
 import { cn } from "../components/cn";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";

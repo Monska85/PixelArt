@@ -18,6 +18,7 @@
 #include <string>
 #include <system_error>
 
+#include "firmware.h"
 #include "protocol.h"
 #include "settings.h"
 #include "storage.h"
@@ -57,15 +58,17 @@ struct TempData
     fs::create_directories(root / "playlists");
     sim::set_data_dir(root.string());
     storage::set_capacity(storage::DEFAULT_CAPACITY);
+    firmware::sim_reset();
   }
   ~TempData()
   {
     storage::set_capacity(storage::DEFAULT_CAPACITY);
     storage::set_fail_writes(false);
     storage::set_read_all_failure(storage::ReadResult::Ok);
-    protocol::set_memory_probe(nullptr);
+    install::set_memory_probe(nullptr);
     settings::fail_brightness_saves(false);
     settings::fail_playlist_saves_after(-1);
+    settings::fail_token_saves(false);
     std::error_code ignored; // a destructor must not throw
     fs::remove_all(root, ignored);
   }

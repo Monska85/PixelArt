@@ -9,10 +9,15 @@
 #include <sim.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <set>
+#include <string>
 
 #include "app.h"
+#include "firmware.h"
+#include "settings.h"
+#include "updates.h"
 
 namespace
 {
@@ -64,6 +69,48 @@ int validate()
   return errors ? 1 : 0;
 }
 
+[[noreturn]] void option_error(const std::string &message)
+{
+  fprintf(stderr, "sim: %s\n", message.c_str());
+  exit(2);
+}
+
+// --update-fail KIND[:PATH]: makes the simulated server fail, for testing the update errors.
+void inject_update_failure(const std::string &spec)
+{
+  const size_t colon = spec.find(':');
+  const std::string kind = spec.substr(0, colon);
+  const std::string path = colon == std::string::npos ? "" : spec.substr(colon + 1);
+  updates::Failure failure;
+  if (updates::sim_failure_from_name(kind, failure))
+  {
+    updates::sim_inject(failure, path);
+    return;
+  }
+  option_error("--update-fail expects down, tls, http, cut, corrupt or too_long, then :PATH for a file, got '" + spec +
+               "'");
+}
+
+// --update-time HH:MM: the local time the install window sees. Without it the time is not known.
+void set_update_time(const std::string &text)
+{
+  unsigned hours, minutes;
+  char extra;
+  if (sscanf(text.c_str(), "%u:%u%c", &hours, &minutes, &extra) != 2 || hours > 23 || minutes > 59)
+    option_error("--update-time expects HH:MM, got '" + text + "'");
+  updates::sim_set_local_minutes((int)(hours * 60 + minutes));
+}
+
+// --update-trial ok|fail: whether the health check of a firmware just installed passes. A failed one makes the
+// simulated board roll back to the firmware it came from.
+void set_update_trial(const std::string &text)
+{
+  if (text == "fail")
+    firmware::sim_fail_next_health();
+  else if (text != "ok")
+    option_error("--update-trial expects ok or fail, got '" + text + "'");
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -77,6 +124,49 @@ int main(int argc, char **argv)
   }
   if (validate_only)
     return validate();
+  sim::register_option("--token",
+                       "token of the simulated board, 16 characters from a-z and 0-9 (default: a new one each run)",
+                       [](const char *token)
+                       {
+                         if (!settings::valid_token(token))
+                           option_error("--token expects 16 characters from a-z and 0-9");
+                         settings::sim_set_start_token(token);
+                       });
+  sim::register_option("--update-source",
+                       "folder that stands in for the servers of the updates: the path of a URL is looked up in it",
+                       [](const char *folder)
+                       {
+                         updates::sim_use_folder(folder);
+                       });
+  sim::register_option("--update-fail",
+                       "make the simulated server fail: down, or tls, http, cut, corrupt, too_long[:PATH] (repeatable)",
+                       [](const char *spec)
+                       {
+                         inject_update_failure(spec);
+                       });
+  sim::register_option("--update-time", "local time for the install window, HH:MM (default: not known)",
+                       [](const char *text)
+                       {
+                         set_update_time(text);
+                       });
+  sim::register_option("--firmware-version",
+                       "version of the simulated firmware, for the update checks (default: the build's version)",
+                       [](const char *version)
+                       {
+                         firmware::sim_set_version(version);
+                       });
+  sim::register_option("--update-trial", "ok (default) or fail: the health check of a firmware just installed",
+                       [](const char *text)
+                       {
+                         set_update_trial(text);
+                       });
+  // An installed firmware restarts the simulated board, which starts its sketch again.
+  firmware::sim_set_restart_hook(
+      []
+      {
+        firmware::sim_clear_restart();
+        sim::restart();
+      });
   return sim::run(argc, argv,
                   []
                   {

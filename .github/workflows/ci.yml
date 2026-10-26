@@ -42,6 +42,28 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" -color
 
+  # Makes the firmware's certificate bundle again from the pinned esp-idf files (it downloads them) and fails unless it
+  # is byte for byte the one in certs/, see certs/README.md
+  certificates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Make the certificate bundle again and compare it with certs/
+        run: |
+          set -eu
+          pip install "$(grep '^cryptography==' requirements-ci.txt)"
+          python tools/crt_bundle.py check
+
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -176,6 +198,9 @@ jobs:
       - name: Run the end-to-end tests and the layout checks against the simulator
         id: e2e
         working-directory: web
+        # Two workers, as before JOBS existed: the end-to-end tests are timing sensitive
+        env:
+          PIXELART_JOBS: "2"
         run: npm run e2e
 
       # The same comparison as `make web-screenshots`, in the official Playwright container. The digest belongs to the
@@ -183,6 +208,7 @@ jobs:
       - name: Compare one main state per view with its reference image
         id: screenshots
         env:
+          PIXELART_JOBS: "2"
           PLAYWRIGHT_IMAGE: mcr.microsoft.com/playwright:v1.62.0-noble@sha256:baed2032d533817f3dbe6425de795788430ba345e819a1201337009ba17c9d07
         run: web/scripts/run-screenshots.sh compare
 

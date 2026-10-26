@@ -81,7 +81,8 @@ bool read_ready(int fd)
 namespace detail
 {
 
-bool ws_start(const char *program, unsigned port, const std::vector<std::string> &extra_origins, std::string &error)
+bool ws_start(const char *program, unsigned port, const std::vector<std::string> &extra_origins, bool wifi,
+              std::string &error)
 {
   Bridge &b = bridge();
   const char *python = getenv("PIXELART_PYTHON") ? getenv("PIXELART_PYTHON") : "python3";
@@ -97,6 +98,11 @@ bool ws_start(const char *program, unsigned port, const std::vector<std::string>
   {
     args.push_back("--origin");
     args.push_back(origin);
+  }
+  if (wifi)
+  {
+    args.push_back("--transport");
+    args.push_back("wifi");
   }
   std::vector<char *> argv;
   for (std::string &arg : args)
@@ -171,9 +177,52 @@ void ws_send_line(const std::string &line)
   }
 }
 
+namespace
+{
+
+// Bridge lines waiting for a newline, and the events whose text arrived whole. The WiFi mode reads
+// no more while a few events wait, so a client that sends faster than the sketch reads waits in TCP.
+constexpr size_t MAX_PENDING_EVENTS = 8;
+
+void parse_bridge_lines(std::string &pending)
+{
+  for (size_t newline; (newline = pending.find('\n')) != std::string::npos; pending.erase(0, newline + 1))
+  {
+    const std::string line = pending.substr(0, newline);
+    std::deque<WsEvent> &events = state().ws_events;
+    if (line == "open")
+      events.push_back({WsEvent::Type::Open, ""});
+    else if (line == "close")
+      events.push_back({WsEvent::Type::Close, ""});
+    else if (line.compare(0, 5, "line ") == 0)
+      events.push_back({WsEvent::Type::Line, line.substr(5)});
+  }
+}
+
+} // namespace
+
 void ws_wait(std::chrono::microseconds limit)
 {
   Bridge &b = bridge();
+  if (state().opts.ws_wifi)
+  {
+    static std::string pending;
+    const int wait_ms = (int)std::chrono::ceil<std::chrono::milliseconds>(limit).count();
+    const bool full = state().ws_events.size() >= MAX_PENDING_EVENTS;
+    pollfd p = {b.from, (short)(full ? 0 : POLLIN), 0};
+    if (poll(&p, 1, wait_ms) <= 0 || full)
+      return;
+    char buf[MAX_PENDING_INPUT];
+    ssize_t n = read(b.from, buf, sizeof(buf));
+    if (n > 0)
+    {
+      pending.append(buf, (size_t)n);
+      parse_bridge_lines(pending);
+    }
+    else if (n == 0 || (errno != EAGAIN && errno != EINTR))
+      bridge_stopped();
+    return;
+  }
   // Whole milliseconds, rounded up: the wake-up may overshoot by under 1 ms, which the
   // caller absorbs because its target is absolute. A signal only cuts the wait short.
   const int timeout_ms = (int)std::chrono::ceil<std::chrono::milliseconds>(limit).count();
@@ -192,5 +241,29 @@ void ws_wait(std::chrono::microseconds limit)
 } // namespace detail
 
 bool ws_active() { return bridge().pid > 0; }
+
+bool ws_wifi() { return ws_active() && detail::state().opts.ws_wifi; }
+
+bool ws_next_event(WsEvent &event)
+{
+  std::deque<WsEvent> &events = detail::state().ws_events;
+  if (events.empty())
+    return false;
+  event = std::move(events.front());
+  events.pop_front();
+  return true;
+}
+
+void ws_reply(const std::string &line)
+{
+  if (ws_wifi())
+    detail::ws_send_line("reply " + line);
+}
+
+void ws_close_client(unsigned code)
+{
+  if (ws_wifi())
+    detail::ws_send_line("close " + std::to_string(code));
+}
 
 } // namespace sim

@@ -1,0 +1,10 @@
+{
+  "name": "PixelNet",
+  "version": "0.1.0",
+  "description": "Decisions of the protocol over WiFi (docs/board/wifi-and-updates-v1.md#protocol-over-wifi): the origin check, the WebSocket message rules and the network login. Plain C++17, no Arduino dependency.",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": {
+    "PixelCodec": "*"
+  }
+}

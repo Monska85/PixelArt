@@ -1,0 +1,118 @@
+{
+  "description": "With update_mode off, update_check and update_install are updates_off, for animations and for firmware",
+  "settings": {
+    "update_mode": "off"
+  },
+  "update_source": {
+    "files": {
+      "manifest.json": {
+        "json": {
+          "format": "pixelart-manifest/1",
+          "version": "1.2.0",
+          "released": "2026-11-02",
+          "firmware": [
+            {
+              "board": "esp32c3",
+              "chip": "ESP32-C3",
+              "part": "app",
+              "offset": 65536,
+              "file": "firmware/esp32c3/app-1.2.0.bin",
+              "size": 365568,
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "animations": [
+            {
+              "id": "red",
+              "name": "Red",
+              "version": 1,
+              "file": "animations/red.json",
+              "size": 147,
+              "sha256": "c578d329190c36c2b023ba25a889bdd5096aefda89cd38c32473a31efb3f2588"
+            }
+          ],
+          "playlists": []
+        }
+      },
+      "animations/red.json": "{\"format\":\"pixelart/1\",\"name\":\"Red\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
+    }
+  },
+  "steps": [
+    {
+      "send": "@PR 935d27e0 {\"seq\":1,\"cmd\":\"update_check\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "updates_off",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 37b3ba61 {\"seq\":2,\"cmd\":\"update_install\",\"target\":\"animations\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "updates_off",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR c7adf2ae {\"seq\":3,\"cmd\":\"update_install\",\"target\":\"firmware\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "updates_off",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR f701bd92 {\"seq\":4,\"cmd\":\"update_install\",\"target\":\"firmware\",\"force\":true}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "updates_off",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 7020ef6b {\"seq\":5,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Port of lib/PixelEngine/src/animation_loader.cpp: same checks, same codes,
 // same places, same order of diagnostics.
 

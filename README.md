@@ -6,15 +6,25 @@ Firmware that plays pixel-art animations on a 16x16 WS2812B LED matrix driven by
 
 The web app manages a board from the browser, with nothing to install:
 
-1. Open <https://monska85.github.io/PixelArt/> in a desktop Chromium browser (Chrome, Edge, Opera or another browser built on Chromium). Connecting to a board and installing firmware need Web Serial, which Firefox, Safari and phones do not have.
+1. Open <https://monska85.github.io/PixelArt/> in a desktop Chromium browser (Chrome, Edge, Opera or another browser built on Chromium). Connecting over USB and installing firmware need Web Serial, which Firefox, Safari and phones do not have. Connecting over WiFi is expected to work in Chromium browsers only (a browser test confirms it once the project's Pages site is live), see [Connecting over WiFi](#connecting-over-wifi).
 2. **Firmware:** plug in the board, open the Firmware view, and use **Install from scratch** for an empty board, or **Update firmware** to keep the animations, playlists and settings. The view tells you when a newer firmware is published.
-3. **Board:** choose **Connect board** and pick the serial port. The Board view lists the animations and playlists stored on the board and previews, edits, downloads and deletes them. **Upload files**, **Upload folder** or a drop sends your own files through one queue, which checks them, skips the ones the board already has and asks once about the ones that differ. The view also sets the brightness and the active playlist, edits playlists, and has **Delete everything** in its **More** menu. The details are in [Board view](docs/web/web-app-v1.md#board-view).
+3. **Board:** choose **Connect board** and pick the serial port, or **Connect over WiFi** and type the board's address. The Board view lists the animations and playlists stored on the board and previews, edits, downloads and deletes them. **Upload files**, **Upload folder** or a drop sends your own files through one queue, which checks them, skips the ones the board already has and asks once about the ones that differ. The view also shows how much space is left on the board, sets the brightness and the active playlist, edits playlists, and has **Delete everything** in its **More** menu. The details are in [Board view](docs/web/web-app-v1.md#board-view).
 4. **Library:** the Library view lists the animations and playlists of the latest release, with a preview of each, and marks the ones that are not on the board or differ from it. The install button of a row adds one (a playlist with the animations it names), and **Install all** adds all animations, all playlists or everything, asking once about files that differ.
 5. **Editor:** the Editor view makes and changes animations without writing YAML by hand. Open a file, use **Edit** on a board animation or **Open in editor** on a Library animation, or start a new one. It edits the palette, the sprites on a 16x16 grid, composites and the timeline with every effect, plays a preview, lists the engine's errors and warnings as you type, and shows the same document as YAML. **Download YAML** and **Upload to board** save the work, the header says where it is saved, and a draft in the browser survives a reload. The details are in [Editor view](docs/web/web-app-v1.md#editor-view).
 
 The theme follows the operating system. The button at the top right cycles System, Dark and Light and remembers the choice in the browser.
 
 To try the app without a board, run `make serve`, then choose **Use the simulator** in the connect card of the Board view and **Connect simulator**. The app is described in [`docs/web/web-app-v1.md`](docs/web/web-app-v1.md).
+
+### Privacy
+
+The web app runs entirely in your browser, and nothing personal leaves your browser and your board: your animations, playlists, settings and WiFi network name and password go only to your board, over USB or to the address of your board, and to log in over WiFi the app sends a code derived from your token, never the token. The same text is in the footer of the app, with a **Privacy** view that lists what the app keeps.
+
+- **Stays in your browser:** your theme choice, the last simulator address, the address of your board on your network (its name ending in `.local`, or the address you typed) from your last WiFi connection or read from the board over USB, the token of a board you logged in to (as written, to log in again; it is never sent, the board checks a code derived from it), that you dismissed the Editor note, and the animation you are editing (a draft, so a reload does not lose it). They are in `localStorage` (`pixelart.theme`, `pixelart.simulator`, `pixelart.wifi`, `pixelart.token.<host>`, `pixelart.editorNote`) and in IndexedDB (`pixelart-editor`). The app sets no cookies. Clear the site data to remove them.
+- **The site only serves files:** the app, the release manifest, the animations, the playlists and the firmware come from the same GitHub Pages site. The app uses no font, analytics, error reporting or other service. Like any website, GitHub Pages sees the standard data of a request, such as your IP address and your browser's user agent.
+- **What your board contacts:** to check for updates the board itself contacts the release site (the firmware manifest) and the animation source, and pool.ntp.org for the time when the install window is narrower than the whole day. Those requests carry none of your data, and those hosts see the board's IP address. Set the update mode to Off to stop them.
+- **Limits:** the WebSocket to the board is a plain `ws:` connection, so on your local network someone who can watch the traffic can see what you send and the network name in `status` (with the network login off there is no login at all). The board keeps the WiFi network name and password in plain text, and anyone who holds it can read them. The token is stored in your browser as written (clear text), readable by anyone with access to that browser profile.
+- **Check it:** the project is free software under GPL-3.0-or-later (see [License](#license)), so anyone can read the code and verify this. The repository is <https://github.com/Monska85/PixelArt> (the web app links the repository of the build: a fork's own, see [Forking](#forking)). The content security policy in [`web/index.html`](web/index.html) lets the app load everything only from its own site (`default-src 'self'`) and connect only to its own site and to WebSocket addresses (`connect-src 'self' ws:`, how it reaches a board on your network): the page can reach no other site over HTTP or HTTPS, and it can open a WebSocket to any address, but the app opens one only to the board you choose. The web app source is in [`web/src`](web/src) and the firmware source in [`src/`](src) and [`lib/`](lib).
 
 ## 3D printed frame
 
@@ -43,6 +53,10 @@ You can find the 3D model files to print a frame for the 16x16 LEDs matrix [here
    Without `make`, run `python3 tools/pixelart.py build`, then `pio run -e esp32c3 -t upload` and `pio run -e esp32c3 -t uploadfs`. Run them as two commands: PlatformIO writes only the file system when both targets are given in one command. The first build downloads the ESP32 toolchain and the libraries, so it takes a few minutes. Later builds take seconds.
 
 The animations start as soon as the upload finishes. To see the serial output, run `make monitor` (or `pio device monitor -e esp32c3`). A board with the firmware but no animations shows a dim question mark.
+
+### Flash layout
+
+The firmware builds with Arduino-ESP32 3.3.12 (ESP-IDF 5.5.5), through PlatformIO platform `espressif32` 8.0.0. Every board uses the table in `partitions.csv`: two firmware slots of 1.5 MiB (`0x180000`) each, a file system of 960 KiB (`0xF0000`) for animations and playlists, and the settings memory. The coredump partition is gone. The firmware is built with `-Os` and with Espressif's common certificate bundle (`certs/README.md`), and leaves about 200 KB of its slot free on the ESP32-C3; `make release-firmware` refuses a firmware that leaves less than 64 KiB. A layout change after the first release erases the animations of every board. A board flashed before this layout needs one **Install from scratch**, which erases its animations and settings. Later updates keep them.
 
 ### If the upload fails
 
@@ -108,6 +122,17 @@ Run `make help` to list every target. Each one is a thin wrapper around `tools/p
 
 `ANIM=name[,name]` limits `sim`, `sim-open`, `sim-play`, `emulate` and `serve` to those animations (`emulate` plays them in a loop), `BOARD=esp32` or `BOARD=esp32s3` builds and flashes another board than the ESP32-C3 SuperMini, and `WS=1` adds the WebSocket to `emulate`, as `make serve` does.
 
+### Resource limits
+
+Builds and tests use many cores. The Makefile and the justfile, each on its own, take two variables with defaults for a laptop: `JOBS` (at most this many parallel jobs: the `-j` of every `pio run`, and the workers of Playwright, default 4) and `NICE` (the priority of the heavy steps, `nice -n`, default 10, where 0 is normal and 19 the lowest). The heavy targets (builds, uploads, `test`, `check`, `release-firmware`, `release-site`, `web-build`, `web-test`, `web-e2e`, `web-screenshots`) run one step at a time. `JOBS` must be a whole number of 1 or more and `NICE` one from 0 to 19: an empty value (`make check JOBS=`) or any other stops make and just at once, with a message, before any step runs. Override them per run:
+
+```sh
+make check JOBS=8 NICE=0
+JOBS=8 NICE=0 just check     # or: just jobs=8 nice=0 check
+```
+
+`pio test` has no job option and runs with the priority only. CI sets `JOBS` to the runner's cores and `NICE` to 0, except that it runs the end-to-end tests and the screenshot comparison with 2 workers (`PIXELART_JOBS=2`), because they are timing sensitive.
+
 ### Board
 
 | Command                | What it does                                                         |
@@ -155,6 +180,85 @@ Run `make help` to list every target. Each one is a thin wrapper around `tools/p
 
 The web app needs Node.js at the version in the `engines` field of `web/package.json`. `make check` and the `make web-*` targets run `npm ci` in `web/` the first time they need the dependencies.
 
+## WiFi
+
+A board can join a 2.4 GHz WiFi network. The specification is in [`docs/board/wifi-and-updates-v1.md`](docs/board/wifi-and-updates-v1.md).
+
+**Setting it up.** Connect the board over USB and use one of these:
+
+- **Web app:** in the Board view, the **WiFi** card has **Set up WiFi**. It lists the networks the board sees and asks for the password, then waits until the board has an address. The board uses [Improv Wi-Fi](https://www.improv-wifi.com/serial/) on the same USB port as the protocol, so the Firmware view's install dialog offers the same setup after an install.
+- **Terminal:** `python3 tools/pixelart.py board --port /dev/ttyACM0 wifi` asks for the network name and the password with hidden input, sends them with Improv and prints the state. Improv needs the USB port, so `--ws` does not work for it. `wifi --forget` erases the stored network.
+
+`board status` and the WiFi card show the name of the network the board stored. Over USB any client gets the name. Over WiFi it follows the [network login](#connecting-over-wifi): with the login on, only a client that has logged in gets it, and with the login off every client does. The board never sends the password back, over any transport, and never logs either of them. It keeps them in its settings memory in plain text, so anyone who holds the board can read them. `wipe --settings` and **Delete everything** with **Also reset the settings** forget the network too.
+
+**What it does.** The board is called `pixelart-XXXX`, where `XXXX` are the last four digits of its WiFi MAC address, and it answers to `pixelart-XXXX.local`. If the network is lost it tries again after 1, 2, 4, 8, 16 and 32 seconds and then every minute. `status` (or the WiFi card) says which network it stored and whether it is connected, did not find the network, was refused the password, or joined but got no address, which happens on networks that block new devices. Opening the board's address (`http://pixelart-XXXX.local/`) in a browser shows a small page that links to the web app; the page is not shown (the board answers 503) while the web app or another WebSocket client is connected over WiFi, since the board serves one client at a time, and also while the board checks for or downloads an update, since a secure connection leaves it no memory for another one. Try again in a minute.
+
+**Transmit power.** The `wifi_power` setting is `auto` (recommended) or a fixed power from 8.5 to 19.5 dBm. The WiFi card shows the legend:
+
+- Auto starts at full power and lowers it by itself when the board cannot connect.
+- Lower values give less range and draw less current. They help boards with a weak antenna, such as some ESP32-C3 SuperMini boards.
+- If the board does not connect or keeps dropping the connection, choose 8.5 dBm.
+- If the connection is stable but the signal is weak (below -75 dBm), try a higher value.
+- Signal: -50 dBm or more is excellent, -50 to -67 dBm good, -67 to -75 dBm fair, below -75 dBm weak.
+
+### Connecting over WiFi
+
+A board that has joined a network serves the command protocol on `ws://<board>/ws`, port 80, while it is on that network. The web app and `tools/pixelart.py` use it, so a board can be managed without the cable. Everything works over WiFi except what changes the WiFi network or the token: **Set up WiFi**, **Forget network**, the token itself and **Delete everything** with **Also reset the settings** need the USB cable, and the board answers `usb_only` to them.
+
+- **Web app:** in the Board view, type the board's name (`pixelart-XXXX.local`) or its IP address in **Board address** and choose **Connect over WiFi**. The app remembers the name the board gave over USB, and the address you last used. Use a Chromium browser (Chrome, Edge, Opera): Chrome asks once to allow the page to reach devices on the local network, and Firefox and Safari are expected not to let a page from the internet reach a board (a browser test confirms it once the project's Pages site is live). The page of the project is served over HTTPS and the board speaks plain `ws://`, which is why the browser asks.
+- **Terminal:** `python3 tools/pixelart.py board --ws ws://pixelart-XXXX.local/ws info`. The commands are the same as over USB, except those that need USB.
+- **One client at a time.** While one program holds the connection, a second one is refused until it closes. USB works at the same time.
+- **Which pages may connect.** The board accepts the web app of the site address it was built with (`https://monska85.github.io` for the project's own build, your own site for a fork) and pages from `localhost`, from `.local` names and from private network addresses, so a website on the internet cannot change your board. A command line tool sends no origin and is accepted.
+
+**Network login and the token.** The `network_login` setting, which the **Network access** card of the Board view sets, decides who can use the WiFi connection:
+
+- **Off** (the default): anyone on your network can change the board's animations and settings, and start updates of the project's firmware. The card says so next to the switch.
+- **On:** a WiFi client must log in first. The board has a token of 16 characters, made at the first start. The **Network access** card shows it over USB (**Show**, **Copy**) and makes a new one (**Regenerate**, which closes the WiFi connection). The web app asks for the token once when the board wants a login, keeps it in the browser for that board, and sends only a proof of it: the board sends a random number, and the app answers with an HMAC-SHA256 of it under the token. The terminal tool takes the token from the `PIXELART_TOKEN` environment variable, or from `--token`, which other users of the computer can see in the list of processes. After 3 wrong answers the board closes the connection.
+
+The connection is not encrypted. The token never crosses the network, but someone who can watch your network sees what you send, and someone who can change it on the way can take over a connection that has logged in. Use the network login on a network you trust. Anyone who holds the board can read the token and the WiFi password from its memory.
+
+## Updates
+
+A board on WiFi can keep its animations and playlists up to date from a manifest, the file that lists them with their sizes and SHA-256 checksums. The specification is in [`docs/board/wifi-and-updates-v1.md`](docs/board/wifi-and-updates-v1.md#updates), and the manifest in [`docs/format/manifest-v1.md`](docs/format/manifest-v1.md). The same checks look for a new firmware, and the board can install it itself, with an automatic rollback if the new one does not start well, see [Firmware updates](#firmware-updates).
+
+**Modes.** The `update_mode` setting, which the **Updates** card of the Board view sets, takes one of three values:
+
+- **Off:** the board never checks. Animations come over USB or from the web app only.
+- **Notify:** the board checks 5 minutes after it first has an address, then every `check_hours` hours (6 unless you change it) plus up to 10 minutes at random, and again after 30 minutes when a check fails. It reports in `status` how many files would change and which firmware is available, and installs only when you ask: **Install animations** and **Install firmware** in the web app, or `board update install animations` and `board update install firmware` in the terminal.
+- **Automatic** (the default): the board checks the same way and installs what it finds, inside the install window, so a new board, and a board after a settings reset, updates itself as soon as a release is published. A board that was on the old default (Notify) and never had a mode stored switches to Automatic when it gets this firmware, so it starts installing updates by itself inside the install window. A board where you chose a mode (Off, Notify after another mode, or Automatic) keeps it. To keep Notify, choose **Notify** in the Updates card, or run `python3 tools/pixelart.py board --port /dev/ttyACM0 settings update_mode=notify`, right after the update, and check that the card or `settings` shows `notify`. To limit the installs to animations and playlists, turn off **Firmware updates** (`update_firmware=false`): the board then never installs a firmware by itself. The window is `install_start` to `install_end`, in the time zone of the `timezone` setting; equal times mean the whole day, and an end before the start runs over midnight. The web app sets the time zone from your browser. A board that does not know the time waits for it when the window is narrower than the whole day, and `status` says `waiting_for_time`. The board asks `pool.ntp.org` for the time (and again every 12 hours) only when the window is narrower than the whole day and updates are not off.
+
+**No release yet.** Until a release is published at the animation source, a check ends with `http_error` and the detail `no_release`: the web app says "No release is published at this address yet. Check the animation source, or try again after the first release.", and `board status` and `board update check` print the same in a line. A wrong `animation_source` shows the same text, since the address answers 404.
+
+**The release wins.** For every animation and playlist in the manifest, the board adds it when it is not stored, and replaces it when the stored file has another SHA-256, even if you edited it on the board. A file with the same SHA-256 is left alone, and so is every stored file the manifest does not list. An animation you delete on the board comes back at the next update. To keep local changes, turn off **Animation updates** (`update_animations`) or choose another source. Each file is downloaded to a temporary file, checked against the manifest's size and SHA-256, validated by the same engine as an upload, and only then moved over the stored one; a file that fails leaves the stored one as it was, and the update goes on with the next file. While an update writes the files, the matrix can show a brief glitch now and then.
+
+**Your own source.** The `animation_source` setting is the address of the manifest, `https://monska85.github.io/PixelArt/manifest.json` by default; **Reset to default** in the web app puts it back. To host your own set, run `make release-site` or copy the `animations/`, `playlists/` and `manifest.json` of a release, change the files, and publish the folder anywhere. The paths in the manifest are relative to its own address, so a copy works without edits. Then set the address:
+
+```sh
+python3 tools/pixelart.py board --port /dev/ttyACM0 settings animation_source=https://example.org/pixelart/manifest.json
+python3 tools/pixelart.py board --port /dev/ttyACM0 update check
+python3 tools/pixelart.py board --port /dev/ttyACM0 update install animations
+```
+
+The board reads manifests over HTTPS and checks the server's certificate against Espressif's common certificate bundle of 43 roots (`certs/README.md`): an `https://` source on your own server needs a certificate from one of them, as any public certificate authority gives. A source can also be an `http://` address, for a test server on your own network, and then the files come over `http://` too. A manifest is refused when it is over 64 KiB, is not strict JSON, is not of the format `pixelart-manifest/1`, or has a path that is absolute, holds `..`, or points to another host. Over HTTPS the manifest must also fit in memory next to the secure connection, so the board reads one of up to about 26 KB that way and refuses a larger one with `out_of_memory`; a release keeps its manifest at 20 KiB or less. Files must keep to the limits of the formats.
+
+### Firmware updates
+
+When **Firmware updates** (`update_firmware`) is on, every check also reads the project's manifest, built into the firmware, and looks for the firmware of your board in it. It is an update when the release is newer than the running firmware by Semantic Versioning. A development build of a version is older than its release, and a release is never installed over a newer or equal one. Custom firmware, and any version, goes over USB only.
+
+Notify mode reports the firmware in `status` and the Updates card, and installs it when you ask. Automatic mode installs it inside the install window, after the animations. An installation stops the animation and shows an arrow pointing down into a tray, with a progress bar along the bottom row, at the brightness you set. The board downloads the firmware over HTTPS into the second firmware slot, checks its size and SHA-256 against the manifest, and restarts into it. The settings and the stored files stay. If anything fails before the restart (the network, the checksum, the slot), the running firmware stays, the animation comes back, and the Updates card and `status` report the error; you can ask again.
+
+**Rollback.** A new firmware starts on trial. It confirms itself once the file system is mounted, the settings are read and the first frame is shown. If it crashes, restarts or loses power before that, the bootloader starts the previous firmware again, which reports `rolled_back` with both versions and puts the version that failed on its skip list. A health check that fails without a crash does the same at once. Rollback is always on and has no setting.
+
+**The skip list.** The board never installs a skipped version by itself, in any mode; the Updates card still shows it as available, and installing it asks for a confirmation, because it failed before. `board update install firmware --force` does the same from a terminal. A release newer than the skipped version ends the skip. When a skipped version is installed by force and holds, it is no longer skipped.
+
+```sh
+python3 tools/pixelart.py board --port /dev/ttyACM0 update check
+python3 tools/pixelart.py board --port /dev/ttyACM0 update install firmware           # waits for the restart
+python3 tools/pixelart.py board --port /dev/ttyACM0 update install firmware --force   # a skipped version
+```
+
+After the restart, `status` says `updated` (with the versions) once the new firmware shows its first frame, or `rolled_back` if the board went back. The **Firmware** view of the web app shows the same next to its USB install. The board's flash holds two firmware slots, see [Flash layout](#flash-layout), so the install over the network needs no more room than the USB one.
+
 ## Commands from a terminal
 
 The board answers a command protocol over its USB serial port, and the simulator over a local WebSocket. Both are driven by `tools/pixelart.py board`, which needs PyYAML (`pip install pyyaml`). The protocol itself is specified in [`docs/protocol/protocol-v1.md`](docs/protocol/protocol-v1.md).
@@ -162,19 +266,25 @@ The board answers a command protocol over its USB serial port, and the simulator
 ```sh
 python3 tools/pixelart.py board --port /dev/ttyACM0 info          # a board over USB serial
 python3 tools/pixelart.py board --ws ws://127.0.0.1:8765 info     # the simulator (make serve)
+python3 tools/pixelart.py board --ws ws://pixelart-118c.local/ws info   # a board over WiFi
 ```
 
-Use `--port DEVICE` for a board and `--ws URL` for the simulator. The serial option needs `pyserial`, which PlatformIO already installs; with another Python, run `pip install pyserial`. The WebSocket option needs the `websockets` package, version 15 or later (`pip install websockets`). The commands are the same for both:
+Use `--port DEVICE` for a board over USB, and `--ws URL` for the simulator or a board over WiFi. A board with network login on needs the token: set `PIXELART_TOKEN` (or pass `--token`), see [Connecting over WiFi](#connecting-over-wifi). The serial option needs `pyserial`, which PlatformIO already installs; with another Python, run `pip install pyserial`. The WebSocket option needs the `websockets` package, version 15 or later (`pip install websockets`). The commands are the same for both:
 
-| Command                                      | What it does                                                                                      |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `info`                                       | Firmware version, board, storage, memory and the protocol limits                                  |
-| `ls [--kind animation\|playlist]`            | List the stored files with their size, SHA-256, name and version                                  |
-| `put FILE [--id ID] [--kind KIND]`           | Upload an animation or playlist, YAML or JSON. The board validates it before it replaces the file |
-| `get ID [--kind KIND] [-o FILE]`             | Download a file, checked against the SHA-256 that `ls` reports                                    |
-| `rm ID [--kind KIND]`                        | Delete a file                                                                                     |
-| `wipe [--yes] [--settings]`                  | Delete every animation and playlist after a confirmation (`--yes` skips it) and print the counts  |
-| `settings [brightness=0..255] [playlist=ID]` | Show the settings, or change them                                                                 |
+| Command                             | What it does                                                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `info`                              | Firmware version, board, storage, memory and the protocol limits                                         |
+| `ls [--kind animation\|playlist]`   | List the stored files with their size, SHA-256, name and version                                         |
+| `put FILE [--id ID] [--kind KIND]`  | Upload an animation or playlist, YAML or JSON. The board validates it before it replaces the file        |
+| `get ID [--kind KIND] [-o FILE]`    | Download a file, checked against the SHA-256 that `ls` reports                                           |
+| `rm ID [--kind KIND]`               | Delete a file                                                                                            |
+| `wipe [--yes] [--settings]`         | Delete every animation and playlist after a confirmation (`--yes` skips it) and print the counts         |
+| `settings [key=value ...]`          | Show the settings, or change them (`brightness`, `playlist`, `wifi_power`, and the update settings)      |
+| `status`                            | WiFi state, network name, address, signal, transmit power and update state of the board                  |
+| `wifi [--forget]`                   | Set up WiFi over USB, asking for the network name and password (hidden), or forget the network           |
+| `update check`                      | Check for updates now, wait for the result and print the update state                                    |
+| `update install animations`         | Install the animations and playlists the last check found, wait, and print the update state              |
+| `update install firmware [--force]` | Install the firmware the last check found and wait for the restart; `--force` installs a skipped version |
 
 `put` converts YAML the same way `make data` does, and takes the ID from the file name (`--id` overrides it). It takes the kind from the folder (`animations/` or `playlists/`), or else from the file's `format` field (`--kind` overrides it). `get` and `rm` use `animation` unless `--kind playlist` is given. `wipe` runs the protocol's [`delete_all`](docs/protocol/protocol-v1.md#delete_all) and prints how many files it removed; with `--settings` it also resets the settings, as **Also reset the settings** does in the web app, and prints them. It asks you to type `yes` first, unless you give `--yes`; a board with an older firmware answers `unknown_command`, or `bad_request` to `--settings`, and then deletes nothing.
 
@@ -223,6 +333,18 @@ The simulator models the physical panel wiring (16x16, strip starting top-left, 
 
 `make serve` starts the emulation with the command protocol on `ws://127.0.0.1:8765`, so a client can be developed without a board. Choose another port with `make serve PORT=9000` (`just serve 9000`), and allow another web page origin with `ARGS="--ws-origin https://example.org"`. The option is `--ws [PORT]` in the simulator itself, and it works with `--live` or `--realtime` only, because the clients need a clock that runs. The simulator starts `tools/ws_bridge.py` to serve the WebSocket, so `make serve`, `--ws` and the web app's end-to-end tests need `python3` with the `websockets` package, version 15 or later (`pip install websockets`). `make` and `just` start the bridge with the Python they use for the other tools (`PYTHON=...`, `just --set python ...`). A simulator started by hand uses the one in `PIXELART_PYTHON`, by default `python3`. Set `PIXELART_WS_BRIDGE` to the bridge's path when the simulator program is not in the repository's `.pio/build/native/`. The rules (local connections only, one client at a time, the origin check, no authentication, uploads changing the data folder) are in [WebSocket (simulator)](docs/protocol/protocol-v1.md#websocket-simulator).
 
+**The simulator as a board over WiFi.** `ARGS="--ws-transport wifi --token k3j9x0q7w2m5z8a1"` makes the WebSocket stand for the board's WiFi transport: the client is a WiFi client, so `settings_get` leaves the token out, `wifi_forget`, `token_regenerate` and `delete_all` with `settings: true` are answered `usb_only`, and with `network_login` on the client has to log in with the token (3 wrong answers close the connection). The serial port stays the USB transport and none of its traffic goes to the WebSocket. `--token` gives the simulated board a token (16 characters from `a-z` and `0-9`) instead of a new one at each start. The web app's end-to-end tests of the login and `tools/test_ws_bridge.py` use it, and so can a client under development: connect it with **Connect over WiFi** to `127.0.0.1:8765`.
+
+### Updates in the simulator
+
+`--update-source DIR` makes a folder stand in for the servers of the updates: the simulator looks the path of a manifest or file URL up in it, so a folder with a release site (`manifest.json`, `animations/`, `playlists/`) answers for the default `animation_source` and for any other. Without the option the simulator reaches no server, so a check fails with `network_error` and the simulator does not check on a schedule. With it, the board checks 5 minutes of virtual time after the start, as the real one does after its first address, or at once with `update_check`.
+
+```sh
+make serve ARGS="--update-source site"        # serve what make release-site built
+```
+
+`--update-fail down` makes every request fail. `--update-fail KIND[:PATH]` makes the requests for one file (or all files) fail, with a kind of `tls`, `http`, `cut` (the download ends halfway), `corrupt` (a changed byte) or `too_long` (a byte too many); repeat the option for several. `--update-time HH:MM` sets the local time the install window sees; without it the time is not known. The simulated board is named `simulator`: a manifest offers it a firmware with an entry for that `board`, whose file can be any bytes, and `--firmware-version VERSION` sets the version it runs. An installed firmware restarts the simulator, which keeps its slots, its skip list and the record of the last installation across the restart; the new firmware boots on trial and confirms itself at its first frame, and `--update-trial fail` makes its health check fail so the board rolls back. The tests in `test/test_updates` and the cases `update_*` in `conformance/protocol` use the same hooks.
+
 ### Simulator limits
 
 The simulator does not emulate the ESP32 itself. Timing, memory use, WiFi and other ESP32-only APIs are not covered: `make build-all` checks that the code compiles for each board, and the real board is the final check. GPIO reads always return `LOW`, so runs are repeatable. The one exception is the `boot_id` that `info` reports: it is random on every run, as on the board.
@@ -252,16 +374,22 @@ The firmware and the web app are released separately, each with its own version,
 | Web app  | The `web/` folder                          | `web-vX.Y.Z` | `web/CHANGELOG.md` |
 
 1. Every push to `main` updates two release pull requests, one per package, each with the next version and its changelog entries: `feat` commits go under Added, `fix` under Fixed, and `perf` and `refactor` under Changed. Other types are left out of the changelog. While a version is below 1.0.0, a breaking change raises the minor number. A commit that changes only `web/` is part of the web release only. A commit that changes `web/` and other files is part of both.
-2. Merging the firmware pull request creates the `vX.Y.Z` tag and the GitHub Release. The release workflow (`.github/workflows/release.yml`) runs the quick checks on every push to `main` before release-please runs, so a `main` that fails them gets no release. After the release exists, the workflow checks out the tag, normally the commit it just checked (it runs the checks again when the tag points to another commit), builds the firmware of every board and the animations, and attaches `pixelart-site-<version>.zip` and the factory image of each board to the GitHub Release.
-3. Merging the web pull request creates the `web-vX.Y.Z` tag and its GitHub Release. The workflow checks out the tag, builds the web app and attaches `pixelart-web-<version>.zip`, the built app.
+2. Merging the firmware pull request creates the `vX.Y.Z` tag and the GitHub Release. The release workflow (`.github/workflows/release.yml`) runs the quick checks on every push to `main` before release-please runs, so a `main` that fails them gets no release. After the release exists, the workflow checks out the tag, normally the commit it just checked (it runs the checks again when the tag points to another commit), builds the firmware of every board and the animations, and attaches `pixelart-site-<version>.zip`, the factory image of each board and the firmware's `THIRD_PARTY_NOTICES.txt` to the GitHub Release, whose description it ends with a line on the source code and the licenses.
+3. Merging the web pull request creates the `web-vX.Y.Z` tag and its GitHub Release. The workflow checks out the tag, builds the web app and attaches `pixelart-web-<version>.zip`, the built app, and its `THIRD_PARTY_NOTICES.txt`, and ends the description with the same line on the source code and the licenses.
 4. After either release, the workflow publishes GitHub Pages. A Pages deployment replaces the whole site, so the workflow downloads the latest firmware archive and the latest web archive from the GitHub Releases, merges them into one folder and deploys it. When one of the two has never been released, the site holds the other alone. A file name present in both archives fails the deployment.
 
 GitHub Pages, at <https://monska85.github.io/PixelArt/>, holds the latest release of each package: the web app at the root, next to the firmware release files. The GitHub Releases keep every version. The layout, the release assets and the manifest are specified in [`docs/format/manifest-v1.md`](docs/format/manifest-v1.md#where-it-is-published), and the web release in [`docs/web/web-app-v1.md`](docs/web/web-app-v1.md#publishing).
 
-Two repository settings cannot be changed from the code, and a maintainer must set them once:
+### Forking
+
+A fork releases to its own GitHub Pages site without code changes. The firmware and the board's page take the site address from the build ([`tools/site_url.py`](tools/site_url.py)): the repository variable or environment variable `PIXELART_SITE_URL` when it is set, else `https://<owner>.github.io/<repository>/` in GitHub Actions (the root `https://<owner>.github.io/` for a repository named `<owner>.github.io`), else the project's own address for local builds. The web app's default animation source is the `manifest.json` next to the page it is served from, and the project's address when it runs from `localhost`, plain `http` or a file. Two repository settings cannot be changed from the code, and a maintainer must set them once, in the fork or here:
 
 - **Settings, Pages, Source:** `GitHub Actions`.
 - **Settings, Environments, `release`, Environment secrets:** `RELEASE_PLEASE_TOKEN`, the token release-please acts with (see below).
+
+Only for a custom domain, add the repository variable `PIXELART_SITE_URL` (Settings, Secrets and variables, Actions, Variables) with the address, `https` with a trailing slash (`https://art.example.org/`). The release workflow passes it to the firmware build, which fails unless every firmware carries that address. Before the deployment it checks that Pages announces that address, and stops otherwise, so the live site stays as it was; after the deployment it checks the address of the deployment again, which can only mark the run as failed, since the site is live by then. The details are in [Site address](docs/board/wifi-and-updates-v1.md#site-address). A custom domain follows the certificate rule of [Updates](#updates): its certificate must chain up to one of the common roots a public certificate authority gives.
+
+The web app of your fork links your repository: in GitHub Actions the web build derives `https://github.com/<owner>/<repository>` from `GITHUB_REPOSITORY` (a value that is not `owner/repository` fails the build), and any other build uses the project's address. A board of your fork looks for its manifest at your site, accepts your web app's origin, and links to your site on its page. The release fails when the site is served at another address than the one the firmware was built with. For a local build, `PIXELART_SITE_URL=https://art.example.org/ make build-all` builds boards for that address.
 
 ### The release-please token
 
@@ -287,45 +415,80 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 
 ### Project layout
 
-| Path                         | Content                                                                                                                                  |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `animations/`, `playlists/`  | The animations and playlists, in YAML                                                                                                    |
-| `platformio.ini`             | Boards, libraries, the simulator and test environments, and the physical panel settings                                                  |
-| `src/main.cpp`               | `setup()`, `loop()` and the matrix configuration                                                                                         |
-| `src/app.cpp`                | Plays the playlist and the animations stored on the board                                                                                |
-| `src/storage.cpp`            | File access: LittleFS on the board, the `data/` folder in the simulator                                                                  |
-| `src/protocol.cpp`           | The command protocol, served over USB serial on the board and over the WebSocket in the simulator                                        |
-| `src/settings.cpp`           | Brightness and active playlist, kept in NVS on the board                                                                                 |
-| `src/platform.cpp`           | Board services: firmware version, memory and boot ID                                                                                     |
-| `include/`                   | Headers of the modules in `src/`                                                                                                         |
-| `src/pixel_matrix.cpp`       | The matrix `show()`, with the optional live mirror                                                                                       |
-| `src/sim_main.cpp`           | Entry point of the host simulator (only built by the `native` env)                                                                       |
-| `lib/PixelEngine/`           | The animation engine: parsing, validation and playback of the file formats, shared by all builds                                         |
-| `lib/PixelCodec/`            | CRC-32, SHA-256, base64 and UTF-8 helpers used by the protocol                                                                           |
-| `lib/ArduinoSim/`            | Host Arduino core, simulated NeoPixel driver and simulator (`assets/player.html` is the HTML player)                                     |
-| `conformance/`               | Test cases every implementation of the animation format must pass                                                                        |
-| `test/`                      | Tests that run on the simulator (`native_test` env)                                                                                      |
-| `tools/pixelart.py`          | Converts animations and playlists from YAML to the board's JSON, and talks to a board or the simulator                                   |
-| `tools/ws_bridge.py`         | Serves the simulator's command protocol on a WebSocket, started by the simulator's `--ws`                                                |
-| `tools/test_*.py`            | Unit tests of the tools, run by `make check`                                                                                             |
-| `tools/fw_version.py`        | The firmware version rules, shared by `tools/release.py` and the PlatformIO version script                                               |
-| `tools/release.py`           | Builds the firmware release site (parts, ESP Web Tools manifests, animations, playlists, `manifest.json`) and merges it with the web app |
-| `tools/check_pr_title.py`    | Checks that a pull request title is a conventional commit release-please accepts, for the `pr-title` check                               |
-| `web/`                       | The web app: React and TypeScript, its own `package.json`, tests and changelog, see [`web/README.md`](web/README.md)                     |
-| `monitor/filter_pixelart.py` | Serial monitor filter that draws the live mirror of the real matrix                                                                      |
-| `.github/actions/checks`     | The checks shared by the CI and release workflows                                                                                        |
-| `scripts/`                   | PlatformIO build scripts, including the firmware version, which uses `tools/fw_version.py`                                               |
-| `release-please-config.json` | Release automation settings for the firmware and the web app, with `.release-please-manifest.json` and `version.txt`                     |
-| `docs/`, `schema/`           | Specifications of the formats, the protocol and the web app, their JSON Schemas, and architecture decision records (`docs/adr/`)         |
-| `v0/`                        | The original Arduino IDE sketch and its README, kept unchanged for history, see [History](#history)                                      |
+| Path                           | Content                                                                                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `animations/`, `playlists/`    | The animations and playlists, in YAML                                                                                                                                           |
+| `platformio.ini`               | Boards, libraries, the simulator and test environments, and the physical panel settings                                                                                         |
+| `src/main.cpp`                 | `setup()`, `loop()` and the matrix configuration                                                                                                                                |
+| `src/app.cpp`                  | Plays the playlist and the animations stored on the board                                                                                                                       |
+| `src/storage.cpp`              | File access: LittleFS on the board, the `data/` folder in the simulator                                                                                                         |
+| `src/protocol.cpp`             | The command protocol, served over USB serial on the board and over the WebSocket in the simulator                                                                               |
+| `src/settings.cpp`             | The settings and the token, kept in NVS on the board                                                                                                                            |
+| `src/network_*.cpp`            | The network task: WiFi connection, scans and mDNS on the board (`_board`), fixed values in the simulator (`_sim`)                                                               |
+| `src/ws_server_*.cpp`          | The protocol over WiFi: the WebSocket server on the board (`_board`), and the simulator's WiFi transport mode (`_sim`)                                                          |
+| `lib/PixelNet/`                | The decisions of the protocol over WiFi: the origin check, the WebSocket message rules and the network login                                                                    |
+| `src/wifi_logic.cpp`           | The connection states, reconnection schedule and transmit power fallback, shared by the board and the tests                                                                     |
+| `src/improv.cpp`               | Improv Wi-Fi Serial: frames and the handler that sets up WiFi over USB                                                                                                          |
+| `src/updates.cpp`              | The updates as the loop task sees them: settings, requests, status, and the validation and storing of downloaded files                                                          |
+| `src/update_http.cpp`          | The board's HTTPS client for manifests and files, with the certificate bundle and the redirect rules                                                                            |
+| `src/crt_bundle.S`, `certs/`   | The certificate bundle the board checks HTTPS servers with, how it is made again, and the GitHub Pages chain CI checks against it                                               |
+| `src/update_sim.cpp`           | The simulator's update source and failure injection                                                                                                                             |
+| `src/firmware*.cpp`            | The trial boot, the rollback and the skip list (`firmware.cpp`), and the firmware slots: ESP-IDF OTA and NVS on the board (`_board`), simulated slots in the simulator (`_sim`) |
+| `src/update_icon.cpp`          | The icon the matrix shows while a firmware installs                                                                                                                             |
+| `src/net_time.cpp`             | The time of day from SNTP, for the install window (board only)                                                                                                                  |
+| `src/task_sync.cpp`            | The lock for large allocations and the signal that a frame was shown, shared by the loop task and the network task                                                              |
+| `lib/PixelUpdate/`             | The update decisions: manifest reading, URL rules, versions, the sync plan, the schedule, the install window and the state machine                                              |
+| `src/platform.cpp`             | Board services: firmware version, memory and boot ID                                                                                                                            |
+| `include/`                     | Headers of the modules in `src/`                                                                                                                                                |
+| `src/pixel_matrix.cpp`         | The matrix `show()`, with the optional live mirror                                                                                                                              |
+| `src/sim_main.cpp`             | Entry point of the host simulator (only built by the `native` env)                                                                                                              |
+| `lib/PixelEngine/`             | The animation engine: parsing, validation and playback of the file formats, shared by all builds                                                                                |
+| `lib/PixelCodec/`              | CRC-32, SHA-256, base64 and UTF-8 helpers used by the protocol                                                                                                                  |
+| `lib/ArduinoSim/`              | Host Arduino core, simulated NeoPixel driver and simulator (`assets/player.html` is the HTML player)                                                                            |
+| `conformance/`                 | Test cases every implementation of the animation format must pass                                                                                                               |
+| `test/`                        | Tests that run on the simulator (`native_test` env)                                                                                                                             |
+| `tools/pixelart.py`            | Converts animations and playlists from YAML to the board's JSON, and talks to a board or the simulator                                                                          |
+| `tools/ws_bridge.py`           | Serves the simulator's command protocol on a WebSocket, started by the simulator's `--ws`                                                                                       |
+| `tools/test_*.py`              | Unit tests of the tools, run by `make check`                                                                                                                                    |
+| `tools/fw_version.py`          | The firmware version rules, shared by `tools/release.py` and the PlatformIO version script                                                                                      |
+| `tools/crt_bundle.py`          | Makes the firmware's certificate bundle again from esp-idf at a pinned tag (`certs/README.md`)                                                                                  |
+| `tools/release.py`             | Builds the firmware release site (parts, ESP Web Tools manifests, animations, playlists, `manifest.json`) and merges it with the web app                                        |
+| `tools/check_pr_title.py`      | Checks that a pull request title is a conventional commit release-please accepts, for the `pr-title` check                                                                      |
+| `web/`                         | The web app: React and TypeScript, its own `package.json`, tests and changelog, see [`web/README.md`](web/README.md)                                                            |
+| `monitor/filter_pixelart.py`   | Serial monitor filter that draws the live mirror of the real matrix                                                                                                             |
+| `.github/actions/checks`       | The checks shared by the CI and release workflows                                                                                                                               |
+| `scripts/`                     | PlatformIO build scripts, including the firmware version, which uses `tools/fw_version.py`                                                                                      |
+| `release-please-config.json`   | Release automation settings for the firmware and the web app, with `.release-please-manifest.json` and `version.txt`                                                            |
+| `docs/`, `schema/`             | Specifications of the formats, the protocol and the web app, their JSON Schemas, and architecture decision records (`docs/adr/`)                                                |
+| `LICENSE`, `LICENSE-EXCEPTION` | The license, GPL-3.0-or-later, and the additional permission for Espressif's binary-only libraries, see [License](#license)                                                     |
+| `LICENSES/`                    | The third-party license texts the notices need and the build inputs do not carry, and the components of the firmware (`firmware.json`)                                          |
+| `tools/firmware_notices.py`    | Writes the third-party notices of the firmware from the link map of each board                                                                                                  |
+| `v0/`                          | The original Arduino IDE sketch and its README, kept unchanged for history, see [History](#history)                                                                             |
 
 ### Continuous integration
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and on every push to `main`, once per change: a newer run of the same pull request or of `main` cancels the one still running. It checks the C++ formatting, converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests, drives the simulator's WebSocket with `tools/pixelart.py board` (info, upload, list, download, delete and a rejected file), builds every board and the firmware release site (checking its manifest against the JSON Schema), and attaches a rendered preview of every animation to each run. A second job, `web`, lints the web app, checks its formatting, runs its unit tests, builds it (which type checks it), checks the size of the JavaScript it loads at start, runs its end-to-end tests and the layout checks in Chromium against the simulator, and compares the reference images in the Playwright container. A third job, `actionlint`, checks the workflows with a pinned actionlint release and the `run:` blocks with shellcheck. `.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and on every push to `main`, once per change: a newer run of the same pull request or of `main` cancels the one still running. It checks the C++ formatting, converts the animations and checks them against the JSON Schemas, validates them with the engine, runs the tests (among them the check that the GitHub Pages certificate chain verifies against the firmware's bundle), drives the simulator's WebSocket with `tools/pixelart.py board` (info, upload, list, download, delete and a rejected file), builds every board and the firmware release site (checking its manifest against the JSON Schema and the limits a board reads, and that every firmware leaves 64 KiB of its slot free), and attaches a rendered preview of every animation to each run. A second job, `web`, lints the web app, checks its formatting, runs its unit tests, builds it (which type checks it), checks the size of the JavaScript it loads at start, runs its end-to-end tests and the layout checks in Chromium against the simulator, and compares the reference images in the Playwright container. A third job, `actionlint`, checks the workflows with a pinned actionlint release and the `run:` blocks with shellcheck. A fourth, `certificates`, makes the firmware's certificate bundle again from the pinned esp-idf files and checks that it is the one in `certs/`, byte for byte. `.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
 
 ### Code style
 
 C++ sources follow `.clang-format`. Run `make format` before committing; `make check` fails on unformatted code. Formatting needs `clang-format`. CI uses the version pinned in `requirements-ci.txt` (`pip install clang-format==23.1.3`), since other versions can format differently.
+
+### Testing updates against a local server
+
+A board test that runs the whole update path against a local copy of the release site builds the firmware with the manifest address replaced and, to reach the server over `http://`, one more flag. Both are for test builds only and are never set in a release build: release firmware never accepts firmware over `http://`. The animation source needs neither flag, since it may be `http://` already.
+
+1. Build and flash a test firmware with the flags in the environment, with the address of your computer in place of `<your computer>`. `PIXELART_VERSION` sets the version of the build, so the firmware flashed here gets a low one:
+
+   ```sh
+   PIXELART_VERSION=0.0.1 PLATFORMIO_BUILD_FLAGS='-DPIXELART_FIRMWARE_MANIFEST=\"http://<your computer>:8000/manifest.json\" -DPIXELART_FIRMWARE_ALLOW_HTTP' make upload-firmware
+   ```
+
+   The backslashes keep the quotes in the C++ string. `-DPIXELART_FIRMWARE_ALLOW_HTTP` lets the firmware manifest and the firmware download use `http://`; it does nothing without the manifest flag.
+
+2. Build the firmware part of the site with a higher version, without `PLATFORMIO_BUILD_FLAGS`, so the firmware it serves is a normal release build: `PIXELART_VERSION=99.0.0 make release-firmware`. It is enough for this test and needs no web build. It goes to `site/` and holds the manifest and the firmware of every board. It rebuilds the boards, so run it after step 1. The manifest must offer a firmware newer than the one on the board, because an older or equal version is never installed over the network.
+3. Serve it from your computer with `python3 -m http.server 8000 --directory site`. The board must reach your computer on the same network.
+4. Check for updates from the board's settings or with `update_check` and `update_install`.
+5. Go back to normal firmware: run `make upload-firmware` without `PLATFORMIO_BUILD_FLAGS` and `PIXELART_VERSION`, and `make upload` too if the animations changed. After a successful test the board runs version 99.0.0, and no real release is newer, so it would never update again. A board left on the test build also accepts firmware over plain `http://` from that address, so use a spare board or go back right after the test.
 
 ### Loop task stack
 
@@ -338,6 +501,17 @@ The firmware parses, validates and plays files on the board's loop task, whose s
 5. Afterwards, remove the debug code, flash the normal firmware and the files with `make upload`, set the settings back, and delete the test files, which belong outside the repository.
 
 Compare the numbers before and after the change, case by case.
+
+## License
+
+PixelArt is free software under the GNU General Public License, version 3 or (at your option) any later version: [`LICENSE`](LICENSE) (the web app publishes both license files next to its third-party notices, as `LICENSE.txt` and `LICENSE-EXCEPTION.txt`). The firmware links binary-only libraries that Espressif distributes with ESP-IDF and Arduino-ESP32 (WiFi, PHY, Bluetooth, coexistence) and uses the code in the ROM of the chips, which come without source code, so [`LICENSE-EXCEPTION`](LICENSE-EXCEPTION) adds the permission of GPL version 3, section 7, to combine PixelArt with them and convey the result. Contributions are accepted under the same license and permission, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+The third-party software in what the project publishes, with its licenses and their full texts, is listed in two notices files, written by the release builds:
+
+- **Firmware:** `firmware/THIRD_PARTY_NOTICES.txt` on the site and attached to every firmware release. `tools/firmware_notices.py` writes it from the link map of each board, see [`LICENSES/README.md`](LICENSES/README.md).
+- **Web app:** `THIRD_PARTY_NOTICES.txt` at the root of the site and attached to every web release, written by the web build from the packages it bundles. The Privacy view of the app links both, with the license and the release tag of the running version.
+
+[`LICENSES/`](LICENSES/) holds the license texts the build inputs do not carry, with where each one comes from. Every GitHub Release ends with a line on its source code and licenses: the tag, the repository, how to build it again and where the notices are.
 
 ## History
 
