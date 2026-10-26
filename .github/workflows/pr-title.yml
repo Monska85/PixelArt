@@ -8,10 +8,11 @@ name: PR title
 on:
   pull_request_target:
     types: [opened, edited, synchronize, reopened]
-  # TRANSITION, remove once this workflow is on main. GitHub takes a pull_request_target workflow from the base branch,
-  # so the pull request that adds it gets no pr-title check from it, and the main ruleset requires that check. This
-  # trigger gives that one pull request its check, from its own copy of the files. Left in place, it would let every
-  # pull request run its own version of the check.
+  # TRANSITION, remove in a follow-up change once this workflow is on main. GitHub takes a pull_request_target workflow
+  # from the base branch, so the pull request that adds it gets no pr-title check from it, and the main ruleset
+  # requires that check. This trigger gives that one pull request its check, from its own copy of the files. Until it
+  # is removed, every pull request also runs its own copy of the check through it, so the base-branch guarantee above
+  # does not hold yet.
   pull_request:
     types: [opened, edited, synchronize, reopened]
 

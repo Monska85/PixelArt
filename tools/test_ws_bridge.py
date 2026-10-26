@@ -663,6 +663,20 @@ class SimulatorWifiTest(SimulatorHarness):
         answer = hmac.new((token or self.TOKEN).encode(), nonce.encode(), hashlib.sha256).hexdigest()
         return self.ask(ws, seq + 1, cmd="auth", hmac=answer)
 
+    def test_an_upload_continues_over_a_new_wifi_connection_and_writes_the_data_folder(self):
+        content = DOT
+        ws = self.open(self.port)
+        self.assertTrue(self.ask(ws, 1, cmd="put_begin", kind="animation", id="dot", size=len(content),
+                                 sha256=hashlib.sha256(content).hexdigest())["ok"])
+        self.assertEqual(self.ask(ws, 2, cmd="put_chunk", offset=0,
+                                  data=base64.b64encode(content[:100]).decode())["received"], 100)
+        ws.close()
+        ws = self.open(self.port)  # a dropped connection does not end the upload
+        self.assertEqual(self.ask(ws, 3, cmd="put_chunk", offset=100,
+                                  data=base64.b64encode(content[100:]).decode())["received"], len(content))
+        self.assertTrue(self.ask(ws, 4, cmd="put_end")["ok"])
+        self.assertEqual((self.data / "animations" / "dot.json").read_bytes(), content)
+
     def test_the_replies_are_those_of_the_wifi_transport(self):
         ws = self.open(self.port)
         settings = self.ask(ws, 1, cmd="settings_get")["settings"]
