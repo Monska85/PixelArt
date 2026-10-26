@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { readFileSync } from "node:fs";
 import { connectSimulator, expect, test } from "./fixtures";
 import { repositoryUrl } from "../scripts/repository";
 
 // The build the tests run against derives the address from the same environment as this process.
 const REPOSITORY = repositoryUrl(process.env);
 const REPOSITORY_LABEL = REPOSITORY.replace(/^https:\/\//, "");
+
+// The version the build embeds is the one of web/package.json (vite.config.ts). The rule that tells a release from a
+// development build is that of sourceOfVersion in src/ui/privacy.ts, which cannot be imported here: it reads build globals.
+const APP_VERSION: string = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+const IS_RELEASE = /^\d+\.\d+\.\d+$/.test(APP_VERSION) && APP_VERSION !== "0.0.0";
 
 const FOOTER = "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board.";
 
@@ -126,18 +132,25 @@ test("the Privacy view names the license, the version of the app and links the t
   page,
 }) => {
   await page.goto("/#privacy");
-  await expect(page.getByTestId("privacy-version")).toContainText(
-    "This web app is version 0.0.0, a build that is not a release",
+  const version = page.getByTestId("privacy-version");
+  await expect(version).toContainText(
+    IS_RELEASE
+      ? `This web app is version ${APP_VERSION}, built from the tag web-v${APP_VERSION}.`
+      : `This web app is version ${APP_VERSION}, a build that is not a release`,
   );
   const licenses = page
     .getByRole("region", { name: "Licenses" })
     .or(page.locator("[aria-labelledby=privacy-licenses]"));
   await expect(licenses).toContainText("GNU General Public License, version 3 or any later version");
   // The release tag of a release, the repository for this build, which is not one.
-  await expect(page.getByTestId("privacy-version").getByRole("link", { name: "repository" })).toHaveAttribute(
-    "href",
-    REPOSITORY,
-  );
+  if (IS_RELEASE) {
+    await expect(version.getByRole("link", { name: `web-v${APP_VERSION}` })).toHaveAttribute(
+      "href",
+      `${REPOSITORY}/tree/web-v${APP_VERSION}`,
+    );
+  } else {
+    await expect(version.getByRole("link", { name: "repository" })).toHaveAttribute("href", REPOSITORY);
+  }
   // The license files are the site's own, next to the notices, and shown as text.
   await expect(page.getByTestId("license")).toHaveAttribute("href", "./LICENSE.txt");
   await expect(page.getByTestId("license-exception")).toHaveAttribute("href", "./LICENSE-EXCEPTION.txt");
