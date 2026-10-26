@@ -21,7 +21,7 @@ export function uploadBlockedReason(
   return uploadsBlocked;
 }
 
-/** `blocked`, or the busy reason when this view's own upload queue is working before the global lock is taken. */
+/** `blocked`, or the busy reason when the upload queue is working: its questions and checks, or the sending. */
 export function blockedOrBusy(blocked: string | null, queueBusy: boolean): string | null {
   return blocked ?? (queueBusy ? "Another upload is still running." : null);
 }
@@ -41,8 +41,33 @@ interface UploadActivity {
 }
 
 let running: AbortController | null = null;
+let reserved: QueueReservation | null = null;
 let activity: UploadActivity | null = null;
 const { subscribe, emit } = createEmitter();
+
+/**
+ * The upload queue's claim on the board from the first check to the last file. It covers the questions to the user,
+ * which come before the upload lock: another queue or another lock user cannot start meanwhile, and the queue's own
+ * sending passes the reservation to take the lock.
+ */
+export interface QueueReservation {
+  release: () => void;
+}
+
+/** Reserves the one upload queue for the whole app, or returns null when a queue or an upload already holds it. */
+export function reserveUploadQueue(): QueueReservation | null {
+  if (running || reserved) return null;
+  const reservation: QueueReservation = {
+    release: () => {
+      if (reserved !== reservation) return;
+      reserved = null;
+      emit();
+    },
+  };
+  reserved = reservation;
+  emit();
+  return reservation;
+}
 
 function setRunning(controller: AbortController | null, next: UploadActivity | null = null): void {
   running = controller;
@@ -50,8 +75,9 @@ function setRunning(controller: AbortController | null, next: UploadActivity | n
   emit();
 }
 
-/** True while any view is uploading. */
-export const useUploadRunning = (): boolean => useSyncExternalStore(subscribe, () => running !== null);
+/** True while any view is uploading, or its queue is checking files and asking questions before the upload. */
+export const useUploadRunning = (): boolean =>
+  useSyncExternalStore(subscribe, () => running !== null || reserved !== null);
 
 /** The work that runs now, for the activity panel, or null. */
 export const useUploadActivity = (): UploadActivity | null => useSyncExternalStore(subscribe, () => activity);
@@ -69,10 +95,15 @@ interface LockHandle {
 
 /**
  * Runs `task` while holding the one upload lock; the board takes one upload at a time. Throws `upload_busy` when
- * the lock is taken. The lock lives here, not in a component that a view switch can unmount.
+ * the lock is taken or the queue is reserved by someone else: only the holder of `reservation` may take the lock
+ * meanwhile. The lock lives here, not in a component that a view switch can unmount.
  */
-export async function withUploadLock<T>(initial: UploadActivity, task: (lock: LockHandle) => Promise<T>): Promise<T> {
-  if (running) throw new BoardError(UPLOAD_BUSY, BUSY_MESSAGE);
+export async function withUploadLock<T>(
+  initial: UploadActivity,
+  task: (lock: LockHandle) => Promise<T>,
+  reservation?: QueueReservation,
+): Promise<T> {
+  if (running || (reserved && reserved !== reservation)) throw new BoardError(UPLOAD_BUSY, BUSY_MESSAGE);
   const controller = new AbortController();
   setRunning(controller, initial);
   try {
@@ -105,27 +136,31 @@ export async function sendQueue(
   client: BoardClient,
   sends: PlanEntry[],
   skipped: QueueSummary["skipped"],
+  reservation?: QueueReservation,
 ): Promise<QueueSummary> {
   const first = sends[0];
   const initial: UploadActivity = { label: "Preparing the upload", done: 0, total: first?.file.bytes.length ?? 0 };
-  return withUploadLock(initial, (lock) =>
-    runSends(sends, skipped, async (file, index, total) => {
-      if (lock.signal.aborted) return { status: "cancelled" };
-      lock.update({
-        label: `Uploading ${file.kind} ${file.id}`,
-        step: `File ${index + 1} of ${total}`,
-        done: 0,
-        total: file.bytes.length,
-      });
-      try {
-        const warnings = await uploadFile(client, file.kind, file.id, file.bytes, {
-          signal: lock.signal,
-          onProgress: (done, size) => lock.update({ done, total: size }),
+  return withUploadLock(
+    initial,
+    (lock) =>
+      runSends(sends, skipped, async (file, index, total) => {
+        if (lock.signal.aborted) return { status: "cancelled" };
+        lock.update({
+          label: `Uploading ${file.kind} ${file.id}`,
+          step: `File ${index + 1} of ${total}`,
+          done: 0,
+          total: file.bytes.length,
         });
-        return { status: "done", warnings };
-      } catch (error) {
-        return outcomeOf(error);
-      }
-    }),
+        try {
+          const warnings = await uploadFile(client, file.kind, file.id, file.bytes, {
+            signal: lock.signal,
+            onProgress: (done, size) => lock.update({ done, total: size }),
+          });
+          return { status: "done", warnings };
+        } catch (error) {
+          return outcomeOf(error);
+        }
+      }),
+    reservation,
   );
 }

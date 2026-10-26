@@ -181,9 +181,13 @@ export class ImprovClient {
     this.busy = true;
     const previous = this.link.onFrame;
     return new Promise<void>((resolve, reject) => {
+      // A request ends once: a write that fails after the timeout must not undo the request that followed it.
+      let settled = false;
       const finish = (error?: ImprovError): void => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
-        this.link.onFrame = previous;
+        if (this.link.onFrame === handler) this.link.onFrame = previous;
         this.busy = false;
         if (error) reject(error);
         else resolve();
@@ -192,10 +196,11 @@ export class ImprovClient {
         () => finish(new ImprovError("timeout", "The board did not answer in time.")),
         timeoutMs,
       );
-      this.link.onFrame = (received) => {
+      const handler = (received: ImprovFrame): void => {
         if (received.type === FrameType.ErrorState && received.data[0]) finish(errorOf(received.data[0]));
         else if (done(received)) finish();
       };
+      this.link.onFrame = handler;
       this.link
         .send(frame)
         .catch((error: unknown) =>

@@ -268,6 +268,36 @@ describe("ImprovClient", () => {
     expect(await again).toMatchObject({ code: "timeout" });
   });
 
+  it("ends a request once: a write that fails after the timeout does not disturb the next request", async () => {
+    let failFirstWrite: (error: Error) => void = () => undefined;
+    let writes = 0;
+    const link: ImprovLink = {
+      onFrame: null,
+      send() {
+        writes++;
+        if (writes === 1) return new Promise<void>((_, reject) => (failFirstWrite = reject));
+        // The second request is answered a little later, after the first write fails.
+        setTimeout(() => link.onFrame?.(frameOf(state(4))), 50);
+        return Promise.resolve();
+      },
+    };
+    const client = new ImprovClient(link, { scanMs: 100, provisionMs: 1_000 });
+    const scan = client.scan().catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await scan).toMatchObject({ code: "timeout" });
+
+    const provision = client.provision("a", "b");
+    const handler = link.onFrame;
+    failFirstWrite(new Error("the serial port is closed"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(link.onFrame).toBe(handler);
+    await expect(client.scan()).rejects.toMatchObject({ code: "busy" });
+
+    await vi.advanceTimersByTimeAsync(50);
+    await expect(provision).resolves.toBeUndefined();
+    expect(link.onFrame).toBeNull();
+  });
+
   it("refuses a bad name or password before it sends anything", async () => {
     const link = fakeLink(() => []);
     await expect(new ImprovClient(link).provision("", "x")).rejects.toBeInstanceOf(ImprovError);

@@ -62,7 +62,7 @@ bool Playlist::load(const char *json, size_t length, std::vector<Diagnostic> &di
     if (!is_allowed_key(kv.key(), {"format", "name", "canvas", "items"}))
       error("structure", kv.key().c_str(), std::string("unknown field \"") + kv.key().c_str() + "\"");
 
-  if (!root["name"].isNull())
+  if (root["name"].is<JsonVariantConst>())
   {
     const char *name = root["name"].as<const char *>();
     if (!name || !*name || utf8_code_points(name) > 128)
@@ -108,7 +108,7 @@ bool Playlist::load(const char *json, size_t length, std::vector<Diagnostic> &di
       continue;
     }
     long repeat = 1;
-    if (!item["repeat"].isNull())
+    if (item["repeat"].is<JsonVariantConst>())
     {
       if (!item["repeat"].is<long>() || item["repeat"].as<long>() < 1 ||
           item["repeat"].as<long>() > MAX_PLAYLIST_REPEAT)
@@ -119,7 +119,7 @@ bool Playlist::load(const char *json, size_t length, std::vector<Diagnostic> &di
       repeat = item["repeat"].as<long>();
     }
     bool enabled = true;
-    if (!item["enabled"].isNull())
+    if (item["enabled"].is<JsonVariantConst>())
     {
       if (!item["enabled"].is<bool>())
       {

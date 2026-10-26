@@ -55,7 +55,7 @@ timeline:
 | ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `format`      | yes      | Always `pixelart/1` for this version. A board rejects versions it does not know.                                                                                      |
 | `name`        | yes      | Title shown to people, for example in the web app. It is not the ID (see [Files](#files)).                                                                            |
-| `version`     | no       | Positive integer, increased by the author on every change. Update manifests use it to show what changed. Default `1`.                                                 |
+| `version`     | no       | Integer from 1 to 2,147,483,647, increased by the author on every change. Update manifests use it to show what changed. Default `1`.                                  |
 | `author`      | no       | Free text.                                                                                                                                                            |
 | `description` | no       | Free text.                                                                                                                                                            |
 | `canvas`      | yes      | `{ width: 16, height: 16 }`, the size of the matrix the animation is drawn for. Version 1 supports only 16x16, see [Coordinates and canvas](#coordinates-and-canvas). |
@@ -65,6 +65,8 @@ timeline:
 | `palette`     | no       | Named colors, see [Colors](#colors).                                                                                                                                  |
 | `sprites`     | yes      | The pictures the animation is made of, see [Sprites](#sprites).                                                                                                       |
 | `timeline`    | yes      | What to show and when, see [Timeline](#timeline).                                                                                                                     |
+
+A field that is present is always checked, and `null` is a value like any other: `frame_ms: null` or `at: null` is an error, never the same as leaving the field out. This holds for every optional field at every level, in the top-level fields, in sprites, parts, `show` entries, loops and `recolor`.
 
 ## Colors
 
@@ -337,26 +339,27 @@ timeline:
 
 Animations can come from any source, including URLs typed by users, so every implementation enforces these limits before playing anything. A file that breaks one of them is rejected as a whole.
 
-| Limit                                                               | Value           |
-| ------------------------------------------------------------------- | --------------- |
-| File size (JSON, as stored on the board)                            | 64 KiB          |
-| Canvas                                                              | exactly 16 x 16 |
-| Palette entries                                                     | 256             |
-| Different colors in the whole animation                             | 256             |
-| Sprites                                                             | 64              |
-| Points, counted once per sprite definition                          | 4,096           |
-| Composite nesting depth                                             | 4               |
-| Parts in one composite sprite                                       | 64              |
-| Pixels drawn in one frame, counting every part of composite sprites | 4,096           |
-| Loop nesting depth                                                  | 4               |
-| Timeline items, frames and loops at all levels                      | 1,024           |
-| Entries in one `show` list                                          | 32              |
-| `repeat` and `loop`                                                 | 1 to 10,000     |
-| `frame_ms` and `ms`                                                 | 20 to 60,000    |
-| `brightness`                                                        | 1 to 100        |
-| Coordinates, `at`, `move` and `pivot` values                        | -128 to 127     |
-| `name` and `author`                                                 | 128 characters  |
-| `description`                                                       | 512 characters  |
+| Limit                                                               | Value              |
+| ------------------------------------------------------------------- | ------------------ |
+| File size (JSON, as stored on the board)                            | 64 KiB             |
+| Canvas                                                              | exactly 16 x 16    |
+| Palette entries                                                     | 256                |
+| Different colors in the whole animation                             | 256                |
+| Sprites                                                             | 64                 |
+| Points, counted once per sprite definition                          | 4,096              |
+| Composite nesting depth                                             | 4                  |
+| Parts in one composite sprite                                       | 64                 |
+| Pixels drawn in one frame, counting every part of composite sprites | 4,096              |
+| Loop nesting depth                                                  | 4                  |
+| Timeline items, frames and loops at all levels                      | 1,024              |
+| Entries in one `show` list                                          | 32                 |
+| `repeat` and `loop`                                                 | 1 to 10,000        |
+| `frame_ms` and `ms`                                                 | 20 to 60,000       |
+| `brightness`                                                        | 1 to 100           |
+| `version`                                                           | 1 to 2,147,483,647 |
+| Coordinates, `at`, `move` and `pivot` values                        | -128 to 127        |
+| `name` and `author`                                                 | 128 characters     |
+| `description`                                                       | 512 characters     |
 
 For reference, the largest current animation (`snow_globe`) is about 4.5 KB with 555 points, 4 sprites and 12 colors.
 

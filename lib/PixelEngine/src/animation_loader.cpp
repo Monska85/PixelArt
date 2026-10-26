@@ -63,6 +63,9 @@ std::string index_path(const std::string &base, size_t i) { return base + "[" + 
 
 std::string key_path(const std::string &base, const char *key) { return base.empty() ? key : base + "." + key; }
 
+// True when the property exists, whatever its value: a present null is not an absent field.
+bool is_present(JsonVariantConst value) { return value.is<JsonVariantConst>(); }
+
 } // namespace
 
 // Fills an Animation from a JSON document, collecting every error and warning.
@@ -265,7 +268,7 @@ bool Loader::get_color(JsonVariantConst value, const std::string &where, uint8_t
 
 void Loader::parse_palette(JsonVariantConst value)
 {
-  if (value.isNull())
+  if (!is_present(value))
     return;
   JsonObjectConst object = value.as<JsonObjectConst>();
   if (!value.is<JsonObjectConst>())
@@ -337,12 +340,12 @@ void Loader::parse_sprite(Sprite &sprite, JsonVariantConst value, const std::str
     return;
   }
   check_keys(object, {"at", "pivot", "points", "parts"}, where);
-  if (!object["at"].isNull())
+  if (is_present(object["at"]))
     get_position(object["at"], key_path(where, "at"), sprite.at);
-  if (!object["pivot"].isNull() && get_position(object["pivot"], key_path(where, "pivot"), sprite.pivot))
+  if (is_present(object["pivot"]) && get_position(object["pivot"], key_path(where, "pivot"), sprite.pivot))
     sprite.has_pivot = true;
 
-  bool has_points = !object["points"].isNull(), has_parts = !object["parts"].isNull();
+  bool has_points = is_present(object["points"]), has_parts = is_present(object["parts"]);
   if (has_points == has_parts)
     error("structure", where, "a sprite needs either \"points\" or \"parts\", not both");
   else if (has_points)
@@ -486,7 +489,7 @@ void Loader::parse_parts(Sprite &sprite, JsonVariantConst value, const std::stri
         continue;
       }
       name = object["sprite"].as<const char *>();
-      if (!object["at"].isNull() && get_position(object["at"], key_path(at, "at"), part.at))
+      if (is_present(object["at"]) && get_position(object["at"], key_path(at, "at"), part.at))
         part.has_at = true;
     }
     else
@@ -591,7 +594,7 @@ bool Loader::check_sprite_graph()
 bool Loader::optional_position(JsonObjectConst object, const char *key, const std::string &where, bool &present,
                                Animation::Pos &out)
 {
-  if (object[key].isNull())
+  if (!is_present(object[key]))
     return true;
   present = get_position(object[key], key_path(where, key), out);
   return present;
@@ -643,7 +646,7 @@ bool Loader::parse_ref(JsonVariantConst value, const std::string &where, Ref &re
   if (!optional_position(object, "pivot", where, ref.has_pivot, ref.pivot))
     ok = false;
 
-  if (!object["wrap"].isNull())
+  if (is_present(object["wrap"]))
   {
     if (object["wrap"].is<bool>())
       ref.wrap = object["wrap"].as<bool>();
@@ -653,12 +656,12 @@ bool Loader::parse_ref(JsonVariantConst value, const std::string &where, Ref &re
       ok = false;
     }
   }
-  if (!object["rotate"].isNull() && !parse_angle(object["rotate"], key_path(where, "rotate"), ref.rotate))
+  if (is_present(object["rotate"]) && !parse_angle(object["rotate"], key_path(where, "rotate"), ref.rotate))
     ok = false;
-  if (!object["spin"].isNull() && !parse_angle(object["spin"], key_path(where, "spin"), ref.spin))
+  if (is_present(object["spin"]) && !parse_angle(object["spin"], key_path(where, "spin"), ref.spin))
     ok = false;
 
-  if (!object["flip"].isNull())
+  if (is_present(object["flip"]))
   {
     const char *flip = object["flip"].as<const char *>();
     std::string f = flip ? flip : "";
@@ -682,9 +685,9 @@ void Loader::parse_frame(JsonObjectConst object, const std::string &where, Item 
   check_keys(object, {"show", "ms", "repeat", "recolor"}, where);
   long value;
   item.ms = frame_ms_;
-  if (!object["ms"].isNull() && get_int(object["ms"], MIN_MS, MAX_MS, key_path(where, "ms"), value))
+  if (is_present(object["ms"]) && get_int(object["ms"], MIN_MS, MAX_MS, key_path(where, "ms"), value))
     item.ms = (uint16_t)value;
-  if (!object["repeat"].isNull() && get_int(object["repeat"], 1, MAX_COUNT, key_path(where, "repeat"), value))
+  if (is_present(object["repeat"]) && get_int(object["repeat"], 1, MAX_COUNT, key_path(where, "repeat"), value))
     item.count = (uint16_t)value;
 
   JsonArrayConst show = object["show"].as<JsonArrayConst>();
@@ -715,7 +718,7 @@ void Loader::parse_frame(JsonObjectConst object, const std::string &where, Item 
   }
 
   JsonVariantConst recolor = object["recolor"];
-  if (recolor.isNull())
+  if (!is_present(recolor))
     return;
   std::string recolor_where = key_path(where, "recolor");
   JsonObjectConst map = recolor.as<JsonObjectConst>();
@@ -796,8 +799,8 @@ void Loader::parse_items(JsonVariantConst value, const std::string &where, int d
       return;
     }
     JsonObjectConst object = entry.as<JsonObjectConst>();
-    bool is_loop = entry.is<JsonObjectConst>() && !object["loop"].isNull();
-    bool is_frame = entry.is<JsonObjectConst>() && !object["show"].isNull();
+    bool is_loop = entry.is<JsonObjectConst>() && is_present(object["loop"]);
+    bool is_frame = entry.is<JsonObjectConst>() && is_present(object["show"]);
     if (is_loop == is_frame)
     {
       error("structure", at, "an item is either a frame (\"show\") or a loop (\"loop\" and \"steps\")");
@@ -862,40 +865,39 @@ bool Loader::run(const char *json, size_t length)
               "palette", "sprites", "timeline"},
              "");
   for (const char *key : {"name", "canvas", "sprites", "timeline"})
-    if (root[key].isNull())
+    if (!is_present(root[key]))
       error("structure", key, std::string("missing required field \"") + key + "\"");
 
-  if (!root["name"].isNull())
+  if (is_present(root["name"]))
     get_string(root["name"], 128, false, "name");
   long value;
-  if (!root["version"].isNull())
+  if (is_present(root["version"]))
     get_int(root["version"], 1, 0x7fffffff, "version", value);
-  if (!root["author"].isNull())
+  if (is_present(root["author"]))
     get_string(root["author"], 128, true, "author");
-  if (!root["description"].isNull())
+  if (is_present(root["description"]))
     get_string(root["description"], 512, true, "description");
-  if (!root["canvas"].isNull())
+  if (is_present(root["canvas"]))
   {
     JsonObjectConst canvas = root["canvas"].as<JsonObjectConst>();
     if (!root["canvas"].is<JsonObjectConst>() || canvas.size() != 2 || canvas["width"].as<long>() != CANVAS_WIDTH ||
         canvas["height"].as<long>() != CANVAS_HEIGHT || !canvas["width"].is<long>() || !canvas["height"].is<long>())
       error("structure", "canvas", "must be { width: 16, height: 16 }");
   }
-  if (!root["frame_ms"].isNull() && get_int(root["frame_ms"], MIN_MS, MAX_MS, "frame_ms", value))
+  if (is_present(root["frame_ms"]) && get_int(root["frame_ms"], MIN_MS, MAX_MS, "frame_ms", value))
     frame_ms_ = (uint16_t)value;
-  // A present null is an error, unlike the optional fields above that ignore it.
-  if (root["brightness"].is<JsonVariantConst>() &&
+  if (is_present(root["brightness"]) &&
       get_int(root["brightness"], MIN_BRIGHTNESS_PERCENT, MAX_BRIGHTNESS_PERCENT, "brightness", value))
     a_.brightness_ = (uint8_t)value;
 
   parse_palette(root["palette"]);
-  if (!root["background"].isNull() && get_color(root["background"], "background", a_.background_))
+  if (is_present(root["background"]) && get_color(root["background"], "background", a_.background_))
     a_.has_background_ = true;
-  if (!root["sprites"].isNull())
+  if (is_present(root["sprites"]))
     parse_sprites(root["sprites"]);
 
   JsonVariantConst timeline = root["timeline"];
-  if (!timeline.isNull())
+  if (is_present(timeline))
   {
     if (!timeline.is<JsonArrayConst>() || timeline.as<JsonArrayConst>().size() == 0)
       error("structure", "timeline", "must be a non-empty list of frames and loops");

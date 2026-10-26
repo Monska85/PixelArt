@@ -147,11 +147,31 @@ describe("animation loader", () => {
     expect(codes(base().replace('"height":16', '"height":16,"depth":1'))).toContain("error:structure@canvas");
   });
 
-  it("treats a null brightness as an error and other null options as absent", () => {
-    expect(codes(base({ brightness: null }))).toContain("error:structure@brightness");
-    for (const key of ["version", "author", "description", "frame_ms", "background", "palette"])
-      expect(loadAnimation(text(base({ [key]: null }))).animation, key).not.toBeNull();
-    expect(codes(base({ name: null }))).toContain("error:structure@name");
+  it("accepts a version up to 2147483647 and refuses a larger one", () => {
+    expect(loadAnimation(text(base({ version: 2147483647 }))).animation?.version).toBe(2147483647);
+    expect(codes(base({ version: 2147483648 }))).toContain("error:structure@version");
+    expect(codes(base({ version: 0 }))).toContain("error:structure@version");
+  });
+
+  it("treats a present null as an error in every optional field, unlike an absent field", () => {
+    expect(loadAnimation(text(base())).animation).not.toBeNull();
+    for (const key of ["brightness", "version", "author", "description", "frame_ms", "palette", "name"])
+      expect(codes(base({ [key]: null })), key).toContain(`error:structure@${key}`);
+    expect(codes(base({ background: null }))).toContain("error:unknown_color@background");
+  });
+
+  it("treats a present null as an error in the optional fields of sprites, frames and references", () => {
+    const sprite = (extra: object) => ({ a: { points: [[1, 1, "#ff0000"]], ...extra } });
+    for (const key of ["at", "pivot"])
+      expect(codes(base({ sprites: sprite({ [key]: null }) })), key).toContain(`error:structure@sprites.a.${key}`);
+    for (const key of ["at", "move", "pivot", "wrap", "rotate", "spin", "flip"])
+      expect(codes(base({ timeline: [{ show: [{ sprite: "a", [key]: null }] }] })), key).toContain(
+        `error:structure@timeline[0].show[0].${key}`,
+      );
+    for (const key of ["ms", "repeat", "recolor"])
+      expect(codes(base({ timeline: [{ show: ["a"], [key]: null }] })), key).toContain(
+        `error:structure@timeline[0].${key}`,
+      );
   });
 
   it("treats a null required field as missing", () => {
@@ -262,9 +282,12 @@ describe("playlist loader", () => {
     ]);
   });
 
-  it("treats null repeat and enabled as absent", () => {
-    expect(loadPlaylist(playlist([{ animation: "a", repeat: null, enabled: null }])).items).toEqual([
-      { animation: "a", repeat: 1 },
+  it("treats a present null repeat, enabled or name as an error", () => {
+    expect(loadPlaylist(playlist([{ animation: "a", repeat: null }])).diagnostics).toEqual([
+      expect.objectContaining({ code: "structure", where: "items[0].repeat" }),
+    ]);
+    expect(loadPlaylist(playlist([{ animation: "a", enabled: null }])).diagnostics).toEqual([
+      expect.objectContaining({ code: "structure", where: "items[0].enabled" }),
     ]);
   });
 

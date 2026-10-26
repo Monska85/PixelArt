@@ -3,7 +3,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BoardClient, sha256Hex } from "../src/protocol";
 import type { PlanEntry } from "../src/queue/plan";
-import { blockedOrBusy, cancelRunningUpload, sendQueue, uploadBlockedReason, UPLOAD_BUSY } from "../src/ui/upload";
+import {
+  blockedOrBusy,
+  cancelRunningUpload,
+  reserveUploadQueue,
+  sendQueue,
+  uploadBlockedReason,
+  withUploadLock,
+  UPLOAD_BUSY,
+} from "../src/ui/upload";
 import { FakeBoard } from "./fakeBoard";
 import { text } from "./helpers";
 
@@ -49,6 +57,69 @@ describe("the upload lock", () => {
     cancelRunningUpload();
     expect((await first).cancelled).toBe(true);
     expect((await sendQueue(client, await one("two"), [])).uploaded).toHaveLength(1);
+  });
+});
+
+describe("the upload queue reservation", () => {
+  let board: FakeBoard;
+  let client: BoardClient;
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    board = new FakeBoard();
+    client = new BoardClient(board, { firstSeq: 1 });
+    await client.handshake();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const one = async (id: string): Promise<PlanEntry[]> => {
+    const bytes = animation(id);
+    return [
+      {
+        file: { kind: "animation", id, bytes, sha256: await sha256Hex(bytes), origin: id },
+        status: "missing",
+        stored: null,
+      },
+    ];
+  };
+
+  it("lets one entry point hold the queue while another is refused, until the first releases it", () => {
+    const first = reserveUploadQueue();
+    expect(first).not.toBeNull();
+    expect(reserveUploadQueue()).toBeNull();
+    first?.release();
+    const second = reserveUploadQueue();
+    expect(second).not.toBeNull();
+    second?.release();
+  });
+
+  it("releases only once, so a late release never frees the next holder's reservation", () => {
+    const first = reserveUploadQueue();
+    first?.release();
+    const second = reserveUploadQueue();
+    first?.release();
+    expect(reserveUploadQueue()).toBeNull();
+    second?.release();
+  });
+
+  it("keeps the upload lock from anyone but the holder while the queue asks its questions", async () => {
+    const reservation = reserveUploadQueue();
+    const initial = { label: "x", done: 0, total: 0 };
+    await expect(withUploadLock(initial, async () => 1)).rejects.toMatchObject({ code: UPLOAD_BUSY });
+    await expect(sendQueue(client, await one("other"), [])).rejects.toMatchObject({ code: UPLOAD_BUSY });
+    expect((await sendQueue(client, await one("mine"), [], reservation ?? undefined)).uploaded).toHaveLength(1);
+    expect(board.files.animation.has("mine")).toBe(true);
+    expect(board.files.animation.has("other")).toBe(false);
+    reservation?.release();
+    expect(await withUploadLock(initial, async () => 1)).toBe(1);
+  });
+
+  it("refuses a reservation while an upload runs", async () => {
+    const running = sendQueue(client, await one("one"), []);
+    expect(reserveUploadQueue()).toBeNull();
+    await running;
+    const after = reserveUploadQueue();
+    expect(after).not.toBeNull();
+    after?.release();
   });
 });
 

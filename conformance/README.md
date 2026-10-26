@@ -52,6 +52,10 @@ For a valid playlist, the expected file lists the enabled items in order:
 
 Files are strict JSON in valid UTF-8 and text lengths count characters, as the [format specification](../docs/format/pixelart-v1.md#files) says. The `strict_json_*` cases in `invalid/` and `playlist/invalid/` each break one rule (comment, single quotes, unquoted key, a number outside the JSON grammar, a raw control character, data after the value, byte order mark, invalid, overlong or surrogate UTF-8, U+0000 in a text or a key, a fraction or exponent where an integer is required) and expect `structure`. The `name_128_characters` and `name_129_characters` cases use the two-byte character `é`, so the byte count of the name is twice its length.
 
+## Null cases
+
+A field that is present is checked even when its value is `null`, as the format specifications say. The `null_*` cases in `invalid/` and `playlist/invalid/` each set one optional field to `null` (top-level fields, sprite and part positions, the fields of a `show` entry, the fields of a frame, a frame inside a loop, the playlist fields) and expect `structure`. The `version_max` and `version_over_max` cases are the pair for the largest `version`, 2147483647.
+
 ## Brightness rows
 
 `brightness.json` is not a case file: it holds the hand-computed rows of the effective brightness rule ([format specification](../docs/format/pixelart-v1.md#brightness)). Its shape is `{"description": "...", "rows": [{"board": 100, "percent": 50, "expected": 50}]}`: the board brightness (0 to 255), the animation's percentage (1 to 100) and the brightness the LEDs must receive. The C++ test `test_effective_brightness_rule` and the web app engine tests read the same rows.

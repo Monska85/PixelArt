@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { isValidId } from "../../engine";
 import { sha256Hex, type BoardClient, type Kind } from "../../protocol";
 import { type QueueFile, type QueueSummary } from "../../queue/plan";
@@ -12,7 +12,7 @@ import { toast } from "../components/toast";
 import { shownError, toShownError, type ShownError } from "../errors";
 import { SUPPORTED_FILE, idFromFileName, inspectFile, readPicked, suggestId, validateFile } from "../files";
 import { session } from "../session";
-import { sendQueue, useUploadRunning } from "../upload";
+import { reserveUploadQueue, sendQueue, useUploadRunning, type QueueReservation } from "../upload";
 import { refusalProblem, summaryReport, type QueueOutcome } from "./summary";
 
 interface QueueOptions {
@@ -65,7 +65,6 @@ export interface UploadQueue {
  */
 export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQueue {
   const [busy, setBusy] = useState(false);
-  const running = useRef(false);
   const uploading = useUploadRunning();
   const { dialogs, askId, askDiffering, askMissing } = useUploadDialogs();
 
@@ -75,27 +74,35 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
     return { status: "refused", refusal, shown };
   };
 
-  /** Ends the queue the same way every time, so a failure on the way never leaves the pickers disabled. */
+  /**
+   * Holds the app's one upload queue from the preparation to the last file, and ends it the same way every time, so a
+   * failure on the way never leaves the pickers disabled or the queue reserved.
+   */
   async function exclusive<T extends QueueOutcome | null>(
     quiet: boolean | undefined,
-    task: (client: BoardClient) => Promise<T>,
+    task: (client: BoardClient, reservation: QueueReservation) => Promise<T>,
   ): Promise<QueueOutcome | T> {
-    if (running.current || uploading) return refuse({ reason: "busy" }, quiet);
     if (!client) return refuse({ reason: "not_connected" }, quiet);
-    running.current = true;
+    const reservation = reserveUploadQueue();
+    if (!reservation) return refuse({ reason: "busy" }, quiet);
     setBusy(true);
     try {
-      return await task(client);
+      return await task(client, reservation);
     } catch (error) {
       return refuse({ reason: "failed", error }, quiet);
     } finally {
-      running.current = false;
+      reservation.release();
       setBusy(false);
     }
   }
 
   /** Runs the queue once and hands the user's side of it (questions, notices, space, sending) to the page. */
-  async function run(client: BoardClient, input: QueueFile[], options: QueueOptions): Promise<QueueOutcome> {
+  async function run(
+    client: BoardClient,
+    input: QueueFile[],
+    options: QueueOptions,
+    reservation: QueueReservation,
+  ): Promise<QueueOutcome> {
     const result = await runQueue(
       {
         client,
@@ -113,7 +120,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
           if (!(await session.refreshInfo())) throw new Error("The board did not report its free space.");
           return session.getSnapshot().info?.storage ?? null;
         },
-        send: (sends, skipped) => sendQueue(client, sends, skipped),
+        send: (sends, skipped) => sendQueue(client, sends, skipped, reservation),
         manifest: options.manifest,
       },
       input,
@@ -151,12 +158,12 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
   }
 
   const uploadPrepared = async (files: QueueFile[], options: QueueOptions = {}): Promise<QueueOutcome> =>
-    exclusive(options.quiet, (client) => run(client, files, options));
+    exclusive(options.quiet, (client, reservation) => run(client, files, options, reservation));
 
   async function uploadFiles(picked: File[]): Promise<QueueOutcome | null> {
     const list = picked.filter((file) => SUPPORTED_FILE.test(file.name));
     if (list.length === 0) return null;
-    return exclusive(false, async (client) => {
+    return exclusive(false, async (client, reservation) => {
       const files: QueueFile[] = [];
       for (const file of list) {
         let bytes: Uint8Array;
@@ -190,7 +197,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
         });
       }
       if (files.length === 0) return null;
-      return run(client, files, {});
+      return run(client, files, {}, reservation);
     });
   }
 
@@ -204,7 +211,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
     items: Array<{ kind: PublishedKind; entry: Published }>,
     manifest: Manifest,
   ): Promise<QueueOutcome | null> {
-    return exclusive(false, async (client) => {
+    return exclusive(false, async (client, reservation) => {
       const files: QueueFile[] = [];
       for (const { kind, entry } of items) {
         const where = `Installing ${kind} ${entry.id}`;
@@ -225,7 +232,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
         }
       }
       if (files.length === 0) return null;
-      return run(client, files, { manifest, verb: "Installed" });
+      return run(client, files, { manifest, verb: "Installed" }, reservation);
     });
   }
 

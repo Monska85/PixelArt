@@ -25,7 +25,8 @@ import {
   type PlaylistResult,
 } from "./types";
 
-const isNull = (value: JsonValue | undefined): boolean => value === undefined || value === null;
+// A property that is present with the value null is not absent: it is validated like any other value.
+const isAbsent = (value: JsonValue | undefined): boolean => value === undefined;
 
 /** Parses and validates a pixelart-playlist/1 file. Disabled items are dropped. */
 export function loadPlaylist(bytes: Uint8Array): PlaylistResult {
@@ -58,7 +59,7 @@ export function loadPlaylist(bytes: Uint8Array): PlaylistResult {
     if (!["format", "name", "canvas", "items"].includes(key)) error("structure", key, `unknown field "${key}"`);
 
   const name = root.get("name");
-  if (!isNull(name) && (typeof name !== "string" || name === "" || codePointLength(name) > 128))
+  if (!isAbsent(name) && (typeof name !== "string" || name === "" || codePointLength(name) > 128))
     error("structure", "name", "must be a text of 1 to 128 characters");
 
   const canvas = root.get("canvas");
@@ -97,7 +98,7 @@ export function loadPlaylist(bytes: Uint8Array): PlaylistResult {
     }
     let repeat = 1;
     const repeatValue = item.get("repeat");
-    if (!isNull(repeatValue)) {
+    if (!isAbsent(repeatValue)) {
       if (!isInteger(repeatValue) || repeatValue.value < 1 || repeatValue.value > MAX_PLAYLIST_REPEAT) {
         error("structure", `${where}.repeat`, `must be an integer from 1 to ${MAX_PLAYLIST_REPEAT}`);
         return;
@@ -106,7 +107,7 @@ export function loadPlaylist(bytes: Uint8Array): PlaylistResult {
     }
     let enabled = true;
     const enabledValue = item.get("enabled");
-    if (!isNull(enabledValue)) {
+    if (!isAbsent(enabledValue)) {
       if (typeof enabledValue !== "boolean") {
         error("structure", `${where}.enabled`, "must be true or false");
         return;

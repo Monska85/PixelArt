@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Animation, Frame } from "../../engine";
 import type { Path } from "../../editor/doc";
-import { firstFrameOf, frameAt } from "../../editor/preview";
+import { FrameCursor } from "../../editor/preview";
 import { Pause, Play, StepForward } from "lucide-react";
 import { CANVAS_CLASS } from "../board/Preview";
 import { drawFrame } from "../common/drawFrame";
@@ -24,17 +24,17 @@ interface Shown {
 }
 
 /** Frame `n` of the animation, or null past its end. */
-function shownAt(animation: Animation, n: number): Shown | null {
-  const at = frameAt(animation, n);
+function shownAt(cursor: FrameCursor, n: number): Shown | null {
+  const at = cursor.frameAt(n);
   return at ? { n, ...at } : null;
 }
 
-const startFrame = (animation: Animation, selected: Path | null): Shown | null =>
-  shownAt(animation, (selected && firstFrameOf(animation, selected)) || 1);
+const startFrame = (cursor: FrameCursor, selected: Path | null): Shown | null =>
+  shownAt(cursor, (selected && cursor.firstFrameOf(selected)) || 1);
 
 /** The frame after `current`, back to the first after the last. */
-const step = (current: Shown, animation: Animation): Shown | null =>
-  shownAt(animation, current.n + 1) ?? shownAt(animation, 1);
+const step = (current: Shown, cursor: FrameCursor): Shown | null =>
+  shownAt(cursor, current.n + 1) ?? shownAt(cursor, 1);
 
 /** Plays the animation with play, pause and step, and says which timeline item made the frame. */
 export function EditorPreview({ animation, selected }: Props) {
@@ -42,6 +42,8 @@ export function EditorPreview({ animation, selected }: Props) {
   const [playing, setPlaying] = useState(true);
   const canvas = useRef<HTMLCanvasElement>(null);
   const selectedKey = selected ? selected.join(".") : null;
+  // One cursor per animation: playing moves it one frame at a time instead of searching from the start.
+  const cursor = useMemo(() => (animation ? new FrameCursor(animation) : null), [animation]);
 
   // A new animation or a new selection starts at the first frame of the selection, or at frame 1.
   const [basis, setBasis] = useState<{ animation: Animation | null; key: string | null }>({
@@ -50,7 +52,7 @@ export function EditorPreview({ animation, selected }: Props) {
   });
   if (basis.animation !== animation || basis.key !== selectedKey) {
     setBasis({ animation, key: selectedKey });
-    setShown(animation ? startFrame(animation, selected) : null);
+    setShown(cursor ? startFrame(cursor, selected) : null);
   }
 
   useEffect(() => {
@@ -58,13 +60,10 @@ export function EditorPreview({ animation, selected }: Props) {
   }, [shown]);
 
   useEffect(() => {
-    if (!playing || !shown || !animation) return;
-    const timer = setTimeout(
-      () => setShown((current) => (current ? step(current, animation) : current)),
-      shown.frame.ms,
-    );
+    if (!playing || !shown || !cursor) return;
+    const timer = setTimeout(() => setShown((current) => (current ? step(current, cursor) : current)), shown.frame.ms);
     return () => clearTimeout(timer);
-  }, [playing, shown, animation]);
+  }, [playing, shown, cursor]);
 
   return (
     <EditorCard id="preview" title="Preview">
@@ -97,7 +96,7 @@ export function EditorPreview({ animation, selected }: Props) {
             disabled={!animation || !shown}
             onClick={() => {
               setPlaying(false);
-              if (animation && shown) setShown(step(shown, animation));
+              if (cursor && shown) setShown(step(shown, cursor));
             }}
           >
             <StepForward aria-hidden="true" />

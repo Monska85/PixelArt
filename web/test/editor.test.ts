@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   addColor,
   addFrame,
@@ -37,9 +37,9 @@ import {
 } from "../src/editor/doc";
 import { hasComments } from "../src/editor/comments";
 import { parseDraftDocument } from "../src/ui/editor/drafts";
-import { firstFrameOf, frameAt } from "../src/editor/preview";
+import { FrameCursor, firstFrameOf, frameAt } from "../src/editor/preview";
 import { initialState, reduce, MAX_UNDO, type EditorState } from "../src/editor/state";
-import { JsonNumber, Player, isObject, loadAnimation } from "../src/engine";
+import { JsonNumber, Player, isObject, loadAnimation, type Animation } from "../src/engine";
 import { readYaml } from "../src/yaml/read";
 import { jsonBytes, writeJson } from "../src/yaml/writeJson";
 import { writeYaml } from "../src/yaml/writeYaml";
@@ -593,6 +593,58 @@ describe("player item tracking", () => {
     const direct = new Player(animation);
     direct.skip(3);
     expect(frameAt(animation, 4)?.frame.pixels).toEqual(direct.next()?.pixels);
+  });
+});
+
+describe("FrameCursor", () => {
+  const sample = (): Animation => {
+    const animation = load(doc(SAMPLE)).animation;
+    if (!animation) throw new Error("invalid sample");
+    return animation;
+  };
+
+  it("steps through every frame like a search from the start, then wraps and goes back", () => {
+    const animation = sample();
+    const cursor = new FrameCursor(animation);
+    for (let n = 1; n <= 9; n++) {
+      const stepped = cursor.frameAt(n);
+      const searched = frameAt(animation, n);
+      expect(stepped?.path).toEqual(searched?.path);
+      expect(stepped?.frame).toEqual(searched?.frame);
+    }
+    expect(cursor.frameAt(10)).toBeNull();
+    expect(cursor.frameAt(1)?.frame).toEqual(frameAt(animation, 1)?.frame);
+    expect(cursor.frameAt(5)?.frame).toEqual(frameAt(animation, 5)?.frame);
+    expect(cursor.frameAt(2)?.frame).toEqual(frameAt(animation, 2)?.frame);
+    expect(cursor.frameAt(2)?.path).toEqual(frameAt(animation, 2)?.path);
+    expect(cursor.frameAt(0)).toBeNull();
+  });
+
+  it("plays in one step per frame: sequential frames skip nothing", () => {
+    const cursor = new FrameCursor(sample());
+    const skip = vi.spyOn(Player.prototype, "skip");
+    try {
+      for (let n = 1; n <= 9; n++) cursor.frameAt(n);
+      expect(skip.mock.calls.every(([count]) => count === 0)).toBe(true);
+    } finally {
+      skip.mockRestore();
+    }
+  });
+
+  it("shows the first frame of a selected item without searching again", () => {
+    const animation = sample();
+    const cursor = new FrameCursor(animation);
+    const first = cursor.firstFrameOf([0, 1]);
+    expect(first).toBe(4);
+    const expected = frameAt(animation, 4)?.frame;
+    const skip = vi.spyOn(Player.prototype, "skip");
+    try {
+      expect(cursor.frameAt(first as number)?.frame).toEqual(expected);
+      expect(skip).not.toHaveBeenCalled();
+    } finally {
+      skip.mockRestore();
+    }
+    expect(cursor.frameAt(5)?.frame).toEqual(frameAt(animation, 5)?.frame);
   });
 });
 

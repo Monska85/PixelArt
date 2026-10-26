@@ -45,6 +45,8 @@ Each item:
 | `repeat`    | no       | How many times the animation plays before moving on. From 1 to 1,000. Default `1`. |
 | `enabled`   | no       | `false` skips the item without removing it from the list. Default `true`.          |
 
+A field that is present is always checked, and `null` is a value like any other: `repeat: null` or `name: null` is an error, never the same as leaving the field out.
+
 The same animation can appear more than once.
 
 Every animation in a playlist must have the same `canvas` as the playlist. Declaring the size in both files lets the tools, the web app and update manifests tell at a glance which matrix a file is made for, without opening the animations.

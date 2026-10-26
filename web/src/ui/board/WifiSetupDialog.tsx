@@ -11,6 +11,7 @@ import { Select } from "../components/select";
 import { Field } from "../common/Field";
 import { LoadingNote } from "../common/LoadingNote";
 import { PASSWORD_NOTE } from "../privacy";
+import { singleFlight } from "../singleFlight";
 import { signalQuality } from "./wifi";
 
 interface Props {
@@ -43,20 +44,28 @@ export function WifiSetupDialog({ link, onConnected, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
 
-  // Lists the networks the board sees. The phase is "scanning" when it starts.
-  async function listNetworks(): Promise<void> {
-    try {
-      const found = await client.scan();
-      if (!mounted.current) return;
-      setNetworks(found);
-      setChoice((current) => (found.some((n) => n.ssid === current) ? current : (found[0]?.ssid ?? OTHER)));
-    } catch (e) {
-      if (!mounted.current) return;
-      setNetworks([]);
-      setChoice(OTHER);
-      setScanError(e instanceof Error ? e.message : "The scan failed.");
-    }
-    setPhase("ready");
+  // The effect below runs twice in development (StrictMode) and the client takes one request at a time: both runs
+  // join the same scan.
+  const [oneScan] = useState(singleFlight);
+
+  // Lists the networks the board sees and ends the "scanning" phase, after a failure too.
+  function listNetworks(): Promise<void> {
+    return oneScan(async () => {
+      try {
+        const found = await client.scan();
+        if (!mounted.current) return;
+        setNetworks(found);
+        setScanError(null);
+        setChoice((current) => (found.some((n) => n.ssid === current) ? current : (found[0]?.ssid ?? OTHER)));
+      } catch (e) {
+        if (!mounted.current) return;
+        setNetworks([]);
+        setChoice(OTHER);
+        setScanError(e instanceof Error ? e.message : "The scan failed.");
+      } finally {
+        if (mounted.current) setPhase("ready");
+      }
+    });
   }
 
   function scanAgain(): void {
@@ -67,7 +76,7 @@ export function WifiSetupDialog({ link, onConnected, onClose }: Props) {
 
   useEffect(() => {
     mounted.current = true;
-    void (async () => listNetworks())();
+    void listNetworks();
     return () => {
       mounted.current = false;
     };

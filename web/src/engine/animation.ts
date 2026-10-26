@@ -52,7 +52,8 @@ const isName = (s: string): boolean => NAME_PATTERN.test(s);
 const parseHex = (s: string): Rgb | null => (HEX_PATTERN.test(s) ? parseInt(s.slice(1), 16) : null);
 const indexPath = (base: string, i: number): string => `${base}[${i}]`;
 const keyPath = (base: string, key: string): string => (base === "" ? key : `${base}.${key}`);
-const isNull = (value: JsonValue | undefined): boolean => value === undefined || value === null;
+// A property that is present with the value null is not absent: it is validated like any other value.
+const isAbsent = (value: JsonValue | undefined): boolean => value === undefined;
 
 class Loader {
   readonly diagnostics: Diagnostic[] = [];
@@ -183,7 +184,7 @@ class Loader {
   }
 
   private parsePalette(value: JsonValue | undefined): void {
-    if (isNull(value)) return;
+    if (isAbsent(value)) return;
     if (!isObject(value)) {
       this.error("structure", "palette", 'must be an object of name: "#rrggbb"');
       return;
@@ -250,19 +251,19 @@ class Loader {
     }
     this.checkKeys(value, ["at", "pivot", "points", "parts"], where);
     const at = value.get("at");
-    if (!isNull(at)) {
+    if (!isAbsent(at)) {
       const pos = this.getPosition(at, keyPath(where, "at"));
       if (pos) sprite.at = pos;
     }
     const pivot = value.get("pivot");
-    if (!isNull(pivot)) {
+    if (!isAbsent(pivot)) {
       const pos = this.getPosition(pivot, keyPath(where, "pivot"));
       if (pos) sprite.pivot = pos;
     }
     const points = value.get("points");
     const parts = value.get("parts");
-    const hasPoints = !isNull(points);
-    const hasParts = !isNull(parts);
+    const hasPoints = !isAbsent(points);
+    const hasParts = !isAbsent(parts);
     if (hasPoints === hasParts) this.error("structure", where, 'a sprite needs either "points" or "parts", not both');
     else if (hasPoints) this.parsePoints(sprite, points, keyPath(where, "points"));
     else this.parseParts(sprite, parts, keyPath(where, "parts"));
@@ -358,7 +359,7 @@ class Loader {
         }
         name = named;
         const posValue = p.get("at");
-        if (!isNull(posValue)) partAt = this.getPosition(posValue, keyPath(at, "at"));
+        if (!isAbsent(posValue)) partAt = this.getPosition(posValue, keyPath(at, "at"));
       } else {
         this.error("structure", at, "must be a sprite name or { sprite, at }");
         return;
@@ -454,7 +455,7 @@ class Loader {
   // Returns [ok, position]: an absent value is ok with no position.
   private optionalPosition(object: JsonObject, key: string, where: string): [boolean, Pos | null] {
     const value = object.get(key);
-    if (isNull(value)) return [true, null];
+    if (isAbsent(value)) return [true, null];
     const pos = this.getPosition(value, keyPath(where, key));
     return [pos !== null, pos];
   }
@@ -513,7 +514,7 @@ class Loader {
     if (move) ref.move = move;
 
     const wrap = value.get("wrap");
-    if (!isNull(wrap)) {
+    if (!isAbsent(wrap)) {
       if (typeof wrap === "boolean") ref.wrap = wrap;
       else {
         this.error("structure", keyPath(where, "wrap"), "must be true or false");
@@ -521,19 +522,19 @@ class Loader {
       }
     }
     const rotate = value.get("rotate");
-    if (!isNull(rotate)) {
+    if (!isAbsent(rotate)) {
       const degrees = this.parseAngle(rotate, keyPath(where, "rotate"));
       if (degrees === null) ok = false;
       else ref.rotate = degrees;
     }
     const spin = value.get("spin");
-    if (!isNull(spin)) {
+    if (!isAbsent(spin)) {
       const degrees = this.parseAngle(spin, keyPath(where, "spin"));
       if (degrees === null) ok = false;
       else ref.spin = degrees;
     }
     const flip = value.get("flip");
-    if (!isNull(flip)) {
+    if (!isAbsent(flip)) {
       const f = typeof flip === "string" ? flip : "";
       if (f === "x") ref.flipX = true;
       else if (f === "y") ref.flipY = true;
@@ -550,12 +551,12 @@ class Loader {
     const item: FrameItem = { kind: "frame", repeat: 1, ms: this.frameMs, refs: [], recolor: [] };
     this.checkKeys(object, ["show", "ms", "repeat", "recolor"], where);
     const ms = object.get("ms");
-    if (!isNull(ms)) {
+    if (!isAbsent(ms)) {
       const value = this.getInt(ms, MIN_MS, MAX_MS, keyPath(where, "ms"));
       if (value !== null) item.ms = value;
     }
     const repeat = object.get("repeat");
-    if (!isNull(repeat)) {
+    if (!isAbsent(repeat)) {
       const value = this.getInt(repeat, 1, MAX_COUNT, keyPath(where, "repeat"));
       if (value !== null) item.repeat = value;
     }
@@ -581,7 +582,7 @@ class Loader {
     }
 
     const recolor = object.get("recolor");
-    if (isNull(recolor)) return item;
+    if (isAbsent(recolor)) return item;
     const recolorWhere = keyPath(where, "recolor");
     if (!isObject(recolor) || recolor.size === 0) {
       this.error("structure", recolorWhere, "must be an object of color: color");
@@ -640,8 +641,8 @@ class Loader {
         this.itemsFullReported = true;
         return;
       }
-      const isLoop = isObject(entry) && !isNull(entry.get("loop"));
-      const isFrame = isObject(entry) && !isNull(entry.get("show"));
+      const isLoop = isObject(entry) && !isAbsent(entry.get("loop"));
+      const isFrame = isObject(entry) && !isAbsent(entry.get("show"));
       if (!isObject(entry) || isLoop === isFrame) {
         this.error("structure", at, 'an item is either a frame ("show") or a loop ("loop" and "steps")');
         continue;
@@ -711,24 +712,24 @@ class Loader {
       "",
     );
     for (const key of ["name", "canvas", "sprites", "timeline"])
-      if (isNull(root.get(key))) this.error("structure", key, `missing required field "${key}"`);
+      if (isAbsent(root.get(key))) this.error("structure", key, `missing required field "${key}"`);
 
     const name = root.get("name");
-    if (!isNull(name)) {
+    if (!isAbsent(name)) {
       const text = this.getString(name, 128, false, "name");
       if (text !== null) this.name = text;
     }
     const version = root.get("version");
-    if (!isNull(version)) {
+    if (!isAbsent(version)) {
       const value = this.getInt(version, 1, 0x7fffffff, "version");
       if (value !== null) this.version = value;
     }
     const author = root.get("author");
-    if (!isNull(author)) this.getString(author, 128, true, "author");
+    if (!isAbsent(author)) this.getString(author, 128, true, "author");
     const description = root.get("description");
-    if (!isNull(description)) this.getString(description, 512, true, "description");
+    if (!isAbsent(description)) this.getString(description, 512, true, "description");
     const canvas = root.get("canvas");
-    if (!isNull(canvas)) {
+    if (!isAbsent(canvas)) {
       const width = isObject(canvas) ? canvas.get("width") : undefined;
       const height = isObject(canvas) ? canvas.get("height") : undefined;
       if (
@@ -742,24 +743,24 @@ class Loader {
         this.error("structure", "canvas", "must be { width: 16, height: 16 }");
     }
     const frameMs = root.get("frame_ms");
-    if (!isNull(frameMs)) {
+    if (!isAbsent(frameMs)) {
       const value = this.getInt(frameMs, MIN_MS, MAX_MS, "frame_ms");
       if (value !== null) this.frameMs = value;
     }
-    // A present null is an error, unlike the optional fields above that ignore it.
-    if (root.has("brightness")) {
-      const value = this.getInt(root.get("brightness"), 1, 100, "brightness");
+    const brightness = root.get("brightness");
+    if (!isAbsent(brightness)) {
+      const value = this.getInt(brightness, 1, 100, "brightness");
       if (value !== null) this.brightness = value;
     }
 
     this.parsePalette(root.get("palette"));
     const background = root.get("background");
-    if (!isNull(background)) this.background = this.getColor(background, "background");
+    if (!isAbsent(background)) this.background = this.getColor(background, "background");
     const sprites = root.get("sprites");
-    if (!isNull(sprites)) this.parseSprites(sprites);
+    if (!isAbsent(sprites)) this.parseSprites(sprites);
 
     const timeline = root.get("timeline");
-    if (!isNull(timeline)) {
+    if (!isAbsent(timeline)) {
       if (!isArray(timeline) || timeline.length === 0)
         this.error("structure", "timeline", "must be a non-empty list of frames and loops");
       else if (this.spriteIndex.size === 0 && !this.failed)

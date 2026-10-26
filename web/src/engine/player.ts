@@ -110,6 +110,11 @@ export class Player {
     return k === null ? null : this.render(this.frame as FrameItem, k);
   }
 
+  /** Renders the frame the player is at again, without moving, or returns null before the first frame. */
+  current(): Frame | null {
+    return this.frame && this.repetition > 0 ? this.render(this.frame, this.repetition - 1) : null;
+  }
+
   /** Moves past `count` frames without rendering them; returns how many existed. */
   skip(count: number): number {
     let skipped = 0;
