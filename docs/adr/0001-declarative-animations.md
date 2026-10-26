@@ -31,7 +31,7 @@ We want people without technical skills to add animations through a small web ap
 - **A compiler on the PC that turns the description into finished frames for the board.** It keeps the firmware smaller and lets new effects ship without a firmware update. Rejected because the file on the board would no longer be editable, a second binary format would need its own versioning, published animations would not be the files people write, and long loops would grow into large files.
 - **Pixels drawn as text grids** (one character per pixel). Readable in the file, but it needs single-character color keys, alignment rules and placeholders for transparent pixels. Rejected because the tools show the result better than the file can: the simulator renders previews and the web app is the editor. Grids can return in a later format version if they are missed.
 - **Rotation by any angle.** On a 16x16 matrix, angles other than multiples of 90 degrees lose or double pixels and break thin lines. Rejected for version 1.
-- **One implementation compiled to WebAssembly for the web app.** It removes the duplication between the firmware and the web app, but adds a heavy toolchain to the web app. Rejected in favour of two implementations checked by the conformance suite.
+- **One implementation compiled to WebAssembly for the web app.** It removes the duplication between the firmware and the web app, but adds a heavy toolchain to the web app. Rejected in favor of two implementations checked by the conformance suite.
 
 ## Consequences
 

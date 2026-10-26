@@ -1,8 +1,8 @@
 # Agent rules
 
-Rules for coding agents working on this repository. `CLAUDE.md` is a symbolic link to this file, so both names keep working: edit `AGENTS.md`. Facts live elsewhere: the formats in `docs/format/`, the command protocol in `docs/protocol/`, WiFi and updates in `docs/board/`, the web app in `docs/web/`, decisions in `docs/adr/`, commands, layout and contribution rules in `README.md`, the conformance cases in `conformance/README.md`. Read those instead of trusting a summary here.
+Read the relevant specifications in `docs/`, the commands and contribution guidance in `README.md`, and the conformance instructions in `conformance/README.md` before making a change. Edit `AGENTS.md` when agent rules change, not `CLAUDE.md`.
 
-## Behaviour
+## Behavior
 
 - When the engine or the player changes, the simulator's frame output (`make sim`, every animation, `--raw` and timing included) must stay byte-identical unless the change is meant to alter frames. Compare the output before and after the change; a change meant to alter frames says which frames change and why.
 - Every change to a file format or to the command protocol updates its specification in `docs/` and adds conformance cases in `conformance/` in the same change.
@@ -10,17 +10,17 @@ Rules for coding agents working on this repository. `CLAUDE.md` is a symbolic li
 
 ## Loop task stack
 
-- A change that can add stack use on the board's loop task (the animation and playlist loaders, the engine and the player, the protocol request handling, JSON parsing, storage reads) measures the loop task's minimum free stack on a real board before and after the change, with the method in README.md, "Loop task stack", and records the numbers in the change.
+- A change that can add stack use on the board's loop task (the animation and playlist loaders, the engine and the player, the protocol request handling, JSON parsing, storage reads) measures the loop task's minimum free stack on a real board before and after the change, using the method in [Loop task stack](README.md#loop-task-stack) and records the numbers in the change.
 - Without a board, the change says explicitly that the stack was not measured. Never skip the measurement silently.
 - The debug code and the test files used for a measurement are never committed.
 
 ## Privacy
 
-- The privacy promise of the web app is a contract with the user. A change that makes any private or sensitive information (animations, settings, WiFi details, the token, drafts, anything the user enters or the board stores) leave the browser or the board, or that adds an outside service, request, analytics, telemetry or third-party script, updates the in-app Privacy view, the footer and the notes where data is entered, `docs/web/web-app-v1.md` and README.md in the same change, and is called out to the user for approval. A change that keeps data local needs no update.
+- The privacy promise of the web app is a contract with the user. A change that makes any private or sensitive information (animations, settings, WiFi details, the token, drafts, anything the user enters or the board stores) leave the browser or the board, or that adds an outside service, request, analytics, telemetry or third-party script, updates the in-app Privacy view, the footer and the notes where data is entered, `docs/web/web-app-v1.md` and `README.md` in the same change, and is called out to the user for approval. A change that keeps data local needs no update.
 
 ## Builds and tests
 
-- Run builds, tests and checks only through the `make` or `just` targets, with their default limits (`JOBS` and `NICE`, see README.md, "Resource limits"), unless the user asks for other limits. Never use hand-made `pio`, `make -j`, `npm run e2e` or Playwright commands with other parallelism.
+- Run builds, tests and checks only through the `make` or `just` targets, with their default limits (`JOBS` and `NICE`, see [Resource limits](README.md#resource-limits)), unless the user asks for other limits. Never use hand-made `pio`, `make -j`, `npm run e2e` or Playwright commands with other parallelism.
 - Run one build or test at a time, never two in parallel.
 
 ## History
@@ -39,7 +39,7 @@ Rules for coding agents working on this repository. `CLAUDE.md` is a symbolic li
 
 ## Commits
 
-- Commits are single-line Conventional Commits, as README.md, "Contributing", describes for pull request titles.
+- Commits are single-line Conventional Commits, as [Contributing](README.md#contributing) describes for pull request titles.
 
 ## This file
 
