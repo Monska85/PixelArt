@@ -17,7 +17,7 @@ import { jsonBytes, writeJson } from "../../yaml/writeJson";
 import { sha256Hex, type WireDiagnostic } from "../../protocol";
 import { deriveSaveState } from "../../editor/saves";
 import type { QueueFile } from "../../queue/plan";
-import { newAnimation, setTopField, type Doc } from "../../editor/doc";
+import { newAnimation, setTopField } from "../../editor/doc";
 import type { EditorState } from "../../editor/state";
 import { Alert, AlertDescription } from "../components/alert";
 import { Badge } from "../components/badge";
@@ -42,6 +42,7 @@ import { boardFilesOf } from "./boardFiles";
 import { TextField } from "./Fields";
 import { readAnimationFile } from "./open";
 import { documentName, editorStore } from "./store";
+import { runEditorUpload } from "./uploadFlow";
 
 interface Outcome {
   /** A result, something the user chose, or a problem. */
@@ -113,31 +114,30 @@ export function EditorHeader({ state, children, onOpenError }: Props) {
     if (!client) return;
     if (refuseWhileTextInvalid("the animation was not uploaded")) return;
     // The queue is held from the ID question to the last byte, so a second entry point cannot take it meanwhile.
-    const held: { id?: string; doc?: Doc; bytes?: Uint8Array; file?: QueueFile } = {};
-    const outcome = await queue.uploadAfter(
-      async () => {
-        const id = await ensureId();
-        if (!id) return null;
-        const doc = state.doc;
-        const bytes = jsonBytes(doc);
-        const checked = loadAnimation(bytes);
-        if (!checked.animation) {
-          setOutcome({
-            tone: "error",
-            message: "The animation has errors and was not uploaded.",
-            diagnostics: checked.diagnostics,
-          });
-          return null;
-        }
-        const file: QueueFile = { kind: "animation", id, bytes, sha256: await sha256Hex(bytes), origin: "the editor" };
-        Object.assign(held, { id, doc, bytes, file });
-        return [file];
-      },
-      { manifest: null, quiet: true },
-    );
-    const { id, doc, bytes, file } = held;
-    if (!outcome || !id || !doc || !bytes || !file) return;
-    const result = singleFileResult(outcome, "the animation");
+    const run = await runEditorUpload(queue.uploadAfter, async () => {
+      const id = await ensureId();
+      if (!id) return null;
+      const doc = state.doc;
+      const bytes = jsonBytes(doc);
+      const checked = loadAnimation(bytes);
+      if (!checked.animation) {
+        setOutcome({
+          tone: "error",
+          message: "The animation has errors and was not uploaded.",
+          diagnostics: checked.diagnostics,
+        });
+        return null;
+      }
+      const file: QueueFile = { kind: "animation", id, bytes, sha256: await sha256Hex(bytes), origin: "the editor" };
+      return { id, doc, bytes, file };
+    });
+    if (run.status === "ended") return;
+    if (run.status === "refused") {
+      setOutcome({ tone: "error", message: shownMessage(run.shown), diagnostics: run.shown.diagnostics });
+      return;
+    }
+    const { id, doc, bytes, file } = run.prepared;
+    const result = singleFileResult(run.outcome, "the animation");
     if (result.status === "error")
       setOutcome({ tone: "error", message: shownMessage(result.shown), diagnostics: result.shown.diagnostics });
     else if (result.status === "stopped")

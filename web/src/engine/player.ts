@@ -16,12 +16,15 @@ import {
 
 const floorMod = (a: number, b: number): number => ((a % b) + b) % b;
 
-/** The number of frames the items play once through: each repetition of a frame counts, a loop counts its steps `count` times. */
-export const frameCount = (items: readonly Item[]): number => items.reduce((sum, item) => sum + itemFrames(item), 0);
+/**
+ * The number of frames the items play once through: each repetition of a frame counts, a loop counts its steps
+ * `count` times. A bigint, because nested loops reach 10^20 frames and a number would round past 2^53.
+ */
+export const frameCount = (items: readonly Item[]): bigint => items.reduce((sum, item) => sum + itemFrames(item), 0n);
 
 /** The number of frames one item plays. */
-export const itemFrames = (item: Item): number =>
-  item.kind === "loop" ? item.count * frameCount(item.children) : item.repeat;
+export const itemFrames = (item: Item): bigint =>
+  item.kind === "loop" ? BigInt(item.count) * frameCount(item.children) : BigInt(item.repeat);
 
 interface Level {
   items: Item[];
@@ -134,10 +137,10 @@ export class Player {
    * frame counts of the timeline instead of walking every frame. Returns false, and starts again, when the
    * animation has fewer frames.
    */
-  seek(n: number): boolean {
+  seek(n: bigint): boolean {
     this.restart();
-    if (n <= 0) return n === 0;
-    let rest = n - 1;
+    if (n <= 0n) return n === 0n;
+    let rest = n - 1n;
     let items = this.animation.timeline;
     for (;;) {
       const level = this.stack[this.stack.length - 1] as Level;
@@ -156,12 +159,12 @@ export class Player {
       level.pos = index + 1;
       if (item.kind === "frame") {
         this.frame = item;
-        this.repetition = rest + 1;
+        this.repetition = Number(rest) + 1;
         this.framePath = this.stack.map((l) => l.pos - 1);
         return true;
       }
       const once = frameCount(item.children);
-      this.stack.push({ items: item.children, pos: 0, done: Math.floor(rest / once), total: item.count });
+      this.stack.push({ items: item.children, pos: 0, done: Number(rest / once), total: item.count });
       rest %= once;
       items = item.children;
     }

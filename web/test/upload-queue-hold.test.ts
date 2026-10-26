@@ -1,11 +1,12 @@
-// @vitest-environment jsdom
 // SPDX-License-Identifier: GPL-3.0-or-later
+// @vitest-environment jsdom
 
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { BoardClient } from "../src/protocol";
 import type { QueueOutcome } from "../src/ui/queue/summary";
+import { runEditorUpload } from "../src/ui/editor/uploadFlow";
 import { useUploadQueue, type UploadQueue } from "../src/ui/queue/useUploadQueue";
 
 const client = {} as BoardClient;
@@ -71,5 +72,31 @@ describe("the upload queue while the ID question is open", () => {
     expect(await editorOutcome).toBeNull();
     expect((editor as unknown as UploadQueue).busy).toBe(false);
     expect((other as unknown as UploadQueue).busy).toBe(false);
+  });
+
+  it("reports a preparation that throws as a refusal, so the editor can show it", async () => {
+    let queue: UploadQueue | null = null;
+    const One = (): ReactNode => {
+      queue = useUploadQueue(hook);
+      return null;
+    };
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => root?.render(createElement(One)));
+
+    let result: Awaited<ReturnType<typeof runEditorUpload>> | null = null;
+    await act(async () => {
+      result = await runEditorUpload((queue as unknown as UploadQueue).uploadAfter, async () => {
+        throw new Error("hashing failed");
+      });
+    });
+    expect(result).toMatchObject({ status: "refused", shown: { message: expect.stringContaining("hashing failed") } });
+    expect((queue as unknown as UploadQueue).busy).toBe(false);
+
+    await act(async () => {
+      result = await runEditorUpload((queue as unknown as UploadQueue).uploadAfter, async () => null);
+    });
+    expect(result).toEqual({ status: "ended" });
   });
 });

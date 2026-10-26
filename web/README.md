@@ -52,4 +52,4 @@ The functional tests in `e2e/` stay separate: `make web-e2e` runs them on the ho
 - `src/ui/components/`: the shadcn/ui components (Radix primitives, Tailwind CSS) the whole app is built from. `src/ui/common/` holds the patterns made from them: page header, file table, dialogs, alerts, the activity panel. `src/ui/shell/` is the top bar, the connection chip and the theme button.
 - `src/ui/`: React components. Views are listed in `src/ui/views.tsx`: Board, Library, Firmware and Editor (ESP Web Tools is loaded only when the Firmware view opens, the Editor view only when it opens). `src/ui/editor/` holds the editor's components, its shared state and its drafts in IndexedDB.
 - `src/editor/`: the editor's document operations, undo history, YAML tab state and preview search. No access to the page.
-- `test/`: Vitest. A test file that renders a component starts with `// @vitest-environment jsdom`; the others run in Node. `e2e/`: Playwright.
+- `test/`: Vitest. A test file that renders a component has `// @vitest-environment jsdom` on the line after its license comment; the others run in Node. `e2e/`: Playwright.

@@ -1,5 +1,5 @@
-// @vitest-environment jsdom
 // SPDX-License-Identifier: GPL-3.0-or-later
+// @vitest-environment jsdom
 
 import { StrictMode, act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";

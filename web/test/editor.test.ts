@@ -40,6 +40,7 @@ import { parseDraftDocument } from "../src/ui/editor/drafts";
 import { FrameCursor, firstFrameOf, frameAt } from "../src/editor/preview";
 import { initialState, reduce, MAX_UNDO, type EditorState } from "../src/editor/state";
 import { JsonNumber, Player, isObject, loadAnimation, type Animation } from "../src/engine";
+import { frameCount } from "../src/engine/player";
 import { readYaml } from "../src/yaml/read";
 import { jsonBytes, writeJson } from "../src/yaml/writeJson";
 import { writeYaml } from "../src/yaml/writeYaml";
@@ -584,15 +585,15 @@ describe("player item tracking", () => {
   it("finds the first frame of an item or loop and the frame at a number", () => {
     const animation = load(doc(SAMPLE)).animation;
     if (!animation) throw new Error("invalid sample");
-    expect(firstFrameOf(animation, [0])).toBe(1);
-    expect(firstFrameOf(animation, [0, 1])).toBe(4);
-    expect(firstFrameOf(animation, [1])).toBe(9);
+    expect(firstFrameOf(animation, [0])).toBe(1n);
+    expect(firstFrameOf(animation, [0, 1])).toBe(4n);
+    expect(firstFrameOf(animation, [1])).toBe(9n);
     expect(firstFrameOf(animation, [5])).toBeNull();
-    expect(frameAt(animation, 4)?.path).toEqual([0, 1]);
-    expect(frameAt(animation, 10)).toBeNull();
+    expect(frameAt(animation, 4n)?.path).toEqual([0, 1]);
+    expect(frameAt(animation, 10n)).toBeNull();
     const direct = new Player(animation);
     direct.skip(3);
-    expect(frameAt(animation, 4)?.frame.pixels).toEqual(direct.next()?.pixels);
+    expect(frameAt(animation, 4n)?.frame.pixels).toEqual(direct.next()?.pixels);
   });
 });
 
@@ -606,25 +607,25 @@ describe("FrameCursor", () => {
   it("steps through every frame like a search from the start, then wraps and goes back", () => {
     const animation = sample();
     const cursor = new FrameCursor(animation);
-    for (let n = 1; n <= 9; n++) {
+    for (let n = 1n; n <= 9n; n++) {
       const stepped = cursor.frameAt(n);
       const searched = frameAt(animation, n);
       expect(stepped?.path).toEqual(searched?.path);
       expect(stepped?.frame).toEqual(searched?.frame);
     }
-    expect(cursor.frameAt(10)).toBeNull();
-    expect(cursor.frameAt(1)?.frame).toEqual(frameAt(animation, 1)?.frame);
-    expect(cursor.frameAt(5)?.frame).toEqual(frameAt(animation, 5)?.frame);
-    expect(cursor.frameAt(2)?.frame).toEqual(frameAt(animation, 2)?.frame);
-    expect(cursor.frameAt(2)?.path).toEqual(frameAt(animation, 2)?.path);
-    expect(cursor.frameAt(0)).toBeNull();
+    expect(cursor.frameAt(10n)).toBeNull();
+    expect(cursor.frameAt(1n)?.frame).toEqual(frameAt(animation, 1n)?.frame);
+    expect(cursor.frameAt(5n)?.frame).toEqual(frameAt(animation, 5n)?.frame);
+    expect(cursor.frameAt(2n)?.frame).toEqual(frameAt(animation, 2n)?.frame);
+    expect(cursor.frameAt(2n)?.path).toEqual(frameAt(animation, 2n)?.path);
+    expect(cursor.frameAt(0n)).toBeNull();
   });
 
   it("plays in one step per frame: sequential frames skip nothing", () => {
     const cursor = new FrameCursor(sample());
     const skip = vi.spyOn(Player.prototype, "skip");
     try {
-      for (let n = 1; n <= 9; n++) cursor.frameAt(n);
+      for (let n = 1n; n <= 9n; n++) cursor.frameAt(n);
       expect(skip.mock.calls.every(([count]) => count === 0)).toBe(true);
     } finally {
       skip.mockRestore();
@@ -635,16 +636,16 @@ describe("FrameCursor", () => {
     const animation = sample();
     const cursor = new FrameCursor(animation);
     const first = cursor.firstFrameOf([0, 1]);
-    expect(first).toBe(4);
-    const expected = frameAt(animation, 4)?.frame;
+    expect(first).toBe(4n);
+    const expected = frameAt(animation, 4n)?.frame;
     const skip = vi.spyOn(Player.prototype, "skip");
     try {
-      expect(cursor.frameAt(first as number)?.frame).toEqual(expected);
+      expect(cursor.frameAt(first as bigint)?.frame).toEqual(expected);
       expect(skip).not.toHaveBeenCalled();
     } finally {
       skip.mockRestore();
     }
-    expect(cursor.frameAt(5)?.frame).toEqual(frameAt(animation, 5)?.frame);
+    expect(cursor.frameAt(5n)?.frame).toEqual(frameAt(animation, 5n)?.frame);
   });
 });
 
@@ -678,16 +679,16 @@ timeline:
     const skip = vi.spyOn(Player.prototype, "skip");
     const next = vi.spyOn(Player.prototype, "next");
     try {
-      expect(cursor.firstFrameOf([0])).toBe(1);
-      expect(cursor.firstFrameOf([0, 0])).toBe(1);
-      expect(cursor.firstFrameOf([1])).toBe(1_010_001);
-      expect(cursor.firstFrameOf([2])).toBe(1_010_002);
-      const at = cursor.frameAt(1_010_001);
+      expect(cursor.firstFrameOf([0])).toBe(1n);
+      expect(cursor.firstFrameOf([0, 0])).toBe(1n);
+      expect(cursor.firstFrameOf([1])).toBe(1_010_001n);
+      expect(cursor.firstFrameOf([2])).toBe(1_010_002n);
+      const at = cursor.frameAt(1_010_001n);
       expect(at?.path).toEqual([1]);
-      expect(cursor.frameAt(1_010_000)?.path).toEqual([0, 0]);
-      expect(cursor.frameAt(1_010_002)?.path).toEqual([2]);
-      expect(cursor.frameAt(1_010_003)?.path).toEqual([2]);
-      expect(cursor.frameAt(1_010_004)).toBeNull();
+      expect(cursor.frameAt(1_010_000n)?.path).toEqual([0, 0]);
+      expect(cursor.frameAt(1_010_002n)?.path).toEqual([2]);
+      expect(cursor.frameAt(1_010_003n)?.path).toEqual([2]);
+      expect(cursor.frameAt(1_010_004n)).toBeNull();
       expect(skip).not.toHaveBeenCalled();
       expect(next.mock.calls.length).toBeLessThan(10);
     } finally {
@@ -699,16 +700,104 @@ timeline:
   it("seeks to the same place as stepping, for every frame of the sample", () => {
     const animation = load(doc(SAMPLE)).animation;
     if (!animation) throw new Error("invalid sample");
-    for (let n = 0; n <= 9; n++) {
+    for (let n = 0n; n <= 9n; n++) {
       const stepped = new Player(animation);
-      stepped.skip(n);
+      stepped.skip(Number(n));
       const seeked = new Player(animation);
       expect(seeked.seek(n)).toBe(true);
       expect(seeked.path).toEqual(stepped.path);
       expect(seeked.current()).toEqual(stepped.current());
       expect(seeked.next()).toEqual(stepped.next());
     }
-    expect(new Player(animation).seek(10)).toBe(false);
+    expect(new Player(animation).seek(10n)).toBe(false);
+  });
+
+  // Four nested loops of 10000 passes around a frame repeated 10000 times play 10^4 * 10^4 * 10^4 * 10^4 * 10^4 = 10^20
+  // frames, far past 2^53 = 9007199254740992. The two items after them start at 10^20 + 1 and 10^20 + 2.
+  const HUGE = `
+format: pixelart/1
+name: Huge
+canvas: { width: 16, height: 16 }
+palette:
+  red: "#ff0000"
+sprites:
+  a:
+    points:
+      red: [[0, 0]]
+timeline:
+  - loop: 10000
+    steps:
+      - loop: 10000
+        steps:
+          - loop: 10000
+            steps:
+              - loop: 10000
+                steps:
+                  - show: [a]
+                    repeat: 10000
+  - show: [a]
+  - show: [a]
+    repeat: 2
+`;
+
+  it("counts and seeks exactly across the safe-integer boundary", () => {
+    const animation = load(doc(HUGE)).animation;
+    if (!animation) throw new Error("invalid huge sample");
+    const total = 10n ** 20n;
+    expect(frameCount(animation.timeline)).toBe(total + 3n);
+    const cursor = new FrameCursor(animation);
+    expect(cursor.firstFrameOf([1])).toBe(total + 1n);
+    expect(cursor.firstFrameOf([2])).toBe(total + 2n);
+    expect(cursor.firstFrameOf([0, 0, 0, 0, 0])).toBe(1n);
+    expect(cursor.frameAt(total + 1n)?.path).toEqual([1]);
+    expect(cursor.frameAt(total)?.path).toEqual([0, 0, 0, 0, 0]);
+    expect(cursor.frameAt(total + 2n)?.path).toEqual([2]);
+    expect(cursor.frameAt(total + 3n)?.path).toEqual([2]);
+    expect(cursor.frameAt(total + 4n)).toBeNull();
+    // A frame just past 2^53 is still inside the first item, not on a rounded neighbor.
+    expect(cursor.frameAt(2n ** 53n + 1n)?.path).toEqual([0, 0, 0, 0, 0]);
+    const seeked = new Player(animation);
+    expect(seeked.seek(total + 1n)).toBe(true);
+    expect(seeked.path).toEqual([1]);
+    expect(seeked.seek(total + 4n)).toBe(false);
+  });
+
+  it("seeks to the same place as stepping through nested loops", () => {
+    const nested = `
+format: pixelart/1
+name: Nested
+canvas: { width: 16, height: 16 }
+palette:
+  red: "#ff0000"
+sprites:
+  a:
+    points:
+      red: [[0, 0]]
+timeline:
+  - loop: 3
+    steps:
+      - loop: 2
+        steps:
+          - show: [a]
+            repeat: 2
+          - show: [a]
+      - show: [a]
+        repeat: 2
+  - show: [a]
+`;
+    const animation = load(doc(nested)).animation;
+    if (!animation) throw new Error("invalid nested sample");
+    // Each pass of the outer loop plays (2 + 1) * 2 + 2 = 8 frames, three passes make 24, the last item one more.
+    expect(frameCount(animation.timeline)).toBe(25n);
+    for (let n = 0n; n <= 25n; n++) {
+      const stepped = new Player(animation);
+      stepped.skip(Number(n));
+      const seeked = new Player(animation);
+      expect(seeked.seek(n)).toBe(true);
+      expect(seeked.path).toEqual(stepped.path);
+      expect(seeked.next()).toEqual(stepped.next());
+    }
+    expect(new Player(animation).seek(26n)).toBe(false);
   });
 });
 

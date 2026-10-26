@@ -18,23 +18,23 @@ interface Props {
 }
 
 interface Shown {
-  n: number;
+  n: bigint;
   frame: Frame;
   path: readonly number[];
 }
 
 /** Frame `n` of the animation, or null past its end. */
-function shownAt(cursor: FrameCursor, n: number): Shown | null {
+function shownAt(cursor: FrameCursor, n: bigint): Shown | null {
   const at = cursor.frameAt(n);
   return at ? { n, ...at } : null;
 }
 
 const startFrame = (cursor: FrameCursor, selected: Path | null): Shown | null =>
-  shownAt(cursor, (selected && cursor.firstFrameOf(selected)) || 1);
+  shownAt(cursor, (selected && cursor.firstFrameOf(selected)) || 1n);
 
 /** The frame after `current`, back to the first after the last. */
 const step = (current: Shown, cursor: FrameCursor): Shown | null =>
-  shownAt(cursor, current.n + 1) ?? shownAt(cursor, 1);
+  shownAt(cursor, current.n + 1n) ?? shownAt(cursor, 1n);
 
 /** Plays the animation with play, pause and step, and says which timeline item made the frame. */
 export function EditorPreview({ animation, selected }: Props) {
