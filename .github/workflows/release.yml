@@ -127,20 +127,7 @@ jobs:
         run: make release-firmware
 
       - name: Check the version of the release
-        run: |
-          python - <<'EOF'
-          import json
-          import os
-
-          built = json.load(open("site/manifest.json"))["version"]
-          tag = os.environ["RELEASE_TAG"]
-          if tag:
-              if tag != "v" + built:
-                  raise SystemExit(f"the release is {tag} but the firmware is version {built}")
-          elif os.environ["PIXELART_VERSION"]:
-              raise SystemExit("PIXELART_VERSION is set without a release tag")
-          print("release version", built)
-          EOF
+        run: python3 tools/release.py check-version --manifest site/manifest.json --tag-prefix v
 
       - name: Upload the site
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -184,23 +171,7 @@ jobs:
         run: make release-content
 
       - name: Check the version of the release
-        run: |
-          python - <<'EOF'
-          import json
-          import os
-
-          manifest = json.load(open("site/manifest.json"))
-          built = manifest["version"]
-          tag = os.environ["RELEASE_TAG"]
-          if manifest.get("content_version") != built:
-              raise SystemExit(f"the content manifest has version {built} and content_version {manifest.get('content_version')}")
-          if tag:
-              if tag != "content-v" + built:
-                  raise SystemExit(f"the release is {tag} but the content is version {built}")
-          elif os.environ["PIXELART_CONTENT_VERSION"]:
-              raise SystemExit("PIXELART_CONTENT_VERSION is set without a release tag")
-          print("content release version", built)
-          EOF
+        run: python3 tools/release.py check-version --manifest site/manifest.json --tag-prefix content-v
 
       - name: Upload the content site
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -261,6 +232,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The release notes step is a local action
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: site
@@ -285,22 +261,12 @@ jobs:
           cp site/firmware/THIRD_PARTY_NOTICES.txt assets/THIRD_PARTY_NOTICES.txt
           gh release upload "$TAG" assets/* --clobber
 
-      # The body comes from the changelog; this line is added once, so a re-run does not repeat it
-      - name: Add the source code and licenses line to the GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ needs.release-please.outputs.tag_name }}
-          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
-        run: |
-          set -eu
-          body=$(gh release view "$TAG" --json body --jq .body)
-          case "$body" in
-            *"Source code and licenses:"*) exit 0 ;;
-          esac
-          line="**Source code and licenses:** built from tag \`$TAG\` of $REPOSITORY_URL ($REPOSITORY_URL/tree/$TAG). To build it again, check out the tag and run \`make release-firmware\` (README.md, Releases). GPL-3.0-or-later with the additional permission in LICENSE-EXCEPTION ($REPOSITORY_URL/blob/$TAG/LICENSE, $REPOSITORY_URL/blob/$TAG/LICENSE-EXCEPTION); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at firmware/THIRD_PARTY_NOTICES.txt on the site."
-          printf '%s\n\n%s\n' "$body" "$line" > notes.md
-          gh release edit "$TAG" --notes-file notes.md
+      # The body comes from the changelog
+      - uses: ./.github/actions/release-notes
+        with:
+          tag: ${{ needs.release-please.outputs.tag_name }}
+          line: >-
+            **Source code and licenses:** built from tag `${{ needs.release-please.outputs.tag_name }}` of ${{ github.server_url }}/${{ github.repository }} (${{ github.server_url }}/${{ github.repository }}/tree/${{ needs.release-please.outputs.tag_name }}). To build it again, check out the tag and run `make release-firmware` (README.md, Releases). GPL-3.0-or-later with the additional permission in LICENSE-EXCEPTION (${{ github.server_url }}/${{ github.repository }}/blob/${{ needs.release-please.outputs.tag_name }}/LICENSE, ${{ github.server_url }}/${{ github.repository }}/blob/${{ needs.release-please.outputs.tag_name }}/LICENSE-EXCEPTION); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at firmware/THIRD_PARTY_NOTICES.txt on the site.
 
   publish-content-release:
     needs: [release-please, build-content]
@@ -310,6 +276,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The release notes step is a local action
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: content
@@ -328,22 +299,12 @@ jobs:
           (cd content && zip -q -r -X "../assets/pixelart-content-${VERSION}.zip" .)
           gh release upload "$TAG" "assets/pixelart-content-${VERSION}.zip" --clobber
 
-      # The body comes from the changelog; this line is added once, so a re-run does not repeat it
-      - name: Add the source code and licenses line to the GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ needs.release-please.outputs.content_tag_name }}
-          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
-        run: |
-          set -eu
-          body=$(gh release view "$TAG" --json body --jq .body)
-          case "$body" in
-            *"Source code and licenses:"*) exit 0 ;;
-          esac
-          line="**Source code and licenses:** built from tag \`$TAG\` of $REPOSITORY_URL ($REPOSITORY_URL/tree/$TAG). To build it again, check out the tag and run \`make release-content\` (README.md, Releases). GPL-3.0-or-later ($REPOSITORY_URL/blob/$TAG/LICENSE)."
-          printf '%s\n\n%s\n' "$body" "$line" > notes.md
-          gh release edit "$TAG" --notes-file notes.md
+      # The body comes from the changelog
+      - uses: ./.github/actions/release-notes
+        with:
+          tag: ${{ needs.release-please.outputs.content_tag_name }}
+          line: >-
+            **Source code and licenses:** built from tag `${{ needs.release-please.outputs.content_tag_name }}` of ${{ github.server_url }}/${{ github.repository }} (${{ github.server_url }}/${{ github.repository }}/tree/${{ needs.release-please.outputs.content_tag_name }}). To build it again, check out the tag and run `make release-content` (README.md, Releases). GPL-3.0-or-later (${{ github.server_url }}/${{ github.repository }}/blob/${{ needs.release-please.outputs.content_tag_name }}/LICENSE).
 
   publish-web-release:
     needs: [release-please, build-web]
@@ -353,6 +314,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The release notes step is a local action
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: web
@@ -372,22 +338,12 @@ jobs:
           cp web/THIRD_PARTY_NOTICES.txt assets/THIRD_PARTY_NOTICES.txt
           gh release upload "$TAG" "assets/pixelart-web-${VERSION}.zip" assets/THIRD_PARTY_NOTICES.txt --clobber
 
-      # The body comes from the changelog; this line is added once, so a re-run does not repeat it
-      - name: Add the source code and licenses line to the GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ needs.release-please.outputs.web_tag_name }}
-          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
-        run: |
-          set -eu
-          body=$(gh release view "$TAG" --json body --jq .body)
-          case "$body" in
-            *"Source code and licenses:"*) exit 0 ;;
-          esac
-          line="**Source code and licenses:** built from tag \`$TAG\` of $REPOSITORY_URL ($REPOSITORY_URL/tree/$TAG). To build it again, check out the tag and run \`make web-build\` (web/README.md). GPL-3.0-or-later ($REPOSITORY_URL/blob/$TAG/LICENSE); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at the root of the site."
-          printf '%s\n\n%s\n' "$body" "$line" > notes.md
-          gh release edit "$TAG" --notes-file notes.md
+      # The body comes from the changelog
+      - uses: ./.github/actions/release-notes
+        with:
+          tag: ${{ needs.release-please.outputs.web_tag_name }}
+          line: >-
+            **Source code and licenses:** built from tag `${{ needs.release-please.outputs.web_tag_name }}` of ${{ github.server_url }}/${{ github.repository }} (${{ github.server_url }}/${{ github.repository }}/tree/${{ needs.release-please.outputs.web_tag_name }}). To build it again, check out the tag and run `make web-build` (web/README.md). GPL-3.0-or-later (${{ github.server_url }}/${{ github.repository }}/blob/${{ needs.release-please.outputs.web_tag_name }}/LICENSE); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at the root of the site.
 
   # A Pages deployment replaces the whole site: it always holds the latest firmware, content and web releases,
   # whichever of them was just published. A job that failed blocks the deployment; a job that was skipped does not,

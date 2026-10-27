@@ -6,13 +6,18 @@ import { contentVersionOf, type Manifest } from "../../release/manifest";
 import { Button } from "../components/button";
 import { ErrorAlert } from "../common/ErrorAlert";
 import { ErrorList, useErrorList } from "../common/ErrorList";
-import { session, useSession } from "../session";
+import { session, useSession, type ConnectionState } from "../session";
 import { useUploadQueue } from "../queue/useUploadQueue";
 import { announceActivity } from "../upload";
 import { useLatest } from "../useLatest";
 import { watchInstallDialogs } from "./installDialog";
 
 type Phase = "idle" | "connecting" | "connected" | "running" | "failed";
+
+/** A job that waits for the queue to start has lost its connection when the session is no longer connected. */
+export function jobLost(phase: Phase, state: ConnectionState): boolean {
+  return phase === "connected" && state !== "connected";
+}
 
 interface Job {
   manifest: Manifest;
@@ -69,6 +74,14 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
       job.current = null;
     };
   }, [latest]);
+
+  // The link can drop after the port connected and before the queue starts: nothing would then clear the activity.
+  useEffect(() => {
+    if (!jobLost(phase, state) || !job.current) return;
+    job.current.stop();
+    job.current = null;
+    queueMicrotask(() => setPhase("failed"));
+  }, [phase, state]);
 
   const { install } = queue;
   useEffect(() => {

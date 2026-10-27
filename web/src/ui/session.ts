@@ -7,6 +7,8 @@ import { createEmitter } from "./emitter";
 import {
   BoardClient,
   BoardError,
+  CONNECTION_LOST,
+  NO_REPLY,
   abortUpload,
   getStatus,
   isToken,
@@ -61,6 +63,21 @@ const IDLE: Snapshot = {
 export const PORT_RETRY_FOR_MS = 20_000;
 export const PORT_RETRY_EVERY_MS = 1000;
 
+/** A failed connection attempt: the error, and whether waiting can clear it. */
+class AttemptFailure extends Error {
+  constructor(
+    readonly error: unknown,
+    readonly retryable: boolean,
+  ) {
+    super(error instanceof Error ? error.message : "The connection failed.");
+  }
+}
+
+/** After the port opened, only a board that does not answer yet or a link that dropped can clear by waiting. */
+function isWaitable(error: unknown): boolean {
+  return error instanceof BoardError && (error.code === NO_REPLY || error.code === CONNECTION_LOST);
+}
+
 export const SERIAL_SUPPORTED = (): boolean => serialApi() !== null;
 
 function uploadsBlocked(info: BoardInfo): string | null {
@@ -108,8 +125,8 @@ class Session {
 
   /**
    * Connects over a port the user already picked (the one ESP Web Tools used), so no picker opens. The board has just
-   * restarted: while the port cannot be opened or the board does not answer, it tries again every second for up to
-   * 20 seconds, staying "connecting". Resolves true when connected.
+   * restarted: while the port cannot be opened or the board does not answer, it tries again every
+   * PORT_RETRY_EVERY_MS until PORT_RETRY_FOR_MS have passed, staying "connecting". Resolves true when connected.
    */
   async connectPort(port: SerialPortLike): Promise<boolean> {
     await this.connect("board", () => SerialTransport.open(port), PORT_RETRY_FOR_MS);
@@ -206,6 +223,10 @@ class Session {
     }
   }
 
+  /**
+   * Connects, trying again every PORT_RETRY_EVERY_MS for `retryForMs` after an attempt failed in a way waiting can
+   * clear: no new attempt starts after that time, but one under way is not cut short.
+   */
   private async connect(
     via: "board" | "simulator" | "wifi",
     open: () => Promise<Transport>,
@@ -217,43 +238,14 @@ class Session {
     this.set({ ...IDLE, state: "connecting", via, restarts: this.snapshot.restarts });
     const giveUpAt = Date.now() + retryForMs;
     for (;;) {
-      let transport: Transport | null = null;
       try {
-        transport = await open();
-        if (attempt !== this.attempt) {
-          await transport.close();
-          return;
-        }
-        const client = new BoardClient(transport);
-        if (via === "wifi" && this.wifiAddress) client.login = this.loginFor(this.wifiAddress);
-        this.transport = transport;
-        // Until the handshake is done, a lost link is the handshake's own failure, which the catch below handles.
-        let handshaken = false;
-        client.onLost = (reason) => {
-          if (attempt !== this.attempt || !handshaken) return;
-          this.set({ state: "lost", message: reason });
-          void transport?.close();
-        };
-        client.onRestart = () => {
-          this.set({ restarts: this.snapshot.restarts + 1 });
-          void this.refreshFiles(KINDS);
-        };
-        const info = await client.handshake();
-        if (attempt !== this.attempt) return;
-        handshaken = true;
-        if (this.interrupted) {
-          this.interrupted = false;
-          await abortUpload(client);
-        }
-        this.set({ state: "connected", client, info, message: null, uploadsBlocked: uploadsBlocked(info) });
-        void this.refreshFiles(KINDS);
-        if (via === "board") void this.rememberWifiAddress(client);
+        await this.connectOnce(via, open, attempt, retryForMs > 0);
         return;
-      } catch (error) {
+      } catch (failure) {
         if (attempt !== this.attempt) return;
-        await transport?.close().catch(() => undefined);
         this.transport = null;
-        if (Date.now() < giveUpAt) {
+        const { error, retryable } = failure as AttemptFailure;
+        if (retryable && Date.now() < giveUpAt) {
           await new Promise((resolve) => setTimeout(resolve, PORT_RETRY_EVERY_MS));
           if (attempt !== this.attempt) return;
           continue;
@@ -266,6 +258,55 @@ class Session {
         });
         return;
       }
+    }
+  }
+
+  /**
+   * One attempt: open, handshake, publish the connection. Returns when connected or when a newer attempt took over,
+   * and throws an AttemptFailure otherwise, with the transport closed. A caller that retries is not told of a link
+   * lost before the handshake: that is the attempt's own failure.
+   */
+  private async connectOnce(
+    via: "board" | "simulator" | "wifi",
+    open: () => Promise<Transport>,
+    attempt: number,
+    retrying: boolean,
+  ): Promise<void> {
+    let transport: Transport | null = null;
+    let opened = false;
+    try {
+      transport = await open();
+      opened = true;
+      if (attempt !== this.attempt) {
+        await transport.close();
+        return;
+      }
+      const client = new BoardClient(transport);
+      if (via === "wifi" && this.wifiAddress) client.login = this.loginFor(this.wifiAddress);
+      this.transport = transport;
+      let handshaken = false;
+      client.onLost = (reason) => {
+        if (attempt !== this.attempt || (retrying && !handshaken)) return;
+        this.set({ state: "lost", message: reason });
+        void transport?.close();
+      };
+      client.onRestart = () => {
+        this.set({ restarts: this.snapshot.restarts + 1 });
+        void this.refreshFiles(KINDS);
+      };
+      const info = await client.handshake();
+      if (attempt !== this.attempt) return;
+      handshaken = true;
+      if (this.interrupted) {
+        this.interrupted = false;
+        await abortUpload(client);
+      }
+      this.set({ state: "connected", client, info, message: null, uploadsBlocked: uploadsBlocked(info) });
+      void this.refreshFiles(KINDS);
+      if (via === "board") void this.rememberWifiAddress(client);
+    } catch (error) {
+      if (attempt === this.attempt) await transport?.close().catch(() => undefined);
+      throw new AttemptFailure(error, !opened || isWaitable(error));
     }
   }
 

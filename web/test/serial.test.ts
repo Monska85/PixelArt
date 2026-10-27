@@ -336,6 +336,22 @@ describe("the session with a serial port", () => {
     expect(port.isOpen).toBe(false);
   });
 
+  it("does not wait for a refusal that waiting cannot clear", async () => {
+    vi.useFakeTimers();
+    const log: string[] = [];
+    const board = new FakeBoard();
+    board.protocol = 99;
+    const port = new FakePort("port", log, board);
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await connecting).toBe(false);
+    expect(session.getSnapshot()).toMatchObject({ state: "disconnected", offerFirmware: true });
+    expect(session.getSnapshot().message).toContain("protocol 99");
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_FOR_MS);
+    expect(log.filter((entry) => entry === "port open")).toHaveLength(1);
+    expect(port.isOpen).toBe(false);
+  });
+
   it("stops trying when the user disconnects", async () => {
     vi.useFakeTimers();
     const log: string[] = [];

@@ -352,6 +352,14 @@ def validate(manifest):
         raise ReleaseError(f"manifest.json does not match {SCHEMA.name}")
 
 
+def write_manifest(site, manifest, use_schema):
+    """Validates the manifest (with the schema if asked), checks its limits and writes it as the site's manifest.json."""
+    if use_schema:
+        validate(manifest)
+    check_manifest_limits(manifest)
+    write_json(site / "manifest.json", manifest)
+
+
 def check_replaceable(site):
     """Refuses to delete anything but the default site/ or a folder an earlier run built.
 
@@ -418,10 +426,7 @@ def build_site(out, version, use_schema):
         "animations": [],
         "playlists": [],
     }
-    if use_schema:
-        validate(manifest)
-    check_manifest_limits(manifest)
-    write_json(site / "manifest.json", manifest)
+    write_manifest(site, manifest, use_schema)
     try:
         notices = firmware_notices.build_notices(version, source)
     except firmware_notices.NoticesError as e:
@@ -454,10 +459,7 @@ def build_content_site(out, version, data, use_schema):
         "animations": animations,
         "playlists": playlists,
     }
-    if use_schema:
-        validate(manifest)
-    check_manifest_limits(manifest)
-    write_json(site / "manifest.json", manifest)
+    write_manifest(site, manifest, use_schema)
     print(f"release: content version {version}, {len(animations)} animations, {len(playlists)} playlists in {site}")
 
 
@@ -518,9 +520,18 @@ def assembled_manifest(firmware, content):
     """The manifest of the site, by docs/format/manifest-v1.md, Assembling the site. Either input may be None."""
     if firmware is None:
         # A content release has no firmware: its manifest is the site's as it is
-        return content
-    if content is None:
-        return firmware
+        manifest = dict(content)
+    elif content is None:
+        manifest = dict(firmware)
+    else:
+        manifest = merged_manifest(firmware, content)
+    manifest.setdefault("animations", [])
+    manifest.setdefault("playlists", [])
+    return manifest
+
+
+def merged_manifest(firmware, content):
+    """The firmware's manifest with the content release's version, animations and playlists."""
     version = content.get("version")
     if not isinstance(version, str) or not fw_version.SAFE_VERSION.fullmatch(version):
         raise ReleaseError("the content manifest has no valid version")
@@ -542,12 +553,20 @@ def check_listed_files(manifest, copied):
             raise ReleaseError(f"the manifest lists {name!r}, which the assembled site does not hold")
 
 
-def assemble_site(out, firmware, content, web, use_schema=False):
-    """Merge the firmware site, the content site and the web app into `out`. A path in two of them is an error and
-    nothing is written."""
-    if firmware is None and content is None and web is None:
-        raise ReleaseError("assemble needs --firmware, --content, --web or several of them")
-    site = site_path(out)
+def drop_superseded(label, files, has_content):
+    """The files of a folder that the site takes from it.
+
+    Legacy: a firmware release published before the content package carries animations/ and playlists/ too. They give
+    way to the content release's. This can go once every published firmware release is newer than the content package.
+    """
+    if label == "firmware" and has_content:
+        return [n for n in files if not n.startswith(CONTENT_FOLDERS)]
+    return files
+
+
+def plan_site(site, firmware, content, web, use_schema):
+    """Every check of the merge, with nothing written: the files to copy from each folder, as {label: (folder, names)},
+    and the manifest to write, or None when no input holds one."""
     inputs = [(label, Path(path)) for label, path in (("firmware", firmware), ("content", content), ("web", web)) if path]
     # Listed first, as given: a link must be seen before it is resolved
     listed = {label: (path, list_tree(path, label)) for label, path in inputs}
@@ -564,38 +583,44 @@ def assemble_site(out, firmware, content, web, use_schema=False):
             stray = [n for n in files if n != "manifest.json" and not n.startswith(allowed)]
             if stray:
                 raise ReleaseError(f"the {label} folder holds {stray[0]}, outside {', '.join(allowed)}")
-    # The site's manifest.json is written below, from the manifests; the older folders of a firmware release that
-    # predates the content package give way to the content release's
-    placed = {}
+
+    # The site's manifest.json is written from the manifests, so the folders' own are not copied
+    plan = {}
     for label, (path, files) in listed.items():
         if label in manifests:
             files = [n for n in files if n != "manifest.json"]
-        if label == "firmware" and content:
-            files = [n for n in files if not n.startswith(CONTENT_FOLDERS)]
-        placed[label] = files
+        plan[label] = (path, drop_superseded(label, files, "content" in listed))
 
-    manifest = assembled_manifest(manifests.get("firmware"), manifests.get("content")) if manifests else None
-    if manifest is not None:
-        if "manifest.json" in placed.get("web", []):
+    manifest = None
+    if manifests:
+        manifest = assembled_manifest(manifests.get("firmware"), manifests.get("content"))
+        if "manifest.json" in plan.get("web", (None, []))[1]:
             raise ReleaseError("the web app holds manifest.json, which the site's manifest would replace")
-        copied = {n for files in placed.values() for n in files}
-        check_listed_files(manifest, copied)
-        check_manifest_limits({**manifest, "animations": manifest.get("animations", []),
-                               "playlists": manifest.get("playlists", [])})
+        check_listed_files(manifest, {n for _, files in plan.values() for n in files})
+        check_manifest_limits(manifest)
         if use_schema:
             validate(manifest)
 
-    labels = list(placed)
+    labels = list(plan)
     for i, first in enumerate(labels):
         for second in labels[i + 1 :]:
-            conflicts = find_conflicts(placed[first], placed[second])
+            conflicts = find_conflicts(plan[first][1], plan[second][1])
             if conflicts:
                 shown = ", ".join(conflicts[:10]) + (f" and {len(conflicts) - 10} more" if len(conflicts) > 10 else "")
                 raise ReleaseError(f"the {first} and the {second} both hold: {shown}")
+    return plan, manifest
+
+
+def assemble_site(out, firmware, content, web, use_schema=False):
+    """Merge the firmware site, the content site and the web app into `out`. A path in two of them is an error and
+    nothing is written."""
+    if firmware is None and content is None and web is None:
+        raise ReleaseError("assemble needs --firmware, --content, --web or several of them")
+    site = site_path(out)
+    plan, manifest = plan_site(site, firmware, content, web, use_schema)
 
     reset_site(site)
-    for label, files in placed.items():
-        path = listed[label][0]
+    for label, (path, files) in plan.items():
         for name in files:
             target = site / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -604,6 +629,27 @@ def assemble_site(out, firmware, content, web, use_schema=False):
     if manifest is not None:
         write_json(site / "manifest.json", manifest)
         print(f"release: manifest.json written, content version {manifest.get('content_version', 'none')}")
+
+
+def check_version(manifest_path, tag_prefix):
+    """The tag of a release must name the version the build produced. RELEASE_TAG is empty on a dry run, which must
+    then have no version set either."""
+    env_name = {"v": "PIXELART_VERSION", "content-v": "PIXELART_CONTENT_VERSION"}[tag_prefix]
+    try:
+        manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+        built = manifest["version"]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise ReleaseError(f"{manifest_path} cannot be read: {e}")
+    kind = "content" if tag_prefix == "content-v" else "firmware"
+    if kind == "content" and manifest.get("content_version") != built:
+        raise ReleaseError(f"the content manifest has version {built} and content_version {manifest.get('content_version')}")
+    tag = os.environ.get("RELEASE_TAG", "")
+    if tag:
+        if tag != tag_prefix + built:
+            raise ReleaseError(f"the release is {tag} but the {kind} is version {built}")
+    elif os.environ.get(env_name):
+        raise ReleaseError(f"{env_name} is set without a release tag")
+    print(f"{kind} release version {built}")
 
 
 def main():
@@ -625,6 +671,9 @@ def main():
     assemble.add_argument("--content", help="the content site made by `content`")
     assemble.add_argument("--web", help="the built web app (web/dist)")
     assemble.add_argument("--schema", action="store_true", help="check the site's manifest.json against the JSON Schema")
+    version_check = commands.add_parser("check-version", help="check the release tag against the version of a built manifest")
+    version_check.add_argument("--manifest", required=True, help="the manifest.json the build wrote")
+    version_check.add_argument("--tag-prefix", required=True, choices=("v", "content-v"), help="v for the firmware, content-v for the content")
     args = parser.parse_args()
 
     try:
@@ -634,6 +683,8 @@ def main():
             print(describe_content_version())
         elif args.command == "check-site":
             check_site(args.url)
+        elif args.command == "check-version":
+            check_version(args.manifest, args.tag_prefix)
         elif args.command == "assemble":
             assemble_site(args.out, args.firmware, args.content, args.web, args.schema)
         elif args.command == "content":

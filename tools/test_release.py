@@ -687,6 +687,45 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class CheckVersionTest(unittest.TestCase):
+    def check(self, manifest, prefix, env):
+        path = Path(tempfile.mkdtemp()) / "manifest.json"
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        with mock.patch.dict(release.os.environ, env, clear=True):
+            release.check_version(path, prefix)
+
+    def test_a_tag_that_names_the_built_version_passes(self):
+        self.check({"version": "1.2.0"}, "v", {"RELEASE_TAG": "v1.2.0", "PIXELART_VERSION": "1.2.0"})
+        manifest = {"version": "0.3.0", "content_version": "0.3.0"}
+        self.check(manifest, "content-v", {"RELEASE_TAG": "content-v0.3.0", "PIXELART_CONTENT_VERSION": "0.3.0"})
+
+    def test_a_tag_that_names_another_version_stops_the_release(self):
+        with self.assertRaises(release.ReleaseError):
+            self.check({"version": "1.2.0"}, "v", {"RELEASE_TAG": "v1.3.0"})
+        with self.assertRaises(release.ReleaseError):
+            self.check({"version": "0.3.0", "content_version": "0.3.0"}, "content-v", {"RELEASE_TAG": "v0.3.0"})
+
+    def test_a_dry_run_has_no_tag_and_no_version_variable(self):
+        self.check({"version": "1.2.0-3-gabc"}, "v", {})
+        with self.assertRaises(release.ReleaseError):
+            self.check({"version": "1.2.0"}, "v", {"PIXELART_VERSION": "1.2.0"})
+        with self.assertRaises(release.ReleaseError):
+            self.check({"version": "0.3.0", "content_version": "0.3.0"}, "content-v", {"PIXELART_CONTENT_VERSION": "0.3.0"})
+
+    def test_a_content_manifest_must_repeat_its_version(self):
+        with self.assertRaises(release.ReleaseError):
+            self.check({"version": "0.3.0"}, "content-v", {"RELEASE_TAG": "content-v0.3.0"})
+        with self.assertRaises(release.ReleaseError):
+            self.check({"version": "0.3.0", "content_version": "0.4.0"}, "content-v", {})
+
+    def test_the_firmware_manifest_needs_no_content_version(self):
+        self.check({"version": "1.2.0"}, "v", {"RELEASE_TAG": "v1.2.0"})
+
+    def test_an_unreadable_manifest_stops_the_release(self):
+        with self.assertRaises(release.ReleaseError):
+            release.check_version(Path(tempfile.mkdtemp()) / "missing.json", "v")
+
+
 class SiteAddressTest(unittest.TestCase):
     SITE = "https://example-owner.github.io/Fork/"
 
