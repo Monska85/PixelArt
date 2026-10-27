@@ -203,18 +203,41 @@ export class BoardClient {
     this.seq = (this.seq + 1) % 2 ** 32;
     const seq = this.seq;
     const line = encodeLine({ seq, cmd, ...fields });
-    for (let attempt = 0; attempt < TRIES; attempt++) {
-      const waiting = this.wait(seq, timeoutMs);
-      try {
-        await this.transport.send(line);
-      } catch {
-        waiting.cancel();
-        this.linkClosed("the connection failed");
-        throw new BoardError(CONNECTION_LOST, "the connection failed");
+    // At most one write in flight: a board that never reads its input leaves the write pending, and the tries go on
+    // waiting for a reply, so a request never outlasts its tries because of it.
+    let write: Promise<void> | null = null;
+    let waiting: ReturnType<BoardClient["wait"]> | null = null;
+    let ended = false;
+    let sendFailed = false;
+    try {
+      for (let attempt = 0; attempt < TRIES; attempt++) {
+        waiting = this.wait(seq, timeoutMs);
+        if (!write) {
+          const sent = (async () => this.transport.send(line))();
+          write = sent;
+          // Handled here, so a write that fails after the request ended is not an unhandled rejection.
+          const sentOk = (): void => {
+            if (write === sent) write = null;
+          };
+          const sentFailed = (): void => {
+            if (ended) return;
+            sendFailed = true;
+            waiting?.cancel();
+          };
+          void sent.then(sentOk, sentFailed);
+        }
+        const outcome = await waiting.outcome;
+        if (outcome.kind === "reply") return outcome.reply;
+        // The board read the line, so the write is done whatever its promise says: the resend writes again.
+        if (outcome.kind === "again") write = null;
+        if (outcome.kind === "closed" && sendFailed) {
+          this.linkClosed("the connection failed");
+          throw new BoardError(CONNECTION_LOST, "the connection failed");
+        }
+        if (outcome.kind === "closed") throw new BoardError(CONNECTION_LOST, "the connection closed");
       }
-      const outcome = await waiting.outcome;
-      if (outcome.kind === "reply") return outcome.reply;
-      if (outcome.kind === "closed") throw new BoardError(CONNECTION_LOST, "the connection closed");
+    } finally {
+      ended = true;
     }
     this.linkClosed(`no reply to '${cmd}' after ${TRIES} tries`);
     throw new BoardError(NO_REPLY, `no reply to '${cmd}' after ${TRIES} tries`);

@@ -125,6 +125,31 @@ describe("client", () => {
     expect(restarted).toHaveBeenCalledTimes(1);
   });
 
+  it("gives up on a transport whose send never settles after the tries, with one send", async () => {
+    const send = vi.fn(() => new Promise<void>(() => undefined));
+    const stuck = new BoardClient({ send, close: async () => undefined, onLine: null, onClose: null }, { firstSeq: 1 });
+    const lost = vi.fn();
+    stuck.onLost = lost;
+    const result = stuck.request("info").catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(TRIES * 2000);
+    expect(await result).toMatchObject({ code: NO_REPLY });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(lost).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a send that fails after its request ended", async () => {
+    let fail: (error: Error) => void = () => undefined;
+    const send = vi.fn(() => new Promise<void>((_resolve, reject) => (fail = reject)));
+    const slow = new BoardClient({ send, close: async () => undefined, onLine: null, onClose: null }, { firstSeq: 1 });
+    const result = slow.request("info").catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(TRIES * 2000);
+    expect(await result).toMatchObject({ code: NO_REPLY });
+    // The write fails after the request ended: nothing is left unhandled.
+    fail(new Error("the port closed"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it("repeats a request with the same seq after 2 seconds, up to 5 tries", async () => {
     board.fault = () => "drop";
     const lost = vi.fn();

@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CLOSE_STEP_MS, PORT_BUSY, SerialTransport } from "../src/protocol/serial";
-import { PORT_RETRY_EVERY_MS, PORT_RETRY_FOR_MS, session } from "../src/ui/session";
+import { NOT_A_PIXELART_BOARD, PORT_RETRY_EVERY_MS, PORT_RETRY_FOR_MS, session } from "../src/ui/session";
 import { FakeBoard } from "./fakeBoard";
 import { FakePort } from "./fakePort";
 
@@ -288,5 +288,142 @@ describe("the session with a serial port", () => {
     await vi.advanceTimersByTimeAsync(PORT_RETRY_FOR_MS);
     expect(await connecting).toBe(false);
     expect(log).toHaveLength(opened);
+  });
+});
+
+describe("a serial port that never answers the protocol", () => {
+  afterEach(async () => {
+    vi.useRealTimers();
+    await session.disconnect();
+  });
+
+  const HANDSHAKE_MS = 5 * 2000 + 4 * CLOSE_STEP_MS;
+
+  /** Connects over the port and lets the handshake run out. */
+  async function failToConnect(port: FakePort): Promise<void> {
+    const connecting = session["connect"]("board", () => SerialTransport.open(port));
+    await vi.advanceTimersByTimeAsync(HANDSHAKE_MS);
+    await connecting;
+  }
+
+  /** The port is released, and a second connection opens it without the browser finding it open. */
+  async function expectReleasedAndReopenable(port: FakePort): Promise<void> {
+    expect(session.getSnapshot()).toMatchObject({
+      state: "disconnected",
+      message: NOT_A_PIXELART_BOARD,
+      offerFirmware: true,
+    });
+    expect(port.isOpen).toBe(false);
+    expect(port.readable).toBeNull();
+    expect(port.writable).toBeNull();
+    await failToConnect(port);
+    expect(port.log.filter((entry) => entry === "port open")).toHaveLength(2);
+    expect(port.failedOpens).toEqual([]);
+    expect(session.getSnapshot().message).toBe(NOT_A_PIXELART_BOARD);
+    expect(port.isOpen).toBe(false);
+  }
+
+  it("says the firmware may be old or missing, and releases the port", async () => {
+    vi.useFakeTimers();
+    const port = new FakePort("port", []);
+    await failToConnect(port);
+    expect(NOT_A_PIXELART_BOARD).toBe(
+      "This board did not answer as a PixelArt board. Its firmware may be old or missing: install the firmware from the Firmware view.",
+    );
+    await expectReleasedAndReopenable(port);
+  });
+
+  it("does the same for a board that only logs lines that are not the protocol", async () => {
+    vi.useFakeTimers();
+    const port = new FakePort("port", []);
+    port.garbage = true;
+    await failToConnect(port);
+    await expectReleasedAndReopenable(port);
+  });
+
+  it("ends the handshake of a board that never drains its input within the tries, and releases the port", async () => {
+    vi.useFakeTimers();
+    const port = new FakePort("port", []);
+    port.writesBlock = true;
+    await failToConnect(port);
+    await expectReleasedAndReopenable(port);
+  });
+
+  it("ends the handshake when a write never completes and ignores the abort", async () => {
+    vi.useFakeTimers();
+    const port = new FakePort("port", []);
+    port.writesHang = true;
+    await failToConnect(port);
+    expect(session.getSnapshot()).toMatchObject({ state: "disconnected", message: NOT_A_PIXELART_BOARD });
+    expect(port.isOpen).toBe(false);
+    port.writesHang = false;
+    await failToConnect(port);
+    expect(port.failedOpens).toEqual([]);
+  });
+
+  it("releases the port when the user disconnects during the handshake", async () => {
+    vi.useFakeTimers();
+    const port = new FakePort("port", []);
+    port.writesBlock = true;
+    const connecting = session["connect"]("board", () => SerialTransport.open(port));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(port.isOpen).toBe(true);
+    const disconnecting = session.disconnect();
+    await vi.advanceTimersByTimeAsync(4 * CLOSE_STEP_MS);
+    await disconnecting;
+    await connecting;
+    expect(port.isOpen).toBe(false);
+    expect(port.readable).toBeNull();
+    port.writesBlock = false;
+    await failToConnect(port);
+    expect(port.failedOpens).toEqual([]);
+  });
+
+  it("closes a port that opens after a newer connection took over", async () => {
+    const slow = new FakePort("slow", []);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const first = session["connect"]("board", async () => {
+      await gate;
+      return SerialTransport.open(slow);
+    });
+    const second = new FakePort("second", [], new FakeBoard());
+    await session["connect"]("board", () => SerialTransport.open(second));
+    expect(session.getSnapshot().state).toBe("connected");
+    release();
+    await first;
+    expect(slow.isOpen).toBe(false);
+    expect(session.getSnapshot().state).toBe("connected");
+    expect(second.isOpen).toBe(true);
+  });
+
+  it("keeps the busy-port message for a port the browser cannot open, and nothing is held", async () => {
+    vi.useFakeTimers();
+    const port = new FakePort("port", []);
+    port.openErrors = [new DOMException("Failed to open serial port.", "NetworkError")];
+    await session["connect"]("board", () => SerialTransport.open(port));
+    expect(session.getSnapshot()).toMatchObject({ state: "disconnected", offerFirmware: false });
+    expect(session.getSnapshot().message).toContain(PORT_BUSY);
+    expect(port.isOpen).toBe(false);
+    expect(port.failedOpens).toEqual(["NetworkError"]);
+    await failToConnect(port);
+    expect(port.failedOpens).toEqual(["NetworkError"]);
+    expect(session.getSnapshot().message).toBe(NOT_A_PIXELART_BOARD);
+    expect(port.isOpen).toBe(false);
+  });
+});
+
+describe("a port still held by an earlier transport", () => {
+  it("closes the holder with its streams released, and opens the port", async () => {
+    const log: string[] = [];
+    const port = new FakePort("port", log);
+    const holder = await SerialTransport.open(port);
+
+    const next = await SerialTransport.open(port);
+    expect(port.isOpen).toBe(true);
+    expect(log).toEqual(["port open", "port open", "port close", "port open"]);
+    await expect(holder.send("x")).rejects.toThrow(/closed/);
+    await next.close();
+    expect(port.isOpen).toBe(false);
   });
 });

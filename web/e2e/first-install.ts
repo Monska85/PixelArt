@@ -17,14 +17,22 @@ interface FakePortOptions {
   board: string | null;
   /** Calls of `open()` that fail first, as a port does while the board restarts. */
   failOpens?: number;
+  /** `requestPort()` returns the port, as when the user picks it in Connect board, instead of the picker being dismissed. */
+  pick?: boolean;
+  /** What a port without a board does with the lines written to it: nothing, or a line that is not the protocol, like the log of an old sketch. */
+  answer?: "none" | "garbage";
 }
 
-type Fake = { log: PortLog; port: unknown };
+type Fake = { log: PortLog; port: unknown; errors: string[] };
 
-/** Replaces `navigator.serial` with a port wired as `options` says. Call before the page loads. */
+/**
+ * Replaces `navigator.serial` with a port wired as `options` says, and with Chrome's rules: `open()` fails while the
+ * port is open, and `close()` fails while a stream is locked. Call before the page loads.
+ */
 export async function fakeSerial(page: Page, options: FakePortOptions): Promise<void> {
-  await page.addInitScript(({ board, failOpens = 0 }: FakePortOptions) => {
+  await page.addInitScript(({ board, failOpens = 0, pick = false, answer = "none" }: FakePortOptions) => {
     const log = { opens: 0, pickerRequests: 0 };
+    const errors: string[] = [];
     let socket: WebSocket | null = null;
     let source: ReadableStreamDefaultController<Uint8Array> | null = null;
     let isOpen = false;
@@ -36,9 +44,13 @@ export async function fakeSerial(page: Page, options: FakePortOptions): Promise<
         log.opens++;
         if (failures > 0) {
           failures--;
+          errors.push("NetworkError");
           throw new DOMException("Failed to open serial port.", "NetworkError");
         }
-        if (isOpen) throw new DOMException("The port is already open.", "InvalidStateError");
+        if (isOpen) {
+          errors.push("InvalidStateError");
+          throw new DOMException("The port is already open.", "InvalidStateError");
+        }
         if (board)
           socket = await new Promise<WebSocket>((resolve, reject) => {
             const opened = new WebSocket(board);
@@ -50,11 +62,18 @@ export async function fakeSerial(page: Page, options: FakePortOptions): Promise<
         port.writable = new WritableStream<Uint8Array>({
           write: (chunk) => {
             for (const line of new TextDecoder().decode(chunk).split("\n")) if (line) socket?.send(line);
+            if (!board && answer === "garbage")
+              try {
+                source?.enqueue(new TextEncoder().encode("boot: old sketch, no command protocol\n"));
+              } catch {
+                // Cancelled by the app's own close already.
+              }
           },
         });
         if (socket) socket.onmessage = (event) => source?.enqueue(new TextEncoder().encode(`${event.data}\n`));
       },
       async close(): Promise<void> {
+        if (port.readable?.locked || port.writable?.locked) throw new TypeError("Cannot close a locked stream");
         isOpen = false;
         socket?.close(1000);
         socket = null;
@@ -68,12 +87,13 @@ export async function fakeSerial(page: Page, options: FakePortOptions): Promise<
       },
       async setSignals(): Promise<void> {},
     };
-    (window as unknown as { fakeSerial: Fake }).fakeSerial = { log, port };
+    (window as unknown as { fakeSerial: Fake }).fakeSerial = { log, port, errors };
     Object.defineProperty(navigator, "serial", {
       configurable: true,
       value: {
         requestPort: async () => {
           log.pickerRequests++;
+          if (pick) return port;
           throw new DOMException("no port in the test", "AbortError");
         },
         addEventListener: () => undefined,
@@ -85,6 +105,10 @@ export async function fakeSerial(page: Page, options: FakePortOptions): Promise<
 
 export const portLog = (page: Page): Promise<PortLog> =>
   page.evaluate(() => ({ ...(window as unknown as { fakeSerial: Fake }).fakeSerial.log }));
+
+/** The names of the errors the port's `open()` threw, in order. */
+export const openErrors = (page: Page): Promise<string[]> =>
+  page.evaluate(() => [...(window as unknown as { fakeSerial: Fake }).fakeSerial.errors]);
 
 /**
  * Draws the closing of an ESP Web Tools dialog as ESP Web Tools does it: an `ewt-install-dialog` that holds the port,

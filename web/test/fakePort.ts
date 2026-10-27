@@ -19,11 +19,17 @@ export class FakePort implements SerialPortLike {
   vanishOnOpen = false;
   /** Writes never complete, like a device that has gone. */
   writesHang = false;
+  /** Writes never complete until the writer is aborted, then fail, as Chrome's sink does when the device refuses data. */
+  writesBlock = false;
+  /** Every written line is answered with a line that is not the protocol, like the log of an old sketch. */
+  garbage = false;
   /** Cancelling the readable never completes, so the page's pipe from it never settles. */
   cancelHangs = false;
   /** close() stays pending until this is called; null closes at once. */
   finishClose: (() => void) | null = null;
   closeHangs = false;
+  /** The name of every error open() threw. */
+  failedOpens: string[] = [];
   /** What the last open() and setSignals() were given, and every line written without a board. */
   openOptions: unknown = null;
   signals: unknown = null;
@@ -40,8 +46,14 @@ export class FakePort implements SerialPortLike {
     this.log.push(`${this.name} open`);
     this.openOptions = options;
     const error = this.openErrors.shift();
-    if (error) throw error;
-    if (this.isOpen) throw new DOMException("The port is already open.", "InvalidStateError");
+    if (error) {
+      this.failedOpens.push(error.name);
+      throw error;
+    }
+    if (this.isOpen) {
+      this.failedOpens.push("InvalidStateError");
+      throw new DOMException("The port is already open.", "InvalidStateError");
+    }
     this.isOpen = true;
     if (this.noStreams) return;
     this.readable = new ReadableStream({
@@ -49,9 +61,19 @@ export class FakePort implements SerialPortLike {
       cancel: () => (this.cancelHangs ? new Promise<void>(() => {}) : undefined),
     });
     this.writable = new WritableStream({
-      write: (chunk) => {
+      write: (chunk, controller) => {
         if (this.writesHang) return new Promise(() => {});
+        if (this.writesBlock)
+          return new Promise<void>((_resolve, reject) =>
+            controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true }),
+          );
         const line = new TextDecoder().decode(chunk);
+        if (this.garbage)
+          try {
+            this.receive("pixelart: booting, no command protocol here\n");
+          } catch {
+            // The page cancelled the readable already.
+          }
         if (this.board) void this.board.send(line.trimEnd());
         else this.written.push(line);
       },
