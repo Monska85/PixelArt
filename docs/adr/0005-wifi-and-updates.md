@@ -64,3 +64,5 @@ The work is delivered in five steps: the new framework and flash layout, WiFi, a
 - Boards install updates by themselves inside the install window, which is the whole day by default, as soon as a release is published. A board updated from a firmware whose default was `notify` keeps a mode that was stored and reads `automatic` when none was, as the [specification](../board/wifi-and-updates-v1.md#settings) says; an owner who wants to approve updates sets `notify` or `off`.
 - The board needs internet access to GitHub Pages for updates, and NTP only when the install window is narrower than the whole day.
 - Networks that filter DHCP for unknown devices keep the board offline; the web app says that the board joined the WiFi but got no address.
+
+Note, 2026-10-27: The count and size of the animations in decision 2 (30 animations, 54 KB) are those of the day this decision was taken. The animations and playlists now live in `content/` and change on their own, so their number and size change with every content release ([ADR 0006](0006-content-release.md)).

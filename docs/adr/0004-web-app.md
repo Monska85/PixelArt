@@ -60,3 +60,5 @@ The work is delivered in three steps: the engine and board management, then the 
 - A board with firmware older than `delete_all` answers `unknown_command`, and the app then asks for a firmware update.
 - A board with firmware older than the `settings` field of `delete_all` answers `bad_request` to a reset and deletes nothing; the app then asks for a firmware update or a Delete everything without the reset.
 - The web app relies on its dependencies' supply chain: versions are pinned, the lockfile is committed, install scripts are disabled and Dependabot proposes updates.
+
+Note, 2026-10-27: The count of animations in decision 4 (30) is that of the day this decision was taken. The animations and playlists now live in `content/` and change on their own, so their number and size change with every content release ([ADR 0006](0006-content-release.md)).

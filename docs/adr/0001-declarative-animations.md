@@ -40,3 +40,5 @@ We want people without technical skills to add animations through a small web ap
 - The board validates every file, enforces the limits, and reports why it rejected a file: on the serial port today, through a command protocol once one exists.
 - The format has two implementations that must stay in line. Every change to the format comes with new conformance test files, and CI fails until every implementation passes them.
 - The 30 existing animations are converted to the new format automatically, and the conversion is checked by comparing their frames with the current firmware, pixel by pixel.
+
+Note, 2026-10-27: The counts of animations above (30) are those of the day this decision was taken. The animations and playlists now live in `content/` and change on their own, so their number and size change with every content release ([ADR 0006](0006-content-release.md)).
