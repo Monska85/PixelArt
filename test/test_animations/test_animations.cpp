@@ -10,6 +10,7 @@
 
 #include <cstring>
 #include <filesystem>
+#include <sstream>
 #include <string>
 
 #include <pixelart_engine.h>
@@ -48,6 +49,17 @@ static size_t content_animation_files()
     if (entry.is_regular_file() && (ext == ".yaml" || ext == ".yml" || ext == ".json"))
       count++;
   }
+  return count;
+}
+
+// The items of the repository's default playlist: every one shows at least one frame when it plays.
+static size_t content_playlist_items()
+{
+  std::istringstream in(read_file(fs::path(PIXELART_PROJECT_DIR) / "content" / "playlists" / "default.yaml"));
+  size_t count = 0;
+  for (std::string line; std::getline(in, line);)
+    if (line.rfind("  - animation:", 0) == 0)
+      count++;
   return count;
 }
 
@@ -144,7 +156,8 @@ void test_repository_playlist_plays_every_animation()
   play_from_storage();
   TEST_ASSERT_EQUAL(content_animation_files(), stored_animations().size());
   // The exact frames are checked by the simulator comparison and the conformance cases.
-  TEST_ASSERT_TRUE(!sim::frames().empty());
+  TEST_ASSERT_TRUE(content_playlist_items() > 0);
+  TEST_ASSERT_TRUE(sim::frames().size() >= content_playlist_items());
   TEST_ASSERT_EQUAL_STRING("", serial_text().c_str());
 }
 
