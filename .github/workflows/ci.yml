@@ -17,17 +17,17 @@ permissions:
 
 jobs:
   # Which areas a pull request changed, from its list of files in the GitHub API (a renamed file counts under its old
-  # and its new name). Every other event, a push to main among them, sets both outputs to true, so every job runs.
-  # check and web run unless the output is false: should this job fail, they still run. A job skipped by its if:
-  # reports success, so the required checks pass.
+  # and its new name). The API lists at most 3000 files, so a larger pull request sets both outputs to true, as every
+  # other event does, a push to main among them: every job runs. check and web also run when this job fails. A job
+  # skipped by its if: reports success, so the required checks pass.
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       pull-requests: read
     outputs:
-      check: ${{ github.event_name != 'pull_request' || steps.filter.outputs.check == 'true' || steps.filter.outputs.check_web == 'true' }}
-      web: ${{ github.event_name != 'pull_request' || steps.filter.outputs.web == 'true' }}
+      check: ${{ github.event_name != 'pull_request' || github.event.pull_request.changed_files >= 3000 || steps.filter.outputs.check == 'true' || steps.filter.outputs.check_web == 'true' }}
+      web: ${{ github.event_name != 'pull_request' || github.event.pull_request.changed_files >= 3000 || steps.filter.outputs.web == 'true' }}
     steps:
       # A file counts for a filter when it matches one of its patterns and none of its patterns starting with !
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -118,7 +118,7 @@ jobs:
 
   check:
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.check != 'false' }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.check == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -198,7 +198,7 @@ jobs:
 
   web:
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.web == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
