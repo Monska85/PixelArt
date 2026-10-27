@@ -1,0 +1,125 @@
+format: pixelart/1
+name: Owl on a Branch
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 300
+
+palette:
+  feather: "#d8a060"
+  feather_dark: "#a87038"
+  belly: "#f2dcb0"
+  belly_mark: "#c9a272"
+  eye_ring: "#ffffff"
+  iris: "#ffc83a"
+  pupil: "#2a1c30"
+  beak: "#ff9a2e"
+  branch: "#a06a3a"
+  leaf: "#4eb84a"
+  moon: "#fff2a8"
+  crater: "#f0d878"
+  star: "#ffffff"
+  cheek: "#ff9ab8"
+
+sprites:
+  moon:
+    at: [12, 0]
+    points:
+      moon: [
+          [1, 0], [2, 0], [0, 1], [1, 1], [3, 1], [0, 2], [2, 2], [3, 2], [1, 3], [2, 3]]
+      crater: [[2, 1], [1, 2]]
+  branch:
+    at: [0, 13]
+    points:
+      branch: [
+          [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [8, 0], [9, 0], [11, 0],
+          [12, 0], [13, 0], [14, 0], [15, 0], [10, 1], [11, 1]]
+      beak: [[7, 0], [10, 0]]
+      leaf: [[2, 1], [13, 1], [14, 1], [1, 2], [2, 2], [15, 2]]
+  body:
+    at: [0, 9]
+    points:
+      feather: [[4, 0], [11, 0], [4, 1], [11, 1], [5, 3], [10, 3]]
+      feather_dark: [
+          [3, 0], [12, 0], [3, 1], [12, 1], [3, 2], [4, 2], [11, 2], [12, 2], [4, 3], [11, 3]]
+      belly: [
+          [5, 0], [6, 0], [7, 0], [8, 0], [9, 0], [10, 0], [5, 1], [7, 1], [8, 1], [10, 1],
+          [5, 2], [6, 2], [9, 2], [10, 2], [6, 3], [7, 3], [8, 3], [9, 3]]
+      belly_mark: [[6, 1], [9, 1], [7, 2], [8, 2]]
+  head:
+    at: [0, 3]
+    points:
+      feather: [
+          [4, 1], [11, 1], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2],
+          [11, 2], [12, 2], [2, 3], [6, 3], [7, 3], [8, 3], [9, 3], [13, 3], [2, 4], [6, 4],
+          [7, 4], [8, 4], [9, 4], [13, 4], [2, 5], [6, 5], [9, 5], [13, 5], [4, 6], [5, 6],
+          [6, 6], [9, 6], [10, 6], [11, 6]]
+      feather_dark: [[4, 0], [11, 0], [5, 1], [10, 1]]
+      iris: [[4, 4], [11, 4]]
+      beak: [[7, 5], [8, 5], [7, 6], [8, 6]]
+      eye_ring: [
+          [3, 3], [4, 3], [5, 3], [10, 3], [11, 3], [12, 3], [3, 4], [5, 4], [10, 4], [12, 4],
+          [3, 5], [4, 5], [5, 5], [10, 5], [11, 5], [12, 5]]
+      cheek: [[3, 6], [12, 6]]
+  look_left:
+    at: [3, 7]
+    points:
+      iris: [[1, 0], [8, 0]]
+      pupil: [[0, 0], [7, 0]]
+  look_right:
+    at: [3, 7]
+    points:
+      iris: [[1, 0], [8, 0]]
+      pupil: [[2, 0], [9, 0]]
+  look_front:
+    at: [3, 7]
+    points:
+      pupil: [[1, 0], [8, 0]]
+  blink:
+    at: [3, 6]
+    points:
+      feather: [
+          [0, 0], [1, 0], [2, 0], [7, 0], [8, 0], [9, 0], [0, 2], [1, 2], [2, 2], [7, 2],
+          [8, 2], [9, 2]]
+      feather_dark: [[0, 1], [1, 1], [2, 1], [7, 1], [8, 1], [9, 1]]
+  stars_a:
+    points:
+      star: [[0, 0], [6, 1], [2, 2], [0, 6]]
+  stars_b:
+    points:
+      star: [[3, 0], [8, 2], [1, 5]]
+
+timeline:
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }]
+    ms: 800
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }, { sprite: blink, at: [3, 6] }]
+    ms: 150
+  - show: [moon, stars_b, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }]
+    ms: 600
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_left, at: [3, 7] }]
+    ms: 300
+  - show: [moon, stars_b, branch, body, { sprite: head, at: [-1, 3] }, { sprite: look_left, at: [2, 7] }]
+    ms: 700
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_left, at: [3, 7] }]
+    ms: 300
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }]
+    ms: 400
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }, { sprite: blink, at: [3, 6] }]
+    ms: 150
+  - show: [moon, stars_b, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }]
+    ms: 400
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_right, at: [3, 7] }]
+    ms: 300
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [1, 3] }, { sprite: look_right, at: [4, 7] }]
+    ms: 700
+  - show: [moon, stars_b, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_right, at: [3, 7] }]
+    ms: 300
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }]
+    ms: 500
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }, { sprite: blink, at: [3, 6] }]
+    ms: 150
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }]
+    ms: 200
+  - show: [moon, stars_a, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }, { sprite: blink, at: [3, 6] }]
+    ms: 150
+  - show: [moon, stars_b, branch, body, { sprite: head, at: [0, 3] }, { sprite: look_front, at: [3, 7] }]
+    ms: 600
