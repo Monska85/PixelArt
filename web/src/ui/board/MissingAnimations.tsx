@@ -30,7 +30,7 @@ function describe(missing: string[], context: MissingContext) {
 }
 
 /** Names capped at ten in view, with the full list kept for assistive technology. */
-function Names({ names }: { names: string[] }) {
+export function Names({ names }: { names: string[] }) {
   const capped = nameList(names);
   const full = names.join(", ");
   if (capped === full) return <>{full}</>;

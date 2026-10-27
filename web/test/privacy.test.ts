@@ -80,6 +80,7 @@ describe("what the app keeps in the browser", () => {
     const keyOf: Record<string, string> = {
       SIMULATOR_KEY: "pixelart.simulator",
       WIFI_KEY: "pixelart.wifi",
+      BOARD_FILES_KEY: "pixelart.boardFiles",
       "tokenKey(": "pixelart.token.<host>",
     };
     const seen = new Set<string>();
@@ -131,7 +132,12 @@ describe("what the app keeps in the browser", () => {
         removeItem: (key: string) => (calls.push(key), store.delete(key)),
       });
       const storage = await import("../src/ui/storage");
-      for (const key of [storage.SIMULATOR_KEY, storage.WIFI_KEY, storage.tokenKey("board-1234.local")]) {
+      for (const key of [
+        storage.SIMULATOR_KEY,
+        storage.WIFI_KEY,
+        storage.BOARD_FILES_KEY,
+        storage.tokenKey("board-1234.local"),
+      ]) {
         storage.writeStored(key, "x");
         storage.readStored(key);
         storage.removeStored(key);
@@ -139,7 +145,7 @@ describe("what the app keeps in the browser", () => {
       const patterns = listed("localStorage").map(
         (key) => new RegExp(`^${key.replace(/[.]/g, "\\.").replace("<host>", "[^/]+")}$`),
       );
-      expect(calls.length).toBe(9);
+      expect(calls.length).toBe(12);
       for (const key of calls)
         expect(
           patterns.some((p) => p.test(key)),

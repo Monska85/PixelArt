@@ -128,13 +128,22 @@ interface TabsProps {
   /** `count` is null while the list is not known: the tab shows no number rather than 0. */
   animations: { count: number | null; content: ReactNode };
   playlists: { count: number | null; content: ReactNode };
+  /** Added to the card look: the Board overrides it to sit flush inside its Files card. */
+  className?: string;
 }
 
 /**
  * The tabs of the list pattern: Animations and Playlists with their counts, in one card with the table under them.
  * Both lists stay mounted, so one keeps its state (an open preview) while the other is shown.
  */
-export function FileTabs({ label = "Stored files", value, onValueChange, animations, playlists }: TabsProps) {
+export function FileTabs({
+  label = "Stored files",
+  value,
+  onValueChange,
+  animations,
+  playlists,
+  className,
+}: TabsProps) {
   const trigger = (kind: ListKind, label: string, count: number | null) => (
     <TabsTrigger value={kind}>
       {label}
@@ -149,7 +158,7 @@ export function FileTabs({ label = "Stored files", value, onValueChange, animati
     <Tabs
       value={value}
       onValueChange={(next) => onValueChange(next === "playlist" ? "playlist" : "animation")}
-      className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+      className={cn("min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm", className)}
     >
       <TabsList aria-label={label} className="px-2">
         {trigger("animation", "Animations", animations.count)}

@@ -2,7 +2,7 @@
 
 import { existsSync, rmSync } from "node:fs";
 import type { Dialog, Page } from "@playwright/test";
-import { connectSimulator, expect, file, stored, test, text } from "./fixtures";
+import { connectSimulator, expect, file, showFiles, stored, test, text } from "./fixtures";
 
 const editorLink = (page: Page) => page.getByRole("link", { name: "Editor", exact: true });
 const state = (page: Page) => page.getByTestId("save-state");
@@ -110,6 +110,7 @@ test("an animation opened from a file is the same as that file, and from the boa
   simulator,
 }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await editorLink(page).click();
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Open file" }).click();
@@ -163,6 +164,7 @@ test("leaving the page asks only while the work is saved nowhere", async ({ page
 
 test("leaving the page asks after the saved file is deleted from the Board view", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await editorLink(page).click();
   await text(page, "Name", "Deleted elsewhere");
   await uploadAs(page, "e2e_elsewhere");
@@ -209,7 +211,10 @@ for (const via of ["Board", "Firmware"] as const) {
     // The page is left from the view where the files were deleted: only the lists read again can tell it.
     await expect(page.locator("#main")).toHaveAttribute("data-list-animations-count", "0");
     await expect(page.locator("#main")).toHaveAttribute("data-list-playlists-count", "0");
-    if (via === "Board") await expect(page.getByText("No animations on this board")).toBeVisible();
+    if (via === "Board") {
+      await showFiles(page);
+      await expect(page.getByText("No animations on this board")).toBeVisible();
+    }
 
     const dialogs: Dialog[] = [];
     page.on("dialog", (dialog) => {
@@ -241,6 +246,7 @@ test("Delete warns when the editor holds the only saved copy, and Download YAML 
   simulator,
 }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await page.getByRole("button", { name: "Edit star", exact: true }).click();
   await expect(state(page)).toHaveText(new RegExp(`^Saved to board as star at `));
   await page.getByRole("link", { name: "Board" }).click();
@@ -268,6 +274,7 @@ test("Delete warns when the editor holds the only saved copy, and Download YAML 
 
 test("Delete everything warns the same way", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await page.getByRole("button", { name: "Edit star", exact: true }).click();
   await expect(page.getByRole("button", { name: "Back to Board" })).toBeVisible();
   await page.getByRole("link", { name: "Board" }).click();
@@ -293,6 +300,7 @@ test("a view the user went to while an animation was opening is not replaced by 
     await route.continue();
   });
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await page.getByRole("button", { name: "Edit star", exact: true }).click();
   await page.getByRole("link", { name: "Library", exact: true }).click();
   await expect(page).toHaveURL(/#library$/);

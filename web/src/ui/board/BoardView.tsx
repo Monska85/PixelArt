@@ -22,6 +22,8 @@ import { session, useSession } from "../session";
 import { useManifest } from "../useManifest";
 import { ConnectCard } from "../shell/ConnectCard";
 import { uploadBlockedReason, useUploadRunning } from "../upload";
+import { FilesCard } from "./FilesCard";
+import { useFilesSection } from "./filesSection";
 import { FilesList } from "./FilesList";
 import { newModel, openStoredPlaylist } from "./playlistModel";
 import { missingByPlaylist } from "./missing";
@@ -91,7 +93,17 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
     changed();
   };
 
-  const upload = useBoardUpload({ client, blocked, onUploaded: changed, onProblem: report });
+  const files = useFilesSection();
+  const { reveal } = files;
+  const upload = useBoardUpload({
+    client,
+    blocked,
+    onUploaded: (stored) => {
+      changed();
+      if (stored) reveal();
+    },
+    onProblem: report,
+  });
   const wipe = useDeleteEverything({ client, onDone: changed });
   const uploadRunning = useUploadRunning();
   const [wifiSetup, setWifiSetup] = useState(false);
@@ -120,6 +132,12 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
         );
     },
   };
+
+  // Whatever opens a playlist editor, from Edit, New playlist or a confirmed switch, shows the list next to it.
+  const editingSeq = editor.editing?.seq;
+  useEffect(() => {
+    if (editingSeq !== undefined) reveal();
+  }, [editingSeq, reveal]);
 
   async function edit(id: string): Promise<void> {
     try {
@@ -157,42 +175,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
 
   return (
     <div className="flex flex-col gap-4" data-testid="drop-area" {...upload.dropProps}>
-      <PageHeader
-        title="Board"
-        description={DESCRIPTION}
-        primary={{
-          label: "Upload files",
-          icon: Upload,
-          onSelect: upload.openFiles,
-          disabled: upload.reason !== null,
-          reason: upload.reason,
-        }}
-        secondary={[
-          {
-            label: "Upload folder",
-            icon: FolderUp,
-            onSelect: upload.openFolder,
-            disabled: upload.reason !== null,
-            reason: upload.reason,
-          },
-        ]}
-        more={[
-          {
-            label: "New playlist",
-            icon: Plus,
-            onSelect: () => editor.open(newModel()),
-            disabled: lost || editor.editing !== null,
-          },
-          { label: "Refresh", icon: RefreshCw, onSelect: refresh, disabled: lost },
-          {
-            label: "Delete everything",
-            icon: Trash2,
-            destructive: true,
-            onSelect: () => wipe.start(),
-            disabled: lost || wipe.checking || uploadRunning,
-          },
-        ]}
-      />
+      <PageHeader title="Board" description={DESCRIPTION} />
       {upload.inputs}
       {blocked && blocked === uploadsBlocked && <BlockedNote reason={blocked} />}
       <RunningUpload />
@@ -221,37 +204,89 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
         )}
         panel={preview && <PreviewPanel preview={preview} onClose={() => setPreview(null)} />}
       >
-        <FileTabs
-          value={list}
-          onValueChange={setList}
-          animations={{
-            count: animations?.length ?? null,
-            content: (
-              <FilesList
-                {...listProps}
-                kind="animation"
-                list={data.animations}
-                onEdit={(id) => void editAnimation(id)}
-                onPreview={setPreview}
-                previewId={preview?.id ?? null}
-                onClosePreview={() => setPreview(null)}
-              />
-            ),
+        <FilesCard
+          animations={data.animations}
+          playlists={data.playlists}
+          settings={data.settings}
+          playlistNames={playlistNames}
+          missing={missing}
+          actions={{
+            primary: {
+              label: "Upload files",
+              icon: Upload,
+              onSelect: upload.openFiles,
+              disabled: upload.reason !== null,
+              reason: upload.reason,
+            },
+            secondary: [
+              {
+                label: "Upload folder",
+                icon: FolderUp,
+                onSelect: upload.openFolder,
+                disabled: upload.reason !== null,
+                reason: upload.reason,
+              },
+            ],
+            more: [
+              {
+                label: "New playlist",
+                icon: Plus,
+                onSelect: () => editor.open(newModel()),
+                disabled: lost || editor.editing !== null,
+              },
+              { label: "Refresh", icon: RefreshCw, onSelect: refresh, disabled: lost },
+              {
+                label: "Delete everything",
+                icon: Trash2,
+                destructive: true,
+                onSelect: () => wipe.start(),
+                disabled: lost || wipe.checking || uploadRunning,
+              },
+            ],
           }}
-          playlists={{
-            count: playlists?.length ?? null,
-            content: (
-              <FilesList
-                {...listProps}
-                kind="playlist"
-                list={data.playlists}
-                onEdit={(id) => void edit(id)}
-                missing={missing}
-                missingContext={missingContext}
-              />
-            ),
+          open={files.open}
+          onToggle={files.toggle}
+          onShowPlaylists={() => {
+            setList("playlist");
+            reveal();
           }}
-        />
+        >
+          <FileTabs
+            className="rounded-none border-0 border-t shadow-none"
+            value={list}
+            onValueChange={setList}
+            animations={{
+              count: animations?.length ?? null,
+              content: (
+                <FilesList
+                  {...listProps}
+                  kind="animation"
+                  list={data.animations}
+                  onEdit={(id) => void editAnimation(id)}
+                  onPreview={(shown) => {
+                    reveal();
+                    setPreview(shown);
+                  }}
+                  previewId={preview?.id ?? null}
+                  onClosePreview={() => setPreview(null)}
+                />
+              ),
+            }}
+            playlists={{
+              count: playlists?.length ?? null,
+              content: (
+                <FilesList
+                  {...listProps}
+                  kind="playlist"
+                  list={data.playlists}
+                  onEdit={(id) => void edit(id)}
+                  missing={missing}
+                  missingContext={missingContext}
+                />
+              ),
+            }}
+          />
+        </FilesCard>
         <StorageCard storage={info?.storage ?? null} animations={animations} playlists={playlists} />
         {data.settings && (
           <SettingsPanel

@@ -38,7 +38,7 @@ The details the build settled:
 
 ### Page pattern
 
-Every view starts with the same page header: the title (`h2`), one line saying what the view is for, and on the right the view's single primary action, its secondary actions, and a **More** menu for the rest. On a phone the secondary actions move into **More**. Content follows in cards with one shared style.
+Every view starts with the same page header: the title (`h2`), one line saying what the view is for, and on the right the view's single primary action, its secondary actions, and a **More** menu for the rest. On a phone the secondary actions move into **More**. Content follows in cards with one shared style. The Board view is the one exception to the actions on the right: its file actions are in the header of its Files card, see [Files](#files).
 
 ### List pattern
 
@@ -88,13 +88,17 @@ Labels above fields; a hint in muted text under the field; an error replaces the
 
 ```text
 Board        [PixelArt  Board Library Firmware Editor   ● Connected: simulator 0.0.0   System ◐]
-             Board: the files and settings on this board     [Upload files] [Upload folder] [⋯]
-             (activity panel when an upload or wipe runs)                   ⋯: New playlist,
-             ┌ Animations 12 ┐ Playlists 1                                    Refresh, Delete everything
-             │ Ball        ball      1   2.8 KB   ▶ ✎ ⋯ │  ⋯: Download JSON, Download YAML, Delete
-             playlist row: name, [Active] [⚠ 2 missing]   ⬇ Install missing, ✎ Edit, ⋯
-             └──────────────────────────────────────────┘
-             Settings card: brightness slider with value, active playlist select, a note with Install missing when the active playlist lacks animations
+             Board: the files and settings on this board
+             (activity panel when an upload or wipe runs)
+             Files card: "Files"                       [Upload files] [Upload folder] [⋯]
+               "12 animations, 1 playlist, active playlist: Default"  ⋯: New playlist,
+               (warning with [Show playlists] when a playlist lacks animations)   Refresh, Delete everything
+               [⌄ Show all files] / [⌃ Hide files], closed by default; open, it shows:
+               ┌ Animations 12 ┐ Playlists 1
+               │ Ball        ball      1   2.8 KB   ▶ ✎ ⋯ │  ⋯: Download JSON, Download YAML, Delete
+               playlist row: name, [Active] [⚠ 2 missing]   ⬇ Install missing, ✎ Edit, ⋯
+               └──────────────────────────────────────────┘
+             Storage card, then Settings card: brightness slider with value, active playlist select, a note with Install missing when the active playlist lacks animations
 Library      Library: animations published with content release 1.4.0  [Install all ▾]
              same tabs and table; columns: version, state (icon + word); actions ⬇ Install, ▶ Preview, ✎ Open in editor
 Firmware     Firmware: install or update the board's firmware           [Update firmware]
@@ -160,7 +164,7 @@ Shown when a board or the simulator is connected.
 
 ### Files
 
-Two lists, animations and playlists, read with `list` page by page until `more` is `false`. They follow the [list pattern](#list-pattern): the two tabs of a tab component, **Animations** and **Playlists**, each with its number of files, and a table that fills the card. The tabs follow the WAI-ARIA tabs pattern: Left and Right arrows move between them and wrap around, Home and End jump to the first and the last, and focus follows the selected tab. The Animations tab is shown first, and the other list keeps its state (an open preview) while it is hidden.
+The files are in the first card of the view, **Files**, above Storage, Settings, WiFi, Updates and Network access, so every card is within reach without scrolling past two long tables. The card always shows its title, the actions below and a one-line summary, and holds the lists under a toggle button. Two lists, animations and playlists, read with `list` page by page until `more` is `false`. They follow the [list pattern](#list-pattern): the two tabs of a tab component, **Animations** and **Playlists**, each with its number of files, and a table that fills the card. The tabs follow the WAI-ARIA tabs pattern: Left and Right arrows move between them and wrap around, Home and End jump to the first and the last, and focus follows the selected tab. The Animations tab is shown first, and the other list keeps its state (an open preview) while it is hidden.
 
 Each row shows the ID, the name, the version (animations) and the size (written on one line, for example `1,234 B`), then the actions, as described under [User interface](#user-interface):
 
@@ -168,7 +172,15 @@ Each row shows the ID, the name, the version (animations) and the size (written 
 - **Edit** (icon button): opens the file in the Editor (animations) or in the playlist editor (playlists). The Editor then offers a way back to the Board view, see [Opening a document](#opening-a-document).
 - **More** menu: **Download JSON** saves the file as stored (`<id>.json`); **Download YAML** saves it converted to YAML (`<id>.yaml`); **Delete**, after a confirmation that names the file. Deleting the active playlist shows an extra line: the board will then play every animation.
 
-The page header offers **Upload files** (primary) and **Upload folder**, and a **More** menu with **New playlist**, **Refresh** and **Delete everything** (see [Delete everything](#delete-everything)), as the [page pattern](#page-pattern) says.
+The card's header has the actions: **Upload files** (primary) and **Upload folder**, and a **More** menu with **New playlist**, **Refresh** and **Delete everything** (see [Delete everything](#delete-everything)), built as the actions of the [page pattern](#page-pattern) are (below 640 px **Upload folder** moves into **More**). The Board page header keeps only its title and description.
+
+**Summary.** One line, always shown: "41 animations, 2 playlists, active playlist: Christmas". The active playlist is shown by its name, or by its ID when it has none. A setting that names a playlist that is not stored reads "active playlist: ID (not stored)", an empty setting reads "no active playlist: every animation plays", and without the settings the line stops after the counts. While a list is being read it says "Reading the files from the board...", and when a list could not be read "Could not read the files from the board.".
+
+**Missing animations.** When at least one stored playlist misses animations, a warning with an icon and words stays visible under the summary, also while the section is closed: "2 playlists are missing animations: christmas, halloween." (the IDs, at most 10, then "and N more"), with a **Show playlists** button that opens the section, selects the Playlists tab and moves the focus to the tab. See [Missing animations](#missing-animations).
+
+**Toggle.** A button in the card reads **Show all files** when the section is closed and **Hide files** when it is open, with a chevron icon that assistive technology does not read, `aria-expanded` and `aria-controls` pointing at the element that holds the tabs. The section is closed by default. The tabs stay mounted while it is closed (the element is hidden), so the selected tab, an open preview and the dialogs keep their state. The user's choice with the button is kept in `localStorage` under `pixelart.boardFiles` (`open` or `closed`; any other value, or storage that is blocked, reads as closed), so it holds after navigation and reload, per browser.
+
+**Automatic opening.** The section opens by itself when the user needs the list: when a playlist editor opens (Edit, New playlist, or a confirmed switch), when a preview opens, when an upload through the Board view's queue (pickers, drop, Install missing) ends with at least one file uploaded (not when nothing was sent, all failed, or the user cancelled), and with **Show playlists**. An automatic opening is not stored: only the toggle writes `pixelart.boardFiles`, so a moment's need never undoes the choice to keep the list closed. It lasts until the user hides the section or leaves the view; a reload or a return to the view follows the stored choice.
 
 A download reads the file with `get` in chunks of `info.limits.chunk` bytes and compares the SHA-256 of what it read with the one `list` reported. When they differ (the file changed during the download), it reads the file again once, then reports the error.
 
@@ -235,7 +247,7 @@ The view shows the settings from the reply to `settings_set`, not the values the
 
 ### Storage
 
-A **Storage** card between the file lists and Settings, when the board reports `info.storage` (the connection chip's details keep showing it too):
+A **Storage** card between the Files card and Settings, when the board reports `info.storage` (the connection chip's details keep showing it too):
 
 - **Space:** "239.0 KB free of 960.0 KB" (sizes as in the file lists, base 1,024) and a bar of the used part.
 - **Files:** how many animations and playlists are stored, and, once both lists are read, an estimate: "Estimate: about 150 more animations of average size (6.0 KB each) would fit." The average is taken over the stored animations, each rounded up to the file system's 4,096-byte blocks, and the number is the free space divided by it, rounded down. It says "estimate" because the files of the next upload differ. With no animation stored it reads "Store an animation to see how many more would fit." and gives no number.
@@ -280,6 +292,7 @@ The **Delete everything** dialog (Board view and Firmware view) says that the re
 
 A stored playlist can name animations the board does not store (they were deleted, or never uploaded). The app reads each stored playlist from the board and compares the animations it names, enabled or not, with the stored animation list. Nothing is called missing while a list is not known (still being read, or unreadable), or while a playlist could not be read.
 
+- **Files card:** the warning of the summary, see [Files](#files).
 - **Playlists tab:** a playlist with missing animations shows a warning badge with an icon and the word, "2 missing", next to its name. A tooltip (also on keyboard focus) lists at most 10 missing animations, then "and N more", so it stays shorter than the screen; the accessible name lists them all. A row **Install missing** icon button sends the missing animations that `./manifest.json` publishes through the [upload queue](#upload-queue); the ones that are not published are listed in the tooltip as "not available in the Library". The button is not shown when none of them is published.
 - **Settings card:** the active playlist gets the same warning as a note with the list (at most 10 names, then "and N more"; assistive technology reads them all), "Not available in the Library: ..." for the unpublished ones, and an **Install missing** button.
 - **Playlist editor:** each item whose animation is not stored is marked "Not stored". When the release publishes it, the item has an **Install** icon button for that animation; otherwise it says "Not available in the Library".
@@ -304,7 +317,7 @@ The privacy promise is a contract with the user: nothing personal leaves the bro
 - **Footer:** the line described in [App shell](#app-shell).
 - **Notes where data is entered:** next to the password of the WiFi setup dialog, "The password goes straight to the board over USB. It is never sent anywhere else.", above the token of the Network access card, which shows the token the board gives over USB, "Read from the board over USB. The app does not store it or send it anywhere: over WiFi the board checks a code derived from it.", and in the login dialog, where a token is typed and then kept in this browser, "Kept in this browser to log in again. It is never sent: the board checks a code derived from it."
 - **Privacy view:** at the address `#privacy`, reached from the footer only (it is not in the navigation). Its sections:
-  - **What stays in your browser:** every key the app writes to browser storage, by purpose: `pixelart.theme` (the theme choice), `pixelart.simulator` (the simulator address last typed), `pixelart.wifi` (the address of the board on your network, its name ending in `.local` or the address typed, from the last WiFi connection or read from the board over USB), `pixelart.token.<host>` (the token of the board at that address, stored as written, to log in over WiFi again; never sent, only a code derived from it), `pixelart.editorNote` (the dismissed Editor note), all in `localStorage`, and the editor draft in IndexedDB (database `pixelart-editor`, store `drafts`, key `current`). The app sets no cookies. A unit test keeps this list equal to the keys in the source.
+  - **What stays in your browser:** every key the app writes to browser storage, by purpose: `pixelart.theme` (the theme choice), `pixelart.simulator` (the simulator address last typed), `pixelart.wifi` (the address of the board on your network, its name ending in `.local` or the address typed, from the last WiFi connection or read from the board over USB), `pixelart.token.<host>` (the token of the board at that address, stored as written, to log in over WiFi again; never sent, only a code derived from it), `pixelart.editorNote` (the dismissed Editor note), `pixelart.boardFiles` (whether the Board view's Files section is open or closed), all in `localStorage`, and the editor draft in IndexedDB (database `pixelart-editor`, store `drafts`, key `current`). The app sets no cookies. A unit test keeps this list equal to the keys in the source.
   - **What goes only to your board:** uploaded files, settings, the WiFi network name and password (over USB only, with Improv). To log in over WiFi the app sends a code derived from the token with the board's one-time number, never the token.
   - **What your board contacts:** to check for updates the board itself contacts the release site (the firmware manifest) and the animation source, and pool.ntp.org for the time when the install window is narrower than the whole day. Those requests carry none of the user's data, and those hosts see the board's IP address. Setting the update mode to Off stops them.
   - **Limits:** the WebSocket to the board is plain `ws:`, so on the local network someone who can watch the traffic can see what is sent and the network name in `status`, and with the network login off there is no login at all; the board keeps the WiFi network name and password in plain text, readable by anyone who holds it; the token is stored in the browser as written (clear text), readable by anyone with access to that browser profile.

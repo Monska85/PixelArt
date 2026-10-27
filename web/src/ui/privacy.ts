@@ -68,6 +68,11 @@ export const STORED_ITEMS: readonly StoredItem[] = [
     purpose: "That you dismissed the note at the top of the Editor.",
   },
   {
+    kind: "localStorage",
+    key: "pixelart.boardFiles",
+    purpose: "Whether the Board view's Files section is open or closed.",
+  },
+  {
     kind: "IndexedDB",
     key: "pixelart-editor / drafts / current",
     purpose: "The animation you are editing, so a reload does not lose it.",

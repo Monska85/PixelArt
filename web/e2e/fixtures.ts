@@ -154,7 +154,18 @@ export const pick = (page: Page, ...files: string[] | Array<ReturnType<typeof up
 
 export const summary = (page: Page) => page.getByRole("status").filter({ hasText: /(Upload|Install) summary/ });
 export const animations = (page: Page) => page.getByRole("table", { name: "Animations on the board" });
+/** Opens the Board view's Files section, closed by default, when it is closed: the lists are hidden until then. */
+export async function showFiles(page: Page): Promise<void> {
+  const toggle = page.getByRole("button", { name: /^(Show all files|Hide files)$/ });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+}
 export const showPlaylists = (page: Page) => page.getByRole("tab", { name: /^Playlists/ }).click();
+/** The Playlists tab of the Board view, whose Files section is opened first. */
+export async function showBoardPlaylists(page: Page): Promise<void> {
+  await showFiles(page);
+  await showPlaylists(page);
+}
 /** The editor has validated the document it shows. */
 export const settled = (page: Page) => expect(page.getByTestId("diagnostics")).toHaveAttribute("aria-busy", "false");
 

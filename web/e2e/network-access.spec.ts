@@ -2,7 +2,16 @@
 
 import { createHmac } from "node:crypto";
 import type { Page } from "@playwright/test";
-import { connectSimulator, expect, openConnection, test, toastWith, watchReplies, watchRequests } from "./fixtures";
+import {
+  connectSimulator,
+  expect,
+  openConnection,
+  showFiles,
+  test,
+  toastWith,
+  watchReplies,
+  watchRequests,
+} from "./fixtures";
 import type { Simulator } from "./fixtures";
 
 const TOKEN = "k3j9x0q7w2m5z8a1";
@@ -40,6 +49,7 @@ test("the Board view connects over WiFi and leaves out what needs USB", async ({
   const requests = watchRequests(page, "settings_get");
   await connectWifi(page, simulator);
   await expect(page.getByTestId("connection-state")).toHaveText("Connected");
+  await showFiles(page);
   await expect(page.getByRole("tab", { name: /^Animations/ })).toBeVisible();
 
   // The WiFi card shows the state without Set up WiFi and Forget network, which need USB.

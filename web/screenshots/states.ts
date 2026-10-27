@@ -19,7 +19,8 @@ import {
   pick,
   playlistYaml,
   settled,
-  showPlaylists,
+  showFiles,
+  showBoardPlaylists,
   type Simulator,
   stored,
   test as base,
@@ -84,6 +85,7 @@ const more = (page: Page, id: string) => page.getByRole("button", { name: `More 
 const installers = (page: Page) => expect(page.locator("esp-web-install-button")).toHaveCount(2);
 
 async function editFromBoard(page: Page, id: string): Promise<void> {
+  await showFiles(page);
   await page.getByRole("button", { name: `Edit ${id}`, exact: true }).click();
   await expect(page.getByTestId("editor-back")).toBeVisible();
   await settled(page);
@@ -181,6 +183,13 @@ export const states = {
   // Board view, connected
   "board-connected": async ({ page, simulator, check }) => {
     await connected(page, simulator);
+    await expect(page.getByTestId("files-summary")).toContainText("active playlist");
+    await expect(animations(page)).toBeHidden();
+    await check();
+  },
+  "board-files-open": async ({ page, simulator, check }) => {
+    await connected(page, simulator);
+    await showFiles(page);
     await expect(animations(page)).toBeVisible();
     await check();
   },
@@ -200,12 +209,13 @@ export const states = {
   },
   "board-playlists": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await showPlaylists(page);
+    await showBoardPlaylists(page);
     await expect(row(page, "default")).toBeVisible();
     await check();
   },
   "board-more-menu": async ({ page, simulator, check }) => {
     await connected(page, simulator);
+    await showFiles(page);
     await more(page, "ball").click();
     await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
     await check();
@@ -218,12 +228,14 @@ export const states = {
   },
   "board-preview": async ({ page, simulator, check }) => {
     await connected(page, simulator);
+    await showFiles(page);
     await page.getByRole("button", { name: "Preview ball" }).click();
     await expect(page.getByRole("dialog", { name: "Preview of ball" })).toBeVisible();
     await check();
   },
   "board-delete-dialog": async ({ page, simulator, check }) => {
     await connected(page, simulator);
+    await showFiles(page);
     await more(page, "ball").click();
     await page.getByRole("menuitem", { name: "Delete" }).click();
     await expect(page.getByRole("dialog", { name: "Delete ball?" })).toBeVisible();
@@ -231,14 +243,14 @@ export const states = {
   },
   "board-playlist-editor": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await showPlaylists(page);
+    await showBoardPlaylists(page);
     await page.getByRole("button", { name: "Edit default" }).click();
     await expect(page.getByRole("heading", { name: "Edit playlist default" })).toBeFocused();
     await check();
   },
   "board-playlist-editor-moving": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await showPlaylists(page);
+    await showBoardPlaylists(page);
     await page.getByRole("button", { name: "Edit default" }).click();
     await expect(page.getByRole("heading", { name: "Edit playlist default" })).toBeFocused();
     // An item dragged with the mouse one place down, still held: it is marked while it moves.
@@ -254,7 +266,7 @@ export const states = {
   "board-missing-animations": async ({ page, simulator, check }) => {
     missingAnimations(simulator);
     await connected(page, simulator);
-    await showPlaylists(page);
+    await showBoardPlaylists(page);
     const badge = page.getByTestId("missing-default");
     await expect(badge).toHaveText("2 missing");
     await badge.focus();
@@ -264,7 +276,7 @@ export const states = {
   "board-playlist-editor-missing": async ({ page, simulator, check }) => {
     missingAnimations(simulator);
     await connected(page, simulator);
-    await showPlaylists(page);
+    await showBoardPlaylists(page);
     await page.getByRole("button", { name: "Edit default" }).click();
     await expect(page.getByRole("heading", { name: "Edit playlist default" })).toBeFocused();
     await expect(page.getByTestId(/^item-missing-/)).toHaveCount(2);
@@ -452,8 +464,7 @@ export const states = {
     const board = await connected(page, simulator);
     // The board's files and settings are read before the link drops, so the picture does not depend on which read the
     // drop cuts.
-    await expect(row(page, "ball")).toBeVisible();
-    await expect(page.getByRole("tab", { name: /^Playlists\s*2$/ })).toBeVisible();
+    await expect(page.getByTestId("files-summary")).toContainText("2 playlists");
     await expect(page.getByTestId("brightness-value")).toBeVisible();
     await board.disconnect();
     simulator.stop();
@@ -466,6 +477,8 @@ export const states = {
     const board = await watchBoard(page, simulator);
     board.hold("list");
     await connectSimulator(page, simulator);
+    await expect(page.getByTestId("files-summary")).toHaveText("Reading the files from the board...");
+    await showFiles(page);
     await expect(page.getByTestId("list-loading").first()).toBeVisible();
     await expect(page.getByText("No animations on this board")).toHaveCount(0);
     await check();
@@ -477,18 +490,21 @@ export const states = {
     await connectScripted(page, board);
     await expect(page.getByText("Could not read the files from the board.").first()).toBeVisible();
     await expect(page.getByRole("alert").filter({ hasText: "Reading the board" })).toHaveCount(2);
+    await showFiles(page);
+    await expect(page.getByRole("button", { name: "Retry" }).first()).toBeVisible();
     await check();
   },
   "board-empty": async ({ page, simulator, check }) => {
     emptyBoard(simulator);
     await connected(page, simulator);
+    await showFiles(page);
     await expect(page.getByText("No animations on this board")).toBeVisible();
     await check();
   },
   "board-empty-playlists": async ({ page, simulator, check }) => {
     emptyBoard(simulator);
     await connected(page, simulator);
-    await showPlaylists(page);
+    await showBoardPlaylists(page);
     await expect(page.getByText("No playlists on this board")).toBeVisible();
     await check();
   },
@@ -764,6 +780,7 @@ export const states = {
     await connected(page, simulator);
     await editFromBoard(page, "ball");
     await go(page, "board", "Board");
+    await showFiles(page);
     await more(page, "ball").click();
     await page.getByRole("menuitem", { name: "Delete" }).click();
     await expect(page.getByRole("dialog", { name: "Delete ball?" }).getByTestId("only-copy")).toBeVisible();

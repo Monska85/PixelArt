@@ -9,6 +9,7 @@ import {
   file,
   openFromLibrary,
   settled,
+  showFiles,
   stored,
   test,
   text,
@@ -233,6 +234,7 @@ test("saves YAML with the hex colors quoted and uploads to the board", async ({ 
   expect(existsSync(path)).toBe(true);
   expect(JSON.parse(readFileSync(path, "utf8")).name).toBe("Blue Dot");
   await page.getByRole("link", { name: "Board" }).click();
+  await showFiles(page);
   await expect(animations(page).locator("code", { hasText: /^e2e_edit$/ })).toBeVisible();
 
   // The same content again needs no question.
@@ -279,6 +281,7 @@ test("opens a stored animation from the Board view and asks before replacing uns
   simulator,
 }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await page.getByRole("button", { name: "Edit snowflake" }).click();
   await expect(page).toHaveURL(/#editor$/);
   await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Snowflake");

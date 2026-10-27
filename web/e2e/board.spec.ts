@@ -11,7 +11,8 @@ import {
   file,
   openConnection,
   pick,
-  showPlaylists,
+  showFiles,
+  showBoardPlaylists,
   stored,
   test,
   toastWith,
@@ -66,11 +67,12 @@ test("connects to the simulator and lists what it stores", async ({ page, simula
   await expect(page.getByTestId("info-storage")).toContainText(/KB|MB/);
   await page.keyboard.press("Escape");
 
+  await showFiles(page);
   const ids = storedIds(simulator.dataDir, "animations");
   await expect(page.getByRole("tab", { name: /^Animations/ })).toContainText(String(ids.length));
   await expect(animations(page).getByRole("row")).toHaveCount(ids.length + 1);
   await expect(row(animations(page), "snowflake")).toContainText("Snowflake");
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await expect(row(playlists(page), "default")).toContainText("Active");
   await expect(page).toHaveURL(/#board$|\/$/);
 });
@@ -170,6 +172,7 @@ test("uploads a file dropped on the view", async ({ page, simulator }) => {
 
 test("downloads a file as stored, and as YAML", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   const [json] = await Promise.all([page.waitForEvent("download"), downloadItem(page, "snowflake", "Download JSON")]);
   expect(json.suggestedFilename()).toBe("snowflake.json");
   const saved = readFileSync((await json.path()) as string);
@@ -182,6 +185,7 @@ test("downloads a file as stored, and as YAML", async ({ page, simulator }) => {
 
 test("previews an animation with play, pause and step", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await row(animations(page), "snowflake").getByRole("button", { name: "Preview snowflake" }).click();
   const preview = page.getByRole("dialog", { name: "Preview of snowflake" });
   await expect(preview.getByRole("img", { name: "Preview of snowflake" })).toBeVisible();
@@ -199,6 +203,7 @@ test("previews an animation with play, pause and step", async ({ page, simulator
 
 test("deletes after a confirmation that names the file", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await chooseDelete(page, animations(page), "star");
   const dialog = page.getByRole("dialog", { name: "Delete star?" });
   await expect(dialog).toContainText("star");
@@ -218,7 +223,7 @@ test("deletes after a confirmation that names the file", async ({ page, simulato
 
 test("deleting the active playlist says the board then plays every animation", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await chooseDelete(page, playlists(page), "default");
   const dialog = page.getByRole("dialog", { name: "Delete default?" });
   await expect(dialog).toContainText("play every animation");
@@ -258,7 +263,7 @@ test("changes the active playlist", async ({ page, simulator }) => {
   await page.getByLabel("ID", { exact: true }).fill("mine");
   await page.getByRole("button", { name: "Add animation" }).click();
   await page.getByRole("button", { name: "Upload to board" }).click();
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await expect(row(playlists(page), "mine")).toBeVisible();
   await page.getByLabel("Active playlist").selectOption("mine");
   await expect(page.getByLabel("Active playlist")).toHaveValue("mine");
@@ -269,7 +274,7 @@ test("edits a stored playlist: order, repeat, enabled, add and remove", async ({
   await connectSimulator(page, simulator);
   const path = stored(simulator, "playlists", "default");
   const before = JSON.parse(readFileSync(path, "utf8"));
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await row(playlists(page), "default").getByRole("button", { name: "Edit default" }).click();
   const editor = editorPanel(page, "Edit playlist default");
   await expect(editor.getByLabel("Animation of item 1", { exact: true })).toHaveValue(before.items[0].animation);
@@ -301,7 +306,7 @@ test("the playlist editor opens in view and takes typed changes, with the board'
   const path = stored(simulator, "playlists", "default");
   const before = JSON.parse(readFileSync(path, "utf8"));
   expect(before.items.length).toBeGreaterThan(5); // the test edits up to item 6
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await row(playlists(page), "default").getByRole("button", { name: "Edit default" }).click();
   const editor = editorPanel(page, "Edit playlist default");
   // The editor sits above the lists: the user sees it open and keyboard focus is on it.
@@ -338,7 +343,7 @@ test("a repeat field shows the stored value again when left empty, and refuses n
   seeded.items[1].repeat = 5;
   writeFileSync(path, JSON.stringify(seeded));
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await row(playlists(page), "default").getByRole("button", { name: "Edit default" }).click();
   const editor = editorPanel(page, "Edit playlist default");
   const repeat = editor.getByLabel("Repeat of item 2", { exact: true });
@@ -366,7 +371,7 @@ test("Edit on another playlist asks before replacing unsaved changes, and focuse
 }) => {
   copyFileSync(stored(simulator, "playlists", "default"), stored(simulator, "playlists", "other"));
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   const heading = (id: string) => page.getByRole("heading", { name: `Edit playlist ${id}` });
   await row(playlists(page), "default").getByRole("button", { name: "Edit default" }).click();
   await expect(heading("default")).toBeFocused();
@@ -429,7 +434,7 @@ test("Edit asks about changes typed while the other playlist is being read from 
     },
   );
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await row(playlists(page), "default").getByRole("button", { name: "Edit default" }).click();
   await expect(page.getByRole("heading", { name: "Edit playlist default" })).toBeVisible();
 
@@ -450,7 +455,7 @@ test("the discard question names a new playlist by its typed ID, or as the new p
   simulator,
 }) => {
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await newPlaylist(page);
   await page.getByLabel("Name", { exact: true }).fill("Draft");
   await page.getByRole("button", { name: "Edit default", exact: true }).click();
@@ -476,7 +481,7 @@ test("a new playlist opens in view and is stored", async ({ page, simulator }) =
   await page.getByLabel("Animation of item 2", { exact: true }).selectOption("star");
   await page.getByRole("button", { name: "Upload to board" }).click();
   await expect(editorPanel(page, "New playlist")).toHaveCount(0);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await expect(row(playlists(page), "fresh")).toContainText("Fresh");
   const saved = JSON.parse(readFileSync(stored(simulator, "playlists", "fresh"), "utf8"));
   expect(saved.name).toBe("Fresh");
@@ -530,12 +535,12 @@ test("marks an item whose animation is not stored and keeps it", async ({ page, 
   await page.getByRole("button", { name: "Add animation" }).click();
   await page.getByLabel("Animation of item 1", { exact: true }).selectOption("dot");
   await page.getByRole("button", { name: "Upload to board" }).click();
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await expect(row(playlists(page), "temp")).toBeVisible();
   await showAnimations(page);
   await chooseDelete(page, animations(page), "dot");
   await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await row(playlists(page), "temp").getByRole("button", { name: "Edit temp" }).click();
   await expect(page.getByText("not stored")).toBeVisible();
   await page.getByRole("button", { name: "Upload to board" }).click();

@@ -2,7 +2,7 @@
 
 import { copyFileSync, readFileSync } from "node:fs";
 import type { Locator, Page } from "@playwright/test";
-import { connectSimulator, expect, showPlaylists, type Simulator, stored, test } from "./fixtures";
+import { connectSimulator, expect, showBoardPlaylists, type Simulator, stored, test } from "./fixtures";
 
 const editorPanel = (page: Page) => page.getByRole("dialog", { name: "Edit playlist default" });
 
@@ -10,7 +10,7 @@ const editorPanel = (page: Page) => page.getByRole("dialog", { name: "Edit playl
 async function openDefault(page: Page, simulator: Simulator): Promise<{ editor: Locator; before: string[] }> {
   const path = stored(simulator, "playlists", "default");
   const before = (JSON.parse(readFileSync(path, "utf8")).items as Array<{ animation: string }>).map((i) => i.animation);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await page.getByRole("button", { name: "Edit default", exact: true }).click();
   const editor = editorPanel(page);
   await expect(editor.getByRole("heading", { name: "Edit playlist default" })).toBeFocused();

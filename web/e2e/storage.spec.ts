@@ -3,7 +3,17 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { watchBoard } from "./board";
-import { animations, connectSimulator, expect, file, pick, test, toastWith, watchRequests } from "./fixtures";
+import {
+  animations,
+  connectSimulator,
+  expect,
+  file,
+  pick,
+  showFiles,
+  test,
+  toastWith,
+  watchRequests,
+} from "./fixtures";
 
 const count = (dataDir: string, kind: string): number => readdirSync(join(dataDir, kind)).length;
 const card = (page: import("@playwright/test").Page) => page.getByRole("region", { name: "Storage" });
@@ -50,6 +60,7 @@ test("the Storage card shows the free space and the stored files, and follows an
 test("the Storage card reads the storage again after a single file is deleted", async ({ page, simulator }) => {
   const infos = watchRequests(page, "info");
   await connectSimulator(page, simulator);
+  await showFiles(page);
   const files = count(simulator.dataDir, "animations");
   await expect(card(page).getByTestId("storage-files")).toContainText(`${files} animations`);
   const before = await freeKb(page);

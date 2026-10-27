@@ -3,7 +3,7 @@
 import { copyFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type { Locator, Page } from "@playwright/test";
-import { connectSimulator, expect, stored, test, toastWith, watchReplies } from "./fixtures";
+import { connectSimulator, expect, showFiles, stored, test, toastWith, watchReplies } from "./fixtures";
 import { watchBoard } from "./board";
 import { connectScripted, scriptedBoard } from "./scripted";
 
@@ -52,6 +52,7 @@ test("Delete everything in the Board view names the counts, removes every file a
     .getByRole("button", { name: `Delete ${total} files` })
     .click();
   await expect(toastWith(page, `Deleted ${animations} animations and ${playlists} playlist`)).toBeVisible();
+  await showFiles(page);
   await expect(page.getByText("No animations on this board")).toBeVisible();
   expect(count(simulator.dataDir, "animations")).toBe(0);
   expect(count(simulator.dataDir, "playlists")).toBe(0);
@@ -156,6 +157,7 @@ test("Delete everything in the Firmware view uses the same dialog", async ({ pag
   await expect(toastWith(page, /^Deleted \d+ animations/)).toBeVisible();
   expect(count(simulator.dataDir, "animations")).toBe(0);
   await page.getByRole("link", { name: "Board" }).click();
+  await showFiles(page);
   await expect(page.getByText("No animations on this board")).toBeVisible();
 });
 
@@ -243,6 +245,7 @@ test("the activity panel shows while Delete everything runs and no upload can st
   await expect(activity).toHaveCount(0);
   await expect(toastWith(page, /^Deleted/)).toBeVisible();
   // The empty list offers its own Upload files button once the board's lists are read again.
+  await showFiles(page);
   await expect(page.getByText("No animations on this board")).toBeVisible();
   for (const button of await page.getByRole("button", { name: "Upload files" }).all())
     await expect(button).toBeEnabled();
