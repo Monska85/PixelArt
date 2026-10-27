@@ -1,25 +1,29 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Assemble the release site: firmware files, ESP Web Tools manifests, animations, playlists and manifest.json.
+"""Assemble the release sites: the firmware release, the content release and the site Pages serves.
 
   tools/release.py version
       Print the firmware version of this checkout (PIXELART_VERSION, else git).
+  tools/release.py content-version
+      Print the content version of this checkout (PIXELART_CONTENT_VERSION, else the nearest content-vX.Y.Z tag).
   tools/release.py build [--out site] [--schema]
-      Collect the files of every board from the PlatformIO build folders and
-      the converted files in data/, write the third-party notices of the
-      firmware (tools/firmware_notices.py), and write the site. Run
-      `make release-firmware` to build everything first.
+      Collect the files of every board from the PlatformIO build folders, write the third-party notices of the
+      firmware (tools/firmware_notices.py), and write the firmware release site: firmware files, their ESP Web
+      Tools manifests and a manifest.json with no animations and no playlists. Run `make release-firmware` to
+      build everything first.
+  tools/release.py content [--out site] [--schema]
+      Write the content release site from the converted files in data/ (`make data`): animations/, playlists/ and
+      a manifest.json with no firmware. Run `make release-content`.
   tools/release.py check-site URL
       Fail when URL (the address GitHub Pages announces or serves the site at) is not the site address computed
       from this environment by the rules of tools/site_url.py, the address a firmware built here looks for. It
       reads no firmware. Used by the release workflow before and after the deployment.
-  tools/release.py assemble --out DIR [--firmware DIR] [--web DIR]
-      Merge a firmware site (the output of `build`) and a built web app into the
-      site GitHub Pages serves. Used by the release workflow and `make release-site`.
+  tools/release.py assemble --out DIR [--firmware DIR] [--content DIR] [--web DIR] [--schema]
+      Merge a firmware site (the output of `build`), a content site (the output of `content`) and a built web app
+      into the site GitHub Pages serves. Used by the release workflow and `make release-site`.
 
-The layout and the manifest are specified in docs/format/manifest-v1.md. Needs
-PlatformIO (pio) on the PATH, PyYAML is not used here. --schema needs jsonschema.
-Needs Python 3.8+ and works on Linux and macOS.
+The layout and the manifest are specified in docs/format/manifest-v1.md. `build` needs PlatformIO (pio) on the
+PATH, PyYAML is not used here. --schema needs jsonschema. Needs Python 3.8+ and works on Linux and macOS.
 """
 
 import argparse
@@ -50,6 +54,9 @@ BOARDS = {
     "esp32": {"chip": "esp32", "family": "ESP32", "bootloader": 0x1000},
     "esp32s3": {"chip": "esp32s3", "family": "ESP32-S3", "bootloader": 0x0},
 }
+# The parts of a firmware release, in the order ESP Web Tools writes them. No file system part: the firmware formats
+# its partition at the first boot, and a firmware release never writes it (docs/format/manifest-v1.md, Firmware files).
+FIRMWARE_PARTS = ("bootloader", "partitions", "boot_app0", "app")
 PARTITIONS_OFFSET = 0x8000
 BOOT_APP0_OFFSET = 0xE000
 
@@ -64,8 +71,8 @@ MAX_MANIFEST_FILES = 200
 SLOT_MARGIN = 64 * 1024
 
 # Partition table entry types and subtypes (ESP-IDF)
-TYPE_APP, TYPE_DATA = 0x00, 0x01
-SUBTYPE_OTA_0, SUBTYPE_SPIFFS = 0x10, 0x82
+TYPE_APP = 0x00
+SUBTYPE_OTA_0 = 0x10
 ENTRY_MAGIC = b"\xaa\x50"
 ENTRY_SIZE = 32
 
@@ -77,6 +84,13 @@ class ReleaseError(Exception):
 def describe_version():
     try:
         return fw_version.describe_version(ROOT)
+    except ValueError as err:
+        raise ReleaseError(str(err)) from err
+
+
+def describe_content_version():
+    try:
+        return fw_version.describe_content_version(ROOT)
     except ValueError as err:
         raise ReleaseError(str(err)) from err
 
@@ -192,20 +206,15 @@ def build_board(board, version, site, boot_app0):
         "partitions": env_dir / "partitions.bin",
         "boot_app0": boot_app0,
         "app": env_dir / "firmware.bin",
-        "filesystem": env_dir / "littlefs.bin",
     }
-    for part, path in sources.items():
+    for path in sources.values():
         if not path.is_file():
-            hint = " (pio run -e %s -t buildfs)" % board if part == "filesystem" else " (pio run -e %s)" % board
-            raise ReleaseError(f"{path} not found{hint}")
+            raise ReleaseError(f"{path} not found (pio run -e {board})")
 
     app = read_partitions(sources["partitions"])
     app_entry = find_partition(app, TYPE_APP, SUBTYPE_OTA_0, "first application")
-    fs_entry = find_partition(app, TYPE_DATA, SUBTYPE_SPIFFS, "file system")
     room = check_app_room(board, sources["app"].stat().st_size, app_entry[4])
     print(f"release: {board} application leaves {room} bytes free in its {app_entry[4]}-byte partition")
-    if sources["filesystem"].stat().st_size != fs_entry[4]:
-        raise ReleaseError(f"{board}: the file system image is not the size of its partition")
     app_bytes = sources["app"].read_bytes()
     if version.encode("ascii") not in app_bytes:
         raise ReleaseError(f"{board}: the firmware was not built with version {version}")
@@ -216,7 +225,6 @@ def build_board(board, version, site, boot_app0):
         "partitions": PARTITIONS_OFFSET,
         "boot_app0": BOOT_APP0_OFFSET,
         "app": app_entry[3],
-        "filesystem": fs_entry[3],
     }
 
     target = site / "firmware" / board
@@ -230,7 +238,7 @@ def build_board(board, version, site, boot_app0):
     offsets["factory"] = 0
 
     entries = []
-    for part in ("bootloader", "partitions", "boot_app0", "app", "filesystem", "factory"):
+    for part in (*FIRMWARE_PARTS, "factory"):
         entry = {"board": board, "chip": spec["family"], "part": part, "offset": offsets[part]}
         entry.update(entry_of(files[part], site))
         entries.append(entry)
@@ -388,7 +396,8 @@ def reset_site(site):
     site.mkdir(parents=True)
 
 
-def build_site(out, version, data, use_schema):
+def build_site(out, version, use_schema):
+    """The firmware release site: firmware files and manifests, no animations and no playlists."""
     if not fw_version.SAFE_VERSION.fullmatch(version):
         raise ReleaseError(f"'{version}' is not a valid version")
     site = site_path(out)
@@ -398,10 +407,6 @@ def build_site(out, version, data, use_schema):
     firmware = []
     for board in BOARDS:
         firmware += build_board(board, version, site, boot_app0)
-    animations = collect_documents(Path(data), "animations", site, True)
-    playlists = collect_documents(Path(data), "playlists", site, False)
-    if not animations or not playlists:
-        raise ReleaseError(f"{data} has no animations or no playlists: run make data")
 
     source = source_url()
     manifest = {
@@ -410,8 +415,8 @@ def build_site(out, version, data, use_schema):
         "released": released_date(),
         "source": source,
         "firmware": firmware,
-        "animations": animations,
-        "playlists": playlists,
+        "animations": [],
+        "playlists": [],
     }
     if use_schema:
         validate(manifest)
@@ -423,11 +428,37 @@ def build_site(out, version, data, use_schema):
         raise ReleaseError(f"third-party notices: {e}")
     (site / "firmware" / "THIRD_PARTY_NOTICES.txt").write_text(notices, encoding="utf-8")
 
-    update_parts = ["bootloader", "partitions", "boot_app0", "app"]
-    write_json(site / "firmware" / "install.json", web_tools_manifest(version, firmware, update_parts + ["filesystem"], True))
-    write_json(site / "firmware" / "update.json", web_tools_manifest(version, firmware, update_parts, False))
-    print(f"release: version {version}, {len(firmware)} firmware files, {len(animations)} animations, "
-          f"{len(playlists)} playlists in {site}")
+    write_json(site / "firmware" / "install.json", web_tools_manifest(version, firmware, list(FIRMWARE_PARTS), True))
+    write_json(site / "firmware" / "update.json", web_tools_manifest(version, firmware, list(FIRMWARE_PARTS), False))
+    print(f"release: firmware version {version}, {len(firmware)} firmware files in {site}")
+
+
+def build_content_site(out, version, data, use_schema):
+    """The content release site: the animations and playlists of `data` and a manifest with no firmware."""
+    if not fw_version.SAFE_VERSION.fullmatch(version):
+        raise ReleaseError(f"'{version}' is not a valid version")
+    site = site_path(out)
+    reset_site(site)
+
+    animations = collect_documents(Path(data), "animations", site, True)
+    playlists = collect_documents(Path(data), "playlists", site, False)
+    if not animations or not playlists:
+        raise ReleaseError(f"{data} has no animations or no playlists: run make data")
+
+    manifest = {
+        "format": FORMAT,
+        "version": version,
+        "released": released_date(),
+        "source": source_url(),
+        "content_version": version,
+        "animations": animations,
+        "playlists": playlists,
+    }
+    if use_schema:
+        validate(manifest)
+    check_manifest_limits(manifest)
+    write_json(site / "manifest.json", manifest)
+    print(f"release: content version {version}, {len(animations)} animations, {len(playlists)} playlists in {site}")
 
 
 def list_tree(root, label):
@@ -461,57 +492,154 @@ def find_conflicts(first, second):
     return sorted(conflicts)
 
 
-def assemble_site(out, firmware, web):
-    """Copy the firmware site, then the web app, into `out`. A path in both is an error and nothing is written."""
-    if firmware is None and web is None:
-        raise ReleaseError("assemble needs --firmware, --web or both")
+# What an archive may hold besides its manifest.json. A firmware release published before the content package also
+# carries animations/ and playlists/.
+FIRMWARE_FOLDERS = ("firmware/", "animations/", "playlists/")
+CONTENT_FOLDERS = ("animations/", "playlists/")
+
+
+def read_release_manifest(folder, label, files):
+    """The manifest.json of a firmware or content site, as a dict of format pixelart-manifest/1."""
+    if "manifest.json" not in files:
+        raise ReleaseError(f"the {label} folder {folder} has no manifest.json")
+    try:
+        manifest = json.loads((Path(folder) / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise ReleaseError(f"the manifest.json of the {label} folder cannot be read: {e}")
+    if not isinstance(manifest, dict) or manifest.get("format") != FORMAT:
+        raise ReleaseError(f"the manifest.json of the {label} folder is not a {FORMAT} manifest")
+    for key in ("animations", "playlists", "firmware"):
+        if key in manifest and not (isinstance(manifest[key], list) and all(isinstance(e, dict) for e in manifest[key])):
+            raise ReleaseError(f"the manifest.json of the {label} folder has a bad {key} list")
+    return manifest
+
+
+def assembled_manifest(firmware, content):
+    """The manifest of the site, by docs/format/manifest-v1.md, Assembling the site. Either input may be None."""
+    if firmware is None:
+        # A content release has no firmware: its manifest is the site's as it is
+        return content
+    if content is None:
+        return firmware
+    version = content.get("version")
+    if not isinstance(version, str) or not fw_version.SAFE_VERSION.fullmatch(version):
+        raise ReleaseError("the content manifest has no valid version")
+    manifest = {key: firmware[key] for key in ("format", "version", "released", "source") if key in firmware}
+    manifest["content_version"] = version
+    if "firmware" in firmware:
+        manifest["firmware"] = firmware["firmware"]
+    manifest["animations"] = content.get("animations", [])
+    manifest["playlists"] = content.get("playlists", [])
+    return manifest
+
+
+def check_listed_files(manifest, copied):
+    """Every file the manifest names must be in the site, or a board and the web app would meet a missing file."""
+    entries = [e for key in ("firmware", "animations", "playlists") for e in manifest.get(key, [])]
+    for entry in entries:
+        name = entry.get("file")
+        if not isinstance(name, str) or name not in copied:
+            raise ReleaseError(f"the manifest lists {name!r}, which the assembled site does not hold")
+
+
+def assemble_site(out, firmware, content, web, use_schema=False):
+    """Merge the firmware site, the content site and the web app into `out`. A path in two of them is an error and
+    nothing is written."""
+    if firmware is None and content is None and web is None:
+        raise ReleaseError("assemble needs --firmware, --content, --web or several of them")
     site = site_path(out)
-    inputs = [(label, Path(path)) for label, path in (("firmware", firmware), ("web", web)) if path]
+    inputs = [(label, Path(path)) for label, path in (("firmware", firmware), ("content", content), ("web", web)) if path]
     # Listed first, as given: a link must be seen before it is resolved
-    trees = [(label, path, list_tree(path, label)) for label, path in inputs]
-    for label, path, _ in trees:
+    listed = {label: (path, list_tree(path, label)) for label, path in inputs}
+    for label, (path, _) in listed.items():
         real = path.resolve()
         if site == real or site in real.parents or real in site.parents:
             raise ReleaseError(f"the site folder {site} and the {label} folder {real} must not contain each other")
-    if len(trees) == 2:
-        conflicts = find_conflicts(trees[0][2], trees[1][2])
-        if conflicts:
-            shown = ", ".join(conflicts[:10]) + (f" and {len(conflicts) - 10} more" if len(conflicts) > 10 else "")
-            raise ReleaseError(f"the firmware site and the web app both hold: {shown}")
+
+    manifests = {}
+    for label, allowed in (("firmware", FIRMWARE_FOLDERS), ("content", CONTENT_FOLDERS)):
+        if label in listed:
+            path, files = listed[label]
+            manifests[label] = read_release_manifest(path, label, files)
+            stray = [n for n in files if n != "manifest.json" and not n.startswith(allowed)]
+            if stray:
+                raise ReleaseError(f"the {label} folder holds {stray[0]}, outside {', '.join(allowed)}")
+    # The site's manifest.json is written below, from the manifests; the older folders of a firmware release that
+    # predates the content package give way to the content release's
+    placed = {}
+    for label, (path, files) in listed.items():
+        if label in manifests:
+            files = [n for n in files if n != "manifest.json"]
+        if label == "firmware" and content:
+            files = [n for n in files if not n.startswith(CONTENT_FOLDERS)]
+        placed[label] = files
+
+    manifest = assembled_manifest(manifests.get("firmware"), manifests.get("content")) if manifests else None
+    if manifest is not None:
+        if "manifest.json" in placed.get("web", []):
+            raise ReleaseError("the web app holds manifest.json, which the site's manifest would replace")
+        copied = {n for files in placed.values() for n in files}
+        check_listed_files(manifest, copied)
+        check_manifest_limits({**manifest, "animations": manifest.get("animations", []),
+                               "playlists": manifest.get("playlists", [])})
+        if use_schema:
+            validate(manifest)
+
+    labels = list(placed)
+    for i, first in enumerate(labels):
+        for second in labels[i + 1 :]:
+            conflicts = find_conflicts(placed[first], placed[second])
+            if conflicts:
+                shown = ", ".join(conflicts[:10]) + (f" and {len(conflicts) - 10} more" if len(conflicts) > 10 else "")
+                raise ReleaseError(f"the {first} and the {second} both hold: {shown}")
 
     reset_site(site)
-    for label, path, files in trees:
+    for label, files in placed.items():
+        path = listed[label][0]
         for name in files:
             target = site / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(path / name, target)
         print(f"release: {len(files)} files of the {label} copied to {site}")
+    if manifest is not None:
+        write_json(site / "manifest.json", manifest)
+        print(f"release: manifest.json written, content version {manifest.get('content_version', 'none')}")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("version", help="print the firmware version of this checkout")
-    build = commands.add_parser("build", help="assemble the release site from the build folders")
+    commands.add_parser("content-version", help="print the content version of this checkout")
+    build = commands.add_parser("build", help="assemble the firmware release site from the build folders")
     build.add_argument("--out", default="site", help="site folder, replaced if it exists (default: site)")
     build.add_argument("--schema", action="store_true", help="check manifest.json against the JSON Schema")
+    content = commands.add_parser("content", help="assemble the content release site from data/")
+    content.add_argument("--out", default="site", help="site folder, replaced if it exists (default: site)")
+    content.add_argument("--schema", action="store_true", help="check manifest.json against the JSON Schema")
     check = commands.add_parser("check-site", help="check the address the site is served at against the firmware's")
     check.add_argument("url", help="the address Pages serves the site at")
-    assemble = commands.add_parser("assemble", help="merge a firmware site and a web app into one site")
+    assemble = commands.add_parser("assemble", help="merge a firmware site, a content site and a web app into one site")
     assemble.add_argument("--out", required=True, help="site folder, replaced if it is site/ or a site built by this tool")
     assemble.add_argument("--firmware", help="the firmware site made by `build`")
+    assemble.add_argument("--content", help="the content site made by `content`")
     assemble.add_argument("--web", help="the built web app (web/dist)")
+    assemble.add_argument("--schema", action="store_true", help="check the site's manifest.json against the JSON Schema")
     args = parser.parse_args()
 
     try:
         if args.command == "version":
             print(describe_version())
+        elif args.command == "content-version":
+            print(describe_content_version())
         elif args.command == "check-site":
             check_site(args.url)
         elif args.command == "assemble":
-            assemble_site(args.out, args.firmware, args.web)
+            assemble_site(args.out, args.firmware, args.content, args.web, args.schema)
+        elif args.command == "content":
+            build_content_site(args.out, describe_content_version(), ROOT / "data", args.schema)
         else:
-            build_site(args.out, describe_version(), ROOT / "data", args.schema)
+            build_site(args.out, describe_version(), args.schema)
     except ReleaseError as e:
         sys.exit(f"release: {e}")
 
