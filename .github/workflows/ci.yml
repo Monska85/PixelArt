@@ -25,48 +25,107 @@ jobs:
     timeout-minutes: 5
     permissions:
       pull-requests: read
+    env:
+      # The path filters, read by both steps. A file counts for a filter when it matches one of its patterns and none
+      # of its patterns starting with !. Every top-level folder and file of the repository is named by check, web or
+      # docs: the last step fails on a pull request that changes one none of them names.
+      # check: everything the steps of the check job read, which is all but the web app (except the one file
+      # tools/test_site_url.py reads), the documentation and v0/.
+      # web: everything the steps of the web job read: the web app, the converted content, the simulator's sources
+      # and build scripts, the conformance suite, the tools, the license texts the build copies and the CI setup.
+      # docs: the documentation and v0/, which no job reads.
+      # changed: every changed file, for the last step.
+      FILTERS: |
+        check:
+          - '.github/**'
+          - 'certs/**'
+          - 'conformance/**'
+          - 'content/**'
+          - 'include/**'
+          - 'lib/**'
+          - 'LICENSES/**'
+          - 'monitor/**'
+          - 'schema/**'
+          - 'scripts/**'
+          - 'src/**'
+          - 'test/**'
+          - 'tools/**'
+          - 'web/src/ui/board/updates.ts'
+          - '.clang-format'
+          - '.gitignore'
+          - '.prettierignore'
+          - '.release-please-manifest.json'
+          - 'LICENSE'
+          - 'LICENSE-EXCEPTION'
+          - 'Makefile'
+          - 'justfile'
+          - 'partitions.csv'
+          - 'platformio.ini'
+          - 'release-please-config.json'
+          - 'requirements-ci.txt'
+          - 'version.txt'
+          - '!certs/README.md'
+          - '!conformance/README.md'
+        web:
+          - 'web/**'
+          - 'content/**'
+          - 'src/**'
+          - 'lib/**'
+          - 'include/**'
+          - 'scripts/**'
+          - 'conformance/**'
+          - 'schema/**'
+          - 'tools/**'
+          - 'LICENSES/**'
+          - 'LICENSE'
+          - 'LICENSE-EXCEPTION'
+          - 'Makefile'
+          - 'justfile'
+          - 'platformio.ini'
+          - 'requirements-ci.txt'
+          - '.github/**'
+        docs:
+          - 'docs/**'
+          - '*.md'
+          - 'v0/**'
+        changed:
+          - '**'
     outputs:
-      check: ${{ github.event_name != 'pull_request' || github.event.pull_request.changed_files >= 3000 || steps.filter.outputs.check == 'true' || steps.filter.outputs.check_web == 'true' }}
+      check: ${{ github.event_name != 'pull_request' || github.event.pull_request.changed_files >= 3000 || steps.filter.outputs.check == 'true' }}
       web: ${{ github.event_name != 'pull_request' || github.event.pull_request.changed_files >= 3000 || steps.filter.outputs.web == 'true' }}
     steps:
-      # A file counts for a filter when it matches one of its patterns and none of its patterns starting with !
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         if: github.event_name == 'pull_request'
         with:
           predicate-quantifier: some-with-excludes
-          # check: everything but the web app and the documentation, which no step of the check job reads.
-          # check_web: the files of the web app the check job reads (tools/test_site_url.py).
-          # web: everything the steps of the web job read: the web app, the converted content, the simulator's sources
-          # and build scripts, the conformance suite, the tools, the license texts the build copies and the CI setup.
-          filters: |
-            check:
-              - '**'
-              - '!web/**'
-              - '!docs/**'
-              - '!*.md'
-              - '!certs/README.md'
-              - '!conformance/README.md'
-            check_web:
-              - 'web/src/ui/board/updates.ts'
-            web:
-              - 'web/**'
-              - 'content/**'
-              - 'src/**'
-              - 'lib/**'
-              - 'include/**'
-              - 'scripts/**'
-              - 'conformance/**'
-              - 'schema/**'
-              - 'tools/**'
-              - 'LICENSES/**'
-              - 'LICENSE'
-              - 'LICENSE-EXCEPTION'
-              - 'Makefile'
-              - 'justfile'
-              - 'platformio.ini'
-              - 'requirements-ci.txt'
-              - '.github/**'
+          list-files: json
+          filters: ${{ env.FILTERS }}
+
+      # The first folder or file name of each changed path must match the first part of a pattern of FILTERS ('**'
+      # alone names nothing). Names are escaped so a file name cannot write a workflow command. The list of changed
+      # files reaches the step in one variable, which Linux limits to 128 KiB: a pull request of 1000 files or more
+      # skips the step.
+      - name: Fail when a changed top-level path is in no path filter
+        if: github.event_name == 'pull_request' && github.event.pull_request.changed_files < 1000
+        env:
+          CHANGED: ${{ steps.filter.outputs.changed_files }}
+        run: |
+          set -euf
+          named=$(printf '%s\n' "$FILTERS" | sed -n "s/^ *- '!\{0,1\}\([^/']*\).*/\1/p" | grep -vx '\*\*' | sort -u)
+          missing=0
+          while IFS= read -r top; do
+            found=no
+            while IFS= read -r glob; do
+              # shellcheck disable=SC2254 # the pattern is a glob on purpose
+              case "$top" in $glob) found=yes ;; esac
+            done <<< "$named"
+            if [ "$found" = no ]; then
+              echo "::error::$top is in no path filter. Add it to FILTERS of the changes job in .github/workflows/ci.yml (check, web or docs) and to the README section on continuous integration."
+              missing=1
+            fi
+          done < <(printf '%s' "$CHANGED" | jq -r '.[] | split("/")[0] | gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A")' | sort -u)
+          exit "$missing"
 
   # actionlint checks the workflows, and the run: blocks with the runner's shellcheck
   actionlint:

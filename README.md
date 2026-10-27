@@ -479,11 +479,11 @@ The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull req
 
 On a pull request, `check` and `web` run only when the pull request changes files they read, compared with its base branch:
 
-- **`check`** runs unless every changed file is in `web/` or is documentation: `docs/`, the Markdown files at the root of the repository, `certs/README.md` and `conformance/README.md`. It still runs when the pull request changes `web/src/ui/board/updates.ts`, which the tools tests read. A pull request that changes only content runs it.
+- **`check`** runs unless every changed file is in `web/` or is documentation or history: `docs/`, the Markdown files at the root of the repository, `certs/README.md`, `conformance/README.md` and `v0/`. It still runs when the pull request changes `web/src/ui/board/updates.ts`, which the tools tests read. A pull request that changes only content runs it.
 - **`web`** runs when the pull request changes `web/`, `content/`, `src/`, `lib/`, `include/`, `scripts/`, `conformance/`, `schema/`, `tools/`, `LICENSES/`, `LICENSE`, `LICENSE-EXCEPTION`, `Makefile`, `justfile`, `platformio.ini`, `requirements-ci.txt` or `.github/`.
 - **`actionlint`** and **`certificates`** always run.
 
-A job skipped this way reports success, so the required checks pass. Every push to `main` runs every job, and so does a pull request with 3000 changed files or more, the most the GitHub API lists, or one whose `changes` job fails. A new file the jobs read must be added to the filters of the `changes` job.
+A job skipped this way reports success, so the required checks pass. Every push to `main` runs every job, and so does a pull request with 3000 changed files or more, the most the GitHub API lists, or one whose `changes` job fails. The `changes` job fails when a pull request changes a top-level folder or file that none of its path filters names, so a new path gets a decision: add it to the filters (and to this section), and until then `check` and `web` run.
 
 `.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
 
