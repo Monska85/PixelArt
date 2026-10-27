@@ -1,6 +1,6 @@
 # The same commands as the Makefile, for just users: each recipe has the steps of the make target of the same name.
 # BOARD=x is `just <name> x`, ANIM=x is `--anim x`, WS=1 is `--ws`, PORT=x is `just serve x` and SITE=x is
-# `just release-site x`.
+# `just release-site x` (the same for release-firmware and release-content).
 #
 # Resource limits, set for a laptop: at most `jobs` parallel jobs (PlatformIO, Playwright workers) and the priority
 # `nice` for the heavy steps (0 is normal, 19 the lowest). Override per run with the environment or on the command
@@ -26,7 +26,7 @@ sim := ".pio/build/native/program"
 default:
     @just --list
 
-# Build data/ (the board's files) from animations/ and playlists/
+# Build data/ (the board's files) from content/animations/ and content/playlists/
 data:
     {{python}} tools/pixelart.py build
 
@@ -42,24 +42,24 @@ build board=board:
 build-all:
     nice -n {{nice}} pio run -j {{jobs}} -e esp32c3 -e esp32 -e esp32s3
 
-# Flash the firmware and the animations
+# Flash the firmware and the content (animations and playlists) of this working tree
 upload board=board: data
     nice -n {{nice}} pio run -j {{jobs}} -e {{board}} -t upload
     nice -n {{nice}} pio run -j {{jobs}} -e {{board}} -t uploadfs
 
-# Flash only the firmware, keeping the animations on the board
+# Flash only the firmware, keeping the animations and playlists on the board
 upload-firmware board=board:
     nice -n {{nice}} pio run -j {{jobs}} -e {{board}} -t upload
 
 # Flash only the animations and playlists, keeping the firmware
-upload-data board=board: data
+upload-content board=board: data
     nice -n {{nice}} pio run -j {{jobs}} -e {{board}} -t uploadfs
 
 # Open the serial monitor
 monitor board=board:
     pio device monitor -e {{board}}
 
-# Flash the firmware and the animations, then open the serial monitor
+# Flash the firmware and the content, then open the serial monitor
 flash board=board: (upload board)
     pio device monitor -e {{board}}
 
@@ -99,31 +99,37 @@ sim-open *args: (sim args)
     elif command -v open >/dev/null 2>&1; then open {{out}}/player.html; \
     else echo "Open {{out}}/player.html in a browser"; fi
 
-# Build every board and the firmware part of the release site into site/ (or `just release-firmware out-folder`)
-release-firmware folder=site: data
+# Build every board and the firmware release (no animations, no file system) into site/ (or `just release-firmware out-folder`)
+release-firmware folder=site:
     #!/usr/bin/env sh
     set -eu
     PIXELART_VERSION=$({{python}} tools/release.py version)
     export PIXELART_VERSION
     echo "Firmware release site for version $PIXELART_VERSION"
     nice -n {{nice}} pio run -j {{jobs}} -e esp32c3 -e esp32 -e esp32s3
-    for board in esp32c3 esp32 esp32s3; do nice -n {{nice}} pio run -j {{jobs}} -e "$board" -t buildfs; done
     nice -n {{nice}} {{python}} tools/release.py build --out "{{folder}}" --schema
 
-# Build every board and the web app into site/ (or `just release-site out-folder`): the site Pages shows if both were released from this commit
+# Build the content release (animations, playlists and their manifest) into site/ (or `just release-content out-folder`)
+release-content folder=site: data
+    #!/usr/bin/env sh
+    set -eu
+    echo "Content release site for version $({{python}} tools/release.py content-version)"
+    nice -n {{nice}} {{python}} tools/release.py content --out "{{folder}}" --schema
+
+# Build the firmware, the content and the web app into site/ (or `just release-site out-folder`): the site Pages shows if all were released from this commit
 release-site folder=site: data node-modules
     #!/usr/bin/env sh
     set -eu
     PIXELART_VERSION=$({{python}} tools/release.py version)
     export PIXELART_VERSION
-    echo "Release site for version $PIXELART_VERSION"
+    echo "Release site for firmware $PIXELART_VERSION and content $({{python}} tools/release.py content-version)"
     work=$(mktemp -d)
     trap 'rm -rf "$work"' EXIT
     nice -n {{nice}} pio run -j {{jobs}} -e esp32c3 -e esp32 -e esp32s3
-    for board in esp32c3 esp32 esp32s3; do nice -n {{nice}} pio run -j {{jobs}} -e "$board" -t buildfs; done
     nice -n {{nice}} {{python}} tools/release.py build --out "$work/firmware" --schema
+    nice -n {{nice}} {{python}} tools/release.py content --out "$work/content" --schema
     (cd web && nice -n {{nice}} npm run build)
-    {{python}} tools/release.py assemble --out "{{folder}}" --firmware "$work/firmware" --web web/dist
+    {{python}} tools/release.py assemble --out "{{folder}}" --firmware "$work/firmware" --content "$work/content" --web web/dist --schema
 
 # Run the tests on the simulator
 test: data
