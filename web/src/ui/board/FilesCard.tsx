@@ -3,23 +3,15 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useId, useRef, type ComponentProps, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import type { Settings } from "../../protocol";
 import { Alert, AlertDescription } from "../components/alert";
 import { Button } from "../components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/card";
 import { PageActions } from "../common/Page";
-import type { BoardFileList } from "../fileLists";
 import { plural } from "../format";
-import { entriesOf } from "./useBoardData";
+import { summarize, type FilesSummary } from "./filesSection";
 import { Names } from "./MissingAnimations";
 
-interface Props {
-  animations: BoardFileList;
-  playlists: BoardFileList;
-  /** The settings, or null while they are not known: the summary then leaves out the active playlist. */
-  settings: Settings | null;
-  /** The stored playlists by ID with their names, or null while they are not known. */
-  playlistNames: ReadonlyMap<string, string | null> | null;
+interface Props extends FilesSummary {
   /** The missing animations of each playlist that has any. */
   missing: ReadonlyMap<string, string[]>;
   actions: ComponentProps<typeof PageActions>;
@@ -29,26 +21,6 @@ interface Props {
   onShowPlaylists: () => void;
   /** The tabs of the stored files. */
   children: ReactNode;
-}
-
-/** The one line the card always shows: the counts and the active playlist. */
-export function summarize({
-  animations,
-  playlists,
-  settings,
-  playlistNames,
-}: Pick<Props, "animations" | "playlists" | "settings" | "playlistNames">): string {
-  if (animations.status === "unknown" || playlists.status === "unknown")
-    return "Could not read the files from the board.";
-  const a = entriesOf(animations);
-  const p = entriesOf(playlists);
-  if (a === null || p === null) return "Reading the files from the board...";
-  const counts = `${plural(a.length, "animation")}, ${plural(p.length, "playlist")}`;
-  if (settings === null) return counts;
-  const id = settings.playlist;
-  if (id === "") return `${counts}, no active playlist: every animation plays`;
-  if (playlistNames !== null && !playlistNames.has(id)) return `${counts}, active playlist: ${id} (not stored)`;
-  return `${counts}, active playlist: ${playlistNames?.get(id) || id}`;
 }
 
 /**

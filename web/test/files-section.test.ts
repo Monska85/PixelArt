@@ -3,8 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Entry } from "../src/protocol";
 import type { BoardFileList } from "../src/ui/fileLists";
-import { summarize } from "../src/ui/board/FilesCard";
-import { readFilesOpen, writeFilesOpen } from "../src/ui/board/filesSection";
+import { readFilesOpen, summarize, writeFilesOpen } from "../src/ui/board/filesSection";
 import { BOARD_FILES_KEY } from "../src/ui/storage";
 
 function stubStorage(initial?: string): Map<string, string> {

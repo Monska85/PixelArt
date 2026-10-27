@@ -28,9 +28,9 @@ test("the card is first, closed by default, and says what the board holds", asyn
   await expect(card(page)).toBeVisible();
   await expect(page.getByRole("region", { name: "Files" })).toBeVisible();
   const cards = page.getByRole("main").getByRole("region");
-  await expect(cards.first()).toHaveAccessibleName("Files");
-  await expect(cards.nth(1)).toHaveAccessibleName("Storage");
-  await expect(cards.nth(2)).toHaveAccessibleName("Settings");
+  const order = ["Files", "Storage", "Settings", "WiFi", "Updates", "Network access"];
+  await expect(cards).toHaveCount(order.length);
+  for (const [index, name] of order.entries()) await expect(cards.nth(index)).toHaveAccessibleName(name);
 
   const animationCount = count(simulator.dataDir, "animations");
   const playlistCount = count(simulator.dataDir, "playlists");
