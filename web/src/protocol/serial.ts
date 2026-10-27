@@ -36,6 +36,9 @@ export const PORT_BUSY =
 /** How long closing waits for each stream before it closes the port anyway: a vanished device can leave them pending. */
 export const CLOSE_STEP_MS = 1000;
 
+/** Closing the port is tried this often: the second try follows the streams settling. */
+const CLOSE_TRIES = 2;
+
 /** A port that could not be opened: the friendly hint, then what the browser said, so other failures can be told apart. */
 class SerialOpenError extends Error {
   constructor(cause: unknown) {
@@ -64,14 +67,32 @@ async function settle(promise: Promise<unknown> | null | undefined, ms: number):
 
 /**
  * Frees a port this page still holds open. The transport that holds it releases its streams first, because the port
- * cannot close while one is locked. A close still under way finishes next; otherwise the port is closed here. Each step is bounded, and no failure is raised: the caller opens the port and reports what the browser says.
+ * cannot close while one is locked. A close still under way finishes next. The port is closed here only when it is
+ * still open, or when nobody was closing it. Each step is bounded, and no failure is raised: the caller opens the port
+ * and reports what the browser says.
  */
 async function releaseHeldPort(port: SerialPortLike): Promise<void> {
   const holder = holders.get(port);
   await holder?.close();
   const closing = closingPorts.get(port);
   await settle(closing, CLOSE_STEP_MS);
-  if (port.readable || port.writable || (!holder && !closing)) await settle(port.close(), CLOSE_STEP_MS);
+  // A stream is still there: the port did not close.
+  const stillOpen = Boolean(port.readable || port.writable);
+  // No transport and no close under way: nothing else will close it.
+  const nobodyClosing = !holder && !closing;
+  if (stillOpen || nobodyClosing) await settle(port.close(), CLOSE_STEP_MS);
+}
+
+/** Waits for a port close, at most CLOSE_STEP_MS, and says whether the browser refused it. */
+async function closeRefused(closing: Promise<void>): Promise<boolean> {
+  let refused = false;
+  await settle(
+    closing.catch(() => {
+      refused = true;
+    }),
+    CLOSE_STEP_MS,
+  );
+  return refused;
 }
 
 export class SerialTransport implements Transport {
@@ -205,16 +226,15 @@ export class SerialTransport implements Transport {
     if (holders.get(this.port) === this) holders.delete(this.port);
   }
 
-  /** The port refuses to close while a stream is still locked, so a refusal gets one more try once the streams settled. */
+  /**
+   * The port refuses to close while a stream is still locked, so a refusal gets one more try once the streams settled.
+   * One more is enough: by then every stream has been released or given up on.
+   */
   private async closePort(): Promise<void> {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < CLOSE_TRIES; attempt++) {
       const closing = this.port.close();
       closingPorts.set(this.port, closing);
-      let refused = false;
-      await settle(
-        closing.catch(() => void (refused = true)),
-        CLOSE_STEP_MS,
-      );
+      const refused = await closeRefused(closing);
       if (!refused) return;
       await settle(this.piped, CLOSE_STEP_MS);
     }

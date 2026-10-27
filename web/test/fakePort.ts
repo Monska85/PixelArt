@@ -19,7 +19,7 @@ export class FakePort implements SerialPortLike {
   vanishOnOpen = false;
   /** Writes never complete, like a device that has gone. */
   writesHang = false;
-  /** Writes never complete until the writer is aborted, then fail, as Chrome's sink does when the device refuses data. */
+  /** Writes never complete until the writer is aborted, then fail, as Chrome does when the device refuses data. */
   writesBlock = false;
   /** Every written line is answered with a line that is not the protocol, like the log of an old sketch. */
   garbage = false;

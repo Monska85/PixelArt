@@ -17,9 +17,12 @@ interface FakePortOptions {
   board: string | null;
   /** Calls of `open()` that fail first, as a port does while the board restarts. */
   failOpens?: number;
-  /** `requestPort()` returns the port, as when the user picks it in Connect board, instead of the picker being dismissed. */
+  /** `requestPort()` returns the port, as when the user picks it in Connect board, not a dismissed picker. */
   pick?: boolean;
-  /** What a port without a board does with the lines written to it: nothing, or a line that is not the protocol, like the log of an old sketch. */
+  /**
+   * What a port without a board does with the lines written to it: nothing, or a line that is not the protocol, like
+   * the log of an old sketch.
+   */
   answer?: "none" | "garbage";
 }
 

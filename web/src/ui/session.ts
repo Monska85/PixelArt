@@ -254,13 +254,14 @@ class Session {
           if (attempt !== this.attempt) return;
           continue;
         }
-        // A board that opened over USB and never spoke the protocol has old firmware or none; garbage lines end the same way.
-        const silent = via === "board" && error instanceof BoardError && error.code === NO_REPLY;
+        // A USB board that gave no valid reply after the tries (silence, or lines that are not the protocol) has old
+        // firmware or none.
+        const unanswered = via === "board" && error instanceof BoardError && error.code === NO_REPLY;
         this.set({
           ...IDLE,
           restarts: this.snapshot.restarts,
-          message: silent ? NOT_A_PIXELART_BOARD : message,
-          offerFirmware: silent || (error instanceof BoardError && error.code === "protocol_unsupported"),
+          message: unanswered ? NOT_A_PIXELART_BOARD : message,
+          offerFirmware: unanswered || (error instanceof BoardError && error.code === "protocol_unsupported"),
         });
         return;
       }
@@ -311,7 +312,7 @@ class Session {
       void this.refreshFiles(KINDS);
       if (via === "board") void this.rememberWifiAddress(client);
     } catch (error) {
-      // Closed even when a newer attempt took over: this attempt opened the port, so it releases it.
+      // The attempt that opened the transport always closes it.
       await transport?.close().catch(() => undefined);
       throw new AttemptFailure(error, !opened || isWaitable(error));
     }

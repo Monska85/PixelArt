@@ -327,6 +327,7 @@ describe("a serial port that never answers the protocol", () => {
     vi.useFakeTimers();
     const port = new FakePort("port", []);
     await failToConnect(port);
+    // Pins the wording docs/web/web-app-v1.md quotes.
     expect(NOT_A_PIXELART_BOARD).toBe(
       "This board did not answer as a PixelArt board. Its firmware may be old or missing: install the firmware from the Firmware view.",
     );

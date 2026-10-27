@@ -114,6 +114,50 @@ interface ClientOptions {
   firstSeq?: number;
 }
 
+/**
+ * The write of one request's line, at most one in flight: a board that never reads its input leaves the write pending,
+ * and the tries go on waiting for a reply, so a request never outlasts its tries because of it.
+ */
+class RequestWrite {
+  /** The send failed while the request was still running. */
+  failed = false;
+  private pending: Promise<void> | null = null;
+  private over = false;
+  private waiting: { cancel: () => void } | null = null;
+
+  constructor(private readonly send: () => Promise<void>) {}
+
+  /** Writes the line unless a write is still pending. A failure ends `waiting`, the wait of the current try. */
+  ensureSent(waiting: { cancel: () => void }): void {
+    this.waiting = waiting;
+    if (this.pending) return;
+    // The wrapper turns a synchronous throw of send() into a rejection.
+    const sent = (async () => this.send())();
+    this.pending = sent;
+    // Handled here, so a write that fails after the request ended is not an unhandled rejection.
+    void sent.then(
+      () => {
+        if (this.pending === sent) this.pending = null;
+      },
+      () => {
+        if (this.over) return;
+        this.failed = true;
+        this.waiting?.cancel();
+      },
+    );
+  }
+
+  /** The write counts as done, so the next try writes again. */
+  forget(): void {
+    this.pending = null;
+  }
+
+  /** The request ended: a later failure of the write is ignored. */
+  end(): void {
+    this.over = true;
+  }
+}
+
 export class BoardClient {
   private seq: number;
   private waiter: Waiter | null = null;
@@ -203,41 +247,26 @@ export class BoardClient {
     this.seq = (this.seq + 1) % 2 ** 32;
     const seq = this.seq;
     const line = encodeLine({ seq, cmd, ...fields });
-    // At most one write in flight: a board that never reads its input leaves the write pending, and the tries go on
-    // waiting for a reply, so a request never outlasts its tries because of it.
-    let write: Promise<void> | null = null;
-    let waiting: ReturnType<BoardClient["wait"]> | null = null;
-    let ended = false;
-    let sendFailed = false;
+    const write = new RequestWrite(() => this.transport.send(line));
     try {
       for (let attempt = 0; attempt < TRIES; attempt++) {
-        waiting = this.wait(seq, timeoutMs);
-        if (!write) {
-          const sent = (async () => this.transport.send(line))();
-          write = sent;
-          // Handled here, so a write that fails after the request ended is not an unhandled rejection.
-          const sentOk = (): void => {
-            if (write === sent) write = null;
-          };
-          const sentFailed = (): void => {
-            if (ended) return;
-            sendFailed = true;
-            waiting?.cancel();
-          };
-          void sent.then(sentOk, sentFailed);
-        }
+        const waiting = this.wait(seq, timeoutMs);
+        write.ensureSent(waiting);
         const outcome = await waiting.outcome;
         if (outcome.kind === "reply") return outcome.reply;
         // The board read the line, so the write is done whatever its promise says: the resend writes again.
-        if (outcome.kind === "again") write = null;
-        if (outcome.kind === "closed" && sendFailed) {
-          this.linkClosed("the connection failed");
-          throw new BoardError(CONNECTION_LOST, "the connection failed");
+        if (outcome.kind === "again") write.forget();
+        if (outcome.kind === "closed") {
+          // The wait ended because the send failed, or because the link closed (or the client was closed).
+          if (write.failed) {
+            this.linkClosed("the connection failed");
+            throw new BoardError(CONNECTION_LOST, "the connection failed");
+          }
+          throw new BoardError(CONNECTION_LOST, "the connection closed");
         }
-        if (outcome.kind === "closed") throw new BoardError(CONNECTION_LOST, "the connection closed");
       }
     } finally {
-      ended = true;
+      write.end();
     }
     this.linkClosed(`no reply to '${cmd}' after ${TRIES} tries`);
     throw new BoardError(NO_REPLY, `no reply to '${cmd}' after ${TRIES} tries`);

@@ -144,9 +144,17 @@ describe("client", () => {
     const result = slow.request("info").catch((e: unknown) => e);
     await vi.advanceTimersByTimeAsync(TRIES * 2000);
     expect(await result).toMatchObject({ code: NO_REPLY });
-    // The write fails after the request ended: nothing is left unhandled.
-    fail(new Error("the port closed"));
-    await vi.advanceTimersByTimeAsync(0);
+    const unhandled = vi.fn();
+    process.once("unhandledRejection", unhandled);
+    try {
+      // The write fails after the request ended: nothing is left unhandled.
+      fail(new Error("the port closed"));
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.runAllTimersAsync();
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off("unhandledRejection", unhandled);
+    }
     expect(send).toHaveBeenCalledTimes(1);
   });
 
