@@ -1,0 +1,37 @@
+{
+  "format": "pixelart/1",
+  "name": "Bell",
+  "version": 1,
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "frame_ms": 500,
+  "palette": {
+    "main": "#f9c72f"
+  },
+  "sprites": {
+    "shape": {
+      "points": {
+        "main": [
+          [7, 3],
+          [6, 4],
+          [7, 4],
+          [8, 4],
+          [5, 5],
+          [9, 5],
+          [5, 6],
+          [9, 6],
+          [4, 8],
+          [10, 8],
+          [7, 9]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": ["shape"]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "format": "pixelart-playlist/1",
+  "name": "Christmas",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "items": [
+    {
+      "animation": "ball"
+    },
+    {
+      "animation": "santa"
+    },
+    {
+      "animation": "wreath"
+    },
+    {
+      "animation": "penguin"
+    },
+    {
+      "animation": "bell"
+    },
+    {
+      "animation": "elf"
+    },
+    {
+      "animation": "snowflake"
+    },
+    {
+      "animation": "holly"
+    },
+    {
+      "animation": "star"
+    },
+    {
+      "animation": "sleigh"
+    },
+    {
+      "animation": "candle"
+    },
+    {
+      "animation": "bear"
+    }
+  ]
+}

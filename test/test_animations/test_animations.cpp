@@ -22,6 +22,7 @@
 namespace fs = std::filesystem;
 using pixelart_test::blue;
 using pixelart_test::dot_animation;
+using pixelart_test::FIXTURE_DATA;
 using pixelart_test::green;
 using pixelart_test::read_file;
 using pixelart_test::red;
@@ -59,18 +60,20 @@ void setUp()
 
 void tearDown() {}
 
-void test_xmas_tree_frames_and_timing()
+void test_stored_animation_frames_and_timing()
 {
-  TEST_ASSERT_TRUE(play_stored_animation("xmas_tree"));
+  sim::set_data_dir(FIXTURE_DATA);
+  TEST_ASSERT_TRUE(play_stored_animation("tree"));
   const auto &frames = sim::frames();
   TEST_ASSERT_EQUAL(17, frames.size());
   TEST_ASSERT_EQUAL_UINT64(0, frames[0].t_us);
   TEST_ASSERT_EQUAL_UINT64(500000, frames[1].t_us - frames[0].t_us);
 }
 
-void test_xmas_tree_star_is_yellow_and_corner_is_off()
+void test_stored_animation_draws_its_sprite_colors_and_leaves_the_corner_off()
 {
-  TEST_ASSERT_TRUE(play_stored_animation("xmas_tree"));
+  sim::set_data_dir(FIXTURE_DATA);
+  TEST_ASSERT_TRUE(play_stored_animation("tree"));
   const sim::Frame &f = sim::frames()[0];
   uint32_t star = f.at(7, 0);
   TEST_ASSERT_TRUE(red(star) > blue(star) * 4);
@@ -212,8 +215,8 @@ void test_empty_storage_shows_the_no_animations_image()
 int main(int, char **)
 {
   UNITY_BEGIN();
-  RUN_TEST(test_xmas_tree_frames_and_timing);
-  RUN_TEST(test_xmas_tree_star_is_yellow_and_corner_is_off);
+  RUN_TEST(test_stored_animation_frames_and_timing);
+  RUN_TEST(test_stored_animation_draws_its_sprite_colors_and_leaves_the_corner_off);
   RUN_TEST(test_brightness_scales_led_output);
   RUN_TEST(test_effective_brightness_rule);
   RUN_TEST(test_animation_brightness_lowers_led_output);

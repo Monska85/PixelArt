@@ -2,9 +2,10 @@
 
 // Serves what GitHub Pages would: the built app with a fixture release next to it.
 //
-// The release is made from the repository's data/ (the animations and playlists named in site/published.json, with
-// their real sizes and SHA-256) and the ESP Web Tools manifests of site/firmware/. PIXELART_DATA and PIXELART_PUBLISHED
-// name other files (the screenshot suite has its own). Set NO_RELEASE=1 to serve the app alone. A path that does not exist answers 404, as on Pages.
+// The release is made from the fixture board files of e2e/board-files/ (the animations and playlists named in
+// site/published.json, with their real sizes and SHA-256) and the ESP Web Tools manifests of site/firmware/.
+// PIXELART_DATA and PIXELART_PUBLISHED name other files (the screenshot suite has its own). Set NO_RELEASE=1 to serve
+// the app alone. A path that does not exist answers 404, as on Pages.
 
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
@@ -15,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = join(here, "..", "dist");
-const data = process.env.PIXELART_DATA ?? join(here, "..", "..", "data");
+const data = process.env.PIXELART_DATA ?? join(here, "board-files");
 const port = Number(process.env.PORT ?? 4173);
 
 const root = mkdtempSync(join(tmpdir(), "pixelart-site-"));

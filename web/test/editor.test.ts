@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   addColor,
@@ -550,22 +550,16 @@ describe("YAML round trip", () => {
     expect(back.ok && writeJson(back.value)).toBe(json(d));
   });
 
-  it.each(["beating_heart", "snow_globe", "default_heart"])(
-    "gives the same JSON for %s after a visual edit and a rewrite",
-    (id) => {
-      let source: string;
-      try {
-        source = readFileSync(`${REPO}content/animations/${id}.yaml`, "utf8");
-      } catch {
-        return;
-      }
-      const d = doc(source);
-      const edited = setTopField(d, "author", "someone");
-      const back = readYaml(writeYaml(edited));
-      expect(back.ok && writeJson(back.value)).toBe(json(edited));
-      expect(errors(edited)).toEqual([]);
-    },
-  );
+  // Every animation of the repository's content: which ones exist is not this test's business.
+  const contentAnimations = readdirSync(`${REPO}content/animations`).filter((name) => /\.ya?ml$/.test(name));
+  it("has repository animations to round trip", () => expect(contentAnimations.length).toBeGreaterThan(0));
+  it.each(contentAnimations)("gives the same JSON for %s after a visual edit and a rewrite", (name) => {
+    const d = doc(readFileSync(`${REPO}content/animations/${name}`, "utf8"));
+    const edited = setTopField(d, "author", "someone");
+    const back = readYaml(writeYaml(edited));
+    expect(back.ok && writeJson(back.value)).toBe(json(edited));
+    expect(errors(edited)).toEqual([]);
+  });
 });
 
 describe("player item tracking", () => {
