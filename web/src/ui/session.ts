@@ -78,6 +78,10 @@ function isWaitable(error: unknown): boolean {
   return error instanceof BoardError && (error.code === NO_REPLY || error.code === CONNECTION_LOST);
 }
 
+/** The USB port opened but the board did not speak the protocol: no firmware, or one from before the protocol. */
+export const NOT_A_PIXELART_BOARD =
+  "This board did not answer as a PixelArt board. Its firmware may be old or missing: install the firmware from the Firmware view.";
+
 export const SERIAL_SUPPORTED = (): boolean => serialApi() !== null;
 
 function uploadsBlocked(info: BoardInfo): string | null {
@@ -250,11 +254,14 @@ class Session {
           if (attempt !== this.attempt) return;
           continue;
         }
+        // A USB board that gave no valid reply after the tries (silence, or lines that are not the protocol) has old
+        // firmware or none.
+        const unanswered = via === "board" && error instanceof BoardError && error.code === NO_REPLY;
         this.set({
           ...IDLE,
           restarts: this.snapshot.restarts,
-          message,
-          offerFirmware: error instanceof BoardError && error.code === "protocol_unsupported",
+          message: unanswered ? NOT_A_PIXELART_BOARD : message,
+          offerFirmware: unanswered || (error instanceof BoardError && error.code === "protocol_unsupported"),
         });
         return;
       }
@@ -305,7 +312,8 @@ class Session {
       void this.refreshFiles(KINDS);
       if (via === "board") void this.rememberWifiAddress(client);
     } catch (error) {
-      if (attempt === this.attempt) await transport?.close().catch(() => undefined);
+      // The attempt that opened the transport always closes it.
+      await transport?.close().catch(() => undefined);
       throw new AttemptFailure(error, !opened || isWaitable(error));
     }
   }

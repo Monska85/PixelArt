@@ -36,6 +36,9 @@ export const PORT_BUSY =
 /** How long closing waits for each stream before it closes the port anyway: a vanished device can leave them pending. */
 export const CLOSE_STEP_MS = 1000;
 
+/** Closing the port is tried this often: the second try follows the streams settling. */
+const CLOSE_TRIES = 2;
+
 /** A port that could not be opened: the friendly hint, then what the browser said, so other failures can be told apart. */
 class SerialOpenError extends Error {
   constructor(cause: unknown) {
@@ -49,6 +52,9 @@ class SerialOpenError extends Error {
 // A port's close that outlived CLOSE_STEP_MS: opening the port again waits for it, or the port is still closing.
 const closingPorts = new WeakMap<SerialPortLike, Promise<void>>();
 
+// The transport that holds each open port, so a page that still holds a port can release it before opening it again.
+const holders = new WeakMap<SerialPortLike, SerialTransport>();
+
 /** Waits for `promise`, but never longer than `ms`; its failure is ignored. */
 async function settle(promise: Promise<unknown> | null | undefined, ms: number): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -57,6 +63,36 @@ async function settle(promise: Promise<unknown> | null | undefined, ms: number):
     new Promise((resolve) => (timer = setTimeout(resolve, ms))),
   ]);
   clearTimeout(timer);
+}
+
+/**
+ * Frees a port this page still holds open. The transport that holds it releases its streams first, because the port
+ * cannot close while one is locked. A close still under way finishes next. The port is closed here only when it is
+ * still open, or when nobody was closing it. Each step is bounded, and no failure is raised: the caller opens the port
+ * and reports what the browser says.
+ */
+async function releaseHeldPort(port: SerialPortLike): Promise<void> {
+  const holder = holders.get(port);
+  await holder?.close();
+  const closing = closingPorts.get(port);
+  await settle(closing, CLOSE_STEP_MS);
+  // A stream is still there: the port did not close.
+  const stillOpen = Boolean(port.readable || port.writable);
+  // No transport and no close under way: nothing else will close it.
+  const nobodyClosing = !holder && !closing;
+  if (stillOpen || nobodyClosing) await settle(port.close(), CLOSE_STEP_MS);
+}
+
+/** Waits for a port close, at most CLOSE_STEP_MS, and says whether the browser refused it. */
+async function closeRefused(closing: Promise<void>): Promise<boolean> {
+  let refused = false;
+  await settle(
+    closing.catch(() => {
+      refused = true;
+    }),
+    CLOSE_STEP_MS,
+  );
+  return refused;
 }
 
 export class SerialTransport implements Transport {
@@ -87,8 +123,8 @@ export class SerialTransport implements Transport {
 
   /**
    * Opens a port without resetting the board: DTR and RTS stay low. A port this page still holds open (an earlier
-   * connection that did not close, "InvalidStateError") is closed and opened once more. Any failure after the port
-   * opened closes it again, so the browser never keeps it.
+   * connection that did not close, "InvalidStateError") is released, with the streams of the transport that holds it,
+   * and opened once more. Any failure after the port opened closes it again, so the browser never keeps it.
    */
   static async open(port: SerialPortLike): Promise<SerialTransport> {
     const options = { baudRate: BAUD_RATE, bufferSize: BUFFER_SIZE };
@@ -96,8 +132,7 @@ export class SerialTransport implements Transport {
       await port.open(options);
     } catch (error) {
       if (!(error instanceof Error && error.name === "InvalidStateError")) throw new SerialOpenError(error);
-      // A close still under way from an earlier connection finishes first; otherwise the port is closed here.
-      await settle(closingPorts.get(port) ?? port.close(), CLOSE_STEP_MS);
+      await releaseHeldPort(port);
       try {
         await port.open(options);
       } catch (again) {
@@ -116,6 +151,7 @@ export class SerialTransport implements Transport {
       await transport.close();
       throw error instanceof SerialOpenError ? error : new SerialOpenError(error);
     }
+    holders.set(port, transport);
     return transport;
   }
 
@@ -169,6 +205,11 @@ export class SerialTransport implements Transport {
   private async closeOnce(): Promise<void> {
     this.ended = true;
     await settle(this.reader?.cancel(), CLOSE_STEP_MS);
+    try {
+      this.reader?.releaseLock();
+    } catch {
+      // Already released.
+    }
     // Cancelling the splitter side cancels the pipe, which then releases the readable.
     await settle(this.piped, CLOSE_STEP_MS);
     // Abort, not close: close waits for every queued write, abort drops them and waits only for the one in flight,
@@ -181,8 +222,21 @@ export class SerialTransport implements Transport {
     }
     this.writer = null;
     this.reader = null;
-    const closing = this.port.close();
-    closingPorts.set(this.port, closing);
-    await settle(closing, CLOSE_STEP_MS);
+    await this.closePort();
+    if (holders.get(this.port) === this) holders.delete(this.port);
+  }
+
+  /**
+   * The port refuses to close while a stream is still locked, so a refusal gets one more try once the streams settled.
+   * One more is enough: by then every stream has been released or given up on.
+   */
+  private async closePort(): Promise<void> {
+    for (let attempt = 0; attempt < CLOSE_TRIES; attempt++) {
+      const closing = this.port.close();
+      closingPorts.set(this.port, closing);
+      const refused = await closeRefused(closing);
+      if (!refused) return;
+      await settle(this.piped, CLOSE_STEP_MS);
+    }
   }
 }
