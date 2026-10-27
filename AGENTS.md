@@ -29,6 +29,7 @@ Read the relevant specifications in `docs/`, the commands and contribution guida
 
 - A change that adds, moves or renames a folder decides which package releases it, and updates `exclude-paths` in `release-please-config.json` and the paths described in [Releases](README.md#releases) in the same change.
 - A `feat` or `fix` pull request meant for the web app or the content keeps files at the root of the repository out of it, moving such edits to a separate `docs` or `chore` pull request, because release-please counts every root file for the firmware. When another rule requires a root file in the same change, the pull request says that it also releases the firmware.
+- A change to `LICENSES/web/` or `docs/web/` that must reach a web release goes in the same commit as a change to `web/`, because the web package sees only `web/`.
 
 ## History
 
