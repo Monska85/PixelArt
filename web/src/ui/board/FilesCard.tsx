@@ -39,13 +39,13 @@ export function FilesCard(props: Props) {
           <CardTitle id="files-title">Files</CardTitle>
           <PageActions {...actions} />
         </div>
-        <p className="text-sm text-muted-foreground" data-testid="files-summary">
+        <p className="min-w-0 break-words text-sm text-muted-foreground" data-testid="files-summary">
           {summarize(props)}
         </p>
         {incomplete.length > 0 && (
           <Alert variant="warning" data-testid="files-missing">
             <AlertDescription className="flex flex-wrap items-center justify-between gap-2 text-foreground">
-              <p>
+              <p className="min-w-0 break-words">
                 {plural(incomplete.length, "playlist")} {incomplete.length === 1 ? "is" : "are"} missing animations:{" "}
                 <Names names={incomplete} />.
               </p>

@@ -11,6 +11,7 @@ import {
   file,
   filesToggle as toggle,
   pick,
+  playlistYaml,
   showBoardPlaylists,
   showFiles,
   stored,
@@ -121,6 +122,23 @@ test("an upload that stores a file opens the section; one that stores nothing do
   await page.reload();
   await connectSimulator(page, simulator);
   await expect(toggle(page)).toHaveAttribute("aria-expanded", "false");
+});
+
+test("a long active playlist name wraps inside the card on a phone", async ({ page, simulator }) => {
+  // The playlist editor accepts a name of up to 64 characters, with no space to break at.
+  const name = "X".repeat(64);
+  await page.setViewportSize({ width: 375, height: 800 });
+  await connectSimulator(page, simulator);
+  await pick(page, upload("default.yaml", playlistYaml("ball").replace("name: Mix", `name: ${name}`)));
+  await page
+    .getByRole("dialog", { name: "Replace the stored file?" })
+    .getByRole("button", { name: "Replace them" })
+    .click();
+  const line = page.getByTestId("files-summary");
+  await expect(line).toContainText(`active playlist: ${name}`);
+  // The line's text fits its own box, which the card holds.
+  expect(await line.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
 });
 
 test("an upload the board refuses does not open the section", async ({ page }) => {
