@@ -470,12 +470,20 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 
 ### Continuous integration
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and every push to `main`. A newer run of the same pull request or of `main` cancels the one still running. It has four jobs:
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs on every pull request and every push to `main`. A newer run of the same pull request or of `main` cancels the one still running. It has four jobs, after a short `changes` job that decides which of them a pull request needs:
 
 - **`check`:** Checks C++ formatting, converts animations, checks them against the JSON Schemas and validates them with the engine. It runs the tests, including the GitHub Pages certificate chain check. It drives the simulator's WebSocket with `tools/pixelart.py board` to test board information, uploads, listings, downloads, deletions and file rejection. It builds every board, the firmware release site and the content release site, checks their manifests against the JSON Schema and the board limits, checks that each firmware leaves 64 KiB of its slot free, and attaches a rendered preview of every animation.
 - **`web`:** Lints and tests the web app, checks formatting and startup JavaScript size, and builds it with type checking. It runs the end-to-end and layout checks against the simulator in Chromium and compares reference images in the Playwright container.
 - **`actionlint`:** Checks the workflows with a pinned actionlint release and their `run:` blocks with shellcheck.
 - **`certificates`:** Rebuilds the firmware's certificate bundle from the pinned ESP-IDF files and compares it byte for byte with `certs/`.
+
+On a pull request, `check` and `web` run only when the pull request changes files they read, compared with its base branch:
+
+- **`check`** runs unless every changed file is in `web/` or is documentation: `docs/`, the Markdown files at the root of the repository, `certs/README.md` and `conformance/README.md`. It still runs when the pull request changes `web/src/ui/board/updates.ts`, which the tools tests read. A pull request that changes only content runs it.
+- **`web`** runs when the pull request changes `web/`, `content/`, `src/`, `lib/`, `include/`, `scripts/`, `conformance/`, `schema/`, `tools/`, `LICENSES/`, `LICENSE`, `LICENSE-EXCEPTION`, `Makefile`, `justfile`, `platformio.ini`, `requirements-ci.txt` or `.github/`.
+- **`actionlint`** and **`certificates`** always run.
+
+A job skipped this way reports success, so the required checks pass. Every push to `main` runs every job, and so does a pull request whose changed files cannot be listed. A new file the jobs read must be added to the filters of the `changes` job.
 
 `.github/workflows/release.yml` publishes releases, see [Releases](#releases). CI installs its Python tools at the exact versions in `requirements-ci.txt`. Dependabot opens a weekly pull request to update the pinned actions, the web app's npm dependencies and the Python tools.
 
