@@ -26,7 +26,7 @@ interface FakePortOptions {
   answer?: "none" | "garbage";
 }
 
-type Fake = { log: PortLog; port: unknown; errors: string[] };
+type Fake = { log: PortLog; port: unknown; failedOpens: string[] };
 
 /**
  * Replaces `navigator.serial` with a port wired as `options` says, and with Chrome's rules: `open()` fails while the
@@ -35,7 +35,7 @@ type Fake = { log: PortLog; port: unknown; errors: string[] };
 export async function fakeSerial(page: Page, options: FakePortOptions): Promise<void> {
   await page.addInitScript(({ board, failOpens = 0, pick = false, answer = "none" }: FakePortOptions) => {
     const log = { opens: 0, pickerRequests: 0 };
-    const errors: string[] = [];
+    const failedOpens: string[] = [];
     let socket: WebSocket | null = null;
     let source: ReadableStreamDefaultController<Uint8Array> | null = null;
     let isOpen = false;
@@ -47,11 +47,11 @@ export async function fakeSerial(page: Page, options: FakePortOptions): Promise<
         log.opens++;
         if (failures > 0) {
           failures--;
-          errors.push("NetworkError");
+          failedOpens.push("NetworkError");
           throw new DOMException("Failed to open serial port.", "NetworkError");
         }
         if (isOpen) {
-          errors.push("InvalidStateError");
+          failedOpens.push("InvalidStateError");
           throw new DOMException("The port is already open.", "InvalidStateError");
         }
         if (board)
@@ -90,7 +90,7 @@ export async function fakeSerial(page: Page, options: FakePortOptions): Promise<
       },
       async setSignals(): Promise<void> {},
     };
-    (window as unknown as { fakeSerial: Fake }).fakeSerial = { log, port, errors };
+    (window as unknown as { fakeSerial: Fake }).fakeSerial = { log, port, failedOpens };
     Object.defineProperty(navigator, "serial", {
       configurable: true,
       value: {
@@ -110,8 +110,8 @@ export const portLog = (page: Page): Promise<PortLog> =>
   page.evaluate(() => ({ ...(window as unknown as { fakeSerial: Fake }).fakeSerial.log }));
 
 /** The names of the errors the port's `open()` threw, in order. */
-export const openErrors = (page: Page): Promise<string[]> =>
-  page.evaluate(() => [...(window as unknown as { fakeSerial: Fake }).fakeSerial.errors]);
+export const failedOpens = (page: Page): Promise<string[]> =>
+  page.evaluate(() => [...(window as unknown as { fakeSerial: Fake }).fakeSerial.failedOpens]);
 
 /**
  * Draws the closing of an ESP Web Tools dialog as ESP Web Tools does it: an `ewt-install-dialog` that holds the port,

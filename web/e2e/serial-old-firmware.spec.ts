@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { fakeSerial, openErrors, portLog } from "./first-install";
+import { fakeSerial, failedOpens, portLog } from "./first-install";
 import { expect, test } from "./fixtures";
 
 const NOT_A_PIXELART_BOARD =
@@ -24,7 +24,7 @@ test.describe("a USB board that does not answer the protocol", () => {
         await expect(message.getByRole("link", { name: "Open the Firmware view" })).toBeVisible();
         await expect(page.getByTestId("connection-state")).toHaveText("Not connected");
         expect((await portLog(page)).opens).toBe(opens);
-        expect(await openErrors(page)).toEqual([]);
+        expect(await failedOpens(page)).toEqual([]);
       }
     });
   }

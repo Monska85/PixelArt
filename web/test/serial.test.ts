@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TRIES } from "../src/protocol/client";
 import { CLOSE_STEP_MS, PORT_BUSY, SerialTransport } from "../src/protocol/serial";
 import { NOT_A_PIXELART_BOARD, PORT_RETRY_EVERY_MS, PORT_RETRY_FOR_MS, session } from "../src/ui/session";
 import { FakeBoard } from "./fakeBoard";
@@ -297,7 +298,9 @@ describe("a serial port that never answers the protocol", () => {
     await session.disconnect();
   });
 
-  const HANDSHAKE_MS = 5 * 2000 + 4 * CLOSE_STEP_MS;
+  // Closing takes four steps: reader cancel, pipe, writer abort, port close.
+  const CLOSE_MS = 4 * CLOSE_STEP_MS;
+  const HANDSHAKE_MS = TRIES * 2000 + CLOSE_MS;
 
   /** Connects over the port and lets the handshake run out. */
   async function failToConnect(port: FakePort): Promise<void> {
@@ -370,7 +373,7 @@ describe("a serial port that never answers the protocol", () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(port.isOpen).toBe(true);
     const disconnecting = session.disconnect();
-    await vi.advanceTimersByTimeAsync(4 * CLOSE_STEP_MS);
+    await vi.advanceTimersByTimeAsync(CLOSE_MS);
     await disconnecting;
     await connecting;
     expect(port.isOpen).toBe(false);

@@ -137,6 +137,29 @@ describe("client", () => {
     expect(lost).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a send that rejects at once as a lost connection", async () => {
+    const send = vi.fn(() => Promise.reject(new Error("the port closed")));
+    const bad = new BoardClient({ send, close: async () => undefined, onLine: null, onClose: null }, { firstSeq: 1 });
+    const lost = vi.fn();
+    bad.onLost = lost;
+    const result = bad.request("info").catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await result).toMatchObject({ code: CONNECTION_LOST, message: "the connection failed" });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(lost).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a send that rejects after a timeout as a lost connection, not as no reply", async () => {
+    let fail: (error: Error) => void = () => undefined;
+    const send = vi.fn(() => new Promise<void>((_resolve, reject) => (fail = reject)));
+    const late = new BoardClient({ send, close: async () => undefined, onLine: null, onClose: null }, { firstSeq: 1 });
+    const result = late.request("info").catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(2000);
+    fail(new Error("the port closed"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await result).toMatchObject({ code: CONNECTION_LOST, message: "the connection failed" });
+  });
+
   it("ignores a send that fails after its request ended", async () => {
     let fail: (error: Error) => void = () => undefined;
     const send = vi.fn(() => new Promise<void>((_resolve, reject) => (fail = reject)));

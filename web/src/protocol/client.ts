@@ -119,13 +119,17 @@ interface ClientOptions {
  * and the tries go on waiting for a reply, so a request never outlasts its tries because of it.
  */
 class RequestWrite {
-  /** The send failed while the request was still running. */
-  failed = false;
+  private failedWrite = false;
   private pending: Promise<void> | null = null;
-  private over = false;
+  private ended = false;
   private waiting: { cancel: () => void } | null = null;
 
   constructor(private readonly send: () => Promise<void>) {}
+
+  /** The send failed while the request was still running. */
+  get failed(): boolean {
+    return this.failedWrite;
+  }
 
   /** Writes the line unless a write is still pending. A failure ends `waiting`, the wait of the current try. */
   ensureSent(waiting: { cancel: () => void }): void {
@@ -140,8 +144,8 @@ class RequestWrite {
         if (this.pending === sent) this.pending = null;
       },
       () => {
-        if (this.over) return;
-        this.failed = true;
+        if (this.ended) return;
+        this.failedWrite = true;
         this.waiting?.cancel();
       },
     );
@@ -154,7 +158,7 @@ class RequestWrite {
 
   /** The request ended: a later failure of the write is ignored. */
   end(): void {
-    this.over = true;
+    this.ended = true;
   }
 }
 
