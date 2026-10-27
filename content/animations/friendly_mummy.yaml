@@ -1,0 +1,105 @@
+format: pixelart/1
+name: Friendly Mummy
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 200
+
+palette:
+  wrap: "#fff6e0"
+  wrap_shade: "#e8d4a8"
+  white: "#ffffff"
+  pupil: "#3a3a9a"
+  cheek: "#ff8fb0"
+  mouth: "#e0406a"
+
+sprites:
+  mummy:
+    points:
+      wrap: [
+          [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [4, 2], [5, 2], [9, 2], [10, 2],
+          [11, 2], [3, 3], [7, 3], [8, 3], [12, 3], [3, 4], [7, 4], [8, 4], [12, 4], [3, 5],
+          [7, 5], [8, 5], [12, 5], [3, 6], [5, 6], [7, 6], [8, 6], [10, 6], [12, 6], [4, 7],
+          [5, 7], [6, 7], [9, 7], [10, 7], [11, 7], [5, 8], [6, 8], [7, 8], [8, 8], [9, 8],
+          [10, 8], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [7, 10],
+          [8, 10], [9, 10], [10, 10], [11, 10], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11],
+          [10, 11], [11, 11], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [4, 13], [5, 13], [6, 13],
+          [7, 13], [8, 13], [9, 13], [10, 13], [11, 13], [4, 14], [5, 14], [6, 14], [9, 14], [10, 14],
+          [11, 14], [4, 15], [5, 15], [6, 15], [9, 15], [10, 15], [11, 15]]
+      wrap_shade: [
+          [6, 2], [7, 2], [8, 2], [4, 10], [5, 10], [6, 10], [9, 12], [10, 12], [11, 12]]
+      white: [
+          [4, 3], [5, 3], [6, 3], [9, 3], [10, 3], [11, 3], [4, 4], [6, 4], [9, 4], [11, 4],
+          [4, 5], [5, 5], [6, 5], [9, 5], [10, 5], [11, 5]]
+      pupil: [[5, 4], [10, 4]]
+      cheek: [[4, 6], [11, 6]]
+      mouth: [[6, 6], [9, 6], [7, 7], [8, 7]]
+  eyes_closed:
+    at: [4, 3]
+    points:
+      wrap: [
+          [0, 0], [1, 0], [2, 0], [5, 0], [6, 0], [7, 0], [0, 1], [1, 1], [2, 1], [5, 1],
+          [6, 1], [7, 1]]
+      wrap_shade: [[0, 2], [1, 2], [2, 2], [5, 2], [6, 2], [7, 2]]
+  arm_left:
+    points:
+      wrap: [[3, 9], [2, 10], [2, 11]]
+  arm_left_tuck:
+    points:
+      wrap: [[3, 9], [3, 10], [3, 11], [3, 12]]
+  arm_right_down:
+    points:
+      wrap: [[12, 9], [13, 10], [13, 11]]
+  wave_a:
+    points:
+      wrap: [[13, 4], [13, 5], [13, 6], [13, 7], [12, 8]]
+  wave_b:
+    points:
+      wrap: [[15, 4], [14, 5], [14, 6], [13, 7], [12, 8]]
+  wave_c:
+    points:
+      wrap: [[14, 4], [14, 5], [13, 6], [13, 7], [12, 8]]
+  end_a:
+    points:
+      wrap: [[2, 13], [3, 13]]
+      wrap_shade: [[1, 14], [0, 15]]
+  end_b:
+    points:
+      wrap: [[2, 12], [3, 13]]
+      wrap_shade: [[0, 11], [1, 12]]
+  end_c:
+    points:
+      wrap: [[2, 13], [3, 13]]
+      wrap_shade: [[0, 13], [1, 13]]
+  end_short:
+    points:
+      wrap: [[2, 13], [3, 13]]
+
+timeline:
+  - show: [mummy, arm_left, arm_right_down, end_c]
+    ms: 600
+  - loop: 3
+    steps:
+      - show: [mummy, arm_left, wave_c, end_a]
+      - show: [mummy, arm_left, wave_b, end_c]
+      - show: [mummy, arm_left, wave_c, end_b]
+      - show: [mummy, arm_left, wave_a, end_c]
+  - show: [mummy, arm_left, arm_right_down, end_a]
+    ms: 300
+  - show: [mummy, arm_left_tuck, arm_right_down, end_short]
+    ms: 300
+  - show: [mummy, arm_left_tuck, arm_right_down]
+    ms: 300
+  - show: [mummy, arm_left, arm_right_down]
+    ms: 500
+  - show: [mummy, arm_left, arm_right_down, eyes_closed]
+    ms: 150
+  - show: [mummy, arm_left, arm_right_down]
+    ms: 600
+  - show: [mummy, arm_left, arm_right_down, eyes_closed]
+    ms: 150
+  - show: [mummy, arm_left, arm_right_down]
+    ms: 400
+  - show: [mummy, arm_left, arm_right_down, end_short]
+    ms: 250
+  - show: [mummy, arm_left, arm_right_down, end_c]
+    ms: 300
