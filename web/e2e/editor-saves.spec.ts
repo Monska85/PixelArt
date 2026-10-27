@@ -338,6 +338,7 @@ test("the header does not flicker to a warning while the list is read again afte
   await expect(state(page)).toHaveAttribute("data-kind", "board");
   // Opening the Editor again and any later read of the list leave it saved too.
   await page.getByRole("link", { name: "Board" }).click();
+  await showFiles(page);
   await expect(page.getByText("e2e_steady", { exact: true })).toBeVisible();
   const seen = await page.evaluate(() => [...(window as unknown as { seenKinds: Set<string> }).seenKinds]);
   expect(seen).not.toContain("unchecked");
