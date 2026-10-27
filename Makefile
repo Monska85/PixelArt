@@ -46,7 +46,7 @@ help: ## Show this help
 	@echo ""
 	@echo "Variables: BOARD=$(BOARD) (esp32c3, esp32, esp32s3)  ANIM=name[,name]  OUT=$(OUT)  SITE=$(SITE)  ARGS=extra simulator options  WS=1 (emulate with the WebSocket)  PORT=$(PORT) (serve)  PYTHON=$(PYTHON)  JOBS=$(JOBS) (parallel jobs)  NICE=$(NICE) (priority of the heavy steps)"
 
-data: ## Build data/ (the board's files) from content/animations/ and content/playlists/
+data: ## Build data/ (the board's files) from content/animations/, content/playlists/ and content/schedules/
 	$(PYTHON) tools/pixelart.py build
 
 validate: data sim-build ## Check every animation and playlist with the board's engine
@@ -110,7 +110,7 @@ release-firmware: ## Build every board and the firmware release (no animations, 
 	$(NICED) pio run -j $(JOBS) -e esp32c3 -e esp32 -e esp32s3; \
 	$(NICED) $(PYTHON) tools/release.py build --out $(SITE) --schema
 
-release-content: data ## Build the content release (animations, playlists and their manifest) into SITE (default site/)
+release-content: data ## Build the content release (animations, playlists, schedules and their manifest) into SITE (default site/)
 	@set -eu; \
 	echo "Content release site for version $$($(PYTHON) tools/release.py content-version)"; \
 	$(NICED) $(PYTHON) tools/release.py content --out $(SITE) --schema

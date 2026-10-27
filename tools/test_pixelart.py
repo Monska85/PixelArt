@@ -525,7 +525,8 @@ class WipeTest(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()):
                 code = pixelart.board_wipe(board, types.SimpleNamespace(yes=False, settings=True))
         self.assertEqual(code, 1)
-        self.assertIn("brightness 100, playlist default", asked.call_args.args[0])
+        self.assertIn("brightness 100, play auto, playlists default, playlist default, time_sync_hours 6, "
+                      "ntp_server pool.ntp.org", asked.call_args.args[0])
         self.assertNotIn("delete_all", self.sent_commands(responder))
 
     def test_settings_on_an_old_firmware_says_nothing_was_deleted(self):
@@ -550,7 +551,8 @@ class WipeTest(unittest.TestCase):
         help_text = io.StringIO()
         with contextlib.redirect_stdout(help_text), self.assertRaises(SystemExit):
             parser.parse_args(["board", "--port", "x", "wipe", "--help"])
-        self.assertIn("brightness 100, playlist default", " ".join(help_text.getvalue().split()))
+        self.assertIn("brightness 100, play auto, playlists default, playlist default, time_sync_hours 6, "
+                      "ntp_server pool.ntp.org", " ".join(help_text.getvalue().split()))
 
     def test_the_answer_yes_runs_the_command(self):
         board, responder = self.board({"ok": True, "playlists": 0, "animations": 0})
@@ -601,6 +603,111 @@ class ArgumentTest(unittest.TestCase):
         for bad in ["brightness=256", "brightness=-1", "brightness=x", "playlist=../x", "volume=1", "brightness"]:
             with self.assertRaises(pixelart.BoardError, msg=bad):
                 pixelart.parse_settings([bad])
+
+    def test_schedule_kind_inference(self):
+        self.assertEqual(pixelart.infer_kind(Path("/x/schedules/a.yaml"), {}), "schedule")
+        self.assertEqual(pixelart.infer_kind(Path("/x/y/a.json"), {"format": "pixelart-schedule/1"}), "schedule")
+
+    def test_play_settings(self):
+        self.assertEqual(
+            pixelart.parse_settings(["play=playlists", "playlists=halloween,christmas", "time_sync_hours=168",
+                                     "ntp_server=time.example-1.org"]),
+            {"play": "playlists", "playlists": ["halloween", "christmas"], "time_sync_hours": 168,
+             "ntp_server": "time.example-1.org"})
+        self.assertEqual(pixelart.parse_settings(["play=auto", "playlists=default", "ntp_server=192.168.0.1"]),
+                         {"play": "auto", "playlists": ["default"], "ntp_server": "192.168.0.1"})
+        eight = ",".join(f"p{i}" for i in range(8))
+        self.assertEqual(len(pixelart.parse_settings([f"playlists={eight}"])["playlists"]), 8)
+        for bad in ["play=schedule", "play=", "playlists=", "playlists=a,", "playlists=a,a", "playlists=A",
+                    f"playlists={eight},p8", "playlists=a b", "time_sync_hours=0", "time_sync_hours=169",
+                    "ntp_server=", "ntp_server=" + "a" * 65, "ntp_server=a_b", "ntp_server=a:123", "ntp_server=a b"]:
+            with self.assertRaises(pixelart.BoardError, msg=bad):
+                pixelart.parse_settings([bad])
+        self.assertEqual(len(pixelart.parse_settings(["ntp_server=" + "a" * 64])["ntp_server"]), 64)
+
+    def test_the_command_line_takes_the_schedule_kind(self):
+        parser = argparse.ArgumentParser()
+        pixelart.add_board_parser(parser.add_subparsers(dest="command"))
+        for command in (["ls"], ["put", "x.yaml"], ["get", "default"], ["rm", "default"]):
+            args = parser.parse_args(["board", "--port", "x", *command, "--kind", "schedule"])
+            self.assertEqual(args.kind, "schedule")
+
+
+class ScheduleCommandTest(unittest.TestCase):
+    def test_ls_lists_schedules_only_on_a_board_that_has_them(self):
+        for formats, kinds in (({"animation": ["pixelart/1"], "playlist": ["pixelart-playlist/1"]}, ["animation", "playlist"]),
+                               ({"schedule": ["pixelart-schedule/1"]}, ["animation", "playlist", "schedule"]),
+                               (None, ["animation", "playlist"])):
+            info = dict(INFO, formats=formats)
+            asked = []
+
+            def handler(body, asked=asked, info=info):
+                if body["cmd"] == "info":
+                    return info
+                asked.append(body["kind"])
+                return {"ok": True, "entries": [], "more": False}
+
+            board = pixelart.Board(Responder(handler))
+            with contextlib.redirect_stdout(io.StringIO()):
+                pixelart.board_ls(board, types.SimpleNamespace(kind=None))
+            self.assertEqual(asked, kinds, formats)
+
+    def test_a_schedule_download_is_limited_to_16_kib(self):
+        size = 16 * 1024 + 1
+        board = pixelart.Board(Responder(serve({"ok": True, "entries": [{"id": "default", "size": size, "sha256": "0" * 64}]})))
+        board.limits = {}
+        with self.assertRaises(pixelart.BoardError) as e:
+            pixelart.download(board, "schedule", "default")
+        self.assertIn("above the limit of 16384", str(e.exception))
+
+    def test_put_sends_a_schedule_from_its_folder(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "schedules" / "default.yaml"
+            path.parent.mkdir()
+            path.write_text("format: pixelart-schedule/1\nfallback: [default]\n")
+            begun = []
+
+            def handler(body):
+                if body["cmd"] == "info":
+                    return INFO
+                if body["cmd"] == "put_begin":
+                    begun.append((body["kind"], body["id"]))
+                    return {"ok": True}
+                if body["cmd"] == "put_chunk":
+                    return {"ok": True, "received": body["offset"] + len(base64.b64decode(body["data"]))}
+                return {"ok": True, "warnings": []}
+
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                pixelart.board_put(pixelart.Board(Responder(handler)), types.SimpleNamespace(file=path, kind=None, id=None))
+            self.assertEqual(begun, [("schedule", "default")])
+            self.assertIn("uploaded schedule 'default'", out.getvalue())
+
+    def test_settings_prints_a_list_as_ids_separated_by_commas(self):
+        reply = {"ok": True, "settings": {"play": "playlists", "playlists": ["halloween", "christmas"], "playlist": "halloween"}}
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            pixelart.board_settings(pixelart.Board(Responder(serve(reply))), types.SimpleNamespace(pairs=[]))
+        self.assertEqual(out.getvalue(), "play=playlists\nplaylists=halloween,christmas\nplaylist=halloween\n")
+
+    def test_wipe_prints_the_schedules_a_newer_board_removed(self):
+        board = pixelart.Board(Responder(serve({"ok": True, "schedules": 1, "playlists": 2, "animations": 30})))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(pixelart.board_wipe(board, types.SimpleNamespace(yes=True, settings=False)), 0)
+        self.assertEqual(out.getvalue(), "deleted 1 schedules, 2 playlists and 30 animations\n")
+        for schedules in ("1", True, -1, None):
+            board = pixelart.Board(Responder(serve({"ok": True, "schedules": schedules, "playlists": 0, "animations": 0})))
+            with self.assertRaises(pixelart.BoardError, msg=repr(schedules)):
+                pixelart.board_wipe(board, types.SimpleNamespace(yes=True, settings=False))
+
+    def test_wipe_settings_prints_the_lists_of_the_reset(self):
+        reply = {"ok": True, "schedules": 0, "playlists": 0, "animations": 0,
+                 "settings": {"brightness": 100, "play": "auto", "playlists": ["default"], "playlist": "default"}}
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            pixelart.board_wipe(pixelart.Board(Responder(serve(reply))), types.SimpleNamespace(yes=True, settings=True))
+        self.assertEqual(out.getvalue(), "deleted 0 schedules, 0 playlists and 0 animations\n"
+                                         "brightness=100\nplay=auto\nplaylists=default\nplaylist=default\n")
 
 
 

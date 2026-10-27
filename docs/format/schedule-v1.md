@@ -1,6 +1,6 @@
 # Schedule format `pixelart-schedule/1`
 
-Status: **specified**, waiting for its implementation in the tools, the engine in `lib/PixelEngine/` and the web app.
+Status: **specified**, implemented by the tools (`tools/pixelart.py`: the build, the validation and the tie check), waiting for its implementation in the engine in `lib/PixelEngine/` and the web app.
 
 A schedule tells the board which [playlists](playlist-v1.md) to play on which days of the year. The project publishes one with every content release, so the server can choose what a board plays in each season, while the user keeps the last word: a board set to My playlists ignores every schedule. Why it works this way is recorded in [ADR 0007](../adr/0007-server-chosen-playlists.md).
 

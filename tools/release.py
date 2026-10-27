@@ -12,8 +12,8 @@
       Tools manifests and a manifest.json with no animations and no playlists. Run `make release-firmware` to
       build everything first.
   tools/release.py content [--out site] [--schema]
-      Write the content release site from the converted files in data/ (`make data`): animations/, playlists/ and
-      a manifest.json with no firmware. Run `make release-content`.
+      Write the content release site from the converted files in data/ (`make data`): animations/, playlists/,
+      schedules/ and a manifest.json with no firmware. Run `make release-content`.
   tools/release.py check-site URL
       Fail when URL (the address GitHub Pages announces or serves the site at) is not the site address computed
       from this environment by the rules of tools/site_url.py, the address a firmware built here looks for. It
@@ -330,9 +330,10 @@ def write_json(path, document):
 def check_manifest_limits(manifest):
     """Refuses a manifest every board would refuse for its number of files or its size. A manifest of 200 files is over
     the size limit already, so the number is checked first and each limit gives its own message."""
-    files = len(manifest["animations"]) + len(manifest["playlists"])
+    files = sum(len(manifest.get(key, [])) for key in CONTENT_KEYS)
     if files > MAX_MANIFEST_FILES:
-        raise ReleaseError(f"manifest.json lists {files} animations and playlists, more than the {MAX_MANIFEST_FILES} a board takes")
+        raise ReleaseError(f"manifest.json lists {files} animations, playlists and schedules, more than the "
+                           f"{MAX_MANIFEST_FILES} a board takes")
     size = len(json_text(manifest).encode("utf-8"))
     if size > MAX_MANIFEST_BYTES:
         raise ReleaseError(f"manifest.json takes {size} bytes, more than the {MAX_MANIFEST_BYTES} a board reads over HTTPS")
@@ -405,7 +406,7 @@ def reset_site(site):
 
 
 def build_site(out, version, use_schema):
-    """The firmware release site: firmware files and manifests, no animations and no playlists."""
+    """The firmware release site: firmware files and manifests, no animations, playlists or schedules."""
     if not fw_version.SAFE_VERSION.fullmatch(version):
         raise ReleaseError(f"'{version}' is not a valid version")
     site = site_path(out)
@@ -439,7 +440,7 @@ def build_site(out, version, use_schema):
 
 
 def build_content_site(out, version, data, use_schema):
-    """The content release site: the animations and playlists of `data` and a manifest with no firmware."""
+    """The content release site: the animations, playlists and schedules of `data` and a manifest with no firmware."""
     if not fw_version.SAFE_VERSION.fullmatch(version):
         raise ReleaseError(f"'{version}' is not a valid version")
     site = site_path(out)
@@ -449,6 +450,7 @@ def build_content_site(out, version, data, use_schema):
     playlists = collect_documents(Path(data), "playlists", site, False)
     if not animations or not playlists:
         raise ReleaseError(f"{data} has no animations or no playlists: run make data")
+    schedules = collect_documents(Path(data), "schedules", site, False)
 
     manifest = {
         "format": FORMAT,
@@ -458,9 +460,11 @@ def build_content_site(out, version, data, use_schema):
         "content_version": version,
         "animations": animations,
         "playlists": playlists,
+        "schedules": schedules,
     }
     write_manifest(site, manifest, use_schema)
-    print(f"release: content version {version}, {len(animations)} animations, {len(playlists)} playlists in {site}")
+    print(f"release: content version {version}, {len(animations)} animations, {len(playlists)} playlists, "
+          f"{len(schedules)} schedules in {site}")
 
 
 def list_tree(root, label):
@@ -495,9 +499,11 @@ def find_conflicts(first, second):
 
 
 # What an archive may hold besides its manifest.json. A firmware release published before the content package also
-# carries animations/ and playlists/.
+# carries animations/ and playlists/; no firmware release carries schedules/.
 FIRMWARE_FOLDERS = ("firmware/", "animations/", "playlists/")
-CONTENT_FOLDERS = ("animations/", "playlists/")
+CONTENT_FOLDERS = ("animations/", "playlists/", "schedules/")
+# The manifest lists of the content, which the 200-entry limit counts. schedules is optional.
+CONTENT_KEYS = ("animations", "playlists", "schedules")
 
 
 def read_release_manifest(folder, label, files):
@@ -510,7 +516,7 @@ def read_release_manifest(folder, label, files):
         raise ReleaseError(f"the manifest.json of the {label} folder cannot be read: {e}")
     if not isinstance(manifest, dict) or manifest.get("format") != FORMAT:
         raise ReleaseError(f"the manifest.json of the {label} folder is not a {FORMAT} manifest")
-    for key in ("animations", "playlists", "firmware"):
+    for key in (*CONTENT_KEYS, "firmware"):
         if key in manifest and not (isinstance(manifest[key], list) and all(isinstance(e, dict) for e in manifest[key])):
             raise ReleaseError(f"the manifest.json of the {label} folder has a bad {key} list")
     return manifest
@@ -531,7 +537,7 @@ def assembled_manifest(firmware, content):
 
 
 def merged_manifest(firmware, content):
-    """The firmware's manifest with the content release's version, animations and playlists."""
+    """The firmware's manifest with the content release's version, animations, playlists and schedules."""
     version = content.get("version")
     if not isinstance(version, str) or not fw_version.SAFE_VERSION.fullmatch(version):
         raise ReleaseError("the content manifest has no valid version")
@@ -541,12 +547,15 @@ def merged_manifest(firmware, content):
         manifest["firmware"] = firmware["firmware"]
     manifest["animations"] = content.get("animations", [])
     manifest["playlists"] = content.get("playlists", [])
+    # A content release made before schedules has no list, and the site then has none either
+    if "schedules" in content:
+        manifest["schedules"] = content["schedules"]
     return manifest
 
 
 def check_listed_files(manifest, copied):
     """Every file the manifest names must be in the site, or a board and the web app would meet a missing file."""
-    entries = [e for key in ("firmware", "animations", "playlists") for e in manifest.get(key, [])]
+    entries = [e for key in ("firmware", *CONTENT_KEYS) for e in manifest.get(key, [])]
     for entry in entries:
         name = entry.get("file")
         if not isinstance(name, str) or name not in copied:

@@ -133,6 +133,36 @@
           }
         }
       }
+    },
+    "schedules": {
+      "description": "Optional. Every published schedule. Absent in a firmware release; a reader takes a missing list as no schedule.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "file", "size", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^schedules/[a-z0-9][a-z0-9_-]{0,31}\\.json$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
     }
   },
   "$defs": {

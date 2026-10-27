@@ -73,8 +73,14 @@ class LimitsTest(unittest.TestCase):
         # 200 files are over the size limit, so the count passes and the size refuses them.
         with self.assertRaisesRegex(release.ReleaseError, "bytes, more than"):
             release.check_manifest_limits(self.manifest(200))
-        with self.assertRaisesRegex(release.ReleaseError, "lists 201 animations and playlists"):
+        with self.assertRaisesRegex(release.ReleaseError, "lists 201 animations, playlists and schedules"):
             release.check_manifest_limits(self.manifest(201))
+
+    def test_schedules_count_in_the_200_files(self):
+        manifest = self.manifest(150)
+        manifest["schedules"] = [{"id": f"s{i}", "file": f"schedules/s{i}.json", "size": 1, "sha256": "0" * 64} for i in range(51)]
+        with self.assertRaisesRegex(release.ReleaseError, "lists 201 animations, playlists and schedules"):
+            release.check_manifest_limits(manifest)
 
     def test_a_manifest_takes_at_most_20_kib(self):
         self.assertEqual(release.MAX_MANIFEST_BYTES, 20 * 1024)
@@ -264,6 +270,55 @@ class AssembleTest(unittest.TestCase):
         self.assertEqual(manifest["firmware"], firmware_manifest()["firmware"])
         self.assertEqual(manifest["animations"], content_manifest()["animations"])
         self.assertEqual(manifest["playlists"], content_manifest()["playlists"])
+
+    def test_the_schedules_of_the_content_release_reach_the_site(self):
+        schedules = [dict(listed("schedules/default.json"), id="default", name="Seasons")]
+        content = self.content_site(content_manifest(schedules=schedules), **{"schedules/default.json": "schedules/default.json"})
+        out = self.base / "out"
+        release.assemble_site(out, self.firmware_site(), content, None)
+        manifest = self.manifest_of(out)
+        self.assertEqual(list(manifest), ["format", "version", "released", "source", "content_version", "firmware",
+                                          "animations", "playlists", "schedules"])
+        self.assertEqual(manifest["schedules"], schedules)
+        self.assertIn("schedules/default.json", self.read(out))
+
+    def test_a_content_release_without_schedules_gives_a_site_without_the_list(self):
+        out = self.base / "out"
+        release.assemble_site(out, self.firmware_site(), self.content_site(), None)
+        self.assertNotIn("schedules", self.manifest_of(out))
+        out = self.base / "out-alone"
+        release.assemble_site(out, self.firmware_site(), None, None)
+        self.assertNotIn("schedules", self.manifest_of(out))
+
+    def test_a_listed_schedule_the_site_does_not_hold_is_refused(self):
+        content = self.content_site(content_manifest(schedules=[dict(listed("schedules/gone.json"), id="gone")]))
+        with self.assertRaisesRegex(release.ReleaseError, "schedules/gone.json"):
+            release.assemble_site(self.base / "out", self.firmware_site(), content, None)
+
+    def test_a_firmware_archive_holds_no_schedules(self):
+        firmware = self.firmware_site(**{"schedules/default.json": "x"})
+        with self.assertRaisesRegex(release.ReleaseError, "schedules/default.json"):
+            release.assemble_site(self.base / "out", firmware, None, None)
+
+    def test_a_bad_schedules_list_is_refused(self):
+        for schedules in ("x", ["x"]):
+            content = self.tree("ct-bad", {"manifest.json": content_manifest(schedules=schedules)})
+            with self.subTest(schedules=schedules), self.assertRaises(release.ReleaseError):
+                release.assemble_site(self.base / "out", None, content, None)
+
+    def test_the_assembled_manifest_with_schedules_matches_the_schema(self):
+        try:
+            import jsonschema  # noqa: F401
+        except ImportError:
+            if os.environ.get("CI"):
+                raise
+            self.skipTest("needs the jsonschema package")
+        schedules = [dict(listed("schedules/default.json"), id="default", name="Seasons")]
+        content = self.content_site(content_manifest(schedules=schedules), **{"schedules/default.json": "s"})
+        release.assemble_site(self.base / "out", self.firmware_site(), content, None, use_schema=True)
+        bad = self.content_site(content_manifest(schedules=[dict(listed("playlists/default.json"), id="default")]))
+        with self.assertRaises(release.ReleaseError):
+            release.assemble_site(self.base / "out2", None, bad, None, use_schema=True)
 
     def test_the_content_release_replaces_the_folders_and_lists_of_an_older_firmware_archive(self):
         old = firmware_manifest(animations=[listed("animations/old.json", id="old", name="Old", version=1)],
@@ -519,6 +574,7 @@ class BuildSiteTest(unittest.TestCase):
         manifest = json.loads((out / "manifest.json").read_text())
         self.assertEqual(manifest["animations"], [])
         self.assertEqual(manifest["playlists"], [])
+        self.assertNotIn("schedules", manifest)
         self.assertNotIn("content_version", manifest)
         self.assertEqual(manifest["version"], "1.2.0")
         self.assertEqual({e["part"] for e in manifest["firmware"]}, {"bootloader", "partitions", "boot_app0", "app", "factory"})
@@ -576,9 +632,9 @@ class BuildSiteTest(unittest.TestCase):
             with self.assertRaisesRegex(release.ReleaseError, "pio run"):
                 release.build_site(self.base / "out", "1.2.0", False)
 
-    def data(self, animations=("star",), playlists=("default",)):
+    def data(self, animations=("star",), playlists=("default",), schedules=()):
         data = self.base / "data"
-        for kind, names in (("animations", animations), ("playlists", playlists)):
+        for kind, names in (("animations", animations), ("playlists", playlists), ("schedules", schedules)):
             (data / kind).mkdir(parents=True, exist_ok=True)
             for name in names:
                 (data / kind / f"{name}.json").write_text(json.dumps({"name": name.title(), "version": 3}))
@@ -588,7 +644,9 @@ class BuildSiteTest(unittest.TestCase):
         out = self.base / "content-site"
         release.build_content_site(out, "1.4.0", self.data(("star", "moon")), False)
         manifest = json.loads((out / "manifest.json").read_text())
-        self.assertEqual(list(manifest), ["format", "version", "released", "source", "content_version", "animations", "playlists"])
+        self.assertEqual(list(manifest), ["format", "version", "released", "source", "content_version", "animations", "playlists",
+                                          "schedules"])
+        self.assertEqual(manifest["schedules"], [])
         self.assertEqual(manifest["version"], "1.4.0")
         self.assertEqual(manifest["content_version"], "1.4.0")
         self.assertEqual(manifest["released"], "2026-10-26")
@@ -601,6 +659,30 @@ class BuildSiteTest(unittest.TestCase):
         self.assertEqual(star["sha256"], hashlib.sha256((out / "animations" / "star.json").read_bytes()).hexdigest())
         self.assertEqual(sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()),
                          ["animations/moon.json", "animations/star.json", "manifest.json", "playlists/default.json"])
+
+    def test_a_content_release_lists_its_schedules(self):
+        out = self.base / "content-site"
+        release.build_content_site(out, "1.4.0", self.data(schedules=("default", "later")), False)
+        manifest = json.loads((out / "manifest.json").read_text())
+        self.assertEqual([s["id"] for s in manifest["schedules"]], ["default", "later"])
+        first = manifest["schedules"][0]
+        self.assertEqual(list(first), ["id", "name", "file", "size", "sha256"])
+        self.assertNotIn("version", first)
+        self.assertEqual(first["file"], "schedules/default.json")
+        self.assertEqual(first["sha256"], hashlib.sha256((out / "schedules" / "default.json").read_bytes()).hexdigest())
+        self.assertEqual(first["size"], (out / "schedules" / "default.json").stat().st_size)
+        many = [f"s{i:03}" for i in range(200)]
+        with self.assertRaisesRegex(release.ReleaseError, "more than the 200 a board takes"):
+            release.build_content_site(self.base / "many", "1.4.0", self.data(schedules=many), False)
+
+    def test_a_content_release_with_schedules_matches_the_schema(self):
+        try:
+            import jsonschema  # noqa: F401
+        except ImportError:
+            if os.environ.get("CI"):
+                raise
+            self.skipTest("needs the jsonschema package")
+        release.build_content_site(self.base / "ok", "1.4.0", self.data(schedules=("default",)), True)
 
     def test_a_content_release_matches_the_schema(self):
         try:
