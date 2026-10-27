@@ -25,6 +25,11 @@ Read the relevant specifications in `docs/`, the commands and contribution guida
 - Tests outside `content/` never depend on what the repository's content holds. A test that needs a named animation or playlist, or asserts exact frames, names, items or counts, uses its own fixture files (`test/fixtures/data/` for the native suites, `web/e2e/board-files/` for the end-to-end tests). A test that checks the shipped content reads `content/` and iterates over it, so a content change touches only `content/` and releases only the content package.
 - When a change adds, moves or renames a folder or a file that a CI job reads, it updates the path filters of the `changes` job in `.github/workflows/ci.yml` and the README section on continuous integration in the same change, so each job still runs for every change that can break it. When in doubt, a path belongs in the filter: running a job too often costs time, skipping it hides a break.
 
+## Releases
+
+- A change that adds, moves or renames a folder decides which package releases it, and updates `exclude-paths` in `release-please-config.json` and the paths described in [Releases](README.md#releases) in the same change.
+- A `feat` or `fix` pull request meant for the web app or the content keeps files at the root of the repository out of it, moving such edits to a separate `docs` or `chore` pull request, because release-please counts every root file for the firmware. When another rule requires a root file in the same change, the pull request says that it also releases the firmware.
+
 ## History
 
 - `v0/` holds the original Arduino sketch and its README as history. Never edit, format, move or delete anything in it, and keep every tool from building, linting or formatting it.

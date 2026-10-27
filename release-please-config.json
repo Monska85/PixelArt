@@ -18,7 +18,18 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "exclude-paths": ["web", "content"],
+      "exclude-paths": [
+        ".github",
+        "conformance",
+        "content",
+        "docs/adr",
+        "docs/web",
+        "LICENSES/web",
+        "monitor",
+        "test",
+        "v0",
+        "web"
+      ],
       "include-component-in-tag": false,
       "changelog-path": "CHANGELOG.md"
     },
@@ -31,6 +42,7 @@
     "web": {
       "release-type": "node",
       "component": "web",
+      "exclude-paths": ["web/e2e", "web/screenshots", "web/test"],
       "changelog-path": "CHANGELOG.md"
     }
   }
