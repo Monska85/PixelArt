@@ -10,6 +10,8 @@ import { SCRATCH_MANIFEST } from "../src/ui/firmware/installDialog";
 import { useContentInstall } from "../src/ui/firmware/useContentInstall";
 import { session } from "../src/ui/session";
 import { useUploadActivity } from "../src/ui/upload";
+import { FakeBoard } from "./fakeBoard";
+import { FakePort } from "./fakePort";
 
 const manifest: Manifest = {
   version: "1.0.0",
@@ -36,6 +38,7 @@ describe("a first-install job whose link drops after the port connected", () => 
     root = null;
     document.body.replaceChildren();
     vi.restoreAllMocks();
+    await session.disconnect();
   });
 
   it("clears the announcement and shows the not-installed alert instead of waiting for a queue", async () => {
@@ -51,16 +54,19 @@ describe("a first-install job whose link drops after the port connected", () => 
     root = createRoot(host);
     await act(async () => root?.render(createElement(Probe)));
 
-    // The port connects, then the link is gone before the queue could start.
-    vi.spyOn(session, "connectPort").mockImplementation(async () => {
-      (session as unknown as { set: (patch: object) => void }).set({ state: "lost", message: "The link dropped." });
-      return true;
+    // The port connects, then the device goes away before the queue could start.
+    const connectPort = session.connectPort.bind(session);
+    vi.spyOn(session, "connectPort").mockImplementation(async (port) => {
+      const connected = await connectPort(port);
+      (port as FakePort).vanish();
+      await vi.waitFor(() => expect(session.getSnapshot().state).toBe("lost"));
+      return connected;
     });
     const refresh = vi.spyOn(session, "refreshInfo");
 
     await act(async () => {
       const dialog = Object.assign(document.createElement("ewt-install-dialog"), {
-        port: { open: async () => undefined, close: async () => undefined },
+        port: new FakePort("port", [], new FakeBoard()),
         manifestPath: SCRATCH_MANIFEST,
         _installState: { state: "finished" },
       });
@@ -69,9 +75,10 @@ describe("a first-install job whose link drops after the port connected", () => 
       dialog.remove();
     });
 
+    // The handshake and the loss take real time: wait for the alert, then check the rest.
+    await vi.waitFor(() => expect(document.body.querySelector('[data-testid="content-not-installed"]')).not.toBeNull());
     expect(session.connectPort).toHaveBeenCalledTimes(1);
     expect(announced).toBe("");
-    expect(document.body.querySelector('[data-testid="content-not-installed"]')).not.toBeNull();
     expect(refresh).not.toHaveBeenCalled();
   });
 });

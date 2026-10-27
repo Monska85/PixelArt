@@ -248,19 +248,18 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
           VERSION: ${{ needs.release-please.outputs.version }}
-          SRC: ${{ runner.temp }}/site
         run: |
           set -eu
           assets="$RUNNER_TEMP/assets"
           mkdir "$assets"
           # The files and layout of GitHub Pages, so every manifest path resolves inside the archive
-          (cd "$SRC" && zip -q -r -X "$assets/pixelart-site-${VERSION}.zip" .)
+          (cd "$RUNNER_TEMP/site" && zip -q -r -X "$assets/pixelart-site-${VERSION}.zip" .)
           # Release assets live in one flat folder: the board goes into the name
-          for file in "$SRC"/firmware/*/factory-*.bin; do
+          for file in "$RUNNER_TEMP/site"/firmware/*/factory-*.bin; do
             board=$(basename "$(dirname "$file")")
             cp "$file" "$assets/${board}-$(basename "$file")"
           done
-          cp "$SRC/firmware/THIRD_PARTY_NOTICES.txt" "$assets/THIRD_PARTY_NOTICES.txt"
+          cp "$RUNNER_TEMP/site/firmware/THIRD_PARTY_NOTICES.txt" "$assets/THIRD_PARTY_NOTICES.txt"
           gh release upload "$TAG" "$assets"/* --clobber
 
       # The body comes from the changelog
@@ -294,13 +293,12 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.release-please.outputs.content_tag_name }}
           VERSION: ${{ needs.release-please.outputs.content_version }}
-          SRC: ${{ runner.temp }}/content
         run: |
           set -eu
           assets="$RUNNER_TEMP/assets"
           mkdir "$assets"
           # manifest.json, animations/ and playlists/, ready to be merged into the Pages site or served as an animation source
-          (cd "$SRC" && zip -q -r -X "$assets/pixelart-content-${VERSION}.zip" .)
+          (cd "$RUNNER_TEMP/content" && zip -q -r -X "$assets/pixelart-content-${VERSION}.zip" .)
           gh release upload "$TAG" "$assets/pixelart-content-${VERSION}.zip" --clobber
 
       # The body comes from the changelog
@@ -334,14 +332,13 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.release-please.outputs.web_tag_name }}
           VERSION: ${{ needs.release-please.outputs.web_version }}
-          SRC: ${{ runner.temp }}/web
         run: |
           set -eu
           assets="$RUNNER_TEMP/assets"
           mkdir "$assets"
           # The built app with index.html at the root, ready to be merged into the Pages site
-          (cd "$SRC" && zip -q -r -X "$assets/pixelart-web-${VERSION}.zip" .)
-          cp "$SRC/THIRD_PARTY_NOTICES.txt" "$assets/THIRD_PARTY_NOTICES.txt"
+          (cd "$RUNNER_TEMP/web" && zip -q -r -X "$assets/pixelart-web-${VERSION}.zip" .)
+          cp "$RUNNER_TEMP/web/THIRD_PARTY_NOTICES.txt" "$assets/THIRD_PARTY_NOTICES.txt"
           gh release upload "$TAG" "$assets/pixelart-web-${VERSION}.zip" "$assets/THIRD_PARTY_NOTICES.txt" --clobber
 
       # The body comes from the changelog
