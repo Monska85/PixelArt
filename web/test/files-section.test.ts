@@ -123,4 +123,10 @@ describe("the Files card summary", () => {
       "2 animations, 1 playlist, active playlist: p",
     );
   });
+
+  it("shows the active playlist's ID without a flag while the names are not known", () => {
+    expect(summarize({ animations: two, playlists: one, settings: settings("p"), playlistNames: null })).toBe(
+      "2 animations, 1 playlist, active playlist: p",
+    );
+  });
 });

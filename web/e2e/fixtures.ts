@@ -162,6 +162,7 @@ export async function showFiles(page: Page): Promise<void> {
   if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
 }
+/** The Playlists tab of a view whose lists are always shown, the Library; on the Board use showBoardPlaylists. */
 export const showPlaylists = (page: Page) => page.getByRole("tab", { name: /^Playlists/ }).click();
 /** The Playlists tab of the Board view, whose Files section is opened first. */
 export async function showBoardPlaylists(page: Page): Promise<void> {
