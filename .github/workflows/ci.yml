@@ -122,9 +122,16 @@ jobs:
         if: failure() && steps.smoke.conclusion == 'failure'
         run: cat "$RUNNER_TEMP/simulator.log" || true
 
-      # The web job builds the web app; tools/test_release.py covers the merge of the two sites
+      # The web job builds the web app; tools/test_release.py covers the merge of the sites
       - name: Build the firmware for every board and the firmware release site, check its manifest against the JSON Schema
         run: make release-firmware
+
+      # A folder outside the repository: release.py replaces site/ and no other folder inside it
+      - name: Build the content release site, check its manifest against the JSON Schema, and merge it with the firmware site
+        run: |
+          set -eu
+          make release-content SITE="$RUNNER_TEMP/content-site"
+          python tools/release.py assemble --out "$RUNNER_TEMP/assembled" --firmware site --content "$RUNNER_TEMP/content-site" --schema
 
       - name: Render previews of every animation
         run: .pio/build/native/program --out sim-out
