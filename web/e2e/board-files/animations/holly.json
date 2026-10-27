@@ -1,0 +1,32 @@
+{
+  "format": "pixelart/1",
+  "name": "Holly",
+  "version": 1,
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "frame_ms": 500,
+  "palette": {
+    "main": "#4eb013"
+  },
+  "sprites": {
+    "shape": {
+      "points": {
+        "main": [
+          [5, 5],
+          [6, 6],
+          [9, 5],
+          [10, 6],
+          [7, 8],
+          [8, 8]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": ["shape"]
+    }
+  ]
+}

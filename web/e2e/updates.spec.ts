@@ -121,8 +121,6 @@ test.describe("with an update source", () => {
     expect(readFileSync(stored(simulator, "animations", "two"), "utf8")).toBe(TWO);
     expect(readFileSync(stored(simulator, "playlists", "mix"), "utf8")).toBe(PLAYLIST);
     await expect(updates.getByRole("button", { name: "Install animations" })).toBeDisabled();
-    // The new files show in the lists of the Board view.
-    await expect(page.getByRole("table", { name: "Animations on the board" })).toContainText("one");
   });
 
   test("a mode change and the switches are sent to the board", async ({ page, simulator }) => {

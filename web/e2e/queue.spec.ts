@@ -145,7 +145,7 @@ test("Install all asks once about differing files: Cancel, Keep the board's, Rep
 });
 
 test("installing a playlist from the Library brings the animations it names", async ({ page, simulator }) => {
-  // Remove the playlist and two published animations: the playlist names all 30, three of them are published.
+  // Remove the playlist and two published animations: the playlist names every fixture animation, three of them are published.
   rmSync(stored(simulator, "playlists", "default"));
   rmSync(stored(simulator, "animations", "snowflake"));
   rmSync(stored(simulator, "animations", "wreath"));

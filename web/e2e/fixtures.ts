@@ -9,10 +9,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { decodeLine, type Body } from "../src/protocol/framing";
 
-// The simulator and the board files it starts from: the built simulator and `make data`.
+// The simulator and the board files it starts from: the built simulator and the fixture files of e2e/board-files/,
+// which do not depend on the repository's content.
 const SIMULATOR =
   process.env.PIXELART_SIM ?? fileURLToPath(new URL("../../.pio/build/native/program", import.meta.url));
-const DATA = process.env.PIXELART_DATA ?? fileURLToPath(new URL("../../data", import.meta.url));
+const DATA = process.env.PIXELART_DATA ?? fileURLToPath(new URL("./board-files", import.meta.url));
 
 export interface Simulator {
   address: string;

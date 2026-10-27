@@ -28,8 +28,11 @@ namespace pixelart_test
 
 namespace fs = std::filesystem;
 
-// The board files built from animations/ and playlists/ by `make data`.
+// The board files built from content/ by `make data`. Tests that assert what a stored file holds use FIXTURE_DATA.
 inline const std::string REPO_DATA = std::string(PIXELART_PROJECT_DIR) + "/data";
+
+// Board files kept for the tests, which no change to content/ touches.
+inline const std::string FIXTURE_DATA = std::string(PIXELART_PROJECT_DIR) + "/test/fixtures/data";
 
 inline std::string read_file(const fs::path &path)
 {

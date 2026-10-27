@@ -180,9 +180,12 @@ describe("JSON to YAML", () => {
     const value = read(source);
     expect(toJson(writeYaml(value))).toBe(writeJson(value));
   });
-  it("round-trips a playlist through the engine", () => {
-    const source = readFileSync(`${REPO}content/playlists/default.yaml`, "utf8");
-    const again = jsonBytes(read(writeYaml(read(source))));
-    expect(loadPlaylist(again).items?.length).toBeGreaterThan(0);
-  });
+  it.each(readdirSync(`${REPO}content/playlists`).filter((name) => /\.ya?ml$/.test(name)))(
+    "round-trips the playlist %s through the engine",
+    (name) => {
+      const source = readFileSync(`${REPO}content/playlists/${name}`, "utf8");
+      const again = jsonBytes(read(writeYaml(read(source))));
+      expect(loadPlaylist(again).items?.length).toBeGreaterThan(0);
+    },
+  );
 });

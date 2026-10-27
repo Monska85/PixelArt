@@ -293,14 +293,14 @@ test("edits a stored playlist: order, repeat, enabled, add and remove", async ({
   expect(after.items.at(-1)).toEqual({ animation: "star" });
 });
 
-test("the playlist editor opens in view and takes typed changes, with the board's 30 animations", async ({
+test("the playlist editor opens in view and takes typed changes, with the board's animations", async ({
   page,
   simulator,
 }) => {
   await connectSimulator(page, simulator);
   const path = stored(simulator, "playlists", "default");
   const before = JSON.parse(readFileSync(path, "utf8"));
-  expect(before.items.length).toBeGreaterThan(20);
+  expect(before.items.length).toBeGreaterThan(5); // the test edits up to item 6
   await showPlaylists(page);
   await row(playlists(page), "default").getByRole("button", { name: "Edit default" }).click();
   const editor = editorPanel(page, "Edit playlist default");

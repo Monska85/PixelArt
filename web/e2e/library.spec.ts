@@ -87,7 +87,7 @@ test("installs a missing animation and the board lists it", async ({ page, simul
   await expect(state(page, MISSING)).toHaveText("Same");
   await expect(toastWith(page, `Installed animation ${MISSING}`)).toBeVisible();
   expect(sha(stored(simulator, "animations", MISSING))).toBe(
-    sha(join(fileURLToPath(new URL("../../data", import.meta.url)), "animations", `${MISSING}.json`)),
+    sha(join(fileURLToPath(new URL("./board-files", import.meta.url)), "animations", `${MISSING}.json`)),
   );
   await page.getByRole("link", { name: "Board", exact: true }).click();
   await expect(animations(page).locator("code", { hasText: new RegExp(`^${MISSING}$`) })).toBeVisible();
