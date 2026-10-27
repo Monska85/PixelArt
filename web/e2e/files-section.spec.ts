@@ -26,6 +26,8 @@ const count = (dir: string, kind: string): number => readdirSync(join(dir, kind)
 
 // The stored playlist `default` is the active one and names snowflake and bear.
 const MISSING = ["snowflake", "bear"];
+/** A phone's width, for the tests of long names. */
+const PHONE = 375;
 
 test("the card is first, closed by default, and says what the board holds", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
@@ -127,7 +129,7 @@ test("an upload that stores a file opens the section; one that stores nothing do
 test("a long active playlist name wraps inside the card on a phone", async ({ page, simulator }) => {
   // The playlist editor accepts a name of up to 64 characters, with no space to break at.
   const name = "X".repeat(64);
-  await page.setViewportSize({ width: 375, height: 800 });
+  await page.setViewportSize({ width: PHONE, height: 800 });
   await connectSimulator(page, simulator);
   await pick(page, upload("default.yaml", playlistYaml("ball").replace("name: Mix", `name: ${name}`)));
   await page
@@ -138,7 +140,7 @@ test("a long active playlist name wraps inside the card on a phone", async ({ pa
   await expect(line).toContainText(`active playlist: ${name}`);
   // The line's text fits its own box, which the card holds.
   expect(await line.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE);
 });
 
 test("the missing-animations warning names every incomplete playlist and wraps a long ID on a phone", async ({
@@ -147,7 +149,7 @@ test("the missing-animations warning names every incomplete playlist and wraps a
 }) => {
   // The longest ID the ID rule allows, in a wide letter, with no place to break.
   const id = "w".repeat(32);
-  await page.setViewportSize({ width: 375, height: 800 });
+  await page.setViewportSize({ width: PHONE, height: 800 });
   await connectSimulator(page, simulator);
   await pick(page, upload(`${id}.yaml`, playlistYaml("gone")), upload("default.yaml", playlistYaml("ball", "lost")));
   // The queue asks about the animations found nowhere and about the stored default that differs.
@@ -155,23 +157,27 @@ test("the missing-animations warning names every incomplete playlist and wraps a
     "Upload the playlist without all its animations?": "Upload the playlist anyway",
     "Replace the stored file?": "Replace them",
   };
-  for (let asked = 0; asked < 2; asked++) {
+  for (let asked = 0; asked < Object.keys(answers).length; asked++) {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    const title = (await dialog.getByRole("heading").first().textContent()) ?? "";
-    await dialog.getByRole("button", { name: answers[title.trim()] }).click();
-    await expect(page.getByRole("dialog", { name: title.trim() })).toBeHidden();
+    const title = ((await dialog.getByRole("heading").first().textContent()) ?? "").trim();
+    const answer = answers[title];
+    expect(answer, `unexpected dialog: ${title}`).toBeDefined();
+    await dialog.getByRole("button", { name: answer }).click();
+    await expect(page.getByRole("dialog", { name: title })).toBeHidden();
   }
   const warning = page.getByTestId("files-missing");
   await expect(warning).toContainText(`2 playlists are missing animations: default, ${id}.`);
-  // The text stays inside the warning: it does not push past the warning's right edge.
+  // The text and the Show playlists button stay inside the warning, not past its right edge.
   const inside = await warning.evaluate((alert) => {
     const text = alert.querySelector("p") as HTMLElement;
+    const button = alert.querySelector("button") as HTMLElement;
+    const right = alert.getBoundingClientRect().right;
     const fits = text.scrollWidth <= text.clientWidth;
-    return fits && text.getBoundingClientRect().right <= alert.getBoundingClientRect().right;
+    return fits && text.getBoundingClientRect().right <= right && button.getBoundingClientRect().right <= right;
   });
   expect(inside).toBe(true);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE);
 });
 
 test("an upload the board refuses does not open the section", async ({ page }) => {
