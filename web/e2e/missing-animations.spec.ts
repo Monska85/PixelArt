@@ -4,7 +4,7 @@ import { existsSync, rmSync, writeFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import { animations, connectSimulator, expect, showPlaylists, stored, test, toastWith } from "./fixtures";
 
-// The stored playlist `default` (also the active one) names 30 animations. snowflake is published in the fixture
+// The stored playlist `default` (also the active one) names both animations below. snowflake is published in the fixture
 // release; bear is not.
 const PUBLISHED = "snowflake";
 const UNPUBLISHED = "bear";

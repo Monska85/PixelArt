@@ -23,11 +23,11 @@ The unit tests read `../conformance`, and the YAML tests compare with `../data`,
 
 ## End-to-end tests
 
-1. Build the simulator (`make sim-build`) and the board files (`make data`). The simulator's WebSocket needs `python3` with the `websockets` package (`pip install websockets`).
+1. Build the simulator (`make sim-build`). The simulator's WebSocket needs `python3` with the `websockets` package (`pip install websockets`).
 2. Install the browser once: `npx playwright install chromium`.
 3. `npm run build && npm run e2e`.
 
-The built app is served by `e2e/serve-site.mjs` with a fixture release next to it, as Pages serves it: a `manifest.json` made from the animations and playlists of `e2e/site/published.json` (with their real SHA-256, and its `contentVersion` as `content_version`) and one firmware entry, and the ESP Web Tools manifests of `e2e/site/firmware/`. `e2e/first-install.ts` draws what needs a real board for the installation after a first install: a closing ESP Web Tools dialog and a serial port wired to the simulator's WebSocket. Each test starts its own simulator on a free port, with a temporary copy of `data/`. The tests use `.pio/build/native/program` and `data/`; set `PIXELART_SIM` and `PIXELART_DATA` to use other copies. A test can pass more options to its simulator with `test.use({ simulatorArgs: [...] })`: `--ws-transport wifi --token TOKEN` makes it stand for a board over WiFi, as the tests of the network login do.
+The built app is served by `e2e/serve-site.mjs` with a fixture release next to it, as Pages serves it: a `manifest.json` made from the animations and playlists of `e2e/site/published.json` (with their real SHA-256, and its `contentVersion` as `content_version`) and one firmware entry, and the ESP Web Tools manifests of `e2e/site/firmware/`. `e2e/first-install.ts` draws what needs a real board for the installation after a first install: a closing ESP Web Tools dialog and a serial port wired to the simulator's WebSocket. Each test starts its own simulator on a free port, with a temporary copy of the fixture board files in `e2e/board-files/`, so a change to `content/` never breaks a test. The tests use `.pio/build/native/program` and `e2e/board-files/`; set `PIXELART_SIM` and `PIXELART_DATA` to use other copies. A test can pass more options to its simulator with `test.use({ simulatorArgs: [...] })`: `--ws-transport wifi --token TOKEN` makes it stand for a board over WiFi, as the tests of the network login do.
 
 ## Screenshot tests
 

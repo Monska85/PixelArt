@@ -101,7 +101,7 @@ static void test_traffic_leaves_the_repository_animations_unchanged()
 
   TEST_ASSERT_EQUAL(0, quiet.replies);
   TEST_ASSERT_EQUAL(6, busy.replies);
-  TEST_ASSERT_TRUE(quiet.frames.size() > 100);
+  TEST_ASSERT_TRUE(!quiet.frames.empty());
   TEST_ASSERT_EQUAL(quiet.frames.size(), busy.frames.size());
   for (size_t i = 0; i < quiet.frames.size(); i++)
   {

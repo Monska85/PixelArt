@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { animations, connectSimulator, expect, file, openFromLibrary, type Simulator, stored, test } from "./fixtures";
 
@@ -242,7 +243,7 @@ for (const width of [1280, 320]) {
     const sizes = animations(page).locator("[data-testid^=size-]");
     await expect(sizes.first()).toBeVisible();
     const count = await sizes.count();
-    expect(count).toBeGreaterThan(20);
+    expect(count).toBe(readdirSync(join(simulator.dataDir, "animations")).length);
     for (let i = 0; i < count; i++) {
       const box = await sizes.nth(i).evaluate((cell) => {
         const range = document.createRange();

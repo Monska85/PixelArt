@@ -1,0 +1,171 @@
+{
+  "format": "pixelart/1",
+  "name": "Tree",
+  "canvas": {
+    "width": 16,
+    "height": 16
+  },
+  "frame_ms": 500,
+  "palette": {
+    "yellow": "#ffe300",
+    "green": "#0a8a2a"
+  },
+  "sprites": {
+    "star": {
+      "points": {
+        "yellow": [
+          [
+            7,
+            0
+          ]
+        ]
+      }
+    },
+    "body": {
+      "points": {
+        "green": [
+          [
+            7,
+            1
+          ],
+          [
+            6,
+            2
+          ],
+          [
+            7,
+            2
+          ],
+          [
+            8,
+            2
+          ],
+          [
+            5,
+            3
+          ],
+          [
+            6,
+            3
+          ],
+          [
+            7,
+            3
+          ],
+          [
+            8,
+            3
+          ],
+          [
+            9,
+            3
+          ]
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    },
+    {
+      "show": [
+        "star",
+        "body"
+      ]
+    }
+  ]
+}
