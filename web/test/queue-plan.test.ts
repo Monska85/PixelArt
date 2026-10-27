@@ -48,7 +48,13 @@ const playlist = (...items: Array<string | [string, boolean]>): Uint8Array =>
   );
 
 const published = (id: string): Published => ({ id, name: null, version: 1, size: 100, sha256: sha(1) });
-const manifest = (...ids: string[]): Manifest => ({ version: "1.0.0", animations: ids.map(published), playlists: [] });
+const manifest = (...ids: string[]): Manifest => ({
+  version: "1.0.0",
+  contentVersion: null,
+  hasFirmware: true,
+  animations: ids.map(published),
+  playlists: [],
+});
 
 describe("planning against the board", () => {
   it("sorts files into missing, identical and different", () => {

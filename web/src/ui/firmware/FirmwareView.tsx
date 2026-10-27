@@ -7,6 +7,9 @@ import { Alert, AlertDescription, AlertTitle } from "../components/alert";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/card";
+import { Checkbox } from "../components/checkbox";
+import { Label } from "../components/label";
+import { RunningUpload } from "../common/ActivityPanel";
 import { ResetBox, RESET_TEXT, useDeleteEverything } from "../common/DeleteEverything";
 import { ManifestPending, PageHeader } from "../common/Page";
 import { SERIAL_SUPPORTED, session, useSession } from "../session";
@@ -14,8 +17,10 @@ import { useUploadRunning } from "../upload";
 import { useLatest } from "../useLatest";
 import { useManifest } from "../useManifest";
 import { closeConnectionBeforeClick } from "./handover";
+import { SCRATCH_MANIFEST } from "./installDialog";
 import { onOldLayout } from "./layout";
 import { NetworkUpdates } from "./NetworkUpdates";
+import { useContentInstall } from "./useContentInstall";
 
 const TITLE = "Firmware";
 const DESCRIPTION = "Install or update the board's firmware.";
@@ -57,9 +62,15 @@ export function FirmwareView() {
       <NetworkUpdates client={client} restarts={restarts} paused={uploadRunning} />
     ) : null;
   const serial = SERIAL_SUPPORTED();
-  const installer = useInstaller(manifest.status === "ready" && serial);
+  // A manifest without firmware (a content release alone) has no firmware version to offer or to compare.
+  const release = manifest.status === "ready" && manifest.manifest.hasFirmware ? manifest.manifest : null;
+  const installer = useInstaller(release !== null && serial);
+  const published =
+    manifest.status === "ready" && manifest.manifest.animations.length + manifest.manifest.playlists.length > 0;
+  const [thenInstall, setThenInstall] = useState(true);
+  const content = useContentInstall(manifest.status === "ready" ? manifest.manifest : null, thenInstall && published);
 
-  if (manifest.status !== "ready")
+  if (release === null)
     return (
       <ManifestPending
         title={TITLE}
@@ -75,7 +86,7 @@ export function FirmwareView() {
       </ManifestPending>
     );
 
-  const latest = manifest.manifest.version;
+  const latest = release.version;
   const check = state === "connected" && info ? checkFirmware(info.firmware, latest) : null;
   const development = check !== null && check.kind !== "incomparable" && check.development;
   const oldLayout = state === "connected" && onOldLayout(info);
@@ -108,7 +119,9 @@ export function FirmwareView() {
           <AlertDescription>Reload the page.</AlertDescription>
         </Alert>
       )}
-      {handedOver && state !== "connected" && (
+      <RunningUpload />
+      {content.notice}
+      {handedOver && state !== "connected" && !content.following && (
         <Alert variant="info" data-testid="reconnect">
           <AlertTitle>The connection of this app was closed</AlertTitle>
           <AlertDescription>
@@ -156,8 +169,8 @@ export function FirmwareView() {
               <AlertDescription>
                 It still has the flash layout of the firmware before WiFi, and Update firmware cannot move its stored
                 files to the current one. Use Install from scratch below and let it erase the board: that deletes the
-                animations, playlists and settings, and writes the published animations and playlists. Later updates
-                keep them.
+                animations, playlists and settings, and the app then installs the published animations and playlists.
+                Later updates keep them.
               </AlertDescription>
             </Alert>
           )}
@@ -175,8 +188,8 @@ export function FirmwareView() {
           <CardTitle id="firmware-scratch">Install from scratch</CardTitle>
           <CardDescription>
             For a new board, to start over, or once for a board flashed before the firmware with WiFi, whose stored
-            files Update firmware cannot move to the current flash layout. It writes the firmware and the published
-            animations and playlists.
+            files Update firmware cannot move to the current flash layout. It writes the firmware. The animations and
+            playlists of the latest release follow when the box below is checked.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -186,10 +199,29 @@ export function FirmwareView() {
               ESP Web Tools offers to erase the board first. Erasing deletes the settings and every stored file.
             </AlertDescription>
           </Alert>
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="then-install-content"
+              className="mt-0.5"
+              checked={thenInstall && published}
+              disabled={!published}
+              onCheckedChange={(value) => setThenInstall(value === true)}
+            />
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="then-install-content" className="leading-normal text-foreground">
+                Then install the animations and playlists
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {published
+                  ? "Keep the board connected until they are installed: the app opens the same port when the installation is done."
+                  : "No animations or playlists are published."}
+              </p>
+            </div>
+          </div>
           <div>
             <InstallButton
               state={serial ? installer : "failed"}
-              manifest="./firmware/install.json"
+              manifest={SCRATCH_MANIFEST}
               label="Install from scratch"
               variant="destructive-outline"
               fallbackVariant="outline"
@@ -200,6 +232,7 @@ export function FirmwareView() {
       </Card>
 
       {reset}
+      {content.dialogs}
     </div>
   );
 }

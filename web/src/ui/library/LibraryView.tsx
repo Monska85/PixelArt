@@ -40,7 +40,7 @@ export function LibraryView() {
     return (
       <ManifestPending
         title="Library"
-        description="Animations and playlists published with the firmware."
+        description="Animations and playlists published with a content release."
         loading={manifest.status === "loading"}
         loadingText="Reading the published release..."
         emptyTitle="Nothing is published yet"
@@ -155,6 +155,9 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
     }
   }
 
+  // A manifest from before the content package names the firmware release the animations were published with.
+  const origin =
+    manifest.contentVersion !== null ? `content release ${manifest.contentVersion}` : `release ${manifest.version}`;
   const installReason = blockedOrBusy(blocked, queue.busy);
   const installDisabled = installReason !== null || board === null;
 
@@ -229,7 +232,7 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Library"
-        description={`Published with firmware ${manifest.version}.${board === null ? " Connect a board to install them." : ""}`}
+        description={`Animations published with ${origin}.${board === null ? " Connect a board to install them." : ""}`}
         primaryNode={
           <InstallAllMenu
             disabled={installDisabled}

@@ -20,9 +20,16 @@ export interface Published {
 
 export interface Manifest {
   version: string;
+  /** The content release the animations and playlists come from; null for a manifest that has none (older releases). */
+  contentVersion: string | null;
+  /** Whether the manifest lists firmware files: a content release alone has none, and its `version` is not a firmware's. */
+  hasFirmware: boolean;
   animations: Published[];
   playlists: Published[];
 }
+
+/** The version the animations and playlists were released with: the content version, else the manifest's own. */
+export const contentVersionOf = (manifest: Manifest): string => manifest.contentVersion ?? manifest.version;
 
 /** The most a board stores per file (docs/protocol/protocol-v1.md); a larger published file cannot be installed. */
 export const MAX_FILE_BYTES: Record<PublishedKind, number> = FILE_LIMITS;
@@ -66,8 +73,11 @@ export function parseManifest(text: string): Manifest | null {
   }
   if (!isRecord(document) || document.format !== MANIFEST_FORMAT) return null;
   if (typeof document.version !== "string" || document.version.length > 64) return null;
+  const { content_version: contentVersion, firmware } = document;
   return {
     version: document.version,
+    contentVersion: typeof contentVersion === "string" && contentVersion.length <= 64 ? contentVersion : null,
+    hasFirmware: Array.isArray(firmware) && firmware.length > 0,
     animations: parseEntries(document.animations, "animation"),
     playlists: parseEntries(document.playlists, "playlist"),
   };

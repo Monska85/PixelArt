@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CLOSE_STEP_MS, PORT_BUSY, SerialTransport, type SerialPortLike } from "../src/protocol/serial";
-import { session } from "../src/ui/session";
+import { PORT_RETRY_EVERY_MS, PORT_RETRY_FOR_MS, session } from "../src/ui/session";
 import { FakeBoard } from "./fakeBoard";
 
 /**
@@ -306,5 +306,47 @@ describe("the session with a serial port", () => {
     expect(first.isOpen).toBe(false);
     expect(log.indexOf("first close")).toBeGreaterThanOrEqual(0);
     expect(log.indexOf("first close")).toBeLessThan(log.indexOf("second open"));
+  });
+
+  it("connects over a port already picked, trying again every second while it cannot be opened", async () => {
+    vi.useFakeTimers();
+    const log: string[] = [];
+    const port = new FakePort("port", log, new FakeBoard());
+    port.openErrors = [new DOMException("busy", "NetworkError"), new DOMException("busy", "NetworkError")];
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_EVERY_MS - 1);
+    expect(session.getSnapshot().state).toBe("connecting");
+    expect(log.filter((entry) => entry === "port open")).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(2 * PORT_RETRY_EVERY_MS);
+    expect(await connecting).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({ state: "connected", via: "board", message: null });
+    expect(log.filter((entry) => entry === "port open")).toHaveLength(3);
+  });
+
+  it("gives up after 20 seconds with the reason, stays connecting meanwhile, and leaves the port closed", async () => {
+    vi.useFakeTimers();
+    const port = new FakePort("port", []);
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_FOR_MS - 1);
+    expect(session.getSnapshot()).toMatchObject({ state: "connecting", message: null });
+    await vi.advanceTimersByTimeAsync(10 * 2000 + 10 * CLOSE_STEP_MS);
+    expect(await connecting).toBe(false);
+    expect(session.getSnapshot().state).toBe("disconnected");
+    expect(session.getSnapshot().message).toBeTruthy();
+    expect(port.isOpen).toBe(false);
+  });
+
+  it("stops trying when the user disconnects", async () => {
+    vi.useFakeTimers();
+    const log: string[] = [];
+    const port = new FakePort("port", log);
+    port.openErrors = Array.from({ length: 30 }, () => new DOMException("busy", "NetworkError"));
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_EVERY_MS * 2);
+    await session.disconnect();
+    const opened = log.length;
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_FOR_MS);
+    expect(await connecting).toBe(false);
+    expect(log).toHaveLength(opened);
   });
 });

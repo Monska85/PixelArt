@@ -152,6 +152,8 @@ describe("running the queue", () => {
       const bytes = animation("Lib");
       const manifest = async (): Promise<Manifest> => ({
         version: "1.0.0",
+        contentVersion: null,
+        hasFirmware: true,
         animations: [{ id: "lib", name: null, version: 1, size: bytes.length, sha256: await sha256Hex(bytes) }],
         playlists: [],
       });

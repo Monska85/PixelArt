@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { loadManifest, parseManifest, readCapped } from "../src/release/manifest";
+import { contentVersionOf, loadManifest, parseManifest, readCapped } from "../src/release/manifest";
 import { downloadPublished, libraryState } from "../src/release/library";
 import { sha256Hex } from "../src/protocol";
 import type { Entry } from "../src/protocol";
@@ -31,6 +31,8 @@ describe("parseManifest", () => {
   it("reads a valid manifest", () => {
     expect(parseManifest(manifest())).toEqual({
       version: "1.2.0",
+      contentVersion: null,
+      hasFirmware: false,
       animations: [{ id: "star", name: "STAR", version: 2, size: 100, sha256: SHA }],
       playlists: [{ id: "default", name: "Default", version: null, size: 50, sha256: SHA }],
     });
@@ -78,6 +80,32 @@ describe("parseManifest", () => {
       animations: [],
       playlists: [],
     });
+  });
+
+  it("reads the content version, and none when it is absent, not a string or longer than 64 characters", () => {
+    expect(parseManifest(manifest({ content_version: "1.4.0" }))?.contentVersion).toBe("1.4.0");
+    expect(parseManifest(manifest())?.contentVersion).toBeNull();
+    expect(parseManifest(manifest({ content_version: 4 }))?.contentVersion).toBeNull();
+    expect(parseManifest(manifest({ content_version: "1".repeat(64) }))?.contentVersion).toBe("1".repeat(64));
+    expect(parseManifest(manifest({ content_version: "1".repeat(65) }))?.contentVersion).toBeNull();
+    expect(contentVersionOf(parseManifest(manifest({ content_version: "1.4.0" }))!)).toBe("1.4.0");
+    expect(contentVersionOf(parseManifest(manifest())!)).toBe("1.2.0");
+  });
+
+  it("has firmware only when the firmware list is not empty", () => {
+    const file = {
+      board: "esp32c3",
+      chip: "ESP32-C3",
+      part: "app",
+      offset: 65536,
+      file: "x.bin",
+      size: 1,
+      sha256: SHA,
+    };
+    expect(parseManifest(manifest({ firmware: [file] }))?.hasFirmware).toBe(true);
+    expect(parseManifest(manifest({ firmware: [] }))?.hasFirmware).toBe(false);
+    expect(parseManifest(manifest({ firmware: undefined }))?.hasFirmware).toBe(false);
+    expect(parseManifest(manifest({ firmware: "x" }))?.hasFirmware).toBe(false);
   });
 
   it("treats names and versions of the wrong type as absent", () => {

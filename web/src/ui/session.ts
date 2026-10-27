@@ -16,7 +16,7 @@ import {
   type Login,
 } from "../protocol";
 import { FileListReader, KINDS, NO_LISTS, type FileLists } from "./fileLists";
-import { SerialTransport, serialApi } from "../protocol/serial";
+import { SerialTransport, serialApi, type SerialPortLike } from "../protocol/serial";
 import type { ImprovLink } from "../protocol/improv";
 import type { Transport } from "../protocol/transport";
 import { DEFAULT_SIMULATOR_URL, WebSocketTransport, parseBoardAddress, type BoardAddress } from "../protocol/websocket";
@@ -56,6 +56,10 @@ const IDLE: Snapshot = {
   offerFirmware: false,
   loginRequest: null,
 };
+
+/** After a first install the board restarts and may still be formatting its file system: how long and how often to retry. */
+export const PORT_RETRY_FOR_MS = 20_000;
+export const PORT_RETRY_EVERY_MS = 1000;
 
 export const SERIAL_SUPPORTED = (): boolean => serialApi() !== null;
 
@@ -100,6 +104,16 @@ class Session {
 
   connectBoard(): Promise<void> {
     return this.connect("board", () => SerialTransport.request());
+  }
+
+  /**
+   * Connects over a port the user already picked (the one ESP Web Tools used), so no picker opens. The board has just
+   * restarted: while the port cannot be opened or the board does not answer, it tries again every second for up to
+   * 20 seconds, staying "connecting". Resolves true when connected.
+   */
+  async connectPort(port: SerialPortLike): Promise<boolean> {
+    await this.connect("board", () => SerialTransport.open(port), PORT_RETRY_FOR_MS);
+    return this.snapshot.state === "connected" && this.snapshot.via === "board";
   }
 
   connectSimulator(address: string): Promise<void> {
@@ -192,49 +206,66 @@ class Session {
     }
   }
 
-  private async connect(via: "board" | "simulator" | "wifi", open: () => Promise<Transport>): Promise<void> {
+  private async connect(
+    via: "board" | "simulator" | "wifi",
+    open: () => Promise<Transport>,
+    retryForMs = 0,
+  ): Promise<void> {
     await this.disconnect();
     const attempt = ++this.attempt;
     this.reader.reset();
     this.set({ ...IDLE, state: "connecting", via, restarts: this.snapshot.restarts });
-    let transport: Transport | null = null;
-    try {
-      transport = await open();
-      if (attempt !== this.attempt) {
-        await transport.close();
+    const giveUpAt = Date.now() + retryForMs;
+    for (;;) {
+      let transport: Transport | null = null;
+      try {
+        transport = await open();
+        if (attempt !== this.attempt) {
+          await transport.close();
+          return;
+        }
+        const client = new BoardClient(transport);
+        if (via === "wifi" && this.wifiAddress) client.login = this.loginFor(this.wifiAddress);
+        this.transport = transport;
+        // Until the handshake is done, a lost link is the handshake's own failure, which the catch below handles.
+        let handshaken = false;
+        client.onLost = (reason) => {
+          if (attempt !== this.attempt || !handshaken) return;
+          this.set({ state: "lost", message: reason });
+          void transport?.close();
+        };
+        client.onRestart = () => {
+          this.set({ restarts: this.snapshot.restarts + 1 });
+          void this.refreshFiles(KINDS);
+        };
+        const info = await client.handshake();
+        if (attempt !== this.attempt) return;
+        handshaken = true;
+        if (this.interrupted) {
+          this.interrupted = false;
+          await abortUpload(client);
+        }
+        this.set({ state: "connected", client, info, message: null, uploadsBlocked: uploadsBlocked(info) });
+        void this.refreshFiles(KINDS);
+        if (via === "board") void this.rememberWifiAddress(client);
+        return;
+      } catch (error) {
+        if (attempt !== this.attempt) return;
+        await transport?.close().catch(() => undefined);
+        this.transport = null;
+        if (Date.now() < giveUpAt) {
+          await new Promise((resolve) => setTimeout(resolve, PORT_RETRY_EVERY_MS));
+          if (attempt !== this.attempt) return;
+          continue;
+        }
+        this.set({
+          ...IDLE,
+          restarts: this.snapshot.restarts,
+          message: error instanceof Error ? error.message : "The connection failed.",
+          offerFirmware: error instanceof BoardError && error.code === "protocol_unsupported",
+        });
         return;
       }
-      const client = new BoardClient(transport);
-      if (via === "wifi" && this.wifiAddress) client.login = this.loginFor(this.wifiAddress);
-      this.transport = transport;
-      client.onLost = (reason) => {
-        if (attempt !== this.attempt) return;
-        this.set({ state: "lost", message: reason });
-        void transport?.close();
-      };
-      client.onRestart = () => {
-        this.set({ restarts: this.snapshot.restarts + 1 });
-        void this.refreshFiles(KINDS);
-      };
-      const info = await client.handshake();
-      if (attempt !== this.attempt) return;
-      if (this.interrupted) {
-        this.interrupted = false;
-        await abortUpload(client);
-      }
-      this.set({ state: "connected", client, info, message: null, uploadsBlocked: uploadsBlocked(info) });
-      void this.refreshFiles(KINDS);
-      if (via === "board") void this.rememberWifiAddress(client);
-    } catch (error) {
-      if (attempt !== this.attempt) return;
-      await transport?.close().catch(() => undefined);
-      this.transport = null;
-      this.set({
-        ...IDLE,
-        restarts: this.snapshot.restarts,
-        message: error instanceof Error ? error.message : "The connection failed.",
-        offerFirmware: error instanceof BoardError && error.code === "protocol_unsupported",
-      });
     }
   }
 

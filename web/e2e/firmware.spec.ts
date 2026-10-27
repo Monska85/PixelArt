@@ -139,3 +139,54 @@ test("the Firmware view does not read the board status while an upload runs", as
   expect(during).not.toContain("status");
   await expect.poll(() => sent.slice(opened).includes("status")).toBe(true);
 });
+
+const FIRMWARE_FILE = {
+  board: "esp32c3",
+  chip: "ESP32-C3",
+  part: "app",
+  offset: 65536,
+  file: "firmware/esp32c3/app-0.1.0.bin",
+  size: 1,
+  sha256: "0".repeat(64),
+};
+
+/** Serves this manifest instead of the fixture's. */
+async function serveManifest(page: Page, manifest: Record<string, unknown>): Promise<void> {
+  await page.route("**/manifest.json", (route) =>
+    route.fulfill({ json: { format: "pixelart-manifest/1", released: "2026-01-01", ...manifest } }),
+  );
+}
+
+test("a manifest without firmware, from a content release alone, says no firmware is published", async ({ page }) => {
+  await serveManifest(page, { version: "1.4.0", content_version: "1.4.0", animations: [], playlists: [] });
+  await page.goto("/#firmware");
+  await expect(page.getByTestId("firmware-empty")).toContainText("No firmware release is published yet");
+  await expect(page.getByRole("button", { name: "Install from scratch" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Delete everything" })).toBeVisible();
+});
+
+test("a manifest with an empty firmware list says the same", async ({ page }) => {
+  await serveManifest(page, { version: "1.0.0", firmware: [], animations: [], playlists: [] });
+  await page.goto("/#firmware");
+  await expect(page.getByTestId("firmware-empty")).toBeVisible();
+});
+
+test("the box to install the animations and playlists is checked each time the view opens", async ({ page }) => {
+  await page.goto("/#firmware");
+  const box = page.getByRole("checkbox", { name: "Then install the animations and playlists" });
+  await expect(box).toBeChecked();
+  await expect(page.getByText(/Keep the board connected until they are installed/)).toBeVisible();
+  await box.uncheck();
+  await expect(box).not.toBeChecked();
+  await page.getByRole("link", { name: "Library", exact: true }).click();
+  await page.getByRole("link", { name: "Firmware", exact: true }).click();
+  await expect(box).toBeChecked();
+});
+
+test("the box is disabled and unchecked when nothing is published", async ({ page }) => {
+  await serveManifest(page, { version: "0.1.0", firmware: [FIRMWARE_FILE], animations: [], playlists: [] });
+  await page.goto("/#firmware");
+  const box = page.getByRole("checkbox", { name: "Then install the animations and playlists" });
+  await expect(box).toBeDisabled();
+  await expect(box).not.toBeChecked();
+});
