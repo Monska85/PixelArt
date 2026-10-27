@@ -82,6 +82,15 @@
         "time": {
           "known": false
         },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
+        },
         "update": {
           "state": "idle",
           "progress": 0,
@@ -125,6 +134,15 @@
         },
         "time": {
           "known": false
+        },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
         },
         "update": {
           "state": "idle",
@@ -178,6 +196,15 @@
         "time": {
           "known": false
         },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
+        },
         "update": {
           "state": "idle",
           "progress": 0,
@@ -225,6 +252,15 @@
         },
         "time": {
           "known": false
+        },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
         },
         "update": {
           "state": "idle",

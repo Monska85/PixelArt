@@ -74,6 +74,9 @@
           ],
           "playlist": [
             "pixelart-playlist/1"
+          ],
+          "schedule": [
+            "pixelart-schedule/1"
           ]
         },
         "canvas": {
@@ -93,7 +96,8 @@
           "chunk": 512,
           "page": 8,
           "animation": 65536,
-          "playlist": 16384
+          "playlist": 16384,
+          "schedule": 16384
         }
       }
     },
@@ -117,6 +121,9 @@
           ],
           "playlist": [
             "pixelart-playlist/1"
+          ],
+          "schedule": [
+            "pixelart-schedule/1"
           ]
         },
         "canvas": {
@@ -136,7 +143,8 @@
           "chunk": 512,
           "page": 8,
           "animation": 65536,
-          "playlist": 16384
+          "playlist": 16384,
+          "schedule": 16384
         }
       }
     },
@@ -158,6 +166,15 @@
         },
         "time": {
           "known": false
+        },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
         },
         "update": {
           "state": "idle",
@@ -206,6 +223,15 @@
         },
         "time": {
           "known": false
+        },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
         },
         "update": {
           "state": "idle",

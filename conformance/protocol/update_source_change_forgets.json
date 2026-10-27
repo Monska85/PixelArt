@@ -69,6 +69,15 @@
         "time": {
           "known": false
         },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
+        },
         "update": {
           "state": "idle",
           "progress": 0,
@@ -92,6 +101,10 @@
         "settings": {
           "brightness": 100,
           "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
           "wifi_power": "auto",
           "update_mode": "notify",
           "update_firmware": true,
@@ -100,6 +113,8 @@
           "install_start": 0,
           "install_end": 0,
           "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "http://localhost:8000/manifest.json",
           "network_login": false,
           "token": "<any>"

@@ -18,6 +18,9 @@
           ],
           "playlist": [
             "pixelart-playlist/1"
+          ],
+          "schedule": [
+            "pixelart-schedule/1"
           ]
         },
         "canvas": {
@@ -37,7 +40,8 @@
           "chunk": 512,
           "page": 8,
           "animation": 65536,
-          "playlist": 16384
+          "playlist": 16384,
+          "schedule": 16384
         }
       }
     }

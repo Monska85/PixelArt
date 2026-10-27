@@ -1,0 +1,245 @@
+{
+  "description": "Hand-computed rows of the winner rules of docs/format/schedule-v1.md#which-entry-wins. schedules holds valid pixelart-schedule/1 documents by key. Each row names a schedule, a local date (YYYY-MM-DD) and the entry that wins on it: its 0-based index in entries, or null when no entry matches. tie_schedules lists the schedules in which two entries tie for some date: the build tools refuse them with schedule_tie, and a board takes the first tied entry in file order, as the rows show. The tools accept every other schedule of this file.",
+  "tie_schedules": ["ties", "tie_february_29"],
+  "schedules": {
+    "rules": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "month": 12 }, "to": { "month": 12 }, "playlists": ["december"] },
+        { "from": { "month": 12, "day": 1 }, "to": { "month": 1, "day": 6 }, "playlists": ["christmas"] },
+        { "from": { "month": 12, "day": 25 }, "to": { "month": 12, "day": 25 }, "playlists": ["christmas_day"] },
+        { "from": { "year": 2026 }, "to": { "year": 2026 }, "playlists": ["year_2026"] }
+      ]
+    },
+    "three_parts": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        {
+          "from": { "year": 2026, "month": 12, "day": 24 },
+          "to": { "year": 2026, "month": 12, "day": 26 },
+          "playlists": ["dated"]
+        },
+        { "from": { "month": 12, "day": 25 }, "to": { "month": 12, "day": 25 }, "playlists": ["yearly"] }
+      ]
+    },
+    "two_parts": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "year": 2026, "month": 12 }, "to": { "year": 2026, "month": 12 }, "playlists": ["december_2026"] },
+        { "from": { "month": 12, "day": 1 }, "to": { "month": 12, "day": 31 }, "playlists": ["december"] },
+        { "from": { "year": 2026, "month": 11 }, "to": { "year": 2027, "month": 2 }, "playlists": ["winter"] }
+      ]
+    },
+    "one_part": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "year": 2027 }, "to": { "year": 2027 }, "playlists": ["year_2027"] },
+        { "from": { "month": 10 }, "to": { "month": 10 }, "playlists": ["october"] },
+        { "from": { "day": 1 }, "to": { "day": 7 }, "playlists": ["first_week"] }
+      ]
+    },
+    "dated_lengths": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        {
+          "from": { "year": 2026, "month": 12, "day": 1 },
+          "to": { "year": 2026, "month": 12, "day": 31 },
+          "playlists": ["long"]
+        },
+        {
+          "from": { "year": 2026, "month": 12, "day": 20 },
+          "to": { "year": 2027, "month": 1, "day": 10 },
+          "playlists": ["short"]
+        }
+      ]
+    },
+    "year_month_lengths": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "year": 2026, "month": 11 }, "to": { "year": 2027, "month": 2 }, "playlists": ["long"] },
+        { "from": { "year": 2026, "month": 12 }, "to": { "year": 2027, "month": 1 }, "playlists": ["short"] }
+      ]
+    },
+    "month_lengths": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "month": 11 }, "to": { "month": 2 }, "playlists": ["long"] },
+        { "from": { "month": 1 }, "to": { "month": 3 }, "playlists": ["short"] }
+      ]
+    },
+    "day_lengths": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "day": 28 }, "to": { "day": 3 }, "playlists": ["month_end"] },
+        { "from": { "day": 1 }, "to": { "day": 10 }, "playlists": ["month_start"] }
+      ]
+    },
+    "year_lengths": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "year": 2026 }, "to": { "year": 2028 }, "playlists": ["long"] },
+        { "from": { "year": 2027 }, "to": { "year": 2027 }, "playlists": ["short"] }
+      ]
+    },
+    "month_end": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [{ "from": { "day": 30 }, "to": { "day": 2 }, "playlists": ["turn"] }]
+    },
+    "day_31": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [{ "from": { "day": 31 }, "to": { "day": 31 }, "playlists": ["last"] }]
+    },
+    "february_29": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "month": 2, "day": 29 }, "to": { "month": 2, "day": 29 }, "playlists": ["leap_day"] },
+        { "from": { "month": 2, "day": 28 }, "to": { "month": 3, "day": 1 }, "playlists": ["around"] }
+      ]
+    },
+    "february_29_dated": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        {
+          "from": { "year": 2028, "month": 2, "day": 29 },
+          "to": { "year": 2028, "month": 2, "day": 29 },
+          "playlists": ["leap_day_2028"]
+        }
+      ]
+    },
+    "whole_range": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [{ "from": { "year": 2000 }, "to": { "year": 2999 }, "playlists": ["always"] }]
+    },
+    "no_entries": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"]
+    },
+    "ties": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "month": 12, "day": 1 }, "to": { "month": 12, "day": 31 }, "playlists": ["first"] },
+        { "from": { "month": 12, "day": 1 }, "to": { "month": 12, "day": 31 }, "playlists": ["second"] },
+        { "from": { "month": 12, "day": 10 }, "to": { "month": 12, "day": 10 }, "playlists": ["tenth"] }
+      ]
+    },
+    "tie_february_29": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": [
+        { "from": { "month": 2, "day": 29 }, "to": { "month": 3, "day": 1 }, "playlists": ["first"] },
+        { "from": { "month": 3, "day": 1 }, "to": { "month": 3, "day": 1 }, "playlists": ["second"] }
+      ]
+    }
+  },
+  "rows": [
+    { "schedule": "rules", "date": "2026-12-25", "entry": 2 },
+    { "schedule": "rules", "date": "2026-12-24", "entry": 1 },
+    { "schedule": "rules", "date": "2027-12-01", "entry": 1 },
+    { "schedule": "rules", "date": "2027-01-03", "entry": 1 },
+    { "schedule": "rules", "date": "2027-01-06", "entry": 1 },
+    { "schedule": "rules", "date": "2026-01-06", "entry": 1 },
+    { "schedule": "rules", "date": "2026-01-07", "entry": 3 },
+    { "schedule": "rules", "date": "2027-01-07", "entry": null },
+    { "schedule": "rules", "date": "2026-11-30", "entry": 3 },
+    { "schedule": "rules", "date": "2027-11-30", "entry": null },
+    { "schedule": "rules", "date": "2028-12-25", "entry": 2 },
+    { "schedule": "rules", "date": "2028-12-31", "entry": 1 },
+    { "schedule": "three_parts", "date": "2026-12-25", "entry": 0 },
+    { "schedule": "three_parts", "date": "2026-12-24", "entry": 0 },
+    { "schedule": "three_parts", "date": "2026-12-26", "entry": 0 },
+    { "schedule": "three_parts", "date": "2026-12-27", "entry": null },
+    { "schedule": "three_parts", "date": "2027-12-25", "entry": 1 },
+    { "schedule": "two_parts", "date": "2026-12-10", "entry": 1 },
+    { "schedule": "two_parts", "date": "2026-12-31", "entry": 1 },
+    { "schedule": "two_parts", "date": "2026-11-15", "entry": 2 },
+    { "schedule": "two_parts", "date": "2027-01-15", "entry": 2 },
+    { "schedule": "two_parts", "date": "2027-02-28", "entry": 2 },
+    { "schedule": "two_parts", "date": "2027-03-01", "entry": null },
+    { "schedule": "two_parts", "date": "2027-12-10", "entry": 1 },
+    { "schedule": "one_part", "date": "2027-10-03", "entry": 2 },
+    { "schedule": "one_part", "date": "2027-10-08", "entry": 1 },
+    { "schedule": "one_part", "date": "2027-11-08", "entry": 0 },
+    { "schedule": "one_part", "date": "2028-10-08", "entry": 1 },
+    { "schedule": "one_part", "date": "2028-11-07", "entry": 2 },
+    { "schedule": "one_part", "date": "2028-11-08", "entry": null },
+    { "schedule": "dated_lengths", "date": "2026-12-25", "entry": 1 },
+    { "schedule": "dated_lengths", "date": "2026-12-20", "entry": 1 },
+    { "schedule": "dated_lengths", "date": "2026-12-19", "entry": 0 },
+    { "schedule": "dated_lengths", "date": "2027-01-10", "entry": 1 },
+    { "schedule": "dated_lengths", "date": "2027-01-11", "entry": null },
+    { "schedule": "year_month_lengths", "date": "2026-12-15", "entry": 1 },
+    { "schedule": "year_month_lengths", "date": "2027-01-31", "entry": 1 },
+    { "schedule": "year_month_lengths", "date": "2026-11-15", "entry": 0 },
+    { "schedule": "year_month_lengths", "date": "2027-02-01", "entry": 0 },
+    { "schedule": "year_month_lengths", "date": "2027-12-15", "entry": null },
+    { "schedule": "month_lengths", "date": "2027-01-15", "entry": 1 },
+    { "schedule": "month_lengths", "date": "2027-02-01", "entry": 1 },
+    { "schedule": "month_lengths", "date": "2027-03-15", "entry": 1 },
+    { "schedule": "month_lengths", "date": "2027-11-01", "entry": 0 },
+    { "schedule": "month_lengths", "date": "2027-12-15", "entry": 0 },
+    { "schedule": "month_lengths", "date": "2027-04-01", "entry": null },
+    { "schedule": "day_lengths", "date": "2027-01-02", "entry": 0 },
+    { "schedule": "day_lengths", "date": "2027-01-03", "entry": 0 },
+    { "schedule": "day_lengths", "date": "2027-01-04", "entry": 1 },
+    { "schedule": "day_lengths", "date": "2027-01-10", "entry": 1 },
+    { "schedule": "day_lengths", "date": "2027-01-11", "entry": null },
+    { "schedule": "day_lengths", "date": "2027-01-27", "entry": null },
+    { "schedule": "day_lengths", "date": "2027-01-30", "entry": 0 },
+    { "schedule": "day_lengths", "date": "2027-02-28", "entry": 0 },
+    { "schedule": "year_lengths", "date": "2027-06-01", "entry": 1 },
+    { "schedule": "year_lengths", "date": "2026-06-01", "entry": 0 },
+    { "schedule": "year_lengths", "date": "2028-12-31", "entry": 0 },
+    { "schedule": "year_lengths", "date": "2029-01-01", "entry": null },
+    { "schedule": "month_end", "date": "2027-01-30", "entry": 0 },
+    { "schedule": "month_end", "date": "2027-01-31", "entry": 0 },
+    { "schedule": "month_end", "date": "2027-02-01", "entry": 0 },
+    { "schedule": "month_end", "date": "2027-02-02", "entry": 0 },
+    { "schedule": "month_end", "date": "2027-02-03", "entry": null },
+    { "schedule": "month_end", "date": "2027-02-28", "entry": null },
+    { "schedule": "month_end", "date": "2028-02-29", "entry": null },
+    { "schedule": "month_end", "date": "2027-03-01", "entry": 0 },
+    { "schedule": "month_end", "date": "2027-04-30", "entry": 0 },
+    { "schedule": "month_end", "date": "2027-04-29", "entry": null },
+    { "schedule": "day_31", "date": "2027-01-31", "entry": 0 },
+    { "schedule": "day_31", "date": "2027-03-31", "entry": 0 },
+    { "schedule": "day_31", "date": "2027-04-30", "entry": null },
+    { "schedule": "day_31", "date": "2027-05-01", "entry": null },
+    { "schedule": "day_31", "date": "2027-05-31", "entry": 0 },
+    { "schedule": "day_31", "date": "2027-02-28", "entry": null },
+    { "schedule": "february_29", "date": "2028-02-29", "entry": 0 },
+    { "schedule": "february_29", "date": "2028-02-28", "entry": 1 },
+    { "schedule": "february_29", "date": "2028-03-01", "entry": 1 },
+    { "schedule": "february_29", "date": "2027-02-28", "entry": 1 },
+    { "schedule": "february_29", "date": "2027-03-01", "entry": 1 },
+    { "schedule": "february_29", "date": "2027-03-02", "entry": null },
+    { "schedule": "february_29", "date": "2000-02-29", "entry": 0 },
+    { "schedule": "february_29_dated", "date": "2028-02-29", "entry": 0 },
+    { "schedule": "february_29_dated", "date": "2032-02-29", "entry": null },
+    { "schedule": "february_29_dated", "date": "2028-03-01", "entry": null },
+    { "schedule": "whole_range", "date": "2000-01-01", "entry": 0 },
+    { "schedule": "whole_range", "date": "2999-12-31", "entry": 0 },
+    { "schedule": "no_entries", "date": "2026-12-25", "entry": null },
+    { "schedule": "ties", "date": "2027-12-09", "entry": 0 },
+    { "schedule": "ties", "date": "2027-12-10", "entry": 2 },
+    { "schedule": "ties", "date": "2027-11-30", "entry": null },
+    { "schedule": "tie_february_29", "date": "2027-03-01", "entry": 0 },
+    { "schedule": "tie_february_29", "date": "2028-03-01", "entry": 0 },
+    { "schedule": "tie_february_29", "date": "2028-02-29", "entry": 0 },
+    { "schedule": "tie_february_29", "date": "2027-02-28", "entry": null }
+  ]
+}

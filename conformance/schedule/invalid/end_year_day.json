@@ -1,0 +1,21 @@
+{
+  "format": "pixelart-schedule/1",
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": {
+        "year": 2026,
+        "day": 1
+      },
+      "to": {
+        "year": 2026,
+        "day": 5
+      },
+      "playlists": [
+        "a"
+      ]
+    }
+  ]
+}

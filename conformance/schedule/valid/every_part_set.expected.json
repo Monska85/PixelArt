@@ -1,0 +1,81 @@
+{
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": {
+        "year": 2026,
+        "month": 12,
+        "day": 24
+      },
+      "to": {
+        "year": 2026,
+        "month": 12,
+        "day": 26
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "month": 12,
+        "day": 1
+      },
+      "to": {
+        "month": 1,
+        "day": 6
+      },
+      "playlists": [
+        "b"
+      ]
+    },
+    {
+      "from": {
+        "year": 2026,
+        "month": 11
+      },
+      "to": {
+        "year": 2027,
+        "month": 2
+      },
+      "playlists": [
+        "c"
+      ]
+    },
+    {
+      "from": {
+        "day": 28
+      },
+      "to": {
+        "day": 3
+      },
+      "playlists": [
+        "d"
+      ]
+    },
+    {
+      "from": {
+        "month": 11
+      },
+      "to": {
+        "month": 2
+      },
+      "playlists": [
+        "e"
+      ]
+    },
+    {
+      "from": {
+        "year": 2027
+      },
+      "to": {
+        "year": 2028
+      },
+      "playlists": [
+        "f"
+      ]
+    }
+  ]
+}

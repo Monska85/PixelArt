@@ -1,0 +1,65 @@
+{
+  "description": "a schedule whose playlists are all stored is stored with no warnings",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 1496d0ba {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"schedule\",\"id\":\"default\",\"size\":285,\"sha256\":\"6cc16775019c0be9f62dd35f2919dc51e39e5afcafad2cf29292ba6c8e6ee2b0\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 5c06ef80 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1zY2hlZHVsZS8xIiwibmFtZSI6IlNlYXNvbnMiLCJmYWxsYmFjayI6WyJkZWZhdWx0Il0sImVudHJpZXMiOlt7Im5hbWUiOiJIYWxsb3dlZW4iLCJmcm9tIjp7Im1vbnRoIjoxMCwiZGF5IjoxfSwidG8iOnsibW9udGgiOjExLCJkYXkiOjJ9LCJwbGF5bGlzdHMiOlsiaGFsbG93ZWVuIl19LHsibmFtZSI6IkNocmlzdG1hcyIsImZyb20iOnsibW9udGgiOjEyLCJkYXkiOjF9LCJ0byI6eyJtb250aCI6MSwiZGF5Ijo2fSwicGxheWxpc3RzIjpbImNocmlzdG1hcyJdfV19\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 285
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "expect_files": {
+        "schedules/default.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}",
+        "upload.tmp": null
+      }
+    },
+    {
+      "send": "@PR 15e20f80 {\"seq\":4,\"cmd\":\"list\",\"kind\":\"schedule\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "kind": "schedule",
+        "entries": [
+          {
+            "id": "default",
+            "size": 285,
+            "sha256": "6cc16775019c0be9f62dd35f2919dc51e39e5afcafad2cf29292ba6c8e6ee2b0",
+            "name": "Seasons"
+          }
+        ],
+        "more": false
+      }
+    }
+  ]
+}

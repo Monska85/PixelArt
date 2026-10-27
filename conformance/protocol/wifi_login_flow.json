@@ -26,6 +26,9 @@
           ],
           "playlist": [
             "pixelart-playlist/1"
+          ],
+          "schedule": [
+            "pixelart-schedule/1"
           ]
         },
         "canvas": {
@@ -45,7 +48,8 @@
           "chunk": 512,
           "page": 8,
           "animation": 65536,
-          "playlist": 16384
+          "playlist": 16384,
+          "schedule": 16384
         }
       }
     },
@@ -111,6 +115,10 @@
         "settings": {
           "brightness": 100,
           "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -119,6 +127,8 @@
           "install_start": 0,
           "install_end": 0,
           "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
           "network_login": true
         }

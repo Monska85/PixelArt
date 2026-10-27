@@ -1,0 +1,42 @@
+{
+  "description": "get reads a stored schedule, and a missing one is not_found",
+  "files": {
+    "schedules/plain.json": "{\"format\":\"pixelart-schedule/1\",\"fallback\":[\"default\"]}"
+  },
+  "steps": [
+    {
+      "send": "@PR ad7d456f {\"seq\":1,\"cmd\":\"get\",\"kind\":\"schedule\",\"id\":\"plain\",\"offset\":0,\"length\":512}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "size": 55,
+        "offset": 0,
+        "data": "eyJmb3JtYXQiOiJwaXhlbGFydC1zY2hlZHVsZS8xIiwiZmFsbGJhY2siOlsiZGVmYXVsdCJdfQ=="
+      }
+    },
+    {
+      "send": "@PR 00e1ed54 {\"seq\":2,\"cmd\":\"get\",\"kind\":\"schedule\",\"id\":\"default\",\"offset\":0,\"length\":10}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 9e1a6862 {\"seq\":3,\"cmd\":\"get\",\"kind\":\"playlist\",\"id\":\"plain\",\"offset\":0,\"length\":10}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    }
+  ]
+}

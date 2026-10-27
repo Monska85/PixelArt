@@ -89,6 +89,10 @@
         "settings": {
           "brightness": 40,
           "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
           "wifi_power": "13",
           "update_mode": "automatic",
           "update_firmware": false,
@@ -97,6 +101,8 @@
           "install_start": 60,
           "install_end": 120,
           "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "http://localhost:8000/manifest.json",
           "network_login": true
         }

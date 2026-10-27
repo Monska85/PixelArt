@@ -1,0 +1,23 @@
+{
+  "format": "pixelart-schedule/1",
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": {
+        "year": 2028,
+        "month": 2,
+        "day": 29
+      },
+      "to": {
+        "year": 2028,
+        "month": 2,
+        "day": 29
+      },
+      "playlists": [
+        "leap"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "description": "a schedule naming playlists that are not stored is stored with one unknown_playlist warning for each place",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 7c610cd9 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"schedule\",\"id\":\"default\",\"size\":141,\"sha256\":\"17ba818712bee25688d029ca6ebe7d59a3daa4c2a8e8502277f6c5b0ebc2cd7f\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 4280faa4 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1zY2hlZHVsZS8xIiwiZmFsbGJhY2siOlsiZGVmYXVsdCJdLCJlbnRyaWVzIjpbeyJmcm9tIjp7Im1vbnRoIjoxMH0sInRvIjp7Im1vbnRoIjoxMH0sInBsYXlsaXN0cyI6WyJoYWxsb3dlZW4iLCJnaG9zdCJdfV19\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 141
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "warnings": [
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "schedules/default.json": "{\"format\":\"pixelart-schedule/1\",\"fallback\":[\"default\"],\"entries\":[{\"from\":{\"month\":10},\"to\":{\"month\":10},\"playlists\":[\"halloween\",\"ghost\"]}]}"
+      }
+    }
+  ]
+}

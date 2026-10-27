@@ -1,0 +1,15 @@
+{
+  "format": "pixelart-schedule/1",
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": "2026-12-01",
+      "to": "2026-12-31",
+      "playlists": [
+        "a"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "format": "pixelart-schedule/1",
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": {},
+      "to": {},
+      "playlists": [
+        "a"
+      ]
+    }
+  ]
+}

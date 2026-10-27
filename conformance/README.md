@@ -1,12 +1,14 @@
 # Conformance suite
 
-Test cases for the [`pixelart/1` animation format](../docs/format/pixelart-v1.md) and the [`pixelart-playlist/1` playlist format](../docs/format/playlist-v1.md). Every implementation of the formats must pass all of them. Today there are two: the engine in `lib/PixelEngine/`, used by the firmware and the simulator, and the web app engine in `web/src/engine`. `make test` runs the first locally (`pio test -e native_test`), `make web-test` runs the second, and CI runs both.
+Test cases for the [`pixelart/1` animation format](../docs/format/pixelart-v1.md), the [`pixelart-playlist/1` playlist format](../docs/format/playlist-v1.md) and the [`pixelart-schedule/1` schedule format](../docs/format/schedule-v1.md), with the rules that choose what the board plays. Every implementation of the formats must pass all of them. Today there are two: the engine in `lib/PixelEngine/`, used by the firmware and the simulator, and the web app engine in `web/src/engine`. `make test` runs the first locally (`pio test -e native_test`), `make web-test` runs the second, and CI runs both.
 
 ## Layout
 
 - `valid/<case>.json`: an animation that must load, and `valid/<case>.expected.json`: what it must produce.
 - `invalid/<case>.json`: an animation that must be rejected, and `invalid/<case>.expected.json`: the error code it must report.
 - `playlist/valid/` and `playlist/invalid/`: the same for playlists.
+- `schedule/valid/` and `schedule/invalid/`: the same for schedules.
+- `schedule/winner.json` and `schedule/resolver.json`: rows of the rules that choose what the board plays, see [Schedule rows](#schedule-rows).
 
 ## Expected results
 
@@ -48,17 +50,88 @@ For a valid playlist, the expected file lists the enabled items in order:
 { "items": [{ "animation": "santa", "repeat": 2 }] }
 ```
 
+For a valid schedule, the expected file lists `fallback` and the entries in the order of the file, each with its `from`, `to` and `playlists` as written (without `name`), and `entries` is empty when the file has none:
+
+```json
+{
+  "fallback": ["default"],
+  "entries": [
+    {
+      "from": { "month": 12, "day": 1 },
+      "to": { "month": 1, "day": 6 },
+      "playlists": ["christmas"]
+    }
+  ]
+}
+```
+
+A valid schedule case is also valid for the build tools: none of them has a tie. An invalid schedule case expects one of the codes of the [schedule validation](../docs/format/schedule-v1.md#validation): `format_unsupported`, `structure`, `limit_exceeded` or `invalid_date`.
+
 ## Strict JSON cases
 
-Files are strict JSON in valid UTF-8 and text lengths count characters, as the [format specification](../docs/format/pixelart-v1.md#files) says. The `strict_json_*` cases in `invalid/` and `playlist/invalid/` each break one rule (comment, single quotes, unquoted key, a number outside the JSON grammar, a raw control character, data after the value, byte order mark, invalid, overlong or surrogate UTF-8, U+0000 in a text or a key, a fraction or exponent where an integer is required) and expect `structure`. The `name_128_characters` and `name_129_characters` cases use the two-byte character `é`, so the byte count of the name is twice its length.
+Files are strict JSON in valid UTF-8 and text lengths count characters, as the [format specification](../docs/format/pixelart-v1.md#files) says. The `strict_json_*` cases in `invalid/`, `playlist/invalid/` and `schedule/invalid/` each break one rule (comment, single quotes, unquoted key, a number outside the JSON grammar, a raw control character, data after the value, byte order mark, invalid, overlong or surrogate UTF-8, U+0000 in a text or a key, a fraction or exponent where an integer is required) and expect `structure`. The `name_128_characters` and `name_129_characters` cases use the two-byte character `é`, so the byte count of the name is twice its length.
 
 ## Null cases
 
-A field that is present is checked even when its value is `null`, as the format specifications say. The `null_*` cases in `invalid/` and `playlist/invalid/` each set one field that is present to `null`, optional or required (top-level fields, sprite and part positions, the fields of a `show` entry, the fields of a frame, a frame inside a loop, the playlist fields), and expect `structure`. The exception is `null_background`, which expects `unknown_color`, because the format reports a background that is not a color with that diagnostic. The `version_max` and `version_over_max` cases are the pair for the largest `version`, 2147483647.
+A field that is present is checked even when its value is `null`, as the format specifications say. The `null_*` cases in `invalid/`, `playlist/invalid/` and `schedule/invalid/` each set one field that is present to `null`, optional or required (top-level fields, sprite and part positions, the fields of a `show` entry, the fields of a frame, a frame inside a loop, the playlist fields, the schedule fields, a part of an end and an ID of a list), and expect `structure`. The exception is `null_background`, which expects `unknown_color`, because the format reports a background that is not a color with that diagnostic. The `version_max` and `version_over_max` cases are the pair for the largest `version`, 2147483647.
 
 ## Brightness rows
 
 `brightness.json` is not a case file: it holds the hand-computed rows of the effective brightness rule ([format specification](../docs/format/pixelart-v1.md#brightness)). Its shape is `{"description": "...", "rows": [{"board": 100, "percent": 50, "expected": 50}]}`: the board brightness (0 to 255), the animation's percentage (1 to 100) and the brightness the LEDs must receive. The C++ test `test_effective_brightness_rule` and the web app engine tests read the same rows.
+
+## Schedule rows
+
+`schedule/winner.json` and `schedule/resolver.json` are not case files: they hold hand-computed rows, which the C++ tests of the engine and the web app's tests read alike. Both start with `schedules`, an object of valid `pixelart-schedule/1` documents by key, which a test loads with the real schedule loader, and `rows`, which name a schedule by its key. A date is `YYYY-MM-DD`, a real date with a year from 2000 to 2999.
+
+`winner.json` holds the rows of the [winner rules](../docs/format/schedule-v1.md#which-entry-wins):
+
+```json
+{
+  "tie_schedules": ["ties"],
+  "schedules": {
+    "rules": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["default"],
+      "entries": []
+    }
+  },
+  "rows": [{ "schedule": "rules", "date": "2026-12-25", "entry": null }]
+}
+```
+
+`entry` is the 0-based index of the winning entry, or `null` when no entry matches. `tie_schedules` lists the schedules in which a date ends in a tie: the build tools refuse them with `schedule_tie`, and accept every other schedule of the file, while the rows give the first tied entry, as a board takes it.
+
+`resolver.json` holds the rows of [How the board chooses what to play](../docs/format/playlist-v1.md#how-the-board-chooses-what-to-play):
+
+```json
+{
+  "schedules": {
+    "seasons": { "format": "pixelart-schedule/1", "fallback": ["default"] }
+  },
+  "rows": [
+    {
+      "name": "what the row shows",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "seasons",
+      "date": null,
+      "playable": ["default"],
+      "expected": {
+        "reason": "no_time",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    }
+  ]
+}
+```
+
+- `play` and `playlists`: the settings of the same names.
+- `schedule`: the schedule stored as `/schedules/default.json`, or `null` when no valid one is stored.
+- `date`: the local date, or `null` when the time is not known.
+- `playable`: the IDs of the stored playlists the board can play; every other ID is skipped.
+- `expected`: what `status.play` reports besides `mode`: `reason`, `entry`, `playlists` (the list the board plays, after the fallback chain) and `playing` (the first playable playlist of that list, or `null` when the board plays every animation).
 
 ## Rules for new cases
 
@@ -91,12 +164,12 @@ A case is one JSON object:
 
 - `capacity` (optional): size of the simulated file system in bytes. The default is 983,040, the size of the board's data partition. Space is used in blocks of 4,096 bytes per file.
 - `files` (optional): the files that exist before the board boots, by path from the root of the file system. The value is the text of the file, or `{"base64": "..."}` for bytes that are not text.
-- `settings` (optional): the settings the board starts with, any of those of `settings_get`, the `token` included, which the board makes itself otherwise. The values are the ones the protocol allows. A case that logs in gives the token, and writes the `hmac` of each `auth` with an independent tool, from that token and the nonce it gave.
+- `settings` (optional): the settings the board starts with, any of those of `settings_get`, the `token` included, which the board makes itself otherwise. The values are the ones the protocol allows. A case that gives neither `play` nor `playlists` starts a board that has never stored them, which derives them from `playlist` as the [protocol](../docs/protocol/protocol-v1.md#older-clients) says; a case that gives one of them gives both, with a `playlist` that agrees with them. A case that logs in gives the token, and writes the `hmac` of each `auth` with an independent tool, from that token and the nonce it gave.
 - `transport` (optional): `usb` (the default) or `wifi`. With `wifi`, each `send` goes to the board as a request that arrived over WiFi, one line without a newline, and the replies are the ones that transport gets: no token, and `usb_only` for the commands reserved for USB. The WiFi client is connected from the start of the case, not logged in.
 - `nonces` (optional): the nonces the board hands out for `auth_challenge`, in order, each as 32 lowercase hexadecimal digits. The first `auth_challenge` of the case gets the first one, and so on. Without them the nonce is random and a case cannot compute the answer.
 - `firmware_version` (optional): the version the simulated firmware runs, which `info.firmware` reports and a manifest's `version` is compared with. The default is the version of the simulator's build, which is never newer than a release.
 - `firmware_skip` (optional): a version already on the board's skip list, as an earlier rollback leaves it.
-- `update_source` (optional): the server the simulator fetches updates from. `files` maps a path below the manifest's folder (`manifest.json`, `animations/red.json`) to its content, written as for `files`; a content `{"json": value}` is the compact text of the value, in the order the case gives its keys. `fail` (optional) is a list of injected failures, `{"kind": "cut", "path": "animations/red.json"}`, with a kind of `down` (every request, no path), `tls`, `http`, `cut`, `corrupt` or `too_long`, as the [simulator](../docs/board/wifi-and-updates-v1.md#simulator-and-tests) takes them. `local_time` (optional) is the local time the install window sees, as `HH:MM`; `status` then reports `time.known` `true`. A firmware entry offers a firmware to the simulator only with the `board` `simulator`; its file is any bytes, checked against the entry's size and SHA-256. Without `update_source`, the simulator reaches no server. The board has its address from the start, so its first scheduled check is 5 minutes of virtual time away.
+- `update_source` (optional): the server the simulator fetches updates from. `files` maps a path below the manifest's folder (`manifest.json`, `animations/red.json`) to its content, written as for `files`; a content `{"json": value}` is the compact text of the value, in the order the case gives its keys. `fail` (optional) is a list of injected failures, `{"kind": "cut", "path": "animations/red.json"}`, with a kind of `down` (every request, no path), `tls`, `http`, `cut`, `corrupt` or `too_long`, as the [simulator](../docs/board/wifi-and-updates-v1.md#simulator-and-tests) takes them. `local_time` (optional) is the local time the install window sees, as `HH:MM`, and `local_date` (optional) the local date the schedule sees, as `YYYY-MM-DD`; with either, `status` reports `time.known` `true`. With `local_time` alone the local date is 2000-01-01, and with `local_date` alone the local time is 12:00, as for the simulator's `--update-time` and `--date` ([simulator](../docs/board/wifi-and-updates-v1.md#simulator-and-tests)). An `update_source` with only `local_time` or `local_date` and no `files` serves nothing, which a case notices only if it lets a check run. A firmware entry offers a firmware to the simulator only with the `board` `simulator`; its file is any bytes, checked against the entry's size and SHA-256. Without `update_source`, the simulator reaches no server. The board has its address from the start, so its first scheduled check is 5 minutes of virtual time away.
 - `steps`: what happens, in order. Each step has exactly one of these keys:
   - `send`: one protocol line. Over USB it is sent to the serial port followed by a newline; optional `eol` replaces that newline, for example with `"\r\n"`. Over WiFi it is sent as one WebSocket text message without a newline, and `eol` has no effect. The line is sent as written: protocol requests spell out the marker and CRC. Optional `via` (`usb` or `wifi`) chooses a transport other than the case's `transport`, for a case with both clients.
   - `expect`: the next reply line from the board. Its CRC must be right, its JSON must follow the strict JSON rules of the protocol, and it must equal this object, with the same keys. The string `"<any>"` matches any value, for what a case cannot know: the firmware version, `boot_id`, memory, used storage, the token, and the text of messages. The string `"<at most N characters>"` matches any text of at most N characters (code points), for a text the specification limits but does not fix.

@@ -16,6 +16,7 @@
       "expect": {
         "seq": 1,
         "ok": true,
+        "schedules": 0,
         "playlists": 1,
         "animations": 1
       }
@@ -30,6 +31,10 @@
         "settings": {
           "brightness": 7,
           "playlist": "christmas",
+          "play": "playlists",
+          "playlists": [
+            "christmas"
+          ],
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -38,6 +43,8 @@
           "install_start": 0,
           "install_end": 0,
           "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
           "network_login": false,
           "token": "<any>"

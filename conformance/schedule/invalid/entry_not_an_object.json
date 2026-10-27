@@ -1,0 +1,9 @@
+{
+  "format": "pixelart-schedule/1",
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    "halloween"
+  ]
+}

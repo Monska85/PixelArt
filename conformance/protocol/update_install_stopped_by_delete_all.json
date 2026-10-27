@@ -81,6 +81,15 @@
         "time": {
           "known": false
         },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
+        },
         "update": {
           "state": "idle",
           "progress": 0,
@@ -122,6 +131,15 @@
         "time": {
           "known": false
         },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
+        },
         "update": {
           "state": "downloading",
           "progress": 0,
@@ -142,6 +160,7 @@
       "expect": {
         "seq": 5,
         "ok": true,
+        "schedules": 0,
         "playlists": 0,
         "animations": 1
       }
@@ -164,6 +183,15 @@
         },
         "time": {
           "known": false
+        },
+        "play": {
+          "mode": "auto",
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null
         },
         "update": {
           "state": "idle",

@@ -1,0 +1,723 @@
+{
+  "format": "pixelart-schedule/1",
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": {
+        "year": 2000
+      },
+      "to": {
+        "year": 2000
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2001
+      },
+      "to": {
+        "year": 2001
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2002
+      },
+      "to": {
+        "year": 2002
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2003
+      },
+      "to": {
+        "year": 2003
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2004
+      },
+      "to": {
+        "year": 2004
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2005
+      },
+      "to": {
+        "year": 2005
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2006
+      },
+      "to": {
+        "year": 2006
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2007
+      },
+      "to": {
+        "year": 2007
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2008
+      },
+      "to": {
+        "year": 2008
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2009
+      },
+      "to": {
+        "year": 2009
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2010
+      },
+      "to": {
+        "year": 2010
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2011
+      },
+      "to": {
+        "year": 2011
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2012
+      },
+      "to": {
+        "year": 2012
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2013
+      },
+      "to": {
+        "year": 2013
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2014
+      },
+      "to": {
+        "year": 2014
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2015
+      },
+      "to": {
+        "year": 2015
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2016
+      },
+      "to": {
+        "year": 2016
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2017
+      },
+      "to": {
+        "year": 2017
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2018
+      },
+      "to": {
+        "year": 2018
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2019
+      },
+      "to": {
+        "year": 2019
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2020
+      },
+      "to": {
+        "year": 2020
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2021
+      },
+      "to": {
+        "year": 2021
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2022
+      },
+      "to": {
+        "year": 2022
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2023
+      },
+      "to": {
+        "year": 2023
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2024
+      },
+      "to": {
+        "year": 2024
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2025
+      },
+      "to": {
+        "year": 2025
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2026
+      },
+      "to": {
+        "year": 2026
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2027
+      },
+      "to": {
+        "year": 2027
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2028
+      },
+      "to": {
+        "year": 2028
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2029
+      },
+      "to": {
+        "year": 2029
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2030
+      },
+      "to": {
+        "year": 2030
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2031
+      },
+      "to": {
+        "year": 2031
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2032
+      },
+      "to": {
+        "year": 2032
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2033
+      },
+      "to": {
+        "year": 2033
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2034
+      },
+      "to": {
+        "year": 2034
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2035
+      },
+      "to": {
+        "year": 2035
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2036
+      },
+      "to": {
+        "year": 2036
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2037
+      },
+      "to": {
+        "year": 2037
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2038
+      },
+      "to": {
+        "year": 2038
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2039
+      },
+      "to": {
+        "year": 2039
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2040
+      },
+      "to": {
+        "year": 2040
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2041
+      },
+      "to": {
+        "year": 2041
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2042
+      },
+      "to": {
+        "year": 2042
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2043
+      },
+      "to": {
+        "year": 2043
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2044
+      },
+      "to": {
+        "year": 2044
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2045
+      },
+      "to": {
+        "year": 2045
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2046
+      },
+      "to": {
+        "year": 2046
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2047
+      },
+      "to": {
+        "year": 2047
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2048
+      },
+      "to": {
+        "year": 2048
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2049
+      },
+      "to": {
+        "year": 2049
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2050
+      },
+      "to": {
+        "year": 2050
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2051
+      },
+      "to": {
+        "year": 2051
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2052
+      },
+      "to": {
+        "year": 2052
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2053
+      },
+      "to": {
+        "year": 2053
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2054
+      },
+      "to": {
+        "year": 2054
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2055
+      },
+      "to": {
+        "year": 2055
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2056
+      },
+      "to": {
+        "year": 2056
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2057
+      },
+      "to": {
+        "year": 2057
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2058
+      },
+      "to": {
+        "year": 2058
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2059
+      },
+      "to": {
+        "year": 2059
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2060
+      },
+      "to": {
+        "year": 2060
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2061
+      },
+      "to": {
+        "year": 2061
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2062
+      },
+      "to": {
+        "year": 2062
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2063
+      },
+      "to": {
+        "year": 2063
+      },
+      "playlists": [
+        "a"
+      ]
+    },
+    {
+      "from": {
+        "year": 2064
+      },
+      "to": {
+        "year": 2064
+      },
+      "playlists": [
+        "a"
+      ]
+    }
+  ]
+}

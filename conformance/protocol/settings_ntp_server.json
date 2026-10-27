@@ -1,0 +1,224 @@
+{
+  "description": "ntp_server is a host name or IPv4 address of 1 to 64 letters, digits, dots and dashes",
+  "steps": [
+    {
+      "send": "@PR 9e33ea62 {\"seq\":1,\"cmd\":\"settings_set\",\"ntp_server\":\"\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR b31f92eb {\"seq\":2,\"cmd\":\"settings_set\",\"ntp_server\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.org\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 3327f4d7 {\"seq\":3,\"cmd\":\"settings_set\",\"ntp_server\":\"pool.ntp.org:123\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 656a24c2 {\"seq\":4,\"cmd\":\"settings_set\",\"ntp_server\":\"ntp://pool.ntp.org\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 82b220c3 {\"seq\":5,\"cmd\":\"settings_set\",\"ntp_server\":\"time server\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR fa8a0095 {\"seq\":6,\"cmd\":\"settings_set\",\"ntp_server\":\"time_server\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR db4b7cdf {\"seq\":7,\"cmd\":\"settings_set\",\"ntp_server\":\"pool.ntp.org/x\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR a263e01c {\"seq\":8,\"cmd\":\"settings_set\",\"ntp_server\":null}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 159769e7 {\"seq\":9,\"cmd\":\"settings_set\",\"ntp_server\":123}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR ed937fc2 {\"seq\":10,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 7dd4ca32 {\"seq\":11,\"cmd\":\"settings_set\",\"ntp_server\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.org\"}"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.org",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 09ac9a1a {\"seq\":12,\"cmd\":\"settings_set\",\"ntp_server\":\"10.0.0.1\"}"
+    },
+    {
+      "expect": {
+        "seq": 12,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "10.0.0.1",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR a79a7e7a {\"seq\":13,\"cmd\":\"settings_set\",\"ntp_server\":\"Time-1.Example.org\"}"
+    },
+    {
+      "expect": {
+        "seq": 13,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "Time-1.Example.org",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    }
+  ]
+}

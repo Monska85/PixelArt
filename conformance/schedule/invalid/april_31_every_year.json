@@ -1,0 +1,21 @@
+{
+  "format": "pixelart-schedule/1",
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": {
+        "month": 4,
+        "day": 1
+      },
+      "to": {
+        "month": 4,
+        "day": 31
+      },
+      "playlists": [
+        "a"
+      ]
+    }
+  ]
+}
