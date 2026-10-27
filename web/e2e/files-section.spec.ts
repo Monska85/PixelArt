@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import {
   animations,
+  animationYaml,
   connectSimulator,
   expect,
   file,
@@ -14,8 +15,10 @@ import {
   showFiles,
   stored,
   test,
+  upload,
 } from "./fixtures";
 import { watchBoard } from "./board";
+import { connectScripted, scriptedBoard } from "./scripted";
 
 const card = (page: Page) => page.getByTestId("files-card");
 const count = (dir: string, kind: string): number => readdirSync(join(dir, kind)).length;
@@ -118,6 +121,18 @@ test("an upload that stores a file opens the section; one that stores nothing do
   await page.reload();
   await connectSimulator(page, simulator);
   await expect(toggle(page)).toHaveAttribute("aria-expanded", "false");
+});
+
+test("an upload the board refuses does not open the section", async ({ page }) => {
+  const board = await scriptedBoard(page);
+  board.refuse.add("b");
+  await connectScripted(page, board);
+  await pick(page, upload("b.yaml", animationYaml("B")));
+  await expect(page.getByRole("alert").filter({ hasText: "b" }).first()).toBeVisible();
+  await expect(toggle(page)).toHaveAttribute("aria-expanded", "false");
+
+  await pick(page, upload("a.yaml", animationYaml("A")));
+  await expect(toggle(page)).toHaveAttribute("aria-expanded", "true");
 });
 
 test("a playlist that misses animations is flagged while the section is closed, and Show playlists opens it", async ({
