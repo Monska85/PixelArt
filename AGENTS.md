@@ -23,6 +23,7 @@ Read the relevant specifications in `docs/`, the commands and contribution guida
 - Run builds, tests and checks only through the `make` or `just` targets, with their default limits (`JOBS` and `NICE`, see [Resource limits](README.md#resource-limits)), unless the user asks for other limits. Never use hand-made `pio`, `make -j`, `npm run e2e` or Playwright commands with other parallelism.
 - Run one build or test at a time, never two in parallel.
 - Tests outside `content/` never depend on what the repository's content holds. A test that needs a named animation or playlist, or asserts exact frames, names, items or counts, uses its own fixture files (`test/fixtures/data/` for the native suites, `web/e2e/board-files/` for the end-to-end tests). A test that checks the shipped content reads `content/` and iterates over it, so a content change touches only `content/` and releases only the content package.
+- When a change adds, moves or renames a folder or a file that a CI job reads, it updates the path filters of the `changes` job in `.github/workflows/ci.yml` and the README section on continuous integration in the same change, so each job still runs for every change that can break it. When in doubt, a path belongs in the filter: running a job too often costs time, skipping it hides a break.
 
 ## History
 
