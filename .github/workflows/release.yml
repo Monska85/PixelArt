@@ -1,9 +1,10 @@
 name: Release
 
-# release-please keeps two release pull requests open on main, one for the
-# firmware (tags vX.Y.Z) and one for the web app (tags web-vX.Y.Z). Merging one
+# release-please keeps up to three release pull requests open on main, one for
+# the firmware (tags vX.Y.Z), one for the content, the animations and playlists
+# (tags content-vX.Y.Z), and one for the web app (tags web-vX.Y.Z). Merging one
 # tags the release; the jobs below then build it and publish its GitHub Release.
-# The GitHub Pages site always holds the latest of both, assembled after either
+# The GitHub Pages site always holds the latest of the three, assembled after any
 # release. See "Releases" in README.md.
 on:
   push:
@@ -11,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Build the firmware site, the web app and the assembled site as workflow artifacts and publish nothing
+        description: Build the firmware site, the content site, the web app and the assembled site as workflow artifacts and publish nothing
         type: boolean
         default: true
 
@@ -63,6 +64,9 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
+      content_release_created: ${{ steps.release.outputs['content--release_created'] }}
+      content_tag_name: ${{ steps.release.outputs['content--tag_name'] }}
+      content_version: ${{ steps.release.outputs['content--version'] }}
       web_release_created: ${{ steps.release.outputs['web--release_created'] }}
       web_tag_name: ${{ steps.release.outputs['web--tag_name'] }}
       web_version: ${{ steps.release.outputs['web--version'] }}
@@ -123,25 +127,56 @@ jobs:
         run: make release-firmware
 
       - name: Check the version of the release
-        run: |
-          python - <<'EOF'
-          import json
-          import os
-
-          built = json.load(open("site/manifest.json"))["version"]
-          tag = os.environ["RELEASE_TAG"]
-          if tag:
-              if tag != "v" + built:
-                  raise SystemExit(f"the release is {tag} but the firmware is version {built}")
-          elif os.environ["PIXELART_VERSION"]:
-              raise SystemExit("PIXELART_VERSION is set without a release tag")
-          print("release version", built)
-          EOF
+        run: python3 tools/release.py check-version --manifest site/manifest.json --tag-prefix v
 
       - name: Upload the site
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site
+          path: site/
+
+  build-content:
+    needs: release-please
+    # Like build: release-please is skipped on a dry run, which must not stop the build
+    if: >-
+      ${{ !cancelled() && needs.release-please.result != 'failure' &&
+      (needs.release-please.outputs.content_release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == true)) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Empty on a dry run: the content version then comes from git describe
+      PIXELART_CONTENT_VERSION: ${{ needs.release-please.outputs.content_release_created == 'true' && needs.release-please.outputs.content_version || '' }}
+      RELEASE_TAG: ${{ needs.release-please.outputs.content_release_created == 'true' && needs.release-please.outputs.content_tag_name || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.content_release_created == 'true' && needs.release-please.outputs.content_tag_name || github.sha }}
+          # The content version comes from git describe
+          fetch-depth: 0
+          persist-credentials: false
+
+      # On a push, the check job already ran the checks on this run's commit, which is normally the one
+      # release-please tagged. A tag on another commit is checked here, and so is a manual run: the checks convert
+      # and validate every animation and playlist.
+      - id: tagged
+        run: echo "checked=$([ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - if: github.event_name == 'workflow_dispatch' || steps.tagged.outputs.checked != 'true'
+        uses: ./.github/actions/checks
+
+      - if: github.event_name != 'workflow_dispatch' && steps.tagged.outputs.checked == 'true'
+        uses: ./.github/actions/setup
+
+      - name: Build the content release site
+        run: make release-content
+
+      - name: Check the version of the release
+        run: python3 tools/release.py check-version --manifest site/manifest.json --tag-prefix content-v
+
+      - name: Upload the content site
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: content
           path: site/
 
   build-web:
@@ -197,10 +232,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The release notes step is a local action
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: site
-          path: site
+          path: ${{ runner.temp }}/site
 
       - name: Attach the site archive, the factory images and the third-party notices to the GitHub Release
         env:
@@ -210,33 +250,63 @@ jobs:
           VERSION: ${{ needs.release-please.outputs.version }}
         run: |
           set -eu
-          mkdir assets
+          assets="$RUNNER_TEMP/assets"
+          mkdir "$assets"
           # The files and layout of GitHub Pages, so every manifest path resolves inside the archive
-          (cd site && zip -q -r -X "../assets/pixelart-site-${VERSION}.zip" .)
+          (cd "$RUNNER_TEMP/site" && zip -q -r -X "$assets/pixelart-site-${VERSION}.zip" .)
           # Release assets live in one flat folder: the board goes into the name
-          for file in site/firmware/*/factory-*.bin; do
+          for file in "$RUNNER_TEMP/site"/firmware/*/factory-*.bin; do
             board=$(basename "$(dirname "$file")")
-            cp "$file" "assets/${board}-$(basename "$file")"
+            cp "$file" "$assets/${board}-$(basename "$file")"
           done
-          cp site/firmware/THIRD_PARTY_NOTICES.txt assets/THIRD_PARTY_NOTICES.txt
-          gh release upload "$TAG" assets/* --clobber
+          cp "$RUNNER_TEMP/site/firmware/THIRD_PARTY_NOTICES.txt" "$assets/THIRD_PARTY_NOTICES.txt"
+          gh release upload "$TAG" "$assets"/* --clobber
 
-      # The body comes from the changelog; this line is added once, so a re-run does not repeat it
-      - name: Add the source code and licenses line to the GitHub Release
+      # The body comes from the changelog
+      - uses: ./.github/actions/release-notes
+        with:
+          tag: ${{ needs.release-please.outputs.tag_name }}
+          line: >-
+            **Source code and licenses:** built from tag `${{ needs.release-please.outputs.tag_name }}` of ${{ github.server_url }}/${{ github.repository }} (${{ github.server_url }}/${{ github.repository }}/tree/${{ needs.release-please.outputs.tag_name }}). To build it again, check out the tag and run `make release-firmware` (README.md, Releases). GPL-3.0-or-later with the additional permission in LICENSE-EXCEPTION (${{ github.server_url }}/${{ github.repository }}/blob/${{ needs.release-please.outputs.tag_name }}/LICENSE, ${{ github.server_url }}/${{ github.repository }}/blob/${{ needs.release-please.outputs.tag_name }}/LICENSE-EXCEPTION); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at firmware/THIRD_PARTY_NOTICES.txt on the site.
+
+  publish-content-release:
+    needs: [release-please, build-content]
+    if: needs.release-please.outputs.content_release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # The release notes step is a local action
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: content
+          path: ${{ runner.temp }}/content
+
+      - name: Attach the content archive to the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ needs.release-please.outputs.tag_name }}
-          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.content_tag_name }}
+          VERSION: ${{ needs.release-please.outputs.content_version }}
         run: |
           set -eu
-          body=$(gh release view "$TAG" --json body --jq .body)
-          case "$body" in
-            *"Source code and licenses:"*) exit 0 ;;
-          esac
-          line="**Source code and licenses:** built from tag \`$TAG\` of $REPOSITORY_URL ($REPOSITORY_URL/tree/$TAG). To build it again, check out the tag and run \`make release-firmware\` (README.md, Releases). GPL-3.0-or-later with the additional permission in LICENSE-EXCEPTION ($REPOSITORY_URL/blob/$TAG/LICENSE, $REPOSITORY_URL/blob/$TAG/LICENSE-EXCEPTION); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at firmware/THIRD_PARTY_NOTICES.txt on the site."
-          printf '%s\n\n%s\n' "$body" "$line" > notes.md
-          gh release edit "$TAG" --notes-file notes.md
+          assets="$RUNNER_TEMP/assets"
+          mkdir "$assets"
+          # manifest.json, animations/ and playlists/, ready to be merged into the Pages site or served as an animation source
+          (cd "$RUNNER_TEMP/content" && zip -q -r -X "$assets/pixelart-content-${VERSION}.zip" .)
+          gh release upload "$TAG" "$assets/pixelart-content-${VERSION}.zip" --clobber
+
+      # The body comes from the changelog
+      - uses: ./.github/actions/release-notes
+        with:
+          tag: ${{ needs.release-please.outputs.content_tag_name }}
+          line: >-
+            **Source code and licenses:** built from tag `${{ needs.release-please.outputs.content_tag_name }}` of ${{ github.server_url }}/${{ github.repository }} (${{ github.server_url }}/${{ github.repository }}/tree/${{ needs.release-please.outputs.content_tag_name }}). To build it again, check out the tag and run `make release-content` (README.md, Releases). GPL-3.0-or-later (${{ github.server_url }}/${{ github.repository }}/blob/${{ needs.release-please.outputs.content_tag_name }}/LICENSE).
 
   publish-web-release:
     needs: [release-please, build-web]
@@ -246,10 +316,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The release notes step is a local action
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: web
-          path: web
+          path: ${{ runner.temp }}/web
 
       - name: Attach the web app archive to the GitHub Release
         env:
@@ -259,39 +334,40 @@ jobs:
           VERSION: ${{ needs.release-please.outputs.web_version }}
         run: |
           set -eu
-          mkdir assets
+          assets="$RUNNER_TEMP/assets"
+          mkdir "$assets"
           # The built app with index.html at the root, ready to be merged into the Pages site
-          (cd web && zip -q -r -X "../assets/pixelart-web-${VERSION}.zip" .)
-          cp web/THIRD_PARTY_NOTICES.txt assets/THIRD_PARTY_NOTICES.txt
-          gh release upload "$TAG" "assets/pixelart-web-${VERSION}.zip" assets/THIRD_PARTY_NOTICES.txt --clobber
+          (cd "$RUNNER_TEMP/web" && zip -q -r -X "$assets/pixelart-web-${VERSION}.zip" .)
+          cp "$RUNNER_TEMP/web/THIRD_PARTY_NOTICES.txt" "$assets/THIRD_PARTY_NOTICES.txt"
+          gh release upload "$TAG" "$assets/pixelart-web-${VERSION}.zip" "$assets/THIRD_PARTY_NOTICES.txt" --clobber
 
-      # The body comes from the changelog; this line is added once, so a re-run does not repeat it
-      - name: Add the source code and licenses line to the GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ needs.release-please.outputs.web_tag_name }}
-          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
-        run: |
-          set -eu
-          body=$(gh release view "$TAG" --json body --jq .body)
-          case "$body" in
-            *"Source code and licenses:"*) exit 0 ;;
-          esac
-          line="**Source code and licenses:** built from tag \`$TAG\` of $REPOSITORY_URL ($REPOSITORY_URL/tree/$TAG). To build it again, check out the tag and run \`make web-build\` (web/README.md). GPL-3.0-or-later ($REPOSITORY_URL/blob/$TAG/LICENSE); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at the root of the site."
-          printf '%s\n\n%s\n' "$body" "$line" > notes.md
-          gh release edit "$TAG" --notes-file notes.md
+      # The body comes from the changelog
+      - uses: ./.github/actions/release-notes
+        with:
+          tag: ${{ needs.release-please.outputs.web_tag_name }}
+          line: >-
+            **Source code and licenses:** built from tag `${{ needs.release-please.outputs.web_tag_name }}` of ${{ github.server_url }}/${{ github.repository }} (${{ github.server_url }}/${{ github.repository }}/tree/${{ needs.release-please.outputs.web_tag_name }}). To build it again, check out the tag and run `make web-build` (web/README.md). GPL-3.0-or-later (${{ github.server_url }}/${{ github.repository }}/blob/${{ needs.release-please.outputs.web_tag_name }}/LICENSE); the third-party notices are THIRD_PARTY_NOTICES.txt, attached here and at the root of the site.
 
-  # A Pages deployment replaces the whole site: it always holds the latest firmware release and the latest web
-  # release, whichever of the two was just published. A side that failed to build or publish blocks the deployment.
-  # A manual run on main that is not a dry run publishes nothing and deploys the site from the latest releases.
+  # A Pages deployment replaces the whole site: it always holds the latest firmware, content and web releases,
+  # whichever of them was just published. A job that failed blocks the deployment; a job that was skipped does not,
+  # since a release builds only the packages it changed. A manual run on main that is not a dry run publishes
+  # nothing and deploys the site from the latest releases.
   assemble-site:
     needs:
-      [release-please, build, build-web, publish-release, publish-web-release]
+      [
+        release-please,
+        build,
+        build-content,
+        build-web,
+        publish-release,
+        publish-content-release,
+        publish-web-release,
+      ]
     if: >-
       ${{ !cancelled() &&
       !contains(needs.*.result, 'failure') &&
-      (needs.publish-release.result == 'success' || needs.publish-web-release.result == 'success' ||
+      (needs.publish-release.result == 'success' || needs.publish-content-release.result == 'success' ||
+      needs.publish-web-release.result == 'success' ||
       (github.event_name == 'workflow_dispatch' && inputs.dry_run == false && github.ref == 'refs/heads/main')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -300,7 +376,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download the latest firmware release and the latest web release
+      - name: Download the latest firmware, content and web releases
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -340,13 +416,14 @@ jobs:
             echo "$1 release $tag unpacked"
           }
           fetch firmware '^v[0-9]+\.[0-9]+\.[0-9]+$' v pixelart-site
+          fetch content '^content-v[0-9]+\.[0-9]+\.[0-9]+$' content-v pixelart-content
           fetch web '^web-v[0-9]+\.[0-9]+\.[0-9]+$' web-v pixelart-web
 
       - name: Assemble the site
         run: |
           set -eu
           args=""
-          for side in firmware web; do
+          for side in firmware content web; do
             if [ -d "$RUNNER_TEMP/$side" ]; then args="$args --$side $RUNNER_TEMP/$side"; fi
           done
           # shellcheck disable=SC2086
@@ -359,8 +436,8 @@ jobs:
 
   deploy-pages:
     needs: assemble-site
-    # A release builds one package, so one build job is always skipped; without this condition the implicit success()
-    # would skip the deployment although assemble-site succeeded
+    # A release does not build every package, so a build job can be skipped; without this condition the implicit
+    # success() would skip the deployment although assemble-site succeeded
     if: ${{ !cancelled() && needs.assemble-site.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -404,8 +481,10 @@ jobs:
         run: python3 tools/release.py check-site "$PAGE_URL"
 
   assemble-dry-run:
-    needs: [build, build-web]
-    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.build.result == 'success' && needs.build-web.result == 'success' }}
+    needs: [build, build-content, build-web]
+    if: >-
+      ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.dry_run == true &&
+      needs.build.result == 'success' && needs.build-content.result == 'success' && needs.build-web.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -420,11 +499,16 @@ jobs:
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          name: content
+          path: ${{ runner.temp }}/content
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
           name: web
           path: ${{ runner.temp }}/web
 
       - name: Assemble the site
-        run: python3 tools/release.py assemble --out "$RUNNER_TEMP/assembled" --firmware "$RUNNER_TEMP/firmware" --web "$RUNNER_TEMP/web"
+        run: python3 tools/release.py assemble --out "$RUNNER_TEMP/assembled" --firmware "$RUNNER_TEMP/firmware" --content "$RUNNER_TEMP/content" --web "$RUNNER_TEMP/web"
 
       - name: Upload the assembled site
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

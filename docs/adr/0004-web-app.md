@@ -4,6 +4,8 @@ Date: 2026-10-19
 
 Status: accepted
 
+Note: decisions 5 and 6 are replaced in part by [ADR 0006](0006-content-release.md). The animations and playlists are a third release package, `content`, and every Pages deployment merges the latest firmware, web and content releases.
+
 ## Context
 
 Today a board is managed with PlatformIO and `tools/pixelart.py`, which need a development setup. The project wants people without technical skills to install the firmware, see what a board stores, add animations, change the playlist and draw new animations, with nothing to install on their computer. The [web app specification](../web/web-app-v1.md) describes what the app does.

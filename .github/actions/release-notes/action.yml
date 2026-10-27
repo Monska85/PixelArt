@@ -1,0 +1,29 @@
+name: Release notes line
+description: Adds the source code and licenses line to the body of a GitHub Release, once, so a re-run does not repeat it
+
+inputs:
+  tag:
+    description: The tag of the release
+    required: true
+  line:
+    description: The line to add after the body, as Markdown
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Add the source code and licenses line to the GitHub Release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        TAG: ${{ inputs.tag }}
+        LINE: ${{ inputs.line }}
+      run: |
+        set -eu
+        body=$(gh release view "$TAG" --json body --jq .body)
+        case "$body" in
+          *"Source code and licenses:"*) exit 0 ;;
+        esac
+        printf '%s\n\n%s\n' "$body" "$LINE" > notes.md
+        gh release edit "$TAG" --notes-file notes.md

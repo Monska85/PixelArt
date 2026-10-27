@@ -41,8 +41,20 @@ if (process.env.NO_RELEASE !== "1") {
   const manifest = {
     format: "pixelart-manifest/1",
     version: published.version,
+    // Like the site of a firmware release and a content release: the web app reads only whether firmware is listed.
+    ...(published.contentVersion ? { content_version: published.contentVersion } : {}),
     released: "2026-01-01",
-    firmware: [],
+    firmware: [
+      {
+        board: "esp32c3",
+        chip: "ESP32-C3",
+        part: "app",
+        offset: 65536,
+        file: `firmware/esp32c3/app-${published.version}.bin`,
+        size: 1,
+        sha256: "0".repeat(64),
+      },
+    ],
     animations: published.animations.map((id) => ({ ...describe("animations", id), version: 1 })),
     playlists: published.playlists.map((id) => describe("playlists", id)),
   };

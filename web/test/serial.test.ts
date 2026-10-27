@@ -1,100 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CLOSE_STEP_MS, PORT_BUSY, SerialTransport, type SerialPortLike } from "../src/protocol/serial";
-import { session } from "../src/ui/session";
+import { CLOSE_STEP_MS, PORT_BUSY, SerialTransport } from "../src/protocol/serial";
+import { PORT_RETRY_EVERY_MS, PORT_RETRY_FOR_MS, session } from "../src/ui/session";
 import { FakeBoard } from "./fakeBoard";
-
-/**
- * A Web Serial port as Chrome behaves: open() fails while the port is open, close() fails while a stream is locked,
- * and the streams exist only while the port is open. It can answer through a FakeBoard, or not at all.
- */
-class FakePort implements SerialPortLike {
-  readable: ReadableStream<Uint8Array> | null = null;
-  writable: WritableStream<Uint8Array> | null = null;
-  isOpen = false;
-  /** Errors the next open() calls throw, in order. */
-  openErrors: Error[] = [];
-  /** Opens without streams, like a port that fails right after opening. */
-  noStreams = false;
-  /** Writes never complete, like a device that has gone. */
-  writesHang = false;
-  /** Cancelling the readable never completes, so the page's pipe from it never settles. */
-  cancelHangs = false;
-  /** close() stays pending until this is called; null closes at once. */
-  finishClose: (() => void) | null = null;
-  closeHangs = false;
-  /** What the last open() and setSignals() were given, and every line written without a board. */
-  openOptions: unknown = null;
-  signals: unknown = null;
-  written: string[] = [];
-  private source: ReadableStreamDefaultController<Uint8Array> | null = null;
-
-  constructor(
-    readonly name: string,
-    readonly log: string[],
-    private readonly board: FakeBoard | null = null,
-  ) {}
-
-  async open(options: unknown): Promise<void> {
-    this.log.push(`${this.name} open`);
-    this.openOptions = options;
-    const error = this.openErrors.shift();
-    if (error) throw error;
-    if (this.isOpen) throw new DOMException("The port is already open.", "InvalidStateError");
-    this.isOpen = true;
-    if (this.noStreams) return;
-    this.readable = new ReadableStream({
-      start: (controller) => void (this.source = controller),
-      cancel: () => (this.cancelHangs ? new Promise<void>(() => {}) : undefined),
-    });
-    this.writable = new WritableStream({
-      write: (chunk) => {
-        if (this.writesHang) return new Promise(() => {});
-        const line = new TextDecoder().decode(chunk);
-        if (this.board) void this.board.send(line.trimEnd());
-        else this.written.push(line);
-      },
-    });
-    if (this.board)
-      this.board.onLine = (line) => {
-        // A reply that comes after the page cancelled the stream is lost, as on a real port.
-        try {
-          this.source?.enqueue(new Uint8Array([...line, 0x0a]));
-        } catch {
-          // The stream is closed.
-        }
-      };
-  }
-
-  async close(): Promise<void> {
-    this.log.push(`${this.name} close`);
-    if (this.readable?.locked || this.writable?.locked) throw new TypeError("Cannot close a locked stream");
-    if (this.closeHangs) await new Promise<void>((resolve) => (this.finishClose = resolve));
-    this.isOpen = false;
-    this.readable = null;
-    this.writable = null;
-  }
-
-  async setSignals(signals: unknown): Promise<void> {
-    this.signals = signals;
-  }
-
-  /** Bytes from the device. */
-  receive(data: string | Uint8Array): void {
-    this.source?.enqueue(typeof data === "string" ? new TextEncoder().encode(data) : data);
-  }
-
-  /** The readable ends, as when the port is closed from the other side. */
-  end(): void {
-    this.source?.close();
-  }
-
-  /** The device goes away: the readable errors, as Chrome does when the USB device disappears. */
-  vanish(): void {
-    this.source?.error(new DOMException("The device has been lost.", "NetworkError"));
-  }
-}
+import { FakePort } from "./fakePort";
 
 describe("Improv on the serial port", () => {
   it("sends a frame as it is, with no newline", async () => {
@@ -306,5 +216,77 @@ describe("the session with a serial port", () => {
     expect(first.isOpen).toBe(false);
     expect(log.indexOf("first close")).toBeGreaterThanOrEqual(0);
     expect(log.indexOf("first close")).toBeLessThan(log.indexOf("second open"));
+  });
+
+  it("connects over a port already picked, trying again every second while it cannot be opened", async () => {
+    vi.useFakeTimers();
+    const log: string[] = [];
+    const port = new FakePort("port", log, new FakeBoard());
+    port.openErrors = [new DOMException("busy", "NetworkError"), new DOMException("busy", "NetworkError")];
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_EVERY_MS - 1);
+    expect(session.getSnapshot().state).toBe("connecting");
+    expect(log.filter((entry) => entry === "port open")).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(2 * PORT_RETRY_EVERY_MS);
+    expect(await connecting).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({ state: "connected", via: "board", message: null });
+    expect(log.filter((entry) => entry === "port open")).toHaveLength(3);
+  });
+
+  it("tries again when the link drops during the handshake, and connects", async () => {
+    vi.useFakeTimers();
+    const log: string[] = [];
+    const port = new FakePort("port", log, new FakeBoard());
+    port.vanishOnOpen = true;
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_EVERY_MS - 1);
+    expect(session.getSnapshot()).toMatchObject({ state: "connecting", message: null });
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_EVERY_MS);
+    expect(await connecting).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({ state: "connected", message: null });
+    expect(log.filter((entry) => entry === "port open")).toHaveLength(2);
+  });
+
+  it("gives up after 20 seconds with the reason, stays connecting meanwhile, and leaves the port closed", async () => {
+    vi.useFakeTimers();
+    const port = new FakePort("port", []);
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_FOR_MS - 1);
+    expect(session.getSnapshot()).toMatchObject({ state: "connecting", message: null });
+    await vi.advanceTimersByTimeAsync(10 * 2000 + 10 * CLOSE_STEP_MS);
+    expect(await connecting).toBe(false);
+    expect(session.getSnapshot().state).toBe("disconnected");
+    expect(session.getSnapshot().message).toBeTruthy();
+    expect(port.isOpen).toBe(false);
+  });
+
+  it("does not wait for a refusal that waiting cannot clear", async () => {
+    vi.useFakeTimers();
+    const log: string[] = [];
+    const board = new FakeBoard();
+    board.protocol = 99;
+    const port = new FakePort("port", log, board);
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await connecting).toBe(false);
+    expect(session.getSnapshot()).toMatchObject({ state: "disconnected", offerFirmware: true });
+    expect(session.getSnapshot().message).toContain("protocol 99");
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_FOR_MS);
+    expect(log.filter((entry) => entry === "port open")).toHaveLength(1);
+    expect(port.isOpen).toBe(false);
+  });
+
+  it("stops trying when the user disconnects", async () => {
+    vi.useFakeTimers();
+    const log: string[] = [];
+    const port = new FakePort("port", log);
+    port.openErrors = Array.from({ length: 30 }, () => new DOMException("busy", "NetworkError"));
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_EVERY_MS * 2);
+    await session.disconnect();
+    const opened = log.length;
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_FOR_MS);
+    expect(await connecting).toBe(false);
+    expect(log).toHaveLength(opened);
   });
 });

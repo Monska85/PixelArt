@@ -26,6 +26,7 @@ class DescribeVersionTest(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         os.environ.pop("PIXELART_VERSION", None)
+        os.environ.pop("PIXELART_CONTENT_VERSION", None)
 
     def describe(self, **answers):
         with mock.patch.object(fw_version, "git", fake_git(answers)):
@@ -90,6 +91,83 @@ class DescribeVersionTest(unittest.TestCase):
     def test_no_git_is_unknown_in_a_folder_that_is_not_a_repository(self):
         with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": root}):
             self.assertEqual(fw_version.describe_version(root), "0.0.0-unknown")
+
+
+class ContentVersionTest(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch.dict(os.environ)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        os.environ.pop("PIXELART_VERSION", None)
+        os.environ.pop("PIXELART_CONTENT_VERSION", None)
+
+    def make_repository(self, root):
+        def run(*args):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=root, check=True,
+                           capture_output=True)
+
+        run("init", "-q")
+        run("commit", "-q", "--allow-empty", "-m", "a")
+        return run
+
+    def test_override_wins_and_is_checked(self):
+        os.environ["PIXELART_CONTENT_VERSION"] = "2.0.1"
+        self.assertEqual(fw_version.describe_content_version("."), "2.0.1")
+        os.environ["PIXELART_CONTENT_VERSION"] = "../x"
+        with self.assertRaisesRegex(ValueError, "PIXELART_CONTENT_VERSION"):
+            fw_version.describe_content_version(".")
+
+    def test_the_firmware_override_does_not_touch_the_content_version(self):
+        os.environ["PIXELART_VERSION"] = "9.9.9"
+        with mock.patch.object(fw_version, "git", fake_git({"rev-parse": "abc1234", "rev-list": "3", "status": ""})):
+            self.assertEqual(fw_version.describe_content_version("."), "0.0.0-dev.3+gabc1234")
+
+    def test_no_content_tag_counts_the_commits_from_0_0_0_whatever_the_firmware_tags(self):
+        with tempfile.TemporaryDirectory() as root:
+            run = self.make_repository(root)
+            run("tag", "v1.2.3")
+            run("tag", "web-v1.0.0")
+            self.assertRegex(fw_version.describe_content_version(root), r"^0\.0\.0-dev\.1\+g[0-9a-f]+$")
+
+    def test_the_content_tag_gives_the_version_when_clean_and_exact_and_dev_after_it_or_when_dirty(self):
+        with tempfile.TemporaryDirectory() as root:
+            run = self.make_repository(root)
+            run("tag", "content-v1.0.0")
+            self.assertEqual(fw_version.describe_content_version(root), "1.0.0")
+            run("commit", "-q", "--allow-empty", "-m", "b")
+            self.assertRegex(fw_version.describe_content_version(root), r"^1\.0\.0-dev\.1\+g[0-9a-f]+$")
+            run("tag", "v7.0.0")
+            self.assertRegex(fw_version.describe_content_version(root), r"^1\.0\.0-dev\.1\+g[0-9a-f]+$")
+            self.assertEqual(fw_version.describe_version(root), "7.0.0")
+            (Path(root) / "f").write_text("x")
+            run("add", "f")
+            self.assertRegex(fw_version.describe_content_version(root), r"^1\.0\.0-dev\.1\+g[0-9a-f]+\.dirty$")
+
+    def test_a_content_tag_is_no_firmware_tag(self):
+        with tempfile.TemporaryDirectory() as root:
+            run = self.make_repository(root)
+            run("tag", "content-v1.0.0")
+            self.assertRegex(fw_version.describe_version(root), r"^0\.0\.0-dev\.1\+g[0-9a-f]+$")
+
+    def test_only_exact_content_tags_are_used(self):
+        for odd in ("content-v1.2.3.4", "content-v1.2.3rc1", "content-v1.2.3+b", "content-v1.2.3-rc1", "xcontent-v9.0.0"):
+            with self.subTest(tag=odd), tempfile.TemporaryDirectory() as root:
+                run = self.make_repository(root)
+                run("tag", "content-v1.2.3")
+                run("commit", "-q", "--allow-empty", "-m", "b")
+                run("tag", odd)
+                self.assertRegex(fw_version.describe_content_version(root), r"^1\.2\.3-dev\.1\+g[0-9a-f]+$")
+
+    def test_the_highest_of_several_content_tags_on_one_commit(self):
+        with tempfile.TemporaryDirectory() as root:
+            run = self.make_repository(root)
+            run("tag", "content-v1.0.1")
+            run("tag", "content-v1.10.0")
+            self.assertEqual(fw_version.describe_content_version(root), "1.10.0")
+
+    def test_no_git_is_unknown_in_a_folder_that_is_not_a_repository(self):
+        with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": root}):
+            self.assertEqual(fw_version.describe_content_version(root), "0.0.0-unknown")
 
 
 if __name__ == "__main__":

@@ -18,8 +18,14 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "exclude-paths": ["web"],
+      "exclude-paths": ["web", "content"],
       "include-component-in-tag": false,
+      "changelog-path": "CHANGELOG.md"
+    },
+    "content": {
+      "release-type": "simple",
+      "component": "content",
+      "initial-version": "1.0.0",
       "changelog-path": "CHANGELOG.md"
     },
     "web": {

@@ -3,7 +3,7 @@
 # --- Build output and generated files -------------------------------------------------------
 # PlatformIO build output, downloaded libraries and toolchains
 /.pio/
-# Board files generated from animations/ and playlists/ (make data)
+# Board files generated from content/animations/ and content/playlists/ (make data)
 /data/
 # Simulator output (make sim)
 /sim-out/

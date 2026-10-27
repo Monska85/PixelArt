@@ -37,8 +37,8 @@ WS_ARG := $(if $(WS),--ws,)
 .NOTPARALLEL:
 
 .DEFAULT_GOAL := help
-.PHONY: help data validate build build-all upload upload-firmware upload-data monitor flash mirror sim-build sim \
-	sim-list sim-play emulate serve sim-open release-firmware release-site test format format-check web-install web-dev web-build web-test \
+.PHONY: help data validate build build-all upload upload-firmware upload-content monitor flash mirror sim-build sim \
+	sim-list sim-play emulate serve sim-open release-firmware release-content release-site test format format-check web-install web-dev web-build web-test \
 	web-e2e web-size web-screenshots web-screenshots-update check clean
 
 help: ## Show this help
@@ -46,7 +46,7 @@ help: ## Show this help
 	@echo ""
 	@echo "Variables: BOARD=$(BOARD) (esp32c3, esp32, esp32s3)  ANIM=name[,name]  OUT=$(OUT)  SITE=$(SITE)  ARGS=extra simulator options  WS=1 (emulate with the WebSocket)  PORT=$(PORT) (serve)  PYTHON=$(PYTHON)  JOBS=$(JOBS) (parallel jobs)  NICE=$(NICE) (priority of the heavy steps)"
 
-data: ## Build data/ (the board's files) from animations/ and playlists/
+data: ## Build data/ (the board's files) from content/animations/ and content/playlists/
 	$(PYTHON) tools/pixelart.py build
 
 validate: data sim-build ## Check every animation and playlist with the board's engine
@@ -58,20 +58,20 @@ build: ## Build the firmware for BOARD
 build-all: ## Build the firmware for every board
 	$(NICED) pio run -j $(JOBS) -e esp32c3 -e esp32 -e esp32s3
 
-upload: data ## Flash the firmware and the animations to BOARD
+upload: data ## Flash the firmware and the content (animations and playlists) of this working tree to BOARD
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t upload
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t uploadfs
 
-upload-firmware: ## Flash only the firmware, keeping the animations on the board
+upload-firmware: ## Flash only the firmware, keeping the animations and playlists on the board
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t upload
 
-upload-data: data ## Flash only the animations and playlists, keeping the firmware
+upload-content: data ## Flash only the animations and playlists, keeping the firmware
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t uploadfs
 
 monitor: ## Open the serial monitor
 	pio device monitor -e $(BOARD)
 
-flash: ## Flash the firmware and the animations, then open the serial monitor
+flash: ## Flash the firmware and the content, then open the serial monitor
 	$(MAKE) --no-print-directory upload
 	$(MAKE) --no-print-directory monitor
 
@@ -103,24 +103,28 @@ sim-open: sim ## Run the simulator and open the HTML player
 	elif command -v open >/dev/null 2>&1; then open $(OUT)/player.html; \
 	else echo "Open $(OUT)/player.html in a browser"; fi
 
-release-firmware: data ## Build every board and the firmware part of the release site into SITE (default site/)
+release-firmware: ## Build every board and the firmware release (no animations, no file system) into SITE (default site/)
 	@set -eu; \
 	PIXELART_VERSION=$$($(PYTHON) tools/release.py version); export PIXELART_VERSION; \
 	echo "Firmware release site for version $$PIXELART_VERSION"; \
 	$(NICED) pio run -j $(JOBS) -e esp32c3 -e esp32 -e esp32s3; \
-	for board in esp32c3 esp32 esp32s3; do $(NICED) pio run -j $(JOBS) -e $$board -t buildfs; done; \
 	$(NICED) $(PYTHON) tools/release.py build --out $(SITE) --schema
 
-release-site: data ## Build every board and the web app into SITE (default site/), the site Pages shows if both were released from this commit
+release-content: data ## Build the content release (animations, playlists and their manifest) into SITE (default site/)
+	@set -eu; \
+	echo "Content release site for version $$($(PYTHON) tools/release.py content-version)"; \
+	$(NICED) $(PYTHON) tools/release.py content --out $(SITE) --schema
+
+release-site: data ## Build the firmware, the content and the web app into SITE (default site/), the site Pages shows if all were released from this commit
 	@set -eu; \
 	PIXELART_VERSION=$$($(PYTHON) tools/release.py version); export PIXELART_VERSION; \
-	echo "Release site for version $$PIXELART_VERSION"; \
+	echo "Release site for firmware $$PIXELART_VERSION and content $$($(PYTHON) tools/release.py content-version)"; \
 	work=$$(mktemp -d); trap 'rm -rf "$$work"' EXIT; \
 	$(NICED) pio run -j $(JOBS) -e esp32c3 -e esp32 -e esp32s3; \
-	for board in esp32c3 esp32 esp32s3; do $(NICED) pio run -j $(JOBS) -e $$board -t buildfs; done; \
 	$(NICED) $(PYTHON) tools/release.py build --out "$$work/firmware" --schema; \
+	$(NICED) $(PYTHON) tools/release.py content --out "$$work/content" --schema; \
 	$(MAKE) --no-print-directory web-build; \
-	$(PYTHON) tools/release.py assemble --out $(SITE) --firmware "$$work/firmware" --web web/dist
+	$(PYTHON) tools/release.py assemble --out $(SITE) --firmware "$$work/firmware" --content "$$work/content" --web web/dist --schema
 
 test: data ## Run the tests on the simulator
 	$(NICED) pio test -e native_test

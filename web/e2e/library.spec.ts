@@ -44,7 +44,7 @@ test("lists the published animations and playlists with their state on the board
   await connectSimulator(page, simulator);
   await library(page).click();
 
-  await expect(page.getByText(/Published with firmware/)).toContainText("0.1.0");
+  await expect(page.getByText(/Animations published with/)).toContainText("content release 0.2.0");
   await expect(page.getByRole("tab", { name: /^Animations/ })).toContainText(String(published.animations.length));
   await expect(page.getByRole("tab", { name: /^Playlists/ })).toContainText(String(published.playlists.length));
   await expect(state(page, SAME)).toHaveText("Same");
@@ -213,4 +213,33 @@ test("Open in editor is a button on each animation row, not a menu item", async 
   await open.click();
   await expect(page.getByRole("heading", { name: "Editor", level: 2, exact: true })).toBeVisible();
   await expect(page.getByTestId("editor-source")).toContainText(SAME);
+});
+
+test("names the firmware release when the manifest has no content version", async ({ page }) => {
+  await page.route("**/manifest.json", (route) =>
+    route.fulfill({
+      json: {
+        format: "pixelart-manifest/1",
+        version: "1.2.0",
+        released: "2026-01-01",
+        firmware: [],
+        animations: [],
+        playlists: [],
+      },
+    }),
+  );
+  await page.goto("/#library");
+  await expect(page.getByText(/Animations published with/)).toContainText("Animations published with release 1.2.0.");
+});
+
+test("lists the animations of a content release that has no firmware", async ({ page }) => {
+  await page.route("**/manifest.json", async (route) => {
+    const response = await route.fetch();
+    const manifest = (await response.json()) as Record<string, unknown>;
+    delete manifest.firmware;
+    await route.fulfill({ json: { ...manifest, version: "0.2.0", content_version: "0.2.0" } });
+  });
+  await page.goto("/#library");
+  await expect(page.getByText(/Animations published with/)).toContainText("content release 0.2.0");
+  await expect(publishedTable(page)).toContainText("Snowflake");
 });

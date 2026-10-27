@@ -82,6 +82,23 @@ export const useUploadRunning = (): boolean =>
 /** The work that runs now, for the activity panel, or null. */
 export const useUploadActivity = (): UploadActivity | null => useSyncExternalStore(subscribe, () => activity);
 
+/**
+ * Shows `label` in the activity panel for work that comes before an upload (connecting a board). The upload's own
+ * activity replaces it when it starts; the returned function clears it if it is still shown.
+ */
+export function announceActivity(label: string): () => void {
+  const mine: UploadActivity = { label, done: 0, total: 0, indeterminate: true, cancellable: false };
+  if (!running) {
+    activity = mine;
+    emit();
+  }
+  return () => {
+    if (activity !== mine) return;
+    activity = null;
+    emit();
+  };
+}
+
 export function cancelRunningUpload(): void {
   running?.abort();
 }

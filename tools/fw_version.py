@@ -9,15 +9,13 @@ import os
 import re
 import subprocess
 
-# Selects the candidates only: git's glob also matches v1.2.3-rc1, v1.2.3.4 and v1.2.3+b, which RELEASE_TAG rejects.
-TAG_PATTERN = "v[0-9]*.[0-9]*.[0-9]*"
-RELEASE_TAG = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+")
+FIRMWARE_PREFIX = "v"
+CONTENT_PREFIX = "content-v"
 SAFE_VERSION = re.compile(r"[0-9A-Za-z][0-9A-Za-z.+-]{0,63}")
-_DESCRIBED = re.compile(r"v([0-9]+\.[0-9]+\.[0-9]+)-([0-9]+)-g([0-9a-f]+)")
 
 
-def _version_key(tag):
-    return tuple(int(part) for part in tag[1:].split("."))
+def _version_key(tag, prefix):
+    return tuple(int(part) for part in tag[len(prefix) :].split("."))
 
 
 def git(root, *args):
@@ -28,33 +26,39 @@ def git(root, *args):
     return out.stdout.strip() if out.returncode == 0 else None
 
 
-def nearest_release(root):
-    """The nearest release tag (exactly vX.Y.Z) as (version, commits since it, commit), or None when there is none."""
-    candidates = (git(root, "tag", "--list", TAG_PATTERN) or "").splitlines()
-    releases = [tag for tag in candidates if RELEASE_TAG.fullmatch(tag)]
+def nearest_release(root, prefix=FIRMWARE_PREFIX):
+    """The nearest release tag (exactly <prefix>X.Y.Z) as (version, commits since it, commit), or None when there is none."""
+    quoted = re.escape(prefix)
+    release_tag = re.compile(quoted + r"[0-9]+\.[0-9]+\.[0-9]+")
+    described_form = re.compile(quoted + r"([0-9]+\.[0-9]+\.[0-9]+)-([0-9]+)-g([0-9a-f]+)")
+    # Selects the candidates only: git's glob also matches v1.2.3-rc1, v1.2.3.4 and v1.2.3+b, which release_tag rejects.
+    candidates = (git(root, "tag", "--list", f"{prefix}[0-9]*.[0-9]*.[0-9]*") or "").splitlines()
+    releases = [tag for tag in candidates if release_tag.fullmatch(tag)]
     if not releases:
         return None
     matches = [arg for tag in releases for arg in ("--match", tag)]
-    described = _DESCRIBED.fullmatch(git(root, "describe", "--tags", "--long", *matches) or "")
+    described = described_form.fullmatch(git(root, "describe", "--tags", "--long", *matches) or "")
     if not described:
         return None
     version, commits, sha = described.groups()
     # Several release tags on the commit describe chose: the highest version counts. Equally near tags on
     # different commits (two merged branches) are left to git's choice.
-    here = (git(root, "tag", "--points-at", f"v{version}^{{commit}}") or "").splitlines()
-    best = max((t for t in here if RELEASE_TAG.fullmatch(t)), key=_version_key, default=f"v{version}")
-    return best[1:], commits, sha
+    here = (git(root, "tag", "--points-at", f"{prefix}{version}^{{commit}}") or "").splitlines()
+    best = max((t for t in here if release_tag.fullmatch(t)), key=lambda t: _version_key(t, prefix),
+               default=f"{prefix}{version}")
+    return best[len(prefix) :], commits, sha
 
 
-def describe_version(root):
-    """The version of the checkout in root. Raises ValueError for a bad PIXELART_VERSION."""
-    override = os.environ.get("PIXELART_VERSION", "").strip()
+def describe_version(root, prefix=FIRMWARE_PREFIX, variable="PIXELART_VERSION"):
+    """The version of the checkout in root: the firmware's by default, the content's with CONTENT_PREFIX and
+    PIXELART_CONTENT_VERSION. Raises ValueError for a bad override."""
+    override = os.environ.get(variable, "").strip()
     if override:
         if not SAFE_VERSION.fullmatch(override):
-            raise ValueError(f"PIXELART_VERSION '{override}' is not a valid version")
+            raise ValueError(f"{variable} '{override}' is not a valid version")
         return override
 
-    release = nearest_release(root)
+    release = nearest_release(root, prefix)
     if release:
         tag, commits, sha = release
     else:
@@ -68,3 +72,8 @@ def describe_version(root):
     if commits == "0" and not dirty and release:
         return tag
     return f"{tag}-dev.{commits}+g{sha}{'.dirty' if dirty else ''}"
+
+
+def describe_content_version(root):
+    """The version of the content (animations and playlists) of the checkout in root, by the same rules."""
+    return describe_version(root, CONTENT_PREFIX, "PIXELART_CONTENT_VERSION")
