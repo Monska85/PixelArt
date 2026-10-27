@@ -244,7 +244,7 @@ class Session {
       } catch (failure) {
         if (attempt !== this.attempt) return;
         this.transport = null;
-        const { error, retryable } = failure as AttemptFailure;
+        const { error, retryable, message } = failure as AttemptFailure;
         if (retryable && Date.now() < giveUpAt) {
           await new Promise((resolve) => setTimeout(resolve, PORT_RETRY_EVERY_MS));
           if (attempt !== this.attempt) return;
@@ -253,7 +253,7 @@ class Session {
         this.set({
           ...IDLE,
           restarts: this.snapshot.restarts,
-          message: error instanceof Error ? error.message : "The connection failed.",
+          message,
           offerFirmware: error instanceof BoardError && error.code === "protocol_unsupported",
         });
         return;

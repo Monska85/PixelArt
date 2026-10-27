@@ -683,10 +683,6 @@ class ContentVersionCommandTest(unittest.TestCase):
         printed.assert_called_once_with("1.4.0")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class CheckVersionTest(unittest.TestCase):
     def check(self, manifest, prefix, env):
         path = Path(tempfile.mkdtemp()) / "manifest.json"
@@ -799,3 +795,7 @@ class SourceTest(unittest.TestCase):
             manifest["source"] = bad
             with self.assertRaises(release.ReleaseError, msg=bad):
                 release.validate(manifest)
+
+
+if __name__ == "__main__":
+    unittest.main()

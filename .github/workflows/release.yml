@@ -240,7 +240,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: site
-          path: site
+          path: ${{ runner.temp }}/site
 
       - name: Attach the site archive, the factory images and the third-party notices to the GitHub Release
         env:
@@ -248,18 +248,20 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
           VERSION: ${{ needs.release-please.outputs.version }}
+          SRC: ${{ runner.temp }}/site
         run: |
           set -eu
-          mkdir assets
+          assets="$RUNNER_TEMP/assets"
+          mkdir "$assets"
           # The files and layout of GitHub Pages, so every manifest path resolves inside the archive
-          (cd site && zip -q -r -X "../assets/pixelart-site-${VERSION}.zip" .)
+          (cd "$SRC" && zip -q -r -X "$assets/pixelart-site-${VERSION}.zip" .)
           # Release assets live in one flat folder: the board goes into the name
-          for file in site/firmware/*/factory-*.bin; do
+          for file in "$SRC"/firmware/*/factory-*.bin; do
             board=$(basename "$(dirname "$file")")
-            cp "$file" "assets/${board}-$(basename "$file")"
+            cp "$file" "$assets/${board}-$(basename "$file")"
           done
-          cp site/firmware/THIRD_PARTY_NOTICES.txt assets/THIRD_PARTY_NOTICES.txt
-          gh release upload "$TAG" assets/* --clobber
+          cp "$SRC/firmware/THIRD_PARTY_NOTICES.txt" "$assets/THIRD_PARTY_NOTICES.txt"
+          gh release upload "$TAG" "$assets"/* --clobber
 
       # The body comes from the changelog
       - uses: ./.github/actions/release-notes
@@ -284,7 +286,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: content
-          path: content
+          path: ${{ runner.temp }}/content
 
       - name: Attach the content archive to the GitHub Release
         env:
@@ -292,12 +294,14 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.release-please.outputs.content_tag_name }}
           VERSION: ${{ needs.release-please.outputs.content_version }}
+          SRC: ${{ runner.temp }}/content
         run: |
           set -eu
-          mkdir assets
+          assets="$RUNNER_TEMP/assets"
+          mkdir "$assets"
           # manifest.json, animations/ and playlists/, ready to be merged into the Pages site or served as an animation source
-          (cd content && zip -q -r -X "../assets/pixelart-content-${VERSION}.zip" .)
-          gh release upload "$TAG" "assets/pixelart-content-${VERSION}.zip" --clobber
+          (cd "$SRC" && zip -q -r -X "$assets/pixelart-content-${VERSION}.zip" .)
+          gh release upload "$TAG" "$assets/pixelart-content-${VERSION}.zip" --clobber
 
       # The body comes from the changelog
       - uses: ./.github/actions/release-notes
@@ -322,7 +326,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: web
-          path: web
+          path: ${{ runner.temp }}/web
 
       - name: Attach the web app archive to the GitHub Release
         env:
@@ -330,13 +334,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.release-please.outputs.web_tag_name }}
           VERSION: ${{ needs.release-please.outputs.web_version }}
+          SRC: ${{ runner.temp }}/web
         run: |
           set -eu
-          mkdir assets
+          assets="$RUNNER_TEMP/assets"
+          mkdir "$assets"
           # The built app with index.html at the root, ready to be merged into the Pages site
-          (cd web && zip -q -r -X "../assets/pixelart-web-${VERSION}.zip" .)
-          cp web/THIRD_PARTY_NOTICES.txt assets/THIRD_PARTY_NOTICES.txt
-          gh release upload "$TAG" "assets/pixelart-web-${VERSION}.zip" assets/THIRD_PARTY_NOTICES.txt --clobber
+          (cd "$SRC" && zip -q -r -X "$assets/pixelart-web-${VERSION}.zip" .)
+          cp "$SRC/THIRD_PARTY_NOTICES.txt" "$assets/THIRD_PARTY_NOTICES.txt"
+          gh release upload "$TAG" "$assets/pixelart-web-${VERSION}.zip" "$assets/THIRD_PARTY_NOTICES.txt" --clobber
 
       # The body comes from the changelog
       - uses: ./.github/actions/release-notes

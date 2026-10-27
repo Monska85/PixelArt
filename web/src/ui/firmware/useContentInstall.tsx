@@ -80,7 +80,7 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
     if (!jobLost(phase, state) || !job.current) return;
     job.current.stop();
     job.current = null;
-    queueMicrotask(() => setPhase("failed"));
+    setPhase("failed");
   }, [phase, state]);
 
   const { install } = queue;

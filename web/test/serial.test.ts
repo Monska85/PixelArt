@@ -17,6 +17,8 @@ class FakePort implements SerialPortLike {
   openErrors: Error[] = [];
   /** Opens without streams, like a port that fails right after opening. */
   noStreams = false;
+  /** The next open() leaves a port whose readable has failed already, as when the device goes during the handshake. */
+  vanishOnOpen = false;
   /** Writes never complete, like a device that has gone. */
   writesHang = false;
   /** Cancelling the readable never completes, so the page's pipe from it never settles. */
@@ -56,6 +58,10 @@ class FakePort implements SerialPortLike {
         else this.written.push(line);
       },
     });
+    if (this.vanishOnOpen) {
+      this.vanishOnOpen = false;
+      this.vanish();
+    }
     if (this.board)
       this.board.onLine = (line) => {
         // A reply that comes after the page cancelled the stream is lost, as on a real port.
@@ -321,6 +327,20 @@ describe("the session with a serial port", () => {
     expect(await connecting).toBe(true);
     expect(session.getSnapshot()).toMatchObject({ state: "connected", via: "board", message: null });
     expect(log.filter((entry) => entry === "port open")).toHaveLength(3);
+  });
+
+  it("tries again when the link drops during the handshake, and connects", async () => {
+    vi.useFakeTimers();
+    const log: string[] = [];
+    const port = new FakePort("port", log, new FakeBoard());
+    port.vanishOnOpen = true;
+    const connecting = session.connectPort(port);
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_EVERY_MS - 1);
+    expect(session.getSnapshot()).toMatchObject({ state: "connecting", message: null });
+    await vi.advanceTimersByTimeAsync(PORT_RETRY_EVERY_MS);
+    expect(await connecting).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({ state: "connected", message: null });
+    expect(log.filter((entry) => entry === "port open")).toHaveLength(2);
   });
 
   it("gives up after 20 seconds with the reason, stays connecting meanwhile, and leaves the port closed", async () => {
