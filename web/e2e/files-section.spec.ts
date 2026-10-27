@@ -3,9 +3,20 @@
 import { readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
-import { animations, connectSimulator, expect, file, pick, showFiles, stored, test } from "./fixtures";
+import {
+  animations,
+  connectSimulator,
+  expect,
+  file,
+  filesToggle as toggle,
+  pick,
+  showBoardPlaylists,
+  showFiles,
+  stored,
+  test,
+} from "./fixtures";
+import { watchBoard } from "./board";
 
-const toggle = (page: Page) => page.getByRole("button", { name: /^(Show all files|Hide files)$/ });
 const card = (page: Page) => page.getByTestId("files-card");
 const count = (dir: string, kind: string): number => readdirSync(join(dir, kind)).length;
 
@@ -16,8 +27,10 @@ test("the card is first, closed by default, and says what the board holds", asyn
   await connectSimulator(page, simulator);
   await expect(card(page)).toBeVisible();
   await expect(page.getByRole("region", { name: "Files" })).toBeVisible();
-  const cards = page.locator("main section[aria-labelledby]");
-  await expect(cards.first()).toHaveAttribute("data-testid", "files-card");
+  const cards = page.getByRole("main").getByRole("region");
+  await expect(cards.first()).toHaveAccessibleName("Files");
+  await expect(cards.nth(1)).toHaveAccessibleName("Storage");
+  await expect(cards.nth(2)).toHaveAccessibleName("Settings");
 
   const animationCount = count(simulator.dataDir, "animations");
   const playlistCount = count(simulator.dataDir, "playlists");
@@ -131,13 +144,39 @@ test("a playlist that misses animations is flagged while the section is closed, 
   await expect(page.getByTestId("files-missing")).toBeVisible();
 });
 
-test("the summary names the active playlist by its ID when it has no name, and says when it is not stored", async ({
-  page,
-  simulator,
-}) => {
+test("the summary says when the active playlist is not stored", async ({ page, simulator }) => {
   rmSync(stored(simulator, "playlists", "default"));
   await connectSimulator(page, simulator);
   await expect(page.getByTestId("files-summary")).toContainText("active playlist: default (not stored)");
+});
+
+// Edit sits in the list, so only an editor that does not need the list (New playlist) can open the section while it
+// is hidden; a confirmed switch needs Edit and so cannot start from a hidden section.
+test("Edit on a playlist keeps the section open", async ({ page, simulator }) => {
+  await connectSimulator(page, simulator);
+  await showBoardPlaylists(page);
+  await page.getByRole("button", { name: "Edit default" }).click();
+  await expect(page.getByRole("heading", { name: "Edit playlist default" })).toBeVisible();
+  await expect(toggle(page)).toHaveAttribute("aria-expanded", "true");
+});
+
+test("a preview opens the section again when it was hidden while the file downloaded, without storing it", async ({
+  page,
+  simulator,
+}) => {
+  const watch = await watchBoard(page, simulator);
+  await connectSimulator(page, simulator);
   await showFiles(page);
-  await expect(toggle(page)).toHaveText("Hide files");
+  watch.hold("get");
+  await animations(page).getByRole("button", { name: "Preview snowflake" }).click();
+  await toggle(page).click();
+  await expect(toggle(page)).toHaveAttribute("aria-expanded", "false");
+  watch.release();
+
+  await expect(page.getByRole("dialog", { name: "Preview of snowflake" })).toBeVisible();
+  await expect(toggle(page)).toHaveAttribute("aria-expanded", "true");
+  // The user hid the section last: that stays their stored choice.
+  await page.reload();
+  await connectSimulator(page, simulator);
+  await expect(toggle(page)).toHaveAttribute("aria-expanded", "false");
 });

@@ -93,6 +93,8 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
     changed();
   };
 
+  // Four things open the section for the moment's need and never store it: a playlist editor (Edit, New playlist, a
+  // confirmed switch), a preview, an upload that stored files, and Show playlists. Only the toggle stores the choice.
   const files = useFilesSection();
   const { reveal } = files;
   const upload = useBoardUpload({
@@ -133,7 +135,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
     },
   };
 
-  // Whatever opens a playlist editor, from Edit, New playlist or a confirmed switch, shows the list next to it.
+  // The editor opening reveals the list next to it.
   const editingSeq = editor.editing?.seq;
   useEffect(() => {
     if (editingSeq !== undefined) reveal();

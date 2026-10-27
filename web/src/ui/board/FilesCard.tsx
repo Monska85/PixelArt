@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { useId, useRef, type ComponentProps, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import type { Settings } from "../../protocol";
 import { Alert, AlertDescription } from "../components/alert";
 import { Button } from "../components/button";
@@ -31,7 +32,12 @@ interface Props {
 }
 
 /** The one line the card always shows: the counts and the active playlist. */
-function summarize({ animations, playlists, settings, playlistNames }: Props): string {
+export function summarize({
+  animations,
+  playlists,
+  settings,
+  playlistNames,
+}: Pick<Props, "animations" | "playlists" | "settings" | "playlistNames">): string {
   if (animations.status === "unknown" || playlists.status === "unknown")
     return "Could not read the files from the board.";
   const a = entriesOf(animations);
@@ -53,11 +59,6 @@ export function FilesCard(props: Props) {
   const { missing, actions, open, onToggle, onShowPlaylists, children } = props;
   const region = useId();
   const files = useRef<HTMLDivElement>(null);
-  const [focusTabs, setFocusTabs] = useState(0);
-  // The tab list is shown and the Playlists tab selected only after the render that follows the click.
-  useEffect(() => {
-    if (focusTabs > 0) files.current?.querySelector<HTMLElement>('[role="tab"][data-state="active"]')?.focus();
-  }, [focusTabs]);
   const incomplete = [...missing.keys()];
   return (
     <Card aria-labelledby="files-title" data-testid="files-card">
@@ -80,8 +81,9 @@ export function FilesCard(props: Props) {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  onShowPlaylists();
-                  setFocusTabs((n) => n + 1);
+                  // The tab list is shown and the Playlists tab selected only after the render: commit it first.
+                  flushSync(() => onShowPlaylists());
+                  files.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
                 }}
               >
                 Show playlists

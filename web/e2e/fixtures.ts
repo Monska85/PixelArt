@@ -154,9 +154,11 @@ export const pick = (page: Page, ...files: string[] | Array<ReturnType<typeof up
 
 export const summary = (page: Page) => page.getByRole("status").filter({ hasText: /(Upload|Install) summary/ });
 export const animations = (page: Page) => page.getByRole("table", { name: "Animations on the board" });
+/** The button that opens and closes the Board view's Files section. */
+export const filesToggle = (page: Page) => page.getByRole("button", { name: /^(Show all files|Hide files)$/ });
 /** Opens the Board view's Files section, closed by default, when it is closed: the lists are hidden until then. */
 export async function showFiles(page: Page): Promise<void> {
-  const toggle = page.getByRole("button", { name: /^(Show all files|Hide files)$/ });
+  const toggle = filesToggle(page);
   if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
 }
