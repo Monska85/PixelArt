@@ -6,6 +6,8 @@ Status: accepted
 
 Note: decision 8 is replaced in part by [ADR 0004](0004-web-app.md), decision 5. The repository now has two release packages, the firmware and the web app. The firmware release itself is unchanged.
 
+Note: decision 8 is replaced in part by [ADR 0006](0006-content-release.md) too. The animations and playlists are released as their own package, `content`, and the firmware release no longer publishes them.
+
 Note: superseded in part by [ADR 0005](0005-wifi-and-updates.md). Decision 5 is carried out by its decision 10, the protocol over WiFi on a WebSocket served by the board. The last consequence, that authentication must come before the protocol runs over WiFi, is replaced by its decisions 10 and 11: a network login with a token, off by default.
 
 ## Context
