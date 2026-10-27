@@ -141,6 +141,39 @@ test("a long active playlist name wraps inside the card on a phone", async ({ pa
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
 });
 
+test("the missing-animations warning names every incomplete playlist and wraps a long ID on a phone", async ({
+  page,
+  simulator,
+}) => {
+  // The longest ID the ID rule allows, in a wide letter, with no place to break.
+  const id = "w".repeat(32);
+  await page.setViewportSize({ width: 375, height: 800 });
+  await connectSimulator(page, simulator);
+  await pick(page, upload(`${id}.yaml`, playlistYaml("gone")), upload("default.yaml", playlistYaml("ball", "lost")));
+  // The queue asks about the animations found nowhere and about the stored default that differs.
+  const answers: Record<string, string> = {
+    "Upload the playlist without all its animations?": "Upload the playlist anyway",
+    "Replace the stored file?": "Replace them",
+  };
+  for (let asked = 0; asked < 2; asked++) {
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    const title = (await dialog.getByRole("heading").first().textContent()) ?? "";
+    await dialog.getByRole("button", { name: answers[title.trim()] }).click();
+    await expect(page.getByRole("dialog", { name: title.trim() })).toBeHidden();
+  }
+  const warning = page.getByTestId("files-missing");
+  await expect(warning).toContainText(`2 playlists are missing animations: default, ${id}.`);
+  // The text stays inside the warning: it does not push past the warning's right edge.
+  const inside = await warning.evaluate((alert) => {
+    const text = alert.querySelector("p") as HTMLElement;
+    const fits = text.scrollWidth <= text.clientWidth;
+    return fits && text.getBoundingClientRect().right <= alert.getBoundingClientRect().right;
+  });
+  expect(inside).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+});
+
 test("an upload the board refuses does not open the section", async ({ page }) => {
   const board = await scriptedBoard(page);
   board.refuse.add("b");
