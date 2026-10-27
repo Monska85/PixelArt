@@ -17,17 +17,17 @@ const toJson = (source: string): string => writeJson(read(source));
 
 describe("repository files", () => {
   for (const kind of ["animations", "playlists"]) {
-    const sources = readdirSync(`${REPO}${kind}`).filter((n) => n.endsWith(".yaml") || n.endsWith(".yml"));
+    const sources = readdirSync(`${REPO}content/${kind}`).filter((n) => n.endsWith(".yaml") || n.endsWith(".yml"));
     it(`${kind} has sources`, () => expect(sources.length).toBeGreaterThan(0));
     it.each(sources)(`${kind}/%s converts to the bytes of make data`, (name) => {
       const id = name.replace(/\.ya?ml$/, "");
       const board = `${REPO}data/${kind}/${id}.json`;
       expect(existsSync(board), `${board} is missing: run make data`).toBe(true);
-      const converted = jsonBytes(read(readFileSync(`${REPO}${kind}/${name}`, "utf8")));
+      const converted = jsonBytes(read(readFileSync(`${REPO}content/${kind}/${name}`, "utf8")));
       expect(Buffer.from(converted).equals(readFileSync(board))).toBe(true);
     });
     it.each(sources)(`${kind}/%s survives JSON to YAML and back`, (name) => {
-      const value = read(readFileSync(`${REPO}${kind}/${name}`, "utf8"));
+      const value = read(readFileSync(`${REPO}content/${kind}/${name}`, "utf8"));
       expect(toJson(writeYaml(value))).toBe(writeJson(value));
     });
   }
@@ -181,7 +181,7 @@ describe("JSON to YAML", () => {
     expect(toJson(writeYaml(value))).toBe(writeJson(value));
   });
   it("round-trips a playlist through the engine", () => {
-    const source = readFileSync(`${REPO}playlists/default.yaml`, "utf8");
+    const source = readFileSync(`${REPO}content/playlists/default.yaml`, "utf8");
     const again = jsonBytes(read(writeYaml(read(source))));
     expect(loadPlaylist(again).items?.length).toBeGreaterThan(0);
   });

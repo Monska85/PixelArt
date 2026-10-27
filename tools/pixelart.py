@@ -1091,7 +1091,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     b = sub.add_parser("build", help="convert sources to the board's JSON files")
-    b.add_argument("--source", type=Path, default=ROOT, help="folder with animations/ and playlists/ (default: repository)")
+    b.add_argument("--source", type=Path, default=ROOT / "content", help="folder with animations/ and playlists/ (default: content/)")
     b.add_argument("--out", type=Path, default=ROOT / "data", help="output folder (default: data/)")
     b.add_argument("--schema", action="store_true", help="also check every file against the JSON Schemas")
     add_board_parser(sub)

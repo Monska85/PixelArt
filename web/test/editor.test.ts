@@ -555,7 +555,7 @@ describe("YAML round trip", () => {
     (id) => {
       let source: string;
       try {
-        source = readFileSync(`${REPO}animations/${id}.yaml`, "utf8");
+        source = readFileSync(`${REPO}content/animations/${id}.yaml`, "utf8");
       } catch {
         return;
       }
