@@ -118,6 +118,20 @@ class ScheduleValidationTest(unittest.TestCase):
             with self.subTest(name):
                 self.assertEqual(codes(pixelart.validate_schedule(schedule(entry(first, last)))), ["invalid_date"])
 
+    def test_a_part_beyond_64_bits_is_a_structure_error(self):
+        for value in (2**63, 2**64, -2**63 - 1):
+            with self.subTest(value=value):
+                document = schedule(entry({"year": value}, {"year": 2026}))
+                self.assertEqual(codes(pixelart.validate_schedule(document)), ["structure"])
+        for value in (2**63 - 1, -2**63):
+            with self.subTest(value=value):
+                document = schedule(entry({"year": value}, {"year": 2026}))
+                self.assertEqual(codes(pixelart.validate_schedule(document)), ["invalid_date"])
+
+    def test_a_part_out_of_range_still_compares_the_part_sets_of_the_ends(self):
+        document = schedule(entry({"month": 13, "day": 1}, {"month": 2}))
+        self.assertEqual(codes(pixelart.validate_schedule(document)), ["invalid_date", "structure"])
+
     def test_february_29_and_ranges_that_cross_their_cycle_are_valid(self):
         for first, last in [({"month": 2, "day": 29}, {"month": 2, "day": 29}),
                             ({"year": 2028, "month": 2, "day": 29}, {"year": 2028, "month": 2, "day": 29}),

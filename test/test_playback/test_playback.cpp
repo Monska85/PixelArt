@@ -386,6 +386,23 @@ static void test_a_missing_playlist_of_the_list_is_skipped()
   TEST_ASSERT_EQUAL_STRING("c", shown().c_str());
 }
 
+static void test_a_playlist_skipped_at_every_pass_is_remembered_once()
+{
+  TempData data("playback");
+  write_abc(data, 1);
+  data.write("playlists/broken.json", playlist_of({"gone"}));
+  setup();
+  sim::serial_input(request(1, R"("cmd":"settings_set","play":"playlists","playlists":["p_a","broken","p_c"])") +
+                    request(2, R"("cmd":"delete","kind":"playlist","id":"p_a")"));
+  play_from_storage();
+  for (int pass = 0; pass < 50; pass++)
+    play_from_storage();
+  sim::reset();
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("c", shown().c_str());
+  TEST_ASSERT_EQUAL(2, skipped_playlist_count()); // p_a, missing, and broken, which plays nothing
+}
+
 static void test_automatic_plays_the_winning_entry_of_the_date()
 {
   TempData data("playback");
@@ -514,6 +531,7 @@ int main(int, char **)
   RUN_TEST(test_a_busy_heap_keeps_the_last_frame_and_retries_after_200_ms);
   RUN_TEST(test_my_playlists_play_each_in_full_then_from_the_first);
   RUN_TEST(test_a_missing_playlist_of_the_list_is_skipped);
+  RUN_TEST(test_a_playlist_skipped_at_every_pass_is_remembered_once);
   RUN_TEST(test_automatic_plays_the_winning_entry_of_the_date);
   RUN_TEST(test_local_midnight_switches_when_the_current_animation_ends);
   RUN_TEST(test_the_same_list_keeps_its_position);

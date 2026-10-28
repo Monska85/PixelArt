@@ -23,9 +23,18 @@ import {
   supportsSchedules,
   uploadFile,
 } from "../src/protocol";
-import type { PlayStatus } from "../src/protocol";
+import type { PlayStatus, SettingsChanges } from "../src/protocol";
 import { parseManifest } from "../src/release/manifest";
-import { describeEnd, describePlay, listToSend, ntpServerProblem, playlistList } from "../src/ui/board/play";
+import {
+  addReason,
+  describeEnd,
+  describePlay,
+  editReason,
+  listToSend,
+  ntpServerProblem,
+  playlistList,
+  removeReason,
+} from "../src/ui/board/play";
 import { localDateIn, zoneOfSetting } from "../src/ui/board/timezones";
 import { detectKind, validateFile } from "../src/ui/files";
 import { summaryReport } from "../src/ui/queue/summary";
@@ -110,7 +119,7 @@ describe("a board that knows schedules", () => {
     expect(await getSettings(client)).toEqual({ brightness: 1, playlist: "x" });
   });
 
-  it("derives play and playlists from playlist on a board that never stored them", async () => {
+  it("reads play and playlists as the fake board derives them on a board that never stored them", async () => {
     const { board, client } = await connected(true);
     board.settings.playlist = "halloween";
     expect(await getSettings(client)).toMatchObject({
@@ -120,31 +129,22 @@ describe("a board that knows schedules", () => {
     });
   });
 
-  it("sends only what changes, and the board keeps playlist in step with play", async () => {
+  it("sends only the settings it is given and reads the board's reply", async () => {
     const { board, client } = await connected(true);
-    const settings = await setSettings(client, { playlists: ["halloween", "christmas"] });
-    expect(board.requests.at(-1)).toEqual({
-      seq: board.requests.at(-1)?.seq,
-      cmd: "settings_set",
-      playlists: ["halloween", "christmas"],
-    });
-    // playlists alone keeps Automatic.
-    expect(settings).toMatchObject({ play: "auto", playlists: ["halloween", "christmas"], playlist: "default" });
-    expect(await setSettings(client, { play: "playlists" })).toMatchObject({
-      play: "playlists",
-      playlist: "halloween",
-    });
-    expect(await setSettings(client, { play: "auto" })).toMatchObject({
-      playlists: ["halloween", "christmas"],
-      playlist: "default",
-    });
-    expect(await setSettings(client, { time_sync_hours: 24, ntp_server: "time.example.org" })).toMatchObject({
-      time_sync_hours: 24,
-      ntp_server: "time.example.org",
-    });
+    const changes: SettingsChanges[] = [
+      { playlists: ["halloween", "christmas"] },
+      { play: "playlists" },
+      { play: "auto" },
+      { time_sync_hours: 24, ntp_server: "time.example.org" },
+    ];
+    for (const change of changes) {
+      const settings = await setSettings(client, change);
+      expect(board.requests.at(-1)).toEqual({ seq: board.requests.at(-1)?.seq, cmd: "settings_set", ...change });
+      expect(settings).toMatchObject(change);
+    }
   });
 
-  it("maps an older client's playlist: default is Automatic, another is My playlists with that one", async () => {
+  it("checks that the fake board maps an older client's playlist as the firmware does", async () => {
     const { client } = await connected(true);
     await setSettings(client, { play: "auto", playlists: ["christmas"] });
     expect(await setSettings(client, { playlist: "halloween" })).toMatchObject({
@@ -154,7 +154,7 @@ describe("a board that knows schedules", () => {
     expect(await setSettings(client, { playlist: "default" })).toMatchObject({ play: "auto", playlists: ["default"] });
   });
 
-  it("refuses a playlist that disagrees with play, a missing playlist and a bad time server", async () => {
+  it("surfaces the board's error codes for a disagreeing playlist, a missing playlist and a bad time server", async () => {
     const { client } = await connected(true);
     await expect(setSettings(client, { play: "auto", playlist: "halloween" })).rejects.toMatchObject({
       code: "bad_request",
@@ -371,6 +371,27 @@ describe("the words of What to play and of the time settings", () => {
         new Set(Array.from({ length: 9 }, (_, i) => `p${i}`)),
       ),
     ).toBeNull();
+  });
+
+  it("say why My playlists cannot be reordered, or a playlist removed or added", () => {
+    const stored = new Set(["a", "b", "c"]);
+    const reading = "Reading the playlists on the board.";
+    expect(editReason(["a", "b"], null)).toBe(reading);
+    expect(editReason(["a", "ghost"], stored)).toBe("");
+    expect(editReason(["ghost"], stored)).toBe(
+      "Add a stored playlist first: the board takes only playlists it stores.",
+    );
+
+    expect(removeReason(["a"], "a", null)).toBe("The list keeps at least one playlist.");
+    expect(removeReason(["a", "b"], "a", null)).toBe(reading);
+    expect(removeReason(["a", "b"], "a", stored)).toBe("");
+    expect(removeReason(["a", "ghost"], "a", stored)).toBe("The list keeps at least one stored playlist.");
+
+    expect(addReason(["a"], null)).toBe(reading);
+    expect(addReason(["a"], stored)).toBe("");
+    expect(addReason(["a", "b", "c"], stored)).toBe("Every stored playlist is in the list.");
+    const eight = Array.from({ length: 8 }, (_, i) => `p${i}`);
+    expect(addReason(eight, new Set([...eight, "z"]))).toBe("The list holds at most 8 playlists.");
   });
 
   it("find the zone of a board's time zone, preferring the browser's", () => {

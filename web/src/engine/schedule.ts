@@ -195,8 +195,13 @@ export function loadSchedule(bytes: Uint8Array): ScheduleResult {
     }
     return ids;
   };
-  // An end with its parts, or null when it is refused. A part out of its values is reported and `range.valid` cleared.
-  const readEnd = (value: JsonValue | undefined, where: string, range: { valid: boolean }): ScheduleEnd | null => {
+  // An end with the parts the file names, or null when it is refused. A part out of its values is reported, left out
+  // of `end` and `range.valid` cleared.
+  const readEnd = (
+    value: JsonValue | undefined,
+    where: string,
+    range: { valid: boolean },
+  ): { end: ScheduleEnd; parts: number } | null => {
     if (!isObject(value)) {
       error("structure", where, "must be an object with year, month or day");
       return null;
@@ -238,7 +243,7 @@ export function loadSchedule(bytes: Uint8Array): ScheduleResult {
       error("structure", where, "a year and a day need a month");
       return null;
     }
-    return end;
+    return { end, parts };
   };
 
   for (const key of root.keys())
@@ -265,18 +270,17 @@ export function loadSchedule(bytes: Uint8Array): ScheduleResult {
         const entryName = readName(value.get("name"), `${where}.name`);
         const playlists = readPlaylists(value.get("playlists"), `${where}.playlists`);
         const range = { valid: true };
-        const from = readEnd(value.get("from"), `${where}.from`, range);
-        const to = readEnd(value.get("to"), `${where}.to`, range);
-        if (!from || !to) return;
-        const parts = partsOf(from);
-        // Parts out of their values are absent from the end, so the part sets compare what the file names.
-        const named = (end: JsonValue | undefined): number =>
-          isObject(end) ? PARTS.reduce((bits, [part, key]) => (end.has(key) ? bits | part : bits), 0) : 0;
-        if (named(value.get("from")) !== named(value.get("to"))) {
+        const fromEnd = readEnd(value.get("from"), `${where}.from`, range);
+        const toEnd = readEnd(value.get("to"), `${where}.to`, range);
+        if (!fromEnd || !toEnd) return;
+        if (fromEnd.parts !== toEnd.parts) {
           error("structure", where, "from and to must have the same parts");
           return;
         }
         if (!range.valid) return;
+        const { parts } = fromEnd;
+        const from = fromEnd.end;
+        const to = toEnd.end;
         for (const [end, side] of [
           [from, ".from"],
           [to, ".to"],

@@ -2119,7 +2119,7 @@ static void test_update_check_and_install_download_and_store_what_the_manifest_l
   TEST_ASSERT_TRUE(pixelart_test::read_file(board.data.root / "playlists/default.json") == PLAYLIST);
   TEST_ASSERT_EQUAL_STRING("{}", pixelart_test::read_file(board.data.root / "animations/unlisted.json").c_str());
   TEST_ASSERT_FALSE(storage::exists(updates::TEMP_FILE));
-  TEST_ASSERT_TRUE(playlist_reload_pending());
+  TEST_ASSERT_TRUE(choice_pending());
 
   // A second check finds the board in step with the server.
   TEST_ASSERT_EQUAL_STRING("", error_of("\"cmd\":\"update_check\"").c_str());

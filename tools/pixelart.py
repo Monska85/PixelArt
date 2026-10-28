@@ -119,6 +119,7 @@ SCHEDULE_MAX_NAME = 128
 SCHEDULE_YEARS = (2000, 2999)
 MAX_DIAGNOSTICS = 32
 PART_RANGES = {"year": SCHEDULE_YEARS, "month": (1, 12), "day": (1, 31)}
+INT64_MIN, INT64_MAX = -2**63, 2**63 - 1
 # The accepted part sets, from the one that wins to the one that loses (winner rules 1 and 2)
 PART_SETS = (("year", "month", "day"), ("month", "day"), ("year", "month"), ("day",), ("month",), ("year",))
 COMMON_MONTH_DAYS = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
@@ -233,11 +234,16 @@ def _part_set(end):
 
 
 def _check_end(diagnostics, end, where):
-    """The part set of an end with its integer parts in range, or None after an error."""
+    """(part set, whether every part is in range) of an end, or (None, False) after a structure error.
+
+    A part out of its range is an invalid_date error but keeps the part set, so the part sets of the two ends are
+    still compared, as the engine does.
+    """
     if not isinstance(end, dict):
         diagnostics.error("structure", where, "an end is an object with year, month and day")
-        return None
+        return None, False
     ok = True
+    in_range = True
     for key in end:
         if key not in PART_RANGES:
             diagnostics.error("structure", f"{where}.{key}", f"unknown field '{key}'")
@@ -245,20 +251,21 @@ def _check_end(diagnostics, end, where):
     parts = _part_set(end)
     if not parts:
         diagnostics.error("structure", where, "an end needs a year, a month or a day")
-        return None
+        return None, False
     if parts == ("year", "day"):
         diagnostics.error("structure", where, "an end with a year and a day needs a month")
         ok = False
     for part in parts:
         value = end[part]
-        if not isinstance(value, int) or isinstance(value, bool):
-            diagnostics.error("structure", f"{where}.{part}", f"{part} is an integer")
+        # An integer beyond the signed 64-bit range is not an integer for the format (schedule-v1.md#validation).
+        if not isinstance(value, int) or isinstance(value, bool) or not INT64_MIN <= value <= INT64_MAX:
+            diagnostics.error("structure", f"{where}.{part}", f"{part} is an integer of at most 64 bits")
             ok = False
         elif not PART_RANGES[part][0] <= value <= PART_RANGES[part][1]:
             low, high = PART_RANGES[part]
             diagnostics.error("invalid_date", f"{where}.{part}", f"{part} is {low} to {high}, not {value}")
-            ok = False
-    return parts if ok else None
+            in_range = False
+    return (parts, in_range) if ok else (None, False)
 
 
 def _check_dates(diagnostics, entry, parts, where):
@@ -322,12 +329,14 @@ def validate_schedule(document, size=None, playlists=None):
                 diagnostics.error("structure", f"{where}.{key}", f"{key} is required")
         if "playlists" in entry:
             _check_playlists(diagnostics, entry["playlists"], f"{where}.playlists", playlists)
-        ends = [_check_end(diagnostics, entry[side], f"{where}.{side}") if side in entry else None for side in ("from", "to")]
-        if ends[0] is not None and ends[1] is not None:
-            if ends[0] != ends[1]:
+        (from_parts, from_ok), (to_parts, to_ok) = (
+            _check_end(diagnostics, entry[side], f"{where}.{side}") if side in entry else (None, False)
+            for side in ("from", "to"))
+        if from_parts is not None and to_parts is not None:
+            if from_parts != to_parts:
                 diagnostics.error("structure", where, "from and to have different parts")
-            else:
-                _check_dates(diagnostics, entry, ends[0], where)
+            elif from_ok and to_ok:
+                _check_dates(diagnostics, entry, from_parts, where)
     return diagnostics
 
 
@@ -462,9 +471,10 @@ def _tie_in_year(ranked, masks):
 def find_schedule_tie(document):
     """The first date that ends in a tie (docs/format/schedule-v1.md#ties) as (date, first entry, second entry), or None.
 
-    The date is YYYY-MM-DD, or MM-DD of a leap or common year for a tie of the entries without a year. The document must have no errors. The check covers every day from the smallest to the largest year of the entries
-    with a year, with every entry, then one leap year and one common year with the entries without a year, which
-    depend only on the month lengths. One bit set per entry and year keeps 1,000 years of 64 entries fast.
+    The date is YYYY-MM-DD, or MM-DD of a leap or common year for a tie of the entries without a year. The document
+    must have no errors. The check covers every day from the smallest to the largest year of the entries with a
+    year, with every entry, then one leap year and one common year with the entries without a year, which depend
+    only on the month lengths. One bit set per entry and year keeps 1,000 years of 64 entries fast.
     """
     entries = document.get("entries", [])
     ranked = _ranked(entries)
@@ -474,8 +484,8 @@ def find_schedule_tie(document):
 
     def masks_for(year, leap):
         def mask(i):
-            dated = "year" in entries[i]["from"]
-            key = (i, year if dated else None, leap)
+            with_year = "year" in entries[i]["from"]
+            key = (i, year if with_year else None, leap)
             if key not in cache:
                 cache[key] = _year_mask(entries[i], year, leap)
             return cache[key]
@@ -484,12 +494,12 @@ def find_schedule_tie(document):
     checks = [(year, ranked, True) for year in range(min(years), max(years) + 1)] if years else []
     # Any leap and any common year: without a year, an entry matches the same days in all of them
     checks += [(2028, undated, False), (2027, undated, False)]
-    for year, subset, dated in checks:
+    for year, subset, with_year in checks:
         leap = is_leap(year)
         tie = _tie_in_year(subset, masks_for(year, leap))
         if tie is not None:
             day, first, second = tie
-            return _date_of(year if dated else None, leap, day), first, second
+            return _date_of(year if with_year else None, leap, day), first, second
     return None
 
 

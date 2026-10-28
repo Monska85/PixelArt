@@ -495,6 +495,26 @@ uint8_t brightness() { return values.brightness; }
 
 const std::string &playlist() { return values.playlist; }
 
+namespace
+{
+
+// Sets the play settings of `v` to what begin() reads back when the `play` key holds the value of `play_from`
+// and the `playlists` key the value of `playlists_from`, so a failed rollback of one of the two keys cannot
+// leave a pair the board would not read after a restart.
+void settle_play(Values &v, const Values &play_from, const Values &playlists_from)
+{
+  derive_play(v);
+  v.play_stored = play_from.play_stored;
+  if (play_from.play_stored && playlists_from.play_stored &&
+      reported_playlist(play_from.play, playlists_from.playlists) == v.playlist)
+  {
+    v.play = play_from.play;
+    v.playlists = playlists_from.playlists;
+  }
+}
+
+} // namespace
+
 Commit commit(const Values &next)
 {
   const Values previous = values;
@@ -512,14 +532,20 @@ Commit commit(const Values &next)
     // Put back what was saved, newest first. A value that cannot be put back stays as saved.
     Values after = previous;
     bool partly = false;
+    // Whose value the `play` and `playlists` keys hold once the rollback ends.
+    const Values *play_key = &previous;
+    const Values *playlists_key = &previous;
     for (auto it = saved.rbegin(); it != saved.rend(); ++it)
       if (!write(*it, previous))
       {
         take(*it, after, next);
         partly = true;
+        if (*it == Field::Play)
+          play_key = &next;
+        else if (*it == Field::Playlists)
+          playlists_key = &next;
       }
-    if (!after.play_stored)
-      derive_play(after); // what the board reads after a restart
+    settle_play(after, *play_key, *playlists_key); // what the board reads after a restart
     values = after;
     return partly ? Commit::PartlyChanged : Commit::Failed;
   }

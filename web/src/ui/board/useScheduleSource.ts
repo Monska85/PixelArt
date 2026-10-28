@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { loadSchedule, type Schedule } from "../../engine";
 import { downloadFile, type BoardClient, type Entry } from "../../protocol";
 import { downloadPublished } from "../../release/library";
+import type { Published } from "../../release/manifest";
 import type { ManifestState } from "../useManifest";
 
 /** The one schedule the board plays (docs/format/schedule-v1.md#files). */
@@ -21,6 +22,23 @@ export type ScheduleSource =
   | { status: "site"; schedule: Schedule };
 
 /**
+ * What to read: the stored file by its SHA-256, else the published one by its own. "none" when neither is there, null
+ * while the board's list or the release is not known yet.
+ */
+function sourceKey(
+  stored: Entry[] | null,
+  entry: Entry | null,
+  library: ManifestState,
+  published: Published | null | undefined,
+): string | null {
+  if (stored === null) return null;
+  if (entry) return `board:${entry.sha256 ?? ""}:${entry.size}`;
+  if (library.status === "loading") return null;
+  if (published) return `site:${published.sha256}`;
+  return "none";
+}
+
+/**
  * Reads the board's schedule `default` when its list has one, again when its SHA-256 changes; otherwise the published
  * one of the release the app is served with. A read that fails counts as no schedule to show.
  */
@@ -28,17 +46,7 @@ export function useScheduleSource(client: BoardClient, stored: Entry[] | null, l
   const entry = stored?.find((e) => e.id === PLAYED_SCHEDULE) ?? null;
   const published =
     library.status === "ready" ? library.manifest.schedules.find((e) => e.id === PLAYED_SCHEDULE) : null;
-  // What to read: the stored file by its SHA-256, else the published one by its own.
-  const key =
-    stored === null
-      ? null
-      : entry
-        ? `board:${entry.sha256 ?? ""}:${entry.size}`
-        : library.status === "loading"
-          ? null
-          : published
-            ? `site:${published.sha256}`
-            : "none";
+  const key = sourceKey(stored, entry, library, published);
   const [source, setSource] = useState<{ key: string | null; value: ScheduleSource }>({
     key: null,
     value: { status: "loading" },

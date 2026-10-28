@@ -22,14 +22,19 @@ constexpr uint32_t MS_PER_HOUR = 60UL * 60 * 1000;
 
 std::atomic<bool> synced{false};
 std::atomic<uint32_t> synced_at{0}; // millis() of the last answer
-bool running = false;
 std::string applied_timezone;
 // SNTP keeps the pointer it is given, so the name lives here.
 char server_name[65] = "";
 uint32_t interval_ms = 0;
-// The interval changed: SNTP is stopped and starts again when the next request is due, counted from the last answer.
-bool resume_pending = false;
-uint32_t resume_at = 0;
+
+enum class Sntp
+{
+  Off,      // stopped
+  Running,  // asks the server, at once and then every `interval_ms`
+  Resuming, // stopped after an interval change: starts again at `resume_at`
+};
+Sntp state = Sntp::Off;
+uint32_t resume_at = 0; // millis() when a Resuming SNTP starts again
 
 void on_sync(struct timeval *)
 {
@@ -39,9 +44,9 @@ void on_sync(struct timeval *)
 
 void stop()
 {
-  if (running)
+  if (state == Sntp::Running)
     esp_sntp_stop();
-  running = false;
+  state = Sntp::Off;
 }
 
 // Starts SNTP, which asks the server at once and then every `interval_ms`.
@@ -52,8 +57,36 @@ void start()
   esp_sntp_set_time_sync_notification_cb(on_sync);
   esp_sntp_set_sync_interval(interval_ms);
   esp_sntp_init();
-  running = true;
-  resume_pending = false;
+  state = Sntp::Running;
+}
+
+// A new server is asked at once.
+void apply_server(const std::string &server)
+{
+  if (server == server_name)
+    return;
+  stop();
+  snprintf(server_name, sizeof(server_name), "%s", server.c_str());
+}
+
+// SNTP waits out the interval it was started with before it asks again. So after an answer a new interval
+// stops it, and it starts again when the new interval ends after the last answer. While it still waits for
+// its first answer, the new interval applies after that answer.
+void apply_interval(uint32_t interval)
+{
+  if (interval == interval_ms)
+    return;
+  interval_ms = interval;
+  if (state != Sntp::Running)
+    return;
+  if (synced)
+  {
+    stop();
+    state = Sntp::Resuming;
+    resume_at = synced_at + interval_ms;
+  }
+  else
+    esp_sntp_set_sync_interval(interval_ms);
 }
 
 bool local_tm(struct tm &local)
@@ -73,7 +106,6 @@ void configure(bool needed, bool online, const std::string &timezone, const std:
   {
     stop();
     synced = false;
-    resume_pending = false;
     return;
   }
   if (timezone != applied_timezone)
@@ -82,29 +114,11 @@ void configure(bool needed, bool online, const std::string &timezone, const std:
     tzset();
     applied_timezone = timezone;
   }
-  const uint32_t interval = sync_hours * MS_PER_HOUR;
-  if (server != server_name)
-  {
-    stop(); // a new server is asked at once
-    resume_pending = false;
-    snprintf(server_name, sizeof(server_name), "%s", server.c_str());
-  }
-  if (interval != interval_ms)
-  {
-    interval_ms = interval;
-    if (running && synced)
-    {
-      // SNTP would wait out the old interval: it starts again when the new one ends after the last answer.
-      stop();
-      resume_pending = true;
-      resume_at = synced_at + interval_ms;
-    }
-    else if (running)
-      esp_sntp_set_sync_interval(interval_ms); // still asking: the interval applies after the first answer
-  }
-  if (running || !online)
+  apply_server(server);
+  apply_interval(sync_hours * MS_PER_HOUR);
+  if (state == Sntp::Running || !online)
     return;
-  if (resume_pending && (int32_t)(millis() - resume_at) < 0)
+  if (state == Sntp::Resuming && (int32_t)(millis() - resume_at) < 0)
     return;
   start();
 }

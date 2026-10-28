@@ -65,7 +65,7 @@ For a valid schedule, the expected file lists `fallback` and the entries in the 
 }
 ```
 
-A valid schedule case is also valid for the build tools: none of them has a tie. An invalid schedule case expects one of the codes of the [schedule validation](../docs/format/schedule-v1.md#validation): `format_unsupported`, `structure`, `limit_exceeded` or `invalid_date`.
+A valid schedule case is also valid for the build tools: none of them has a tie. An invalid schedule case expects one of the codes of the [schedule validation](../docs/format/schedule-v1.md#validation): `format_unsupported`, `structure`, `limit_exceeded` or `invalid_date`. A part beyond the signed 64-bit range is not an integer for the format: `year_2_pow_63`, `month_2_pow_64` and `day_below_int64` expect `structure`, and `year_int64_max`, the largest signed 64-bit integer, expects `invalid_date`.
 
 ## Strict JSON cases
 

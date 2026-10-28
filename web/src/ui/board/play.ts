@@ -92,3 +92,36 @@ export function listToSend(next: readonly string[], stored: ReadonlySet<string>)
   const kept = next.filter((id) => stored.has(id));
   return kept.length === 0 || kept.length > MAX_SCHEDULE_PLAYLISTS ? null : kept;
 }
+
+const READING_PLAYLISTS = "Reading the playlists on the board.";
+
+/**
+ * Why My playlists cannot be reordered, or "" when it can. `stored` is null while the board's playlists are not known.
+ * The board takes only stored playlists: with one it lacks in the list, a change leaves that one out.
+ */
+export function editReason(order: readonly string[], stored: ReadonlySet<string> | null): string {
+  if (stored === null) return READING_PLAYLISTS;
+  return listToSend(order, stored) === null
+    ? "Add a stored playlist first: the board takes only playlists it stores."
+    : "";
+}
+
+/** Why `id` cannot be removed from My playlists, or "" when it can. */
+export function removeReason(order: readonly string[], id: string, stored: ReadonlySet<string> | null): string {
+  if (order.length === 1) return "The list keeps at least one playlist.";
+  if (stored === null) return READING_PLAYLISTS;
+  return listToSend(
+    order.filter((other) => other !== id),
+    stored,
+  ) === null
+    ? "The list keeps at least one stored playlist."
+    : "";
+}
+
+/** Why no playlist can be added to My playlists, or "" when one can. */
+export function addReason(order: readonly string[], stored: ReadonlySet<string> | null): string {
+  if (stored === null) return READING_PLAYLISTS;
+  if (order.length >= MAX_SCHEDULE_PLAYLISTS) return `The list holds at most ${MAX_SCHEDULE_PLAYLISTS} playlists.`;
+  if ([...stored].every((id) => order.includes(id))) return "Every stored playlist is in the list.";
+  return "";
+}

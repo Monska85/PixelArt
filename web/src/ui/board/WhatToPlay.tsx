@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2, TriangleAlert } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { MAX_SCHEDULE_PLAYLISTS, nextScheduleChange, scheduleWinner, type PlayMode, type Schedule } from "../../engine";
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { nextScheduleChange, scheduleWinner, type PlayMode, type Schedule } from "../../engine";
 import type { BoardClient, Entry, PlayStatus, Settings, SettingsChanges } from "../../protocol";
 import { Field } from "../common/Field";
 import { Alert, AlertDescription } from "../components/alert";
@@ -14,8 +14,19 @@ import { Select } from "../components/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/table";
 import { ReasonTooltip } from "../components/tooltip";
 import { useManifest } from "../useManifest";
-import { describeEnd, describePlay, entryLabel, formatDate, listToSend, playlistList } from "./play";
+import {
+  addReason,
+  describeEnd,
+  describePlay,
+  editReason,
+  entryLabel,
+  formatDate,
+  listToSend,
+  playlistList,
+  removeReason,
+} from "./play";
 import { browserTimeZone, localDateIn, zoneOfSetting } from "./timezones";
+import { useFocusAfter } from "./useFocusAfter";
 import { useReorder } from "./useReorder";
 import { useScheduleSource } from "./useScheduleSource";
 
@@ -151,7 +162,12 @@ function Automatic({
     const list = todayEntry >= 0 ? onBoard.entries[todayEntry]!.playlists : onBoard.fallback;
     now = `${todayEntry >= 0 ? entryLabel(onBoard.entries[todayEntry], todayEntry) : "The fallback"} plays today: ${playlistList(list)}.`;
   }
-  const next = onBoard ? nextScheduleChange(onBoard, today) : null;
+  // The status polls render this often: the next change is worked out again only for a new schedule or day.
+  const { year, month, day } = today;
+  const next = useMemo(
+    () => (onBoard ? nextScheduleChange(onBoard, { year, month, day }) : null),
+    [onBoard, year, month, day],
+  );
 
   return (
     <div className="flex min-w-0 flex-col gap-2 text-sm sm:pl-7" data-testid="automatic">
@@ -277,10 +293,10 @@ function MyPlaylists({
   const [announcement, setAnnouncement] = useState("");
   const [adding, setAdding] = useState("");
   const listRef = useRef<HTMLOListElement>(null);
-  const buttons = useRef(new Map<string, HTMLButtonElement>());
   const order = draft ?? list;
   const stored = new Set(playlists?.keys() ?? []);
   const known = playlists !== null;
+  const storedIfKnown = known ? stored : null;
   const missing = known ? order.filter((id) => !stored.has(id)) : [];
   const unused = [...stored].filter((id) => !order.includes(id));
   const pick = unused.includes(adding) ? adding : (unused[0] ?? "");
@@ -305,65 +321,37 @@ function MyPlaylists({
 
   // A move goes to the board when it ends: at once for the Up and Down buttons, at the drop for a drag. A drag
   // cancelled back to its place sends nothing. The board's answer replaces the draft, or the old order comes back.
+  const sendDraft = useEffectEvent((next: string[]) => {
+    void apply(next, "Reordering your playlists").finally(() => setDraft(null));
+  });
   useEffect(() => {
     if (draft === null || reorder.moving !== null) return;
-    const next = draft;
-    void apply(next, "Reordering your playlists").finally(() => setDraft(null));
-    // `apply` is made again on every render and reads only the props of this one.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    sendDraft(draft);
   }, [draft, reorder.moving]);
 
-  // The buttons are disabled while the board answers, which takes their focus: the button a keyboard user expects
-  // gets it back once the answer is shown.
-  const focusAfter = useRef<string | null>(null);
-  useEffect(() => {
-    const key = focusAfter.current;
-    if (busy || draft !== null || key === null) return;
-    focusAfter.current = null;
-    requestAnimationFrame(() => buttons.current.get(key)?.focus());
-  }, [busy, draft, list]);
-  const button = (id: string, role: RowButton) => (element: HTMLButtonElement | null) => {
-    if (element) buttons.current.set(`${id}:${role}`, element);
-    else buttons.current.delete(`${id}:${role}`);
-  };
+  const focus = useFocusAfter(!busy && draft === null, list);
+  const button = (id: string, role: RowButton) => focus.ref(`${id}:${role}`);
   const moveWithButton = (id: string, index: number, by: -1 | 1): void => {
     reorder.moveBy(id, by);
-    // At the top or the bottom the button that moved the item is disabled: its other move button takes focus.
+    // The button that moved the item keeps the focus, unless the item reached the top or the bottom: that button is
+    // then disabled, and the other move button takes the focus.
+    const up = by === -1;
     const to = index + by;
-    const atEdge = to === 0 || to === order.length - 1;
-    focusAfter.current = `${id}:${(by === -1) !== atEdge ? "up" : "down"}`;
+    const reachedEdge = to === 0 || to === order.length - 1;
+    const role: RowButton = reachedEdge ? (up ? "down" : "up") : up ? "up" : "down";
+    focus.focusLater(`${id}:${role}`);
   };
   const remove = (id: string, index: number): void => {
     const rest = order.filter((other) => other !== id);
     setAnnouncement(`${id} removed.`);
     const after = rest[index] ?? rest[index - 1];
-    focusAfter.current = after ? `${after}:remove` : null;
+    focus.focusLater(after ? `${after}:remove` : null);
     void apply(rest, `Removing ${id} from your playlists`);
   };
 
-  // The board takes only stored playlists: with one it lacks in the list, a change leaves that one out.
-  const editReason = !known
-    ? "Reading the playlists on the board."
-    : listToSend(order, stored) === null
-      ? "Add a stored playlist first: the board takes only playlists it stores."
-      : "";
-  const removeReason = (id: string): string => {
-    if (order.length === 1) return "The list keeps at least one playlist.";
-    if (!known) return "Reading the playlists on the board.";
-    return listToSend(
-      order.filter((other) => other !== id),
-      stored,
-    ) === null
-      ? "The list keeps at least one stored playlist."
-      : "";
-  };
-  const addReason = !known
-    ? "Reading the playlists on the board."
-    : order.length >= MAX_SCHEDULE_PLAYLISTS
-      ? `The list holds at most ${MAX_SCHEDULE_PLAYLISTS} playlists.`
-      : unused.length === 0
-        ? "Every stored playlist is in the list."
-        : "";
+  const cannotEdit = editReason(order, storedIfKnown);
+  const cannotRemove = (id: string): string => removeReason(order, id, storedIfKnown);
+  const cannotAdd = addReason(order, storedIfKnown);
 
   return (
     <div className="flex min-w-0 flex-col gap-3 sm:pl-7" data-testid="my-playlists">
@@ -382,7 +370,7 @@ function MyPlaylists({
       >
         {order.map((id, index) => {
           const absent = known && !stored.has(id);
-          const reason = busy ? "" : editReason;
+          const reason = busy ? "" : cannotEdit;
           const label = `${id}, playlist ${index + 1}`;
           return (
             <li
@@ -437,10 +425,10 @@ function MyPlaylists({
                 />
                 <IconButton
                   label={`Remove ${label}`}
-                  tooltip={removeReason(id) || "Remove"}
+                  tooltip={cannotRemove(id) || "Remove"}
                   icon={Trash2}
                   className="text-destructive"
-                  disabled={busy || removeReason(id) !== ""}
+                  disabled={busy || cannotRemove(id) !== ""}
                   ref={button(id, "remove")}
                   onClick={() => remove(id, index)}
                 />
@@ -470,7 +458,7 @@ function MyPlaylists({
             <Select
               {...control}
               value={pick}
-              disabled={busy || addReason !== ""}
+              disabled={busy || cannotAdd !== ""}
               onChange={(e) => setAdding(e.target.value)}
             >
               {unused.length === 0 && <option value="">No other stored playlist</option>}
@@ -482,10 +470,10 @@ function MyPlaylists({
             </Select>
           )}
         </Field>
-        <ReasonTooltip reason={busy ? "" : addReason} focusable={!busy && addReason !== ""}>
+        <ReasonTooltip reason={busy ? "" : cannotAdd} focusable={!busy && cannotAdd !== ""}>
           <Button
             variant="outline"
-            disabled={busy || addReason !== "" || pick === ""}
+            disabled={busy || cannotAdd !== "" || pick === ""}
             onClick={() => {
               setAnnouncement(`${pick} added.`);
               void apply([...order, pick], `Adding ${pick} to your playlists`);

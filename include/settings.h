@@ -51,7 +51,9 @@ struct Values
   std::string play = PLAY_AUTO; // `auto` or `playlists`
   std::vector<std::string> playlists = {DEFAULT_PLAYLIST};
   // Whether `play` and `playlists` are stored. Until they are, both are derived from `playlist`
-  // (derive_play()), so an upgraded board plays as before without any write.
+  // (derive_play()), so an upgraded board plays as before without any write. `play` and `playlists` are
+  // stored together and always agree with `playlist` (reported_playlist()): a commit that cannot put one of
+  // their keys back sets the three to what begin() reads back after a restart.
   bool play_stored = false;
   std::string wifi_power = DEFAULT_WIFI_POWER;
   std::string update_mode = DEFAULT_UPDATE_MODE;

@@ -65,7 +65,7 @@ upload: data ## Flash the firmware and the content (animations and playlists) of
 upload-firmware: ## Flash only the firmware, keeping the animations and playlists on the board
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t upload
 
-upload-content: data ## Flash only the animations and playlists, keeping the firmware
+upload-content: data ## Flash only the animations, playlists and schedules, keeping the firmware
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t uploadfs
 
 monitor: ## Open the serial monitor

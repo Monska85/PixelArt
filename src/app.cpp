@@ -45,17 +45,34 @@ struct Choice
   pixelart::LocalDate date;
 };
 
-Choice newest;             // the latest choice, the one `status` reports
-Choice applied;            // the choice the player plays
-bool choose_again = true;  // a setting, a file or the time changed since `newest` was made
-bool restart_list = false; // a playlist or a schedule was stored or deleted: the list starts again
-bool in_pass = false;      // play_from_storage() runs: the end of an animation may change the list
-bool leave_list = false;   // the list changed: play_from_storage() returns after the current animation
-size_t position = 0;       // the playlist of `applied` the player is at
-int current = -1;          // the playlist of `applied` that plays, -1 before one starts
-bool pass_played = false;  // an animation of the list played in this pass
-// Playlists that played nothing since the last event, so the next choice falls back past them.
+Choice newest;            // the latest choice, the one `status` reports
+Choice applied;           // the choice the player plays
+bool choose_again = true; // a setting, a file or the time changed since `newest` was made
+bool in_pass = false;     // play_from_storage() runs: the end of an animation may change the list
+bool leave_list = false;  // the list changed: play_from_storage() returns after the current animation
+
+// Where the player is in `applied`. A new list, or a request to restart it, starts again from reset().
+struct Place
+{
+  bool restart_list = false; // a playlist or a schedule was stored or deleted: the list starts again
+  size_t index = 0;          // the playlist of `applied` the player is at, at most its size
+  int current = -1;          // the playlist of `applied` that plays, -1 before one starts
+  bool pass_played = false;  // an animation of the list played in this pass
+
+  void reset() { *this = Place(); }
+};
+Place place;
+
+// Playlists that played nothing since the last event, so the next choice falls back past them. Each ID is in
+// it once, so it holds at most the distinct playlists a choice can list. A new list keeps it: the fallback is
+// chosen past these playlists.
 std::vector<std::string> skipped;
+
+void skip(const std::string &id)
+{
+  if (std::find(skipped.begin(), skipped.end(), id) == skipped.end())
+    skipped.push_back(id);
+}
 
 // Deadline of the frame being waited for. Each frame's deadline follows the
 // previous one, so a command that delays one frame does not shift the frames
@@ -388,7 +405,7 @@ bool list_changed()
     choose_again = true;
   if (choose_again && !make_choice())
     return false; // an update holds the memory: tried again when the next animation ends
-  return restart_list || !same_list(newest, applied);
+  return place.restart_list || !same_list(newest, applied);
 }
 
 // Plays every valid animation in alphabetical order of ID, or shows the "no animations" image.
@@ -456,20 +473,22 @@ bool play_stored_animation(const std::string &id, uint16_t times)
   return true;
 }
 
-void request_playlist_reload()
+void request_choice_and_restart()
 {
   choose_again = true;
-  restart_list = true;
+  place.restart_list = true;
   skipped.clear();
 }
 
-void request_play_update()
+void request_choice()
 {
   choose_again = true;
   skipped.clear();
 }
 
-bool playlist_reload_pending() { return choose_again || restart_list || (applied.made && !same_list(newest, applied)); }
+bool choice_pending() { return choose_again || place.restart_list || (applied.made && !same_list(newest, applied)); }
+
+size_t skipped_playlist_count() { return skipped.size(); }
 
 PlayStatus play_status()
 {
@@ -487,8 +506,9 @@ PlayStatus play_status()
   status.playlists = newest.play.playlists;
   // The playlist that plays, or the one that starts when the current animation ends.
   int playing = newest.play.playing;
-  if (applied.made && !restart_list && same_list(newest, applied) && applied.play.playing >= 0 && current >= 0)
-    playing = current;
+  if (applied.made && !place.restart_list && same_list(newest, applied) && applied.play.playing >= 0 &&
+      place.current >= 0)
+    playing = place.current;
   if (playing >= 0)
     status.playing = newest.play.playlists[playing];
   return status;
@@ -499,14 +519,48 @@ void begin_player()
   newest = Choice();
   applied = Choice();
   choose_again = true;
-  restart_list = false;
   in_pass = false;
   leave_list = false;
-  position = 0;
-  current = -1;
-  pass_played = false;
+  place.reset();
   skipped.clear();
 }
+
+namespace
+{
+
+enum class PlaylistOutcome
+{
+  Played,  // an animation of it played
+  Skipped, // it is missing, invalid, or nothing of it plays now
+  Busy,    // an update holds the memory: it is read again at the next pass
+  Left,    // the list changed while it played
+};
+
+// Plays the playlist `id`, at `place.index` of `applied`, in full.
+PlaylistOutcome play_playlist(const std::string &id)
+{
+  pixelart::Playlist playlist;
+  std::vector<pixelart::Diagnostic> diagnostics;
+  if (!load_stored_playlist(id, playlist, diagnostics))
+  {
+    if (is_busy(diagnostics))
+      return PlaylistOutcome::Busy;
+    if (diagnostics.empty() || diagnostics.front().code != "missing_file")
+      report_once(playlist_file(id), diagnostics); // no playlist at all is normal
+    return PlaylistOutcome::Skipped;
+  }
+  place.current = (int)place.index;
+  bool played = false;
+  for (const pixelart::PlaylistItem &item : playlist.items())
+  {
+    played = play_stored_animation(item.animation, item.repeat) || played;
+    if (leave_list)
+      return PlaylistOutcome::Left;
+  }
+  return played ? PlaylistOutcome::Played : PlaylistOutcome::Skipped;
+}
+
+} // namespace
 
 void play_from_storage()
 {
@@ -528,55 +582,38 @@ void play_from_storage()
       wait(BUSY_RETRY_MS); // the next pass reads the files again
       return;
     }
-    if (!applied.made || restart_list || !same_list(newest, applied))
-    {
-      position = 0;
-      current = -1;
-      pass_played = false;
-      restart_list = false;
-    }
+    if (!applied.made || place.restart_list || !same_list(newest, applied))
+      place.reset();
     applied = newest; // the same list keeps its position
     if (applied.play.playing < 0)
     {
-      current = -1;
+      place.current = -1;
       play_every_animation();
       return;
     }
 
-    for (; position < applied.play.playlists.size(); position++)
+    for (; place.index < applied.play.playlists.size(); place.index++)
     {
-      const std::string id = applied.play.playlists[position];
-      pixelart::Playlist playlist;
-      std::vector<pixelart::Diagnostic> diagnostics;
-      if (!load_stored_playlist(id, playlist, diagnostics))
+      const std::string id = applied.play.playlists[place.index];
+      switch (play_playlist(id))
       {
-        if (is_busy(diagnostics))
-        {
-          restart_schedule();
-          wait(BUSY_RETRY_MS); // the next pass reads the playlist again
-          return;
-        }
-        if (diagnostics.empty() || diagnostics.front().code != "missing_file")
-          report_once(playlist_file(id), diagnostics); // no playlist at all is normal
-        skipped.push_back(id);
-        continue;
+      case PlaylistOutcome::Played:
+        place.pass_played = true;
+        break;
+      case PlaylistOutcome::Skipped:
+        skip(id); // skipped until the next event
+        break;
+      case PlaylistOutcome::Busy:
+        restart_schedule();
+        wait(BUSY_RETRY_MS); // the next pass reads the playlist again
+        return;
+      case PlaylistOutcome::Left:
+        return;
       }
-      current = (int)position;
-      bool played = false;
-      for (const pixelart::PlaylistItem &item : playlist.items())
-      {
-        played = play_stored_animation(item.animation, item.repeat) || played;
-        if (leave_list)
-          return;
-      }
-      if (played)
-        pass_played = true;
-      else
-        skipped.push_back(id); // nothing of it plays now: skipped until the next event
     }
-    position = 0;
-    const bool any = pass_played;
-    pass_played = false;
+    place.index = 0;
+    const bool any = place.pass_played;
+    place.pass_played = false;
     if (any)
       return;
     choose_again = true; // nothing of the list played: the board falls back past it, in this pass

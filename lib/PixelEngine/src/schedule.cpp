@@ -196,20 +196,14 @@ bool Schedule::load(const char *json, size_t length, std::vector<Diagnostic> &di
         continue;
       parts |= part;
       const std::string at = where + "." + part_name(part);
-      if (!v.is<long long>() && !v.is<unsigned long long>())
+      if (!v.is<long long>())
       {
-        error("structure", at, "must be an integer");
+        error("structure", at, "must be an integer of at most 64 bits");
         structure_ok = false;
         continue;
       }
       const long long low = part == PART_YEAR ? MIN_SCHEDULE_YEAR : 1;
       const long long high = part == PART_YEAR ? MAX_SCHEDULE_YEAR : part == PART_MONTH ? 12 : 31;
-      if (v.is<unsigned long long>() && !v.is<long long>())
-      {
-        error("invalid_date", at, "must be from " + std::to_string(low) + " to " + std::to_string(high));
-        valid = false;
-        continue;
-      }
       const long long number = v.as<long long>();
       if (number < low || number > high)
       {

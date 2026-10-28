@@ -760,17 +760,17 @@ static void test_same_active_playlist_does_not_restart_playback()
   setup();
   Replies replies;
   play_from_storage(); // clears any earlier reload request
-  TEST_ASSERT_FALSE(playlist_reload_pending());
+  TEST_ASSERT_FALSE(choice_pending());
 
   replies.send(request(1, R"("cmd":"settings_set","playlist":"christmas")"));
   replies.pop();
-  TEST_ASSERT_TRUE(playlist_reload_pending());
+  TEST_ASSERT_TRUE(choice_pending());
 
   play_from_storage();
   replies.send(request(2, R"("cmd":"settings_set","playlist":"christmas")"));
   std::string json = reply_json(replies.pop(), "settings_set");
   TEST_ASSERT_TRUE_MESSAGE(json.find("\"ok\":true") != std::string::npos, json.c_str());
-  TEST_ASSERT_FALSE(playlist_reload_pending());
+  TEST_ASSERT_FALSE(choice_pending());
 }
 
 static void test_settings_set_is_all_or_nothing()
@@ -790,7 +790,7 @@ static void test_settings_set_is_all_or_nothing()
   TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\":\"storage_error\"") != std::string::npos, json.c_str());
   TEST_ASSERT_EQUAL(settings::DEFAULT_BRIGHTNESS, settings::brightness());
   TEST_ASSERT_EQUAL_STRING(settings::DEFAULT_PLAYLIST, settings::playlist().c_str());
-  TEST_ASSERT_FALSE(playlist_reload_pending());
+  TEST_ASSERT_FALSE(choice_pending());
 }
 
 static void test_settings_set_says_so_when_the_playlist_cannot_be_put_back()
@@ -811,7 +811,7 @@ static void test_settings_set_says_so_when_the_playlist_cannot_be_put_back()
   TEST_ASSERT_TRUE_MESSAGE(json.find("partly changed") != std::string::npos, json.c_str());
   TEST_ASSERT_EQUAL(settings::DEFAULT_BRIGHTNESS, settings::brightness());
   TEST_ASSERT_EQUAL_STRING("christmas", settings::playlist().c_str());
-  TEST_ASSERT_TRUE(playlist_reload_pending()); // playback follows the playlist that stayed set
+  TEST_ASSERT_TRUE(choice_pending()); // playback follows the playlist that stayed set
 }
 
 static void test_delete_all_keeps_the_settings_when_they_cannot_be_reset()
@@ -905,7 +905,7 @@ static void test_delete_all_says_so_when_the_settings_are_partly_reset()
   TEST_ASSERT_TRUE_MESSAGE(json.find("partly changed") != std::string::npos, json.c_str());
   TEST_ASSERT_EQUAL(7, settings::brightness());
   TEST_ASSERT_EQUAL_STRING(settings::DEFAULT_PLAYLIST, settings::playlist().c_str());
-  TEST_ASSERT_TRUE(playlist_reload_pending());
+  TEST_ASSERT_TRUE(choice_pending());
 }
 
 static void test_info_reports_the_memory_probe()

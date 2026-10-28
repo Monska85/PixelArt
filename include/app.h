@@ -52,16 +52,22 @@ void begin_player();
 // early, after the current animation, when the list changed meanwhile.
 void play_from_storage();
 
+// Both make the player choose its list again when the current animation ends; only the first one also starts
+// the list from its first playlist when the new list is the same.
+
 // A playlist or a schedule was stored or deleted: the player chooses its list again and starts it from its
 // first playlist when the current animation ends.
-void request_playlist_reload();
+void request_choice_and_restart();
 
 // The play settings or the time zone changed: the player chooses its list again when the current animation
 // ends, and keeps its position when the list is the same.
-void request_play_update();
+void request_choice();
 
 // Whether a new choice is requested and not yet applied. For tests.
-bool playlist_reload_pending();
+bool choice_pending();
+
+// How many playlists the player skips until the next event. For tests.
+size_t skipped_playlist_count();
 
 // What `status` reports in `play`: the newest list, and the playlist playing or the next one to start.
 struct PlayStatus

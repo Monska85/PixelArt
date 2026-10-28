@@ -108,7 +108,7 @@ bool commit(Kind kind, const std::string &path, const std::string &target)
   if (!storage::rename(path, target))
     return false;
   if (kind != Kind::Animation)
-    request_playlist_reload();
+    request_choice_and_restart();
   return true;
 }
 

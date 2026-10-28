@@ -97,7 +97,7 @@ The board needs the time in two cases, and only then:
 - **A schedule:** `play` is `auto` and a valid `/schedules/default.json` is stored, so the [schedule](../format/schedule-v1.md) needs the local date.
 - **A narrow install window:** the updates are not `off` and the [install window](#install-window) is narrower than the whole day.
 
-While it needs the time, the board asks the server of the `ntp_server` setting with SNTP once it is connected to WiFi, and then every `time_sync_hours` hours; until a server answers, it keeps asking. When it does not need the time, it never asks: SNTP stays stopped, the board forgets the time it had, and `status` reports it as not known. The fixed 12-hour resync of the first version of this specification is gone, replaced by `time_sync_hours`.
+While it needs the time, the board asks the server of the `ntp_server` setting with SNTP once it is connected to WiFi, and then every `time_sync_hours` hours; until a server answers, it keeps asking. When it does not need the time, it never asks: SNTP stays stopped, the board forgets the time it had, and `status` reports it as not known.
 
 | Setting           | Default        | Meaning                                                                                                   |
 | ----------------- | -------------- | --------------------------------------------------------------------------------------------------------- |

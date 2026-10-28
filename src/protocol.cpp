@@ -776,7 +776,7 @@ Status cmd_delete(JsonObjectConst request, JsonDocument &)
   if (!storage::remove(path))
     return fail("storage_error", "the file cannot be removed");
   if (kind != Kind::Animation)
-    request_playlist_reload();
+    request_choice_and_restart();
   return {};
 }
 
@@ -800,7 +800,7 @@ void apply_changes(const settings::Values &before)
   const settings::Values &now = settings::current();
   if (now.playlist != before.playlist || now.play != before.play || now.playlists != before.playlists ||
       now.timezone != before.timezone)
-    request_play_update(); // playback follows the play settings, and the schedule the local date
+    request_choice(); // playback follows the play settings, and the schedule the local date
   if (now.wifi_power != before.wifi_power)
     network::set_power(now.wifi_power);
   if (now.update_config_differs(before))
@@ -885,7 +885,7 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   bool done = remove_all_files(SCHEDULES_FOLDER, schedules) && remove_all_files(PLAYLISTS_FOLDER, playlists) &&
               remove_all_files(ANIMATIONS_FOLDER, animations);
   if (schedules > 0 || playlists > 0)
-    request_playlist_reload();
+    request_choice_and_restart();
   if (!done)
     return fail("storage_error", "a file cannot be removed");
   // The settings go back to their defaults only once every file is gone, with a new token.
