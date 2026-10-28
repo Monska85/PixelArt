@@ -8,6 +8,9 @@ import { DEFAULT_PLAYLIST_ID, DEFAULT_SCHEDULE_ID, MAX_SCHEDULE_PLAYLISTS } from
 import type { PlayStatus } from "../../protocol";
 import { parseHours } from "./hours";
 
+// Kept apart so the Files list, which the app loads at start, does not load these texts.
+export { describeScheduleDeletion, ownRule } from "./scheduleDeletion";
+
 const MONTHS = [
   "January",
   "February",
@@ -53,10 +56,6 @@ type Names = ReadonlyMap<string, string | null>;
 
 const named = (names: Names, id: string): string => names.get(id) || id;
 
-/** What the board plays by its own rule, when Automatic or My choice has nothing usable: in words. */
-export const ownRule = (schedules: { has: (id: string) => boolean }): string =>
-  schedules.has(DEFAULT_SCHEDULE_ID) ? `the schedule ${DEFAULT_SCHEDULE_ID}` : `the playlist ${DEFAULT_PLAYLIST_ID}`;
-
 /** The site's choice in words: "the schedule Seasons", "the playlists Alpha and b". */
 function describeChoice(choice: ServerChoice, names: { schedules: Names; playlists: Names }): string {
   if ("schedule" in choice) return `the schedule ${named(names.schedules, choice.schedule)}`;
@@ -100,19 +99,6 @@ export function automaticSchedule(
   if (choice && "playlists" in choice) return null;
   if (choice && stored.has(choice.schedule)) return choice.schedule;
   return stored.has(DEFAULT_SCHEDULE_ID) ? DEFAULT_SCHEDULE_ID : null;
-}
-
-/** What a deletion of the schedule the board plays from does, in words; `remaining` are the schedules left. */
-export function describeScheduleDeletion(play: PlayStatus, remaining: ReadonlySet<string>): string {
-  const own = ownRule(remaining);
-  switch (play.source) {
-    case "server":
-      return `The site chose this schedule for Automatic: the board will then play ${own}.`;
-    case "schedule":
-      return `My choice plays this schedule: the board will then play ${own}.`;
-    default:
-      return `Automatic plays this schedule: the board will then play ${own}.`;
-  }
 }
 
 /** What the board says it plays now, in Automatic, from `status.play`. */

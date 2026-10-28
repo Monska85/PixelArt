@@ -21,7 +21,7 @@ import { toShownError, type ShownError } from "../errors";
 import { jsonBytesToYaml, saveBytes } from "../files";
 import { formatSize } from "../format";
 import { InstallMissingButton, MissingBadge, type MissingContext } from "./MissingAnimations";
-import { describeScheduleDeletion } from "./play";
+import { describeScheduleDeletion } from "./scheduleDeletion";
 
 interface Props {
   client: BoardClient;
