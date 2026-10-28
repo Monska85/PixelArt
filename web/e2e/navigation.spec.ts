@@ -3,7 +3,17 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
-import { animations, connectSimulator, expect, file, openFromLibrary, type Simulator, stored, test } from "./fixtures";
+import {
+  animations,
+  connectSimulator,
+  expect,
+  file,
+  openFromLibrary,
+  showFiles,
+  type Simulator,
+  stored,
+  test,
+} from "./fixtures";
 
 const name = (page: Page) => page.getByLabel("Name", { exact: true });
 const source = (page: Page) => page.getByTestId("editor-source");
@@ -24,6 +34,7 @@ async function rename(page: Page, value: string): Promise<void> {
 
 const editFromBoard = async (page: Page, id: string): Promise<void> => {
   await page.getByRole("link", { name: "Board" }).click();
+  await showFiles(page);
   await page.getByRole("button", { name: `Edit ${id}`, exact: true }).click();
 };
 
@@ -32,6 +43,7 @@ const drafted = (page: Page) => expect(page.getByTestId("draft-status")).toHaveT
 
 test("the editor offers a way back to the Board and shows the upload on return", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await page.getByRole("button", { name: "Edit snowflake", exact: true }).click();
   await expect(page).toHaveURL(/#editor$/);
   await expect(back(page, "Board")).toBeVisible();
@@ -77,6 +89,7 @@ test("the way back survives a reload, since the draft remembers where the docume
   simulator,
 }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await page.getByRole("button", { name: "Edit snowflake", exact: true }).click();
   await expect(back(page, "Board")).toBeVisible();
   await drafted(page);
@@ -145,6 +158,7 @@ test("with unsaved changes every opening asks first, where the user is", async (
 
 test("discarding opens the requested animation and the way back follows it", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await page.getByRole("button", { name: "Edit snowflake", exact: true }).click();
   await rename(page, "Mine");
   await page.getByRole("link", { name: "Library" }).click();
@@ -212,6 +226,7 @@ test("a reload on the editor never lets the draft replace what was opened", asyn
 
 test("the file lists are tabs that work with the keyboard", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   const animationsTab = page.getByRole("tab", { name: /^Animations/ });
   const playlistsTab = page.getByRole("tab", { name: /^Playlists/ });
   await expect(animationsTab).toHaveAttribute("aria-selected", "true");
@@ -240,6 +255,7 @@ for (const width of [1280, 320]) {
   test(`a size stays on one line at ${width} px`, async ({ page, simulator }) => {
     await page.setViewportSize({ width, height: 800 });
     await connectSimulator(page, simulator);
+    await showFiles(page);
     const sizes = animations(page).locator("[data-testid^=size-]");
     await expect(sizes.first()).toBeVisible();
     const count = await sizes.count();

@@ -2,7 +2,16 @@
 
 import { existsSync, rmSync, writeFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
-import { animations, connectSimulator, expect, showPlaylists, stored, test, toastWith } from "./fixtures";
+import {
+  animations,
+  connectSimulator,
+  expect,
+  showBoardPlaylists,
+  showFiles,
+  stored,
+  test,
+  toastWith,
+} from "./fixtures";
 
 // The stored playlist `default` (also the active one) names both animations below. snowflake is published in the fixture
 // release; bear is not.
@@ -18,7 +27,7 @@ test("a playlist row says how many animations are missing, with the list in a to
   rmSync(stored(simulator, "animations", PUBLISHED));
   rmSync(stored(simulator, "animations", UNPUBLISHED));
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
 
   // Icon and word, not color alone.
   await expect(badge(page)).toHaveText("2 missing");
@@ -45,7 +54,7 @@ test("a playlist missing hundreds of animations lists ten in the tooltip and kee
     }),
   );
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
 
   await expect(badge(page)).toHaveText("300 missing");
   await expect(badge(page)).toHaveAccessibleName(new RegExp(`Missing 300 animations: .*${names[299]}$`));
@@ -60,7 +69,7 @@ test("a playlist missing hundreds of animations lists ten in the tooltip and kee
 
 test("no badge is shown for a playlist that lacks nothing", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await expect(playlistRow(page)).toBeVisible();
   await expect(page.getByTestId(/^missing-/)).toHaveCount(0);
   await expect(activeNote(page)).toHaveCount(0);
@@ -71,6 +80,7 @@ test("deleting an animation a playlist uses shows the badge, and Install missing
   simulator,
 }) => {
   await connectSimulator(page, simulator);
+  await showFiles(page);
   await animations(page)
     .getByRole("button", { name: `More actions for ${PUBLISHED}` })
     .click();
@@ -78,7 +88,7 @@ test("deleting an animation a playlist uses shows the badge, and Install missing
   await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await expect(badge(page)).toHaveText("1 missing");
   await expect(activeNote(page)).toContainText(`missing 1 animation: ${PUBLISHED}`);
   await expect(activeNote(page)).not.toContainText("Not available in the Library");
@@ -94,7 +104,7 @@ test("the editor marks each missing item and offers Install for a published one"
   rmSync(stored(simulator, "animations", PUBLISHED));
   rmSync(stored(simulator, "animations", UNPUBLISHED));
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await playlistRow(page).getByRole("button", { name: "Edit default", exact: true }).click();
   const panel = page.getByRole("dialog", { name: "Edit playlist default" });
 
@@ -117,7 +127,7 @@ test("Install missing on the row sends the published ones through the queue and 
   rmSync(stored(simulator, "animations", PUBLISHED));
   rmSync(stored(simulator, "animations", UNPUBLISHED));
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
 
   await expect(activeNote(page)).toContainText(`missing 2 animations: ${PUBLISHED}, ${UNPUBLISHED}`);
   await expect(activeNote(page)).toContainText(`Not available in the Library: ${UNPUBLISHED}.`);
@@ -145,7 +155,7 @@ test("nothing is said about the Library while the release is still loading", asy
     await route.fallback();
   });
   await connectSimulator(page, simulator);
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await expect(badge(page)).toHaveText("2 missing");
   await expect(activeNote(page)).toBeVisible();
   await expect(page.getByRole("button", { name: "Install missing" })).toHaveCount(0);

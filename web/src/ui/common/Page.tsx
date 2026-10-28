@@ -16,10 +16,7 @@ interface PageAction extends MenuEntry {
   loading?: boolean;
 }
 
-interface Props {
-  title: string;
-  /** One line that says what the view is for. */
-  description: ReactNode;
+interface ActionsProps {
   /** The view's single primary action. */
   primary?: PageAction;
   /** A primary action that is not a plain button, such as an install button of a web component. */
@@ -28,6 +25,12 @@ interface Props {
   secondary?: PageAction[];
   /** Everything else, in the More menu. Destructive items go last. */
   more?: PageAction[];
+}
+
+interface Props extends ActionsProps {
+  title: string;
+  /** One line that says what the view is for. */
+  description: ReactNode;
 }
 
 function ActionButton({
@@ -60,36 +63,43 @@ function ActionButton({
   );
 }
 
-/** The header every view starts with: the title, what the view is for, and its actions on the right. */
-export function PageHeader({ title, description, primary, primaryNode, secondary = [], more = [] }: Props) {
+/** The primary action, the secondary ones (in the More menu on a phone) and the More menu. */
+export function PageActions({ primary, primaryNode, secondary = [], more = [] }: ActionsProps) {
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = [...secondary.map((action) => ({ ...action, className: "sm:hidden", destructive: false })), ...more];
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      {primary && <ActionButton action={primary} variant="default" />}
+      {primaryNode}
+      {secondary.map((action) => (
+        <ActionButton key={action.label} action={action} variant="outline" className="max-sm:hidden" />
+      ))}
+      {menu.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" ref={trigger}>
+              <MoreHorizontal aria-hidden="true" />
+              More
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <MenuItems entries={menu} trigger={trigger} />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  );
+}
+
+/** The header every view starts with: the title, what the view is for, and its actions on the right. */
+export function PageHeader({ title, description, ...actions }: Props) {
   return (
     <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
       <div className="min-w-0 flex-1 basis-64">
         <h2 className="text-2xl font-semibold leading-8 tracking-tight">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {primary && <ActionButton action={primary} variant="default" />}
-        {primaryNode}
-        {secondary.map((action) => (
-          <ActionButton key={action.label} action={action} variant="outline" className="max-sm:hidden" />
-        ))}
-        {menu.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" ref={trigger}>
-                <MoreHorizontal aria-hidden="true" />
-                More
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <MenuItems entries={menu} trigger={trigger} />
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
+      <PageActions {...actions} />
     </header>
   );
 }

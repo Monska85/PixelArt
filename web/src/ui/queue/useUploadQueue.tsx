@@ -36,8 +36,8 @@ interface Hook {
   client: BoardClient | null;
   /** A file left out, a refusal or a summary: shown as an alert next to the list. */
   onProblem: (problem: ShownError) => void;
-  /** The board's files changed or may have: read them again. */
-  onFinished: () => void;
+  /** The board's files changed or may have: read them again. `stored` is true when at least one file was uploaded. */
+  onFinished: (stored: boolean) => void;
 }
 
 export interface UploadQueue {
@@ -137,7 +137,8 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
       const touched = [...new Set<Kind>([...uploaded.map((u) => u.file.kind), ...(failed ? [failed.file.kind] : [])])];
       if (touched.length > 0) void session.refreshFiles(touched);
       if (!options.quiet) report(result.summary, options.verb ?? "Uploaded");
-      if (result.summary.uploaded.length > 0 || result.summary.failed || result.summary.cancelled) onFinished();
+      if (result.summary.uploaded.length > 0 || result.summary.failed || result.summary.cancelled)
+        onFinished(result.summary.uploaded.length > 0);
     }
     return result;
   }

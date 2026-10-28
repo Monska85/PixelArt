@@ -9,6 +9,7 @@ import {
   animations,
   connectSimulator,
   expect,
+  showFiles,
   showPlaylists,
   type Simulator,
   stored,
@@ -90,6 +91,7 @@ test("installs a missing animation and the board lists it", async ({ page, simul
     sha(join(fileURLToPath(new URL("./board-files", import.meta.url)), "animations", `${MISSING}.json`)),
   );
   await page.getByRole("link", { name: "Board", exact: true }).click();
+  await showFiles(page);
   await expect(animations(page).locator("code", { hasText: new RegExp(`^${MISSING}$`) })).toBeVisible();
 });
 

@@ -10,7 +10,8 @@ interface Options {
   client: BoardClient;
   /** Why uploads are not possible now (no connection, a board that cannot read the formats), or null. */
   blocked: string | null;
-  onUploaded: () => void;
+  /** The queue ended with files changed or maybe changed; `stored` is true when at least one file was uploaded. */
+  onUploaded: (stored: boolean) => void;
   /** A file that was refused, rejected or failed, and the summary of a queue: shown as an alert next to the list. */
   onProblem: (problem: ShownError) => void;
 }

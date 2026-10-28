@@ -2,7 +2,7 @@
 
 import type { Page } from "@playwright/test";
 import { watchBoard } from "./board";
-import { animations, animationYaml, connectSimulator, expect, pick, test, upload } from "./fixtures";
+import { animations, animationYaml, connectSimulator, expect, pick, showFiles, test, upload } from "./fixtures";
 import { connectScripted, scriptedBoard, type Scripted } from "./scripted";
 
 /** The kinds of the lists the page asked for since `since` requests (first pages only), in order. */
@@ -17,6 +17,7 @@ async function connected(page: Page): Promise<Scripted> {
   board.files.animation.set("ball", Buffer.from("{}"));
   board.files.playlist.set("mix", Buffer.from("{}"));
   await connectScripted(page, board);
+  await showFiles(page);
   await expect(animations(page)).toContainText("ball");
   await expect(page.getByRole("table", { name: "Playlists on the board", includeHidden: true })).toContainText("mix");
   return board;
@@ -76,6 +77,7 @@ test("a list that is still being read is not shown as empty", async ({ page, sim
   await expect(page.getByText("No animations on this board")).toHaveCount(0);
   await expect(page.getByText("No playlists on this board")).toHaveCount(0);
   watch.release();
+  await showFiles(page);
   await expect(animations(page)).toBeVisible();
 });
 
@@ -99,6 +101,7 @@ test("a list that could not be read says so and Retry reads it again, and the fa
   await expect(reports).toHaveCount(0);
 
   board.failLists = false;
+  await showFiles(page);
   await page.getByRole("button", { name: "Retry" }).first().click();
   await expect(animations(page)).toContainText("ball");
 });
