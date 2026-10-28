@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <pixelart_engine.h>
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -16,7 +18,7 @@ namespace settings
 {
 
 constexpr uint8_t DEFAULT_BRIGHTNESS = 100;
-constexpr const char *DEFAULT_PLAYLIST = "default";
+constexpr const char *DEFAULT_PLAYLIST = pixelart::DEFAULT_PLAYLIST_ID;
 constexpr const char *PLAY_AUTO = "auto";
 constexpr const char *PLAY_PLAYLISTS = "playlists";
 constexpr const char *DEFAULT_WIFI_POWER = "auto";

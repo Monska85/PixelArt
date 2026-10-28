@@ -308,10 +308,8 @@ pixelart_update::Error install_temp_file(Kind kind, const std::string &id)
     ~RemoveTemp() { storage::remove(TEMP_FILE); }
   } remove_temp;
   std::vector<pixelart::Diagnostic> diagnostics;
-  const install::Kind install_kind = kind == Kind::Animation  ? install::Kind::Animation
-                                     : kind == Kind::Playlist ? install::Kind::Playlist
-                                                              : install::Kind::Schedule;
-  switch (install::check(install_kind, TEMP_FILE, install::SIZE_ANY, diagnostics))
+  const install::Kind checked_kind = install_kind(kind);
+  switch (install::check(checked_kind, TEMP_FILE, install::SIZE_ANY, diagnostics))
   {
   case install::Result::Ok:
     break;
@@ -322,10 +320,7 @@ pixelart_update::Error install_temp_file(Kind kind, const std::string &id)
   case install::Result::Invalid:
     return Error::InvalidFile;
   }
-  const std::string target = kind == Kind::Animation  ? animation_file(id)
-                             : kind == Kind::Playlist ? playlist_file(id)
-                                                      : schedule_file(id);
-  if (!install::commit(install_kind, TEMP_FILE, target))
+  if (!install::commit(checked_kind, TEMP_FILE, install::file_path(checked_kind, id)))
     return Error::StorageError;
   return Error::None;
 }

@@ -20,6 +20,7 @@ import { toShownError, type ShownError } from "../errors";
 import { jsonBytesToYaml, saveBytes } from "../files";
 import { formatSize } from "../format";
 import { InstallMissingButton, MissingBadge, type MissingContext } from "./MissingAnimations";
+import { PLAYED_SCHEDULE } from "./useScheduleSource";
 
 interface Props {
   client: BoardClient;
@@ -48,9 +49,6 @@ interface Props {
   missingContext?: MissingContext;
 }
 
-/** The one schedule the board plays (docs/format/schedule-v1.md#files). */
-const PLAYED_SCHEDULE = "default";
-
 const LIST_LABEL: Record<Kind, string> = { animation: "Animations", playlist: "Playlists", schedule: "Schedules" };
 
 /** One list of the Board view: its table, the actions of each row, and the empty state. */
@@ -76,7 +74,6 @@ export function FilesList({
 }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Entry | null>(null);
-  const noun = kind;
   const held = useHeldId();
 
   async function run(id: string, context: string, action: () => Promise<void>): Promise<void> {
@@ -137,7 +134,7 @@ export function FilesList({
   if (entries.length === 0)
     return (
       <EmptyList
-        title={`No ${noun}s on this board`}
+        title={`No ${kind}s on this board`}
         actions={
           <>
             {kind === "animation" ? (
@@ -254,7 +251,7 @@ export function FilesList({
           }
         >
           <p>
-            This deletes the {noun} <code className="text-foreground">{confirm.id}</code> from the board. It cannot be
+            This deletes the {kind} <code className="text-foreground">{confirm.id}</code> from the board. It cannot be
             undone.
           </p>
           {kind === "playlist" && confirm.id === activePlaylist && (

@@ -24,6 +24,12 @@ enum class Kind
 // The largest file of a kind.
 size_t size_limit(Kind kind);
 
+// Path of a stored file of a kind on the board, from its ID.
+std::string file_path(Kind kind, const std::string &id);
+
+// IDs of the stored files of a kind, sorted.
+std::vector<std::string> stored_ids(Kind kind);
+
 enum class Result
 {
   Ok,

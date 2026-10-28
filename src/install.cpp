@@ -41,6 +41,34 @@ size_t size_limit(Kind kind)
   return pixelart::MAX_SCHEDULE_FILE_SIZE;
 }
 
+std::string file_path(Kind kind, const std::string &id)
+{
+  switch (kind)
+  {
+  case Kind::Animation:
+    return animation_file(id);
+  case Kind::Playlist:
+    return playlist_file(id);
+  case Kind::Schedule:
+    break;
+  }
+  return schedule_file(id);
+}
+
+std::vector<std::string> stored_ids(Kind kind)
+{
+  switch (kind)
+  {
+  case Kind::Animation:
+    return stored_animations();
+  case Kind::Playlist:
+    return stored_playlists();
+  case Kind::Schedule:
+    break;
+  }
+  return stored_schedules();
+}
+
 bool memory_fits(size_t size)
 {
   const Memory now = memory_probe();

@@ -397,6 +397,9 @@ export interface PlayChoice {
   playing: string | null;
 }
 
+/** The playlist the board plays when Automatic has no schedule or every playlist it names is skipped. */
+const DEFAULT_PLAYLIST_ID = "default";
+
 /**
  * The list the board plays. `user` is the `playlists` setting, `schedule` the valid schedule `default` or null, `date`
  * the local date or null while the time is not known, and `playable` says whether the board can play a playlist.
@@ -417,7 +420,7 @@ export function choosePlaylists(
   });
   // My playlists never fall back to `default`: every playlist skipped plays every animation.
   if (mode === "playlists") return choice(user, "user", null);
-  if (!schedule) return choice(["default"], "no_schedule", null);
+  if (!schedule) return choice([DEFAULT_PLAYLIST_ID], "no_schedule", null);
   let reason: PlayReason = "no_time";
   let entry: number | null = null;
   if (date) {
@@ -431,7 +434,7 @@ export function choosePlaylists(
     reason = "fallback";
   }
   const fallback = choice(schedule.fallback, reason, entry);
-  return fallback.playing !== null ? fallback : choice(["default"], reason, entry);
+  return fallback.playing !== null ? fallback : choice([DEFAULT_PLAYLIST_ID], reason, entry);
 }
 
 /** The day after `date`. */

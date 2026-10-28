@@ -45,6 +45,7 @@ constexpr size_t MAX_BYTES_PER_POLL = 512;
 const char *TEMP_FILE = "/upload.tmp";
 const char OUT_OF_MEMORY_MESSAGE[] = "not enough free memory to validate the file";
 
+using install::file_path;
 using install::Kind;
 
 struct Upload
@@ -113,20 +114,6 @@ void close_wifi_client()
   wifi_session.reset();
   wifi_closing = true;
   network::close_client();
-}
-
-std::string file_path(Kind kind, const std::string &id)
-{
-  switch (kind)
-  {
-  case Kind::Animation:
-    return animation_file(id);
-  case Kind::Playlist:
-    return playlist_file(id);
-  case Kind::Schedule:
-    break;
-  }
-  return schedule_file(id);
 }
 
 const char *kind_name(Kind kind)
@@ -534,9 +521,7 @@ Status cmd_list(JsonObjectConst request, JsonDocument &reply)
     if (Status s = check_id(after, "after"); s.code)
       return s;
 
-  std::vector<std::string> ids = kind == Kind::Animation  ? stored_animations()
-                                 : kind == Kind::Playlist ? stored_playlists()
-                                                          : stored_schedules();
+  std::vector<std::string> ids = install::stored_ids(kind);
   // Ids sort differently from file names (`a-b.json` before `a.json`), and paging goes by id.
   std::sort(ids.begin(), ids.end());
   // One lock for the page. An update holding the memory for longer than the wait is `out_of_memory`.
@@ -968,24 +953,19 @@ bool has_fields(JsonObjectConst request)
   return false;
 }
 
-// The older `playlist` setting of a request: any text. The ID is checked afterwards.
-Status optional_playlist(JsonObjectConst request, std::string &out)
+// The older `playlist` setting of a request, when present: any text. The ID is checked afterwards.
+Status read_playlist(JsonVariantConst value, std::string &out)
 {
-  JsonVariantConst value = request["playlist"];
-  if (value.isUnbound())
-    return {};
   if (!value.is<const char *>())
     return fail("bad_request", "playlist must be text");
   out = value.as<std::string>();
   return {};
 }
 
-// The `playlists` setting of a request: 1 to MAX_PLAYLISTS texts, no ID twice. The IDs are checked afterwards.
-Status optional_playlists(JsonObjectConst request, std::vector<std::string> &out)
+// The `playlists` setting of a request, when present: 1 to MAX_PLAYLISTS texts, no ID twice. The IDs are checked
+// afterwards.
+Status read_playlists(JsonVariantConst value, std::vector<std::string> &out)
 {
-  JsonVariantConst value = request["playlists"];
-  if (value.isUnbound())
-    return {};
   const std::string rule =
       "playlists must be a list of 1 to " + std::to_string(settings::MAX_PLAYLISTS) + " playlist IDs, no ID twice";
   if (!value.is<JsonArrayConst>() || value.size() < 1 || value.size() > settings::MAX_PLAYLISTS)
@@ -1061,9 +1041,9 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
   play.has_playlists = !request["playlists"].isUnbound();
   play.has_playlist = !request["playlist"].isUnbound();
   for (Status s :
-       {optional_playlist(request, play.playlist),
+       {play.has_playlist ? read_playlist(request["playlist"], play.playlist) : Status{},
         optional_text(request, "play", settings::valid_play, "auto or playlists", next.play),
-        optional_playlists(request, play.playlists),
+        play.has_playlists ? read_playlists(request["playlists"], play.playlists) : Status{},
         optional_text(request, "wifi_power", settings::valid_wifi_power, "auto, 8.5, 11, 13, 15, 17, 18.5 or 19.5",
                       next.wifi_power),
         optional_text(request, "update_mode", settings::valid_update_mode, "off, notify or automatic",

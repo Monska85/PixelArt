@@ -448,7 +448,7 @@ PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user,
   if (!schedule)
   {
     choice.reason = PlayReason::NoSchedule;
-    use({"default"});
+    use({DEFAULT_PLAYLIST_ID});
     return choice;
   }
   if (!date)
@@ -462,7 +462,7 @@ PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user,
     choice.reason = PlayReason::Fallback; // every playlist of the winning entry is skipped: entry still names it
   }
   if (!use(schedule->fallback()))
-    use({"default"});
+    use({DEFAULT_PLAYLIST_ID});
   return choice;
 }
 

@@ -279,6 +279,9 @@ private:
 };
 
 // The rules of docs/format/playlist-v1.md#how-the-board-chooses-what-to-play.
+// The playlist the board plays when Automatic has no schedule or every playlist it names is skipped.
+constexpr const char *DEFAULT_PLAYLIST_ID = "default";
+
 enum class PlayMode : uint8_t
 {
   Auto,

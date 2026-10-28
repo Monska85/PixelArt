@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <install.h>
 #include <pixel_codec.h>
 #include <updater.h>
 
@@ -17,16 +18,28 @@
 namespace updates
 {
 
+// The kind of the install module for a kind of the updater.
+inline install::Kind install_kind(pixelart_update::Kind kind)
+{
+  switch (kind)
+  {
+  case pixelart_update::Kind::Animation:
+    return install::Kind::Animation;
+  case pixelart_update::Kind::Playlist:
+    return install::Kind::Playlist;
+  case pixelart_update::Kind::Schedule:
+    break;
+  }
+  return install::Kind::Schedule;
+}
+
 class StorageHost : public pixelart_update::Host
 {
 public:
   bool stored_digest(pixelart_update::Kind kind, const std::string &id, std::string &sha256) override
   {
-    const std::string path = kind == pixelart_update::Kind::Animation  ? animation_file(id)
-                             : kind == pixelart_update::Kind::Playlist ? playlist_file(id)
-                                                                       : schedule_file(id);
     storage::Reader file;
-    if (file.open(path) != storage::ReadResult::Ok)
+    if (file.open(install::file_path(install_kind(kind), id)) != storage::ReadResult::Ok)
       return false;
     // Unreadable counts as not stored, so the server's file replaces it.
     return storage::sha256_hex(file, sha256);
