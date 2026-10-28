@@ -21,6 +21,7 @@ import {
   settled,
   showFiles,
   showBoardPlaylists,
+  showBoardSchedules,
   type Simulator,
   stored,
   test as base,
@@ -184,7 +185,7 @@ export const states = {
   // Board view, connected
   "board-connected": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await expect(page.getByTestId("files-summary")).toContainText("active playlist");
+    await expect(page.getByTestId("files-summary")).toContainText("Automatic: playing");
     await expect(animations(page)).toBeHidden();
     await check();
   },
@@ -216,8 +217,7 @@ export const states = {
   },
   "board-schedules": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await showFiles(page);
-    await page.getByRole("tab", { name: /^Schedules/ }).click();
+    await showBoardSchedules(page);
     await expect(page.getByRole("table", { name: "Schedules on the board" }).getByText("Seasons")).toBeVisible();
     await check();
   },

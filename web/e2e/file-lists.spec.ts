@@ -138,6 +138,7 @@ test("a board that knows schedules lists them as a third group, uploads one by i
   };
   board.files.playlist.set("default", Buffer.from("{}"));
   await connectScripted(page, board);
+  await showFiles(page);
   const tab = page.getByRole("tab", { name: /^Schedules/ });
   await expect(tab).toContainText("0");
   await tab.click();

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useState } from "react";
-import type { Settings } from "../../protocol";
+import type { PlayStatus, Settings } from "../../protocol";
 import type { BoardFileList } from "../fileLists";
 import { plural } from "../format";
 import { BOARD_FILES_KEY, readStored, writeStored } from "../storage";
@@ -15,21 +15,37 @@ export interface FilesSummary {
   settings: Settings | null;
   /** The stored playlists by ID with their names, or null while they are not known. */
   playlistNames: ReadonlyMap<string, string | null> | null;
+  /** The schedules, on a board that stores them; left out for a firmware older than schedules. */
+  schedules?: BoardFileList;
+  /** What the board says it plays, on a firmware that knows schedules, or null while it has not said. */
+  play?: PlayStatus | null;
 }
 
-/** The one line the card always shows: the counts and the active playlist. */
-export function summarize({ animations, playlists, settings, playlistNames }: FilesSummary): string {
-  if (animations.status === "unknown" || playlists.status === "unknown")
+/**
+ * The one line the card always shows: the counts, and the active playlist, or on a firmware that knows schedules the
+ * What to play choice and the playlist the board says it plays.
+ */
+export function summarize(summary: FilesSummary): string {
+  const { animations, playlists, settings, playlistNames, schedules, play = null } = summary;
+  if (animations.status === "unknown" || playlists.status === "unknown" || schedules?.status === "unknown")
     return "Could not read the files from the board.";
   const a = entriesOf(animations);
   const p = entriesOf(playlists);
-  if (a === null || p === null) return "Reading the files from the board...";
-  const counts = `${plural(a.length, "animation")}, ${plural(p.length, "playlist")}`;
+  const s = schedules && entriesOf(schedules);
+  if (a === null || p === null || s === null) return "Reading the files from the board...";
+  let counts = `${plural(a.length, "animation")}, ${plural(p.length, "playlist")}`;
+  if (s !== undefined) counts += `, ${plural(s.length, "schedule")}`;
   if (settings === null) return counts;
+  const name = (id: string): string => playlistNames?.get(id) || id;
+  if (settings.play !== undefined) {
+    const mode = settings.play === "auto" ? "Automatic" : "My playlists";
+    if (play === null) return `${counts}, ${mode}`;
+    return `${counts}, ${mode}: ${play.playing === null ? "every animation plays" : `playing ${name(play.playing)}`}`;
+  }
   const id = settings.playlist;
   if (id === "") return `${counts}, no active playlist: every animation plays`;
   if (playlistNames !== null && !playlistNames.has(id)) return `${counts}, active playlist: ${id} (not stored)`;
-  return `${counts}, active playlist: ${playlistNames?.get(id) || id}`;
+  return `${counts}, active playlist: ${name(id)}`;
 }
 
 /** The user's own choice, kept in this browser: only "open" reads as open, so the section is closed by default. */

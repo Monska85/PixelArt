@@ -223,6 +223,8 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
           playlists={data.playlists}
           settings={data.settings}
           playlistNames={playlistNames}
+          schedules={knowsSchedules ? data.schedules : undefined}
+          play={play}
           missing={missing}
           actions={{
             primary: {

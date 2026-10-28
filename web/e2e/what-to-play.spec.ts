@@ -6,7 +6,15 @@
 
 import { existsSync } from "node:fs";
 import type { Page } from "@playwright/test";
-import { connectSimulator, expect, showPlaylists, stored, test, watchRequests } from "./fixtures";
+import {
+  connectSimulator,
+  expect,
+  showBoardPlaylists,
+  showBoardSchedules,
+  stored,
+  test,
+  watchRequests,
+} from "./fixtures";
 
 const settingsCard = (page: Page) => page.getByRole("region", { name: "Settings" });
 const automatic = (page: Page) => page.getByTestId("play-auto");
@@ -41,7 +49,7 @@ test.describe("on a date of the schedule", () => {
     await expect(view.getByRole("row", { name: /Fallback/ })).toContainText("default");
     await expect(page.getByRole("button", { name: "Hide the schedule" })).toHaveAttribute("aria-expanded", "true");
     // The playlist the board plays is the active one.
-    await showPlaylists(page);
+    await showBoardPlaylists(page);
     const playlists = page.getByRole("table", { name: "Playlists on the board" });
     await expect(playlists.getByTestId("active-holiday")).toHaveText("Active");
     await expect(playlists.getByTestId("active-default")).toHaveCount(0);
@@ -58,7 +66,7 @@ test("without a date, Automatic plays the fallback and says why", async ({ page,
 test("without a schedule, Automatic plays the playlist default", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
   // Deleting the schedule Automatic plays says what follows, and the board chooses again.
-  await page.getByRole("tab", { name: /^Schedules/ }).click();
+  await showBoardSchedules(page);
   await page.getByRole("button", { name: "More actions for default" }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   const dialog = page.getByRole("dialog", { name: "Delete default?" });
@@ -122,7 +130,7 @@ test("My playlists: choose, add, reorder, remove, and each change sends only wha
   await expect(list(page).getByRole("button", { name: "Remove holiday, playlist 1" })).toBeDisabled();
 
   // The board plays the user's list: the first playlist is the active one.
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await expect(page.getByTestId("active-holiday")).toBeVisible();
 });
 
@@ -152,7 +160,7 @@ test("a playlist of the list that is not stored is marked, and a change leaves i
   await expect(list(page).getByRole("listitem")).toHaveCount(2);
 
   // holiday is deleted while the list names it: the board keeps it and skips it.
-  await showPlaylists(page);
+  await showBoardPlaylists(page);
   await page.getByRole("button", { name: "More actions for holiday" }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();

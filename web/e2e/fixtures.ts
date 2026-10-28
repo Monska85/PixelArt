@@ -169,6 +169,11 @@ export async function showBoardPlaylists(page: Page): Promise<void> {
   await showFiles(page);
   await showPlaylists(page);
 }
+/** The Schedules tab of the Board view, whose Files section is opened first. */
+export async function showBoardSchedules(page: Page): Promise<void> {
+  await showFiles(page);
+  await page.getByRole("tab", { name: /^Schedules/ }).click();
+}
 /** The editor has validated the document it shows. */
 export const settled = (page: Page) => expect(page.getByTestId("diagnostics")).toHaveAttribute("aria-busy", "false");
 
