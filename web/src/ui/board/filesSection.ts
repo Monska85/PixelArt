@@ -37,9 +37,11 @@ export function summarize(summary: FilesSummary): string {
   if (s !== undefined) counts += `, ${plural(s.length, "schedule")}`;
   if (settings === null) return counts;
   const name = (id: string): string => playlistNames?.get(id) || id;
-  if (settings.play !== undefined) {
+  // What to play, as the Board view decides it: a firmware that knows schedules and settings that carry `play`.
+  if (schedules !== undefined && settings.play !== undefined) {
     const mode = settings.play === "auto" ? "Automatic" : "My playlists";
-    if (play === null) return `${counts}, ${mode}`;
+    // A status read before the choice changed names the other choice's playlist: the choice alone until it follows.
+    if (play === null || play.mode !== settings.play) return `${counts}, ${mode}`;
     return `${counts}, ${mode}: ${play.playing === null ? "every animation plays" : `playing ${name(play.playing)}`}`;
   }
   const id = settings.playlist;

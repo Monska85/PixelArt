@@ -136,9 +136,9 @@ describe("the Files card summary on a firmware that knows schedules", () => {
   const one = known("p");
   const names = new Map<string, string | null>([["p", "Christmas"]]);
   const choice = (play: "auto" | "playlists"): Settings => ({ brightness: 50, playlist: "p", play, playlists: ["p"] });
-  const playing = (id: string | null): PlayStatus => ({
-    mode: "auto",
-    reason: "schedule",
+  const playing = (id: string | null, mode: "auto" | "playlists" = "auto"): PlayStatus => ({
+    mode,
+    reason: mode === "auto" ? "schedule" : "user",
     entry: 0,
     playlists: ["p"],
     playing: id,
@@ -177,8 +177,21 @@ describe("the Files card summary on a firmware that knows schedules", () => {
     expect(summarize({ ...base, playlistNames: null, play: playing("p") })).toBe(
       "2 animations, 1 playlist, 1 schedule, Automatic: playing p",
     );
-    expect(summarize({ ...base, settings: choice("playlists"), playlistNames: names, play: playing("p") })).toBe(
-      "2 animations, 1 playlist, 1 schedule, My playlists: playing Christmas",
+    expect(
+      summarize({ ...base, settings: choice("playlists"), playlistNames: names, play: playing("p", "playlists") }),
+    ).toBe("2 animations, 1 playlist, 1 schedule, My playlists: playing Christmas");
+  });
+
+  it("names the choice alone while the status still says what the other choice played", () => {
+    const base = { animations: two, playlists: one, schedules: known("s"), playlistNames: names };
+    expect(summarize({ ...base, settings: choice("playlists"), play: playing("p") })).toBe(
+      "2 animations, 1 playlist, 1 schedule, My playlists",
+    );
+  });
+
+  it("keeps the active playlist wording without the schedules, whatever the settings carry", () => {
+    expect(summarize({ animations: two, playlists: one, settings: choice("auto"), playlistNames: names })).toBe(
+      "2 animations, 1 playlist, active playlist: Christmas",
     );
   });
 
