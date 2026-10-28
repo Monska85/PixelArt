@@ -69,13 +69,13 @@ void begin() { lock_handle = xSemaphoreCreateMutexStatic(&lock_storage); }
 
 HeapLock::HeapLock(Owner owner, Wait wait) : owner_(owner)
 {
-  if (owner_ == Owner::Loop && wait == Wait::None)
-  {
-    held_ = xSemaphoreTake(lock_handle, 0) == pdTRUE;
-    return;
-  }
   if (owner_ == Owner::Loop)
   {
+    if (wait == Wait::None)
+    {
+      held_ = xSemaphoreTake(lock_handle, 0) == pdTRUE;
+      return;
+    }
     loop_waiting = true;
     held_ = xSemaphoreTake(lock_handle, pdMS_TO_TICKS(LOOP_WAIT_MS)) == pdTRUE;
     loop_waiting = false;

@@ -53,8 +53,7 @@ bool memory_fits(size_t size)
 void set_memory_probe(MemoryProbe probe) { memory_probe = probe ? probe : platform_memory; }
 #endif
 
-Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagnostic> &diagnostics,
-                pixelart::Playlist *playlist, pixelart::Schedule *schedule)
+Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagnostic> &diagnostics, Parsed *parsed)
 {
   const size_t limit = size_limit(kind);
   task_sync::HeapLock lock(task_sync::Owner::Loop);
@@ -80,27 +79,27 @@ Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagno
   else if (kind == Kind::Playlist)
   {
     pixelart::Playlist local;
-    pixelart::Playlist &target = playlist ? *playlist : local;
+    pixelart::Playlist &target = parsed ? parsed->playlist : local;
     valid = target.load(buffer.data.get(), buffer.size, diagnostics);
   }
   else
   {
     pixelart::Schedule local;
-    pixelart::Schedule &target = schedule ? *schedule : local;
+    pixelart::Schedule &target = parsed ? parsed->schedule : local;
     valid = target.load(buffer.data.get(), buffer.size, diagnostics);
   }
   return valid ? Result::Ok : Result::Invalid;
 }
 
 Result check(Kind kind, const std::string &path, size_t expected_size, std::vector<pixelart::Diagnostic> &diagnostics,
-             pixelart::Playlist *playlist, pixelart::Schedule *schedule)
+             Parsed *parsed)
 {
   size_t stored = 0;
   if (!storage::file_size(path, stored) || (expected_size != SIZE_ANY && stored != expected_size))
     return Result::StorageError;
   if (!memory_fits(stored))
     return Result::OutOfMemory;
-  return validate(kind, path, diagnostics, playlist, schedule);
+  return validate(kind, path, diagnostics, parsed);
 }
 
 bool commit(Kind kind, const std::string &path, const std::string &target)

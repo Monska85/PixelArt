@@ -53,17 +53,24 @@ bool memory_fits(size_t size);
 void set_memory_probe(MemoryProbe probe);
 #endif
 
+// A valid file a caller keeps after its validation, in the member of its kind.
+struct Parsed
+{
+  pixelart::Playlist playlist;
+  pixelart::Schedule schedule;
+};
+
 // Reads `path` (at most the limit of `kind`) and loads it with the engine, which also fills
-// `diagnostics` with warnings. A valid playlist or schedule is left in `playlist` or `schedule` when it is
-// given. Takes the lock for large allocations while the file is in memory.
+// `diagnostics` with warnings. A valid playlist or schedule is left in `parsed` when it is given. Takes
+// the lock for large allocations while the file is in memory.
 Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagnostic> &diagnostics,
-                pixelart::Playlist *playlist = nullptr, pixelart::Schedule *schedule = nullptr);
+                Parsed *parsed = nullptr);
 
 // Checks a received file in `path` before it is stored: its size (`expected_size`, unless that is
 // SIZE_ANY), the memory it needs, and then validate(). StorageError also covers a size that differs.
 constexpr size_t SIZE_ANY = (size_t)-1;
 Result check(Kind kind, const std::string &path, size_t expected_size, std::vector<pixelart::Diagnostic> &diagnostics,
-             pixelart::Playlist *playlist = nullptr, pixelart::Schedule *schedule = nullptr);
+             Parsed *parsed = nullptr);
 
 // Moves the checked file `path` to `target`, then calls file_changed(). False when the file cannot be moved.
 bool commit(Kind kind, const std::string &path, const std::string &target);

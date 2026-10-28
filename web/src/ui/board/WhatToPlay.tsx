@@ -294,11 +294,10 @@ function MyPlaylists({
   const [adding, setAdding] = useState("");
   const listRef = useRef<HTMLOListElement>(null);
   const order = draft ?? list;
-  const stored = new Set(playlists?.keys() ?? []);
-  const known = playlists !== null;
-  const storedIfKnown = known ? stored : null;
-  const missing = known ? order.filter((id) => !stored.has(id)) : [];
-  const unused = [...stored].filter((id) => !order.includes(id));
+  // The stored playlist IDs, or null while they are not known.
+  const stored: ReadonlySet<string> | null = playlists ? new Set(playlists.keys()) : null;
+  const missing = stored ? order.filter((id) => !stored.has(id)) : [];
+  const unused = stored ? [...stored].filter((id) => !order.includes(id)) : [];
   const pick = unused.includes(adding) ? adding : (unused[0] ?? "");
 
   const name = (id: string): string => {
@@ -315,7 +314,7 @@ function MyPlaylists({
   const reorder = useReorder({ list: listRef, keys: order, move, name: (id) => id, announce: setAnnouncement });
 
   async function apply(next: string[], context: string): Promise<void> {
-    const sent = listToSend(next, stored);
+    const sent = stored && listToSend(next, stored);
     if (sent && sent.join(",") !== list.join(",")) await send({ playlists: sent }, context);
   }
 
@@ -330,7 +329,8 @@ function MyPlaylists({
   }, [draft, reorder.moving]);
 
   const focus = useFocusAfter(!busy && draft === null, list);
-  const button = (id: string, role: RowButton) => focus.ref(`${id}:${role}`);
+  const keyOf = (id: string, role: RowButton): string => `${id}:${role}`;
+  const button = (id: string, role: RowButton) => focus.ref(keyOf(id, role));
   const moveWithButton = (id: string, index: number, by: -1 | 1): void => {
     reorder.moveBy(id, by);
     // The button that moved the item keeps the focus, unless the item reached the top or the bottom: that button is
@@ -340,18 +340,18 @@ function MyPlaylists({
     const to = index + by;
     const reachedEdge = to === 0 || to === order.length - 1;
     const role = reachedEdge ? opposite : same;
-    focus.focusLater(`${id}:${role}`);
+    focus.focusLater(keyOf(id, role));
   };
   const remove = (id: string, index: number): void => {
     const rest = order.filter((other) => other !== id);
     setAnnouncement(`${id} removed.`);
     const after = rest[index] ?? rest[index - 1];
-    focus.focusLater(after ? `${after}:remove` : null);
+    focus.focusLater(after ? keyOf(after, "remove") : null);
     void apply(rest, `Removing ${id} from your playlists`);
   };
 
-  const cannotEdit = editReason(order, storedIfKnown);
-  const cannotAdd = addReason(order, storedIfKnown);
+  const cannotEdit = editReason(order, stored);
+  const cannotAdd = addReason(order, stored);
 
   return (
     <div className="flex min-w-0 flex-col gap-3 sm:pl-7" data-testid="my-playlists">
@@ -375,10 +375,10 @@ function MyPlaylists({
             index={index}
             count={order.length}
             name={name(id)}
-            absent={known && !stored.has(id)}
+            absent={stored !== null && !stored.has(id)}
             busy={busy}
             cannotEdit={cannotEdit}
-            cannotRemove={removeReason(order, id, storedIfKnown)}
+            cannotRemove={removeReason(order, id, stored)}
             moving={reorder.moving === id}
             handle={reorder.handleProps(id)}
             button={(role) => button(id, role)}

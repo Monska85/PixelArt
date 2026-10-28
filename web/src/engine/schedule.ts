@@ -134,12 +134,150 @@ export function isScheduleDate(date: LocalDate): boolean {
   );
 }
 
+// Reports an error of the loader.
+type ErrorSink = (code: string, where: string, message: string) => void;
+
+// A property that is present with the value null is not absent: it is validated like any other value.
+function readName(error: ErrorSink, value: JsonValue | undefined, where: string): string | null {
+  if (value === undefined) return null;
+  if (typeof value !== "string" || value === "" || codePointLength(value) > MAX_NAME) {
+    error("structure", where, "must be a text of 1 to 128 characters");
+    return null;
+  }
+  return value;
+}
+
+// A list of 1 to 8 playlist IDs, no ID twice. Null when it is not one.
+function readPlaylists(error: ErrorSink, value: JsonValue | undefined, where: string): string[] | null {
+  if (!isArray(value) || value.length === 0) {
+    error("structure", where, "must be a non-empty list of playlist IDs");
+    return null;
+  }
+  if (value.length > MAX_SCHEDULE_PLAYLISTS) {
+    error("limit_exceeded", where, `more than ${MAX_SCHEDULE_PLAYLISTS} playlists`);
+    return null;
+  }
+  const ids: string[] = [];
+  for (const [i, item] of value.entries()) {
+    const at = `${where}[${i}]`;
+    if (typeof item !== "string" || !isValidId(item)) {
+      error("structure", at, "must be a playlist ID: lowercase letters, digits, _ and -");
+      return null;
+    }
+    if (ids.includes(item)) {
+      error("structure", at, `names "${item}" twice`);
+      return null;
+    }
+    ids.push(item);
+  }
+  return ids;
+}
+
+// An end with the parts the file names, or null when it is refused. A part out of its values is reported, left out
+// of `end` and `range.valid` cleared.
+function readEnd(
+  error: ErrorSink,
+  value: JsonValue | undefined,
+  where: string,
+  range: { valid: boolean },
+): { end: ScheduleEnd; parts: number } | null {
+  if (!isObject(value)) {
+    error("structure", where, "must be an object with year, month or day");
+    return null;
+  }
+  let structureOk = true;
+  for (const key of value.keys())
+    if (!["year", "month", "day"].includes(key)) {
+      error("structure", `${where}.${key}`, `unknown field "${key}"`);
+      structureOk = false;
+    }
+  const end: ScheduleEnd = {};
+  let parts = 0;
+  for (const [part, name] of PARTS) {
+    const v = value.get(name);
+    if (v === undefined) continue;
+    parts |= part;
+    const at = `${where}.${name}`;
+    // An integer outside int64 is not an integer for the formats (json.ts): a structure error.
+    if (!isInteger(v)) {
+      error("structure", at, "must be an integer");
+      structureOk = false;
+      continue;
+    }
+    const low = part === PART_YEAR ? MIN_SCHEDULE_YEAR : 1;
+    const high = part === PART_YEAR ? MAX_SCHEDULE_YEAR : part === PART_MONTH ? 12 : 31;
+    if (v.value < low || v.value > high) {
+      error("invalid_date", at, `must be from ${low} to ${high}`);
+      range.valid = false;
+      continue;
+    }
+    end[name] = v.value;
+  }
+  if (!structureOk) return null;
+  if (parts === 0) {
+    error("structure", where, "must have a year, a month or a day");
+    return null;
+  }
+  if (parts === (PART_YEAR | PART_DAY)) {
+    error("structure", where, "a year and a day need a month");
+    return null;
+  }
+  return { end, parts };
+}
+
+// The rules on the ends of an entry whose parts are each in their values: each end is a date, and with a year
+// `from` is not after `to`.
+function checkDates(error: ErrorSink, parts: number, from: ScheduleEnd, to: ScheduleEnd, where: string): void {
+  let valid = true;
+  for (const [end, side] of [
+    [from, ".from"],
+    [to, ".to"],
+  ] as const) {
+    // {month, day} needs a date of some year, so February 29 counts in a leap year.
+    if (
+      (parts & MONTH_DAY) === MONTH_DAY &&
+      (end.day as number) > daysInMonth(parts & PART_YEAR ? (end.year as number) : 2000, end.month as number)
+    ) {
+      error("invalid_date", `${where}${side}`, "is not a date");
+      valid = false;
+    }
+  }
+  if (valid && parts & PART_YEAR) {
+    const key = (end: ScheduleEnd): number => (end.year as number) * 10000 + (end.month ?? 0) * 100 + (end.day ?? 0);
+    if (key(from) > key(to)) error("invalid_date", where, "from is after to");
+  }
+}
+
+// An entry of the file, or null when it is refused or its playlists are.
+function readEntry(error: ErrorSink, value: JsonValue, where: string): ScheduleEntry | null {
+  if (!isObject(value)) {
+    error("structure", where, "must be an object with from, to and playlists");
+    return null;
+  }
+  for (const key of value.keys())
+    if (!["name", "from", "to", "playlists"].includes(key))
+      error("structure", `${where}.${key}`, `unknown field "${key}"`);
+  const name = readName(error, value.get("name"), `${where}.name`);
+  const playlists = readPlaylists(error, value.get("playlists"), `${where}.playlists`);
+  const range = { valid: true };
+  const fromEnd = readEnd(error, value.get("from"), `${where}.from`, range);
+  const toEnd = readEnd(error, value.get("to"), `${where}.to`, range);
+  if (!fromEnd || !toEnd) return null;
+  if (fromEnd.parts !== toEnd.parts) {
+    error("structure", where, "from and to must have the same parts");
+    return null;
+  }
+  if (!range.valid) return null;
+  checkDates(error, fromEnd.parts, fromEnd.end, toEnd.end, where);
+  return playlists ? { name, from: fromEnd.end, to: toEnd.end, playlists } : null;
+}
+
 /** Parses and validates a pixelart-schedule/1 file. */
 export function loadSchedule(bytes: Uint8Array): ScheduleResult {
   const diagnostics: Diagnostic[] = [];
   let ok = true;
   // Keeps at most MAX_DIAGNOSTICS entries, like the animation and playlist loaders.
-  const error = (code: string, where: string, message: string): void => {
+  const error: ErrorSink = (code, where, message) => {
     if (diagnostics.length < MAX_DIAGNOSTICS) diagnostics.push({ severity: "error", code, where, message });
     ok = false;
   };
@@ -161,95 +299,10 @@ export function loadSchedule(bytes: Uint8Array): ScheduleResult {
     return rejected();
   }
 
-  // A property that is present with the value null is not absent: it is validated like any other value.
-  const readName = (value: JsonValue | undefined, where: string): string | null => {
-    if (value === undefined) return null;
-    if (typeof value !== "string" || value === "" || codePointLength(value) > MAX_NAME) {
-      error("structure", where, "must be a text of 1 to 128 characters");
-      return null;
-    }
-    return value;
-  };
-  // A list of 1 to 8 playlist IDs, no ID twice. Null when it is not one.
-  const readPlaylists = (value: JsonValue | undefined, where: string): string[] | null => {
-    if (!isArray(value) || value.length === 0) {
-      error("structure", where, "must be a non-empty list of playlist IDs");
-      return null;
-    }
-    if (value.length > MAX_SCHEDULE_PLAYLISTS) {
-      error("limit_exceeded", where, `more than ${MAX_SCHEDULE_PLAYLISTS} playlists`);
-      return null;
-    }
-    const ids: string[] = [];
-    for (const [i, item] of value.entries()) {
-      const at = `${where}[${i}]`;
-      if (typeof item !== "string" || !isValidId(item)) {
-        error("structure", at, "must be a playlist ID: lowercase letters, digits, _ and -");
-        return null;
-      }
-      if (ids.includes(item)) {
-        error("structure", at, `names "${item}" twice`);
-        return null;
-      }
-      ids.push(item);
-    }
-    return ids;
-  };
-  // An end with the parts the file names, or null when it is refused. A part out of its values is reported, left out
-  // of `end` and `range.valid` cleared.
-  const readEnd = (
-    value: JsonValue | undefined,
-    where: string,
-    range: { valid: boolean },
-  ): { end: ScheduleEnd; parts: number } | null => {
-    if (!isObject(value)) {
-      error("structure", where, "must be an object with year, month or day");
-      return null;
-    }
-    let structureOk = true;
-    for (const key of value.keys())
-      if (!["year", "month", "day"].includes(key)) {
-        error("structure", `${where}.${key}`, `unknown field "${key}"`);
-        structureOk = false;
-      }
-    const end: ScheduleEnd = {};
-    let parts = 0;
-    for (const [part, name] of PARTS) {
-      const v = value.get(name);
-      if (v === undefined) continue;
-      parts |= part;
-      const at = `${where}.${name}`;
-      // An integer outside int64 is not an integer for the formats (json.ts): a structure error.
-      if (!isInteger(v)) {
-        error("structure", at, "must be an integer");
-        structureOk = false;
-        continue;
-      }
-      const low = part === PART_YEAR ? MIN_SCHEDULE_YEAR : 1;
-      const high = part === PART_YEAR ? MAX_SCHEDULE_YEAR : part === PART_MONTH ? 12 : 31;
-      if (v.value < low || v.value > high) {
-        error("invalid_date", at, `must be from ${low} to ${high}`);
-        range.valid = false;
-        continue;
-      }
-      end[name] = v.value;
-    }
-    if (!structureOk) return null;
-    if (parts === 0) {
-      error("structure", where, "must have a year, a month or a day");
-      return null;
-    }
-    if (parts === (PART_YEAR | PART_DAY)) {
-      error("structure", where, "a year and a day need a month");
-      return null;
-    }
-    return { end, parts };
-  };
-
   for (const key of root.keys())
     if (!["format", "name", "fallback", "entries"].includes(key)) error("structure", key, `unknown field "${key}"`);
-  const name = readName(root.get("name"), "name");
-  const fallback = readPlaylists(root.get("fallback"), "fallback");
+  const name = readName(error, root.get("name"), "name");
+  const fallback = readPlaylists(error, root.get("fallback"), "fallback");
 
   const entries: ScheduleEntry[] = [];
   const list = root.get("entries");
@@ -259,47 +312,8 @@ export function loadSchedule(bytes: Uint8Array): ScheduleResult {
       error("limit_exceeded", "entries", `more than ${MAX_SCHEDULE_ENTRIES} entries`);
     else
       list.forEach((value, i) => {
-        const where = `entries[${i}]`;
-        if (!isObject(value)) {
-          error("structure", where, "must be an object with from, to and playlists");
-          return;
-        }
-        for (const key of value.keys())
-          if (!["name", "from", "to", "playlists"].includes(key))
-            error("structure", `${where}.${key}`, `unknown field "${key}"`);
-        const entryName = readName(value.get("name"), `${where}.name`);
-        const playlists = readPlaylists(value.get("playlists"), `${where}.playlists`);
-        const range = { valid: true };
-        const fromEnd = readEnd(value.get("from"), `${where}.from`, range);
-        const toEnd = readEnd(value.get("to"), `${where}.to`, range);
-        if (!fromEnd || !toEnd) return;
-        if (fromEnd.parts !== toEnd.parts) {
-          error("structure", where, "from and to must have the same parts");
-          return;
-        }
-        if (!range.valid) return;
-        const { parts } = fromEnd;
-        const from = fromEnd.end;
-        const to = toEnd.end;
-        for (const [end, side] of [
-          [from, ".from"],
-          [to, ".to"],
-        ] as const) {
-          // {month, day} needs a date of some year, so February 29 counts in a leap year.
-          if (
-            (parts & MONTH_DAY) === MONTH_DAY &&
-            (end.day as number) > daysInMonth(parts & PART_YEAR ? (end.year as number) : 2000, end.month as number)
-          ) {
-            error("invalid_date", `${where}${side}`, "is not a date");
-            range.valid = false;
-          }
-        }
-        if (range.valid && parts & PART_YEAR) {
-          const key = (end: ScheduleEnd): number =>
-            (end.year as number) * 10000 + (end.month ?? 0) * 100 + (end.day ?? 0);
-          if (key(from) > key(to)) error("invalid_date", where, "from is after to");
-        }
-        if (playlists) entries.push({ name: entryName, from, to, playlists });
+        const entry = readEntry(error, value, `entries[${i}]`);
+        if (entry) entries.push(entry);
       });
   }
   if (!ok || !fallback) return rejected();

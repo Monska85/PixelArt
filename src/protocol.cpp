@@ -701,15 +701,14 @@ struct TempFileGuard
 // the reply.
 Status validate_temp_file(Kind kind, size_t size, JsonDocument &reply, std::vector<pixelart::Diagnostic> &diagnostics)
 {
-  pixelart::Playlist playlist;
-  pixelart::Schedule schedule;
-  switch (install::check(kind, TEMP_FILE, size, diagnostics, &playlist, &schedule))
+  install::Parsed parsed;
+  switch (install::check(kind, TEMP_FILE, size, diagnostics, &parsed))
   {
   case install::Result::Ok:
     if (kind == Kind::Playlist)
-      warn_unknown_animations(playlist, diagnostics);
+      warn_unknown_animations(parsed.playlist, diagnostics);
     else if (kind == Kind::Schedule)
-      warn_unknown_playlists(schedule, diagnostics);
+      warn_unknown_playlists(parsed.schedule, diagnostics);
     return {};
   case install::Result::OutOfMemory:
     return fail("out_of_memory", OUT_OF_MEMORY_MESSAGE);
@@ -969,12 +968,23 @@ bool has_fields(JsonObjectConst request)
   return false;
 }
 
+// The older `playlist` setting of a request: any text. The ID is checked afterwards.
+Status optional_playlist(JsonObjectConst request, std::string &out)
+{
+  JsonVariantConst value = request["playlist"];
+  if (value.isUnbound())
+    return {};
+  if (!value.is<const char *>())
+    return fail("bad_request", "playlist must be text");
+  out = value.as<std::string>();
+  return {};
+}
+
 // The `playlists` setting of a request: 1 to MAX_PLAYLISTS texts, no ID twice. The IDs are checked afterwards.
-Status optional_playlists(JsonObjectConst request, bool &present, std::vector<std::string> &out)
+Status optional_playlists(JsonObjectConst request, std::vector<std::string> &out)
 {
   JsonVariantConst value = request["playlists"];
-  present = !value.isUnbound();
-  if (!present)
+  if (value.isUnbound())
     return {};
   const std::string rule =
       "playlists must be a list of 1 to " + std::to_string(settings::MAX_PLAYLISTS) + " playlist IDs, no ID twice";
@@ -989,6 +999,38 @@ Status optional_playlists(JsonObjectConst request, bool &present, std::vector<st
     if (std::find(out.begin(), out.end(), id) != out.end())
       return fail("bad_request", rule);
     out.push_back(std::move(id));
+  }
+  return {};
+}
+
+// What a request says about what to play. `playlist` and `playlists` are read only when present.
+struct PlayFields
+{
+  bool has_play = false;
+  bool has_playlists = false;
+  bool has_playlist = false;
+  std::vector<std::string> playlists;
+  std::string playlist;
+};
+
+// Puts the play fields, already checked, into `next`, keeping playlist == reported_playlist(play, playlists).
+// A `playlist` given with `play` or `playlists` must agree with them.
+Status apply_play(const PlayFields &fields, settings::Values &next)
+{
+  if (fields.has_play || fields.has_playlists)
+  {
+    if (fields.has_playlists)
+      next.playlists = fields.playlists;
+    next.play_stored = true;
+    next.playlist = settings::reported_playlist(next.play, next.playlists);
+    if (fields.has_playlist && fields.playlist != next.playlist)
+      return fail("bad_request", "playlist must be " + next.playlist + " with these play and playlists");
+  }
+  else if (fields.has_playlist)
+  {
+    // An older client: its `default` means Automatic, another playlist My playlists with that one.
+    next.playlist = fields.playlist;
+    settings::derive_play(next);
   }
   return {};
 }
@@ -1014,17 +1056,14 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
       return fail("bad_request", "brightness must be a whole number from 0 to 255");
     next.brightness = brightness.as<uint8_t>();
   }
-  JsonVariantConst playlist_field = request["playlist"];
-  const bool has_playlist = !playlist_field.isUnbound();
-  if (has_playlist && !playlist_field.is<const char *>())
-    return fail("bad_request", "playlist must be text");
-  const std::string playlist = has_playlist ? playlist_field.as<std::string>() : std::string();
-  const bool has_play = !request["play"].isUnbound();
-  std::vector<std::string> playlists;
-  bool has_playlists;
+  PlayFields play;
+  play.has_play = !request["play"].isUnbound();
+  play.has_playlists = !request["playlists"].isUnbound();
+  play.has_playlist = !request["playlist"].isUnbound();
   for (Status s :
-       {optional_text(request, "play", settings::valid_play, "auto or playlists", next.play),
-        optional_playlists(request, has_playlists, playlists),
+       {optional_playlist(request, play.playlist),
+        optional_text(request, "play", settings::valid_play, "auto or playlists", next.play),
+        optional_playlists(request, play.playlists),
         optional_text(request, "wifi_power", settings::valid_wifi_power, "auto, 8.5, 11, 13, 15, 17, 18.5 or 19.5",
                       next.wifi_power),
         optional_text(request, "update_mode", settings::valid_update_mode, "off, notify or automatic",
@@ -1048,33 +1087,19 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
   if (!has_fields(request)) // every field is a setting: allow_only refused the others
     return fail("bad_request", "give at least one setting");
 
-  if (has_playlist)
-    if (Status s = check_id(playlist, "playlist"); s.code)
+  if (play.has_playlist)
+    if (Status s = check_id(play.playlist, "playlist"); s.code)
       return s;
-  for (const std::string &id : playlists)
+  for (const std::string &id : play.playlists)
     if (Status s = check_id(id, "playlists"); s.code)
       return s;
-  if (has_playlist && !storage::exists(playlist_file(playlist)))
+  if (play.has_playlist && !storage::exists(playlist_file(play.playlist)))
     return fail("not_found", "no such playlist");
-  for (const std::string &id : playlists)
+  for (const std::string &id : play.playlists)
     if (!storage::exists(playlist_file(id)))
       return fail("not_found", "no such playlist: " + id);
-
-  if (has_play || has_playlists)
-  {
-    if (has_playlists)
-      next.playlists = playlists;
-    next.play_stored = true;
-    next.playlist = settings::reported_playlist(next.play, next.playlists);
-    if (has_playlist && playlist != next.playlist)
-      return fail("bad_request", "playlist must be " + next.playlist + " with these play and playlists");
-  }
-  else if (has_playlist)
-  {
-    // An older client: its `default` means Automatic, another playlist My playlists with that one.
-    next.playlist = playlist;
-    settings::derive_play(next);
-  }
+  if (Status s = apply_play(play, next); s.code)
+    return s;
 
   if (const char *failure = save_settings(next))
     return fail("storage_error", failure);

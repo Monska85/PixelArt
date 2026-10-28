@@ -34,10 +34,11 @@ std::vector<std::string> stored_schedules();
 
 // Read and validate a stored file with the engine. On failure, `diagnostics`
 // says why: the engine's codes, or `missing_file`, `limit_exceeded` (file too
-// large), `out_of_memory` and `unreadable` when the file cannot be read. `wait` says how long the
-// loop task waits for the memory an update holds.
+// large), `out_of_memory` and `unreadable` when the file cannot be read.
 bool load_stored_animation(const std::string &id, pixelart::Animation &animation,
                            std::vector<pixelart::Diagnostic> &diagnostics);
+// The same for a playlist and a schedule. `wait` says how long the loop task waits for the memory an update
+// holds.
 bool load_stored_playlist(const std::string &name, pixelart::Playlist &playlist,
                           std::vector<pixelart::Diagnostic> &diagnostics,
                           task_sync::Wait wait = task_sync::Wait::Limited);

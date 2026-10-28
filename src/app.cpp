@@ -322,16 +322,25 @@ bool date_moved(const Choice &choice)
   return known != choice.date_known || (known && today != choice.date);
 }
 
+// After `file` failed to load: true when an update holds the memory. Otherwise reports the problem once,
+// unless the file is missing, which is normal for a playlist or the schedule.
+bool load_failed_busy(const std::string &file, const std::vector<pixelart::Diagnostic> &diagnostics)
+{
+  if (is_busy(diagnostics))
+    return true;
+  if (diagnostics.empty() || diagnostics.front().code != "missing_file")
+    report_once(file, diagnostics);
+  return false;
+}
+
 // Loads /schedules/default.json. False when there is no valid one, and `busy` when an update holds the memory.
 bool load_played_schedule(pixelart::Schedule &schedule, bool &busy, task_sync::Wait wait)
 {
   std::vector<pixelart::Diagnostic> diagnostics;
   if (load_stored_schedule(PLAYED_SCHEDULE, schedule, diagnostics, wait))
     return true;
-  if (is_busy(diagnostics))
+  if (load_failed_busy(schedule_file(PLAYED_SCHEDULE), diagnostics))
     busy = true;
-  else if (diagnostics.empty() || diagnostics.front().code != "missing_file")
-    report_once(schedule_file(PLAYED_SCHEDULE), diagnostics); // no schedule at all is normal
   return false;
 }
 
@@ -342,10 +351,8 @@ bool playlist_playable(const std::string &id, bool &busy, task_sync::Wait wait)
   std::vector<pixelart::Diagnostic> diagnostics;
   if (!load_stored_playlist(id, playlist, diagnostics, wait))
   {
-    if (is_busy(diagnostics))
+    if (load_failed_busy(playlist_file(id), diagnostics))
       busy = true;
-    else if (diagnostics.empty() || diagnostics.front().code != "missing_file")
-      report_once(playlist_file(id), diagnostics); // no playlist at all is normal
     return false;
   }
   for (const pixelart::PlaylistItem &item : playlist.items())
@@ -355,7 +362,8 @@ bool playlist_playable(const std::string &id, bool &busy, task_sync::Wait wait)
 }
 
 // Chooses what to play into `newest`. False, with `newest` unchanged, when an update holds the memory: the
-// files are read again at the next try. `wait` says how long each file read waits for that memory.
+// files are read again at the next try. `wait` says how long each file read waits for that memory. See
+// choose_without_waiting() for the choices that must not wait.
 bool make_choice(task_sync::Wait wait = task_sync::Wait::Limited)
 {
   const settings::Values &values = settings::current();
@@ -395,6 +403,11 @@ bool make_choice(task_sync::Wait wait = task_sync::Wait::Limited)
   return true;
 }
 
+// make_choice() for `status` and between two animations of a list, which never wait for the memory an update
+// holds: the choice is made again later. The check skips the reads at once; the zero wait covers an update
+// that takes the memory right after it.
+bool choose_without_waiting() { return !task_sync::network_holds_lock() && make_choice(task_sync::Wait::None); }
+
 // Called when an animation ends while the player plays its list: notices local midnight, chooses again when
 // something changed, and says whether the player must leave its place for a new list.
 bool list_changed()
@@ -403,9 +416,8 @@ bool list_changed()
     return false;
   if (newest.dated && date_moved(newest))
     choose_again = true;
-  // Choosing never waits for the memory an update holds: it is tried again when the next animation ends. The
-  // check skips the reads at once; the zero wait covers an update that takes the memory right after it.
-  if (choose_again && (task_sync::network_holds_lock() || !make_choice(task_sync::Wait::None)))
+  // When an update holds the memory, the choice is tried again when the next animation ends.
+  if (choose_again && !choose_without_waiting())
     return false;
   return place.restart_list || !same_list(newest, applied);
 }
@@ -497,9 +509,8 @@ void refresh_choice()
   // The time became known or local midnight passed: `status` reports the newest list at once.
   if (newest.made && newest.dated && date_moved(newest))
     choose_again = true;
-  // The check skips the reads at once; the zero wait covers an update that takes the memory right after it.
-  if ((!newest.made || choose_again) && !task_sync::network_holds_lock())
-    make_choice(task_sync::Wait::None);
+  if (!newest.made || choose_again)
+    choose_without_waiting();
 }
 
 PlayStatus play_status()
@@ -558,13 +569,7 @@ PlaylistOutcome play_playlist(const std::string &id)
   pixelart::Playlist playlist;
   std::vector<pixelart::Diagnostic> diagnostics;
   if (!load_stored_playlist(id, playlist, diagnostics))
-  {
-    if (is_busy(diagnostics))
-      return PlaylistOutcome::Busy;
-    if (diagnostics.empty() || diagnostics.front().code != "missing_file")
-      report_once(playlist_file(id), diagnostics); // no playlist at all is normal
-    return PlaylistOutcome::Skipped;
-  }
+    return load_failed_busy(playlist_file(id), diagnostics) ? PlaylistOutcome::Busy : PlaylistOutcome::Skipped;
   place.current = (int)place.index;
   bool played = false;
   for (const pixelart::PlaylistItem &item : playlist.items())

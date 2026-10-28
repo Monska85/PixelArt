@@ -73,7 +73,7 @@ With no valid schedule, the list is `[default]`, which is exactly what a board p
 
 A playlist of the list is playable when `/playlists/<id>.json` exists, is valid, has the board's canvas, and has at least one enabled item whose animation is stored in `/animations/`. Any other playlist is skipped: one that is missing, invalid, made for another canvas, or with no item the board can play.
 
-When the board cannot read a playlist or a schedule because an update holds the memory, it skips nothing: it waits, and reads it again at the next pass. `status` never waits meanwhile: it reports the last choice made.
+When the board cannot read a playlist or a schedule because an update holds the memory, it skips nothing: it reads the file again later, from the same place in its list. [Tasks and memory](../board/wifi-and-updates-v1.md#tasks-and-memory) says how long the board waits for the memory, and when it does not wait.
 
 When the list gives the board nothing to play, it falls back, step by step:
 
