@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useState } from "react";
-import { DEFAULT_SCHEDULE_ID, loadPlay, loadSchedule, type Schedule } from "../../engine";
+import { DEFAULT_SCHEDULE_ID, loadPlay, loadSchedule, type Schedule, type ServerChoice } from "../../engine";
 import { downloadFile, type BoardClient, type Entry } from "../../protocol";
 import { downloadPublished } from "../../release/library";
 import type { Published } from "../../release/manifest";
@@ -105,12 +105,21 @@ export function useScheduleSource(
 }
 
 /**
- * The ID of the schedule the site publishes for a board that stores none: the one its play file names, else `default`
- * (the board's own rule). Null while `enabled` is false or the release or its play file is still being read.
+ * The schedule the site's play file leads to: the one it names, none when it chooses playlists (they have no schedule
+ * to show), and `default`, the board's own rule, without a play file or with one that cannot be read.
+ */
+export function siteScheduleId(choice: ServerChoice | null): string | null {
+  if (choice === null) return DEFAULT_SCHEDULE_ID;
+  return "schedule" in choice ? choice.schedule : null;
+}
+
+/**
+ * The ID of the schedule the site publishes for a board that stores none, as siteScheduleId() gives it. Null while
+ * `enabled` is false, the release or its play file is still being read, or the site chose playlists.
  */
 export function useSiteSchedule(library: ManifestState, enabled: boolean): string | null {
   const entry = enabled && library.status === "ready" ? library.manifest.play.find((e) => e.id === "default") : null;
-  const [read, setRead] = useState<{ sha256: string; id: string } | null>(null);
+  const [read, setRead] = useState<{ sha256: string; id: string | null } | null>(null);
 
   useEffect(() => {
     if (!entry) return;
@@ -119,8 +128,7 @@ export function useSiteSchedule(library: ManifestState, enabled: boolean): strin
       .then((bytes) => loadPlay(bytes).choice)
       .catch(() => null)
       .then((choice) => {
-        if (current)
-          setRead({ sha256: entry.sha256, id: choice && "schedule" in choice ? choice.schedule : DEFAULT_SCHEDULE_ID });
+        if (current) setRead({ sha256: entry.sha256, id: siteScheduleId(choice) });
       });
     return () => {
       current = false;
@@ -130,6 +138,6 @@ export function useSiteSchedule(library: ManifestState, enabled: boolean): strin
   }, [entry?.sha256]);
 
   if (!enabled || library.status === "loading") return null;
-  if (!entry) return DEFAULT_SCHEDULE_ID;
+  if (!entry) return siteScheduleId(null);
   return read?.sha256 === entry.sha256 ? read.id : null;
 }

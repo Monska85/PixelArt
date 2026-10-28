@@ -291,7 +291,8 @@ function Automatic({
 }) {
   const choice = play?.serverChoice ?? null;
   const id = schedules === null ? null : automaticSchedule(choice, new Set(scheduleNames.keys()), play);
-  // A board that stores no schedule shows the one the site publishes: the schedule its play file names, else `default`.
+  // A board that stores no schedule shows the one the site publishes: the schedule its play file names, none when it
+  // chooses playlists, else `default`.
   const siteId = useSiteSchedule(library, schedules !== null && schedules.length === 0);
   const source = useScheduleSource(client, schedules, library, id, siteId);
 

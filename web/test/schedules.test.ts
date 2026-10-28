@@ -46,6 +46,7 @@ import { localDateIn, zoneOfSetting } from "../src/ui/board/timezones";
 import { detectKind, validateFile } from "../src/ui/files";
 import { summaryReport } from "../src/ui/queue/summary";
 import type { QueueFile } from "../src/queue/plan";
+import { siteScheduleId } from "../src/ui/board/useScheduleSource";
 import { FakeBoard } from "./fakeBoard";
 import { text } from "./helpers";
 
@@ -704,5 +705,19 @@ describe("the words of What to play and of the time settings", () => {
     expect(localDateIn("UTC", now)).toEqual({ year: 2026, month: 12, day: 31 });
     expect(localDateIn("Europe/Rome", now)).toEqual({ year: 2027, month: 1, day: 1 });
     expect(localDateIn("America/New_York", now)).toEqual({ year: 2026, month: 12, day: 31 });
+  });
+});
+
+describe("the schedule the site publishes for a board that stores none", () => {
+  it("is the one the site's play file names", () => {
+    expect(siteScheduleId({ schedule: "seasons" })).toBe("seasons");
+  });
+
+  it("is none when the site chose playlists, even if it publishes a schedule default", () => {
+    expect(siteScheduleId({ playlists: ["quiet"] })).toBeNull();
+  });
+
+  it("is default without a play file, or with one that cannot be read", () => {
+    expect(siteScheduleId(null)).toBe("default");
   });
 });
