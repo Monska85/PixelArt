@@ -2,7 +2,7 @@
 
 // Plays the animations stored on the board, following the rules of
 // docs/format/playlist-v1.md#how-the-board-chooses-what-to-play: the list of playlists comes from the
-// play settings and the schedule `default`, and changes when the current animation ends.
+// play settings, the server choice and the schedules, and changes when the current animation ends.
 
 #pragma once
 
@@ -12,14 +12,13 @@
 #include <string>
 #include <vector>
 
+#include "settings.h"
 #include "task_sync.h"
 
 // Folders of the animation, playlist and schedule files on the board.
 constexpr const char *ANIMATIONS_FOLDER = "/animations";
 constexpr const char *PLAYLISTS_FOLDER = "/playlists";
 constexpr const char *SCHEDULES_FOLDER = "/schedules";
-// The only schedule the board plays.
-constexpr const char *PLAYED_SCHEDULE = "default";
 
 // Path of an animation, playlist or schedule file on the board, from its ID or name.
 std::string animation_file(const std::string &id);
@@ -67,8 +66,8 @@ void play_from_storage();
 // when the current animation ends.
 void request_choice_and_restart();
 
-// The play settings, the time zone or a schedule changed: the player chooses its list again when the current
-// animation ends, and keeps its position when the list is the same.
+// The play settings, the server choice, the time zone or a schedule changed: the player chooses its list again when the
+// current animation ends, and keeps its position when the list is the same.
 void request_choice();
 
 // Whether a new choice is requested and not yet applied. For tests.
@@ -85,10 +84,13 @@ void refresh_choice();
 // the first choice, the list the setting asks for (`default` for Automatic) and nothing playing. Reads only.
 struct PlayStatus
 {
-  bool automatic = true;
+  const char *mode = settings::PLAY_AUTO; // the `play` setting the list was chosen for
+  pixelart::PlaySource source = pixelart::PlaySource::Fallback;
+  std::string schedule; // empty: no schedule is used
   pixelart::PlayReason reason = pixelart::PlayReason::NoSchedule;
   int entry = -1;
   std::vector<std::string> playlists;
-  std::string playing; // empty: every animation plays, or the "no animations" image
+  std::string playing;                  // empty: every animation plays, or the "no animations" image
+  pixelart::ServerChoice server_choice; // the stored one, whatever the list was chosen from
 };
 PlayStatus play_status();

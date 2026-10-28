@@ -88,12 +88,28 @@ bool is_schedule_date(const LocalDate &date)
          date.day >= 1 && date.day <= days_in_month(date.year, date.month);
 }
 
+const char *play_source_name(PlaySource source)
+{
+  switch (source)
+  {
+  case PlaySource::Server:
+    return "server";
+  case PlaySource::Playlists:
+    return "playlists";
+  case PlaySource::Schedule:
+    return "schedule";
+  case PlaySource::Fallback:
+    break;
+  }
+  return "fallback";
+}
+
 const char *play_reason_name(PlayReason reason)
 {
   switch (reason)
   {
-  case PlayReason::User:
-    return "user";
+  case PlayReason::Playlists:
+    return "playlists";
   case PlayReason::Schedule:
     return "schedule";
   case PlayReason::Fallback:
@@ -421,8 +437,9 @@ int Schedule::winner(const LocalDate &date) const
   return best;
 }
 
-PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user, const Schedule *schedule,
-                            const LocalDate *date, const std::function<bool(const std::string &)> &playable)
+PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user, const std::string &user_schedule,
+                            const ServerChoice &server, const ScheduleLookup &schedule_by_id, const LocalDate *date,
+                            const std::function<bool(const std::string &)> &playable)
 {
   PlayChoice choice;
   auto first_playable = [&](const std::vector<std::string> &list)
@@ -438,31 +455,73 @@ PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user,
     choice.playing = first_playable(choice.playlists);
     return choice.playing >= 0;
   };
+  // The valid stored schedule `id`. The board loads each one when asked, so `default` is not asked for twice.
+  bool default_missing = false;
+  auto find = [&](const std::string &id) -> const Schedule *
+  {
+    const bool is_default = id == DEFAULT_SCHEDULE_ID;
+    if (is_default && default_missing)
+      return nullptr;
+    const Schedule *schedule = schedule_by_id(id);
+    default_missing = default_missing || (is_default && !schedule);
+    return schedule;
+  };
+  // The Automatic chain for the schedule `id`, which is `schedule`.
+  auto from_schedule = [&](const Schedule &schedule, const std::string &id, PlaySource source)
+  {
+    choice = PlayChoice();
+    choice.source = source;
+    choice.schedule = id;
+    if (!date)
+      choice.reason = PlayReason::NoTime;
+    else
+    {
+      choice.entry = schedule.winner(*date);
+      choice.reason = choice.entry >= 0 ? PlayReason::Schedule : PlayReason::Fallback;
+      if (choice.entry >= 0 && use(schedule.playlists(choice.entry)))
+        return;
+      choice.reason = PlayReason::Fallback; // every playlist of the winning entry is skipped: entry still names it
+    }
+    if (!use(schedule.fallback()))
+      use({DEFAULT_PLAYLIST_ID});
+  };
+  // What the board plays when nothing else chooses: the schedule `default`, else the playlist `default`.
+  auto board_rule = [&]()
+  {
+    if (const Schedule *schedule = find(DEFAULT_SCHEDULE_ID))
+    {
+      from_schedule(*schedule, DEFAULT_SCHEDULE_ID, PlaySource::Fallback);
+      return;
+    }
+    choice = PlayChoice();
+    choice.reason = PlayReason::NoSchedule;
+    use({DEFAULT_PLAYLIST_ID});
+  };
 
   if (mode == PlayMode::Playlists)
   {
-    choice.reason = PlayReason::User;
+    choice.source = PlaySource::Playlists;
+    choice.reason = PlayReason::Playlists;
     use(user); // My playlists never fall back to `default`: every playlist skipped plays every animation
     return choice;
   }
-  if (!schedule)
+  const std::string &named = mode == PlayMode::Schedule ? user_schedule : server.schedule;
+  if (!named.empty())
   {
-    choice.reason = PlayReason::NoSchedule;
-    use({DEFAULT_PLAYLIST_ID});
-    return choice;
-  }
-  if (!date)
-    choice.reason = PlayReason::NoTime;
-  else
-  {
-    choice.entry = schedule->winner(*date);
-    choice.reason = choice.entry >= 0 ? PlayReason::Schedule : PlayReason::Fallback;
-    if (choice.entry >= 0 && use(schedule->playlists(choice.entry)))
+    if (const Schedule *schedule = find(named))
+    {
+      from_schedule(*schedule, named, mode == PlayMode::Schedule ? PlaySource::Schedule : PlaySource::Server);
       return choice;
-    choice.reason = PlayReason::Fallback; // every playlist of the winning entry is skipped: entry still names it
+    }
   }
-  if (!use(schedule->fallback()))
-    use({DEFAULT_PLAYLIST_ID});
+  else if (mode == PlayMode::Auto && !server.playlists.empty())
+  {
+    choice.source = PlaySource::Server;
+    choice.reason = PlayReason::Playlists;
+    if (use(server.playlists))
+      return choice;
+  }
+  board_rule();
   return choice;
 }
 

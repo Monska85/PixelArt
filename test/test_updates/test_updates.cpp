@@ -127,6 +127,13 @@ static std::string manifest_with_schedules(const std::string &animations, const 
   return m.substr(0, m.size() - 1) + ",\"schedules\":[" + schedules + "]}";
 }
 
+// The same manifest with a `default` field, given as JSON text.
+static std::string manifest_with_default(const std::string &default_json)
+{
+  std::string m = manifest("", "");
+  return m.substr(0, m.size() - 1) + ",\"default\":" + default_json + "}";
+}
+
 static const std::string FIRMWARE_APP = "{\"board\":\"esp32c3\",\"chip\":\"ESP32-C3\",\"part\":\"app\",\"offset\":"
                                         "65536,\"file\":\"firmware/esp32c3/app-1.2.0.bin\","
                                         "\"size\":365568,\"sha256\":\"" +
@@ -314,6 +321,32 @@ static void test_a_manifest_lists_at_most_200_files()
   TEST_ASSERT_TRUE(reads(manifest(list(100, "a"), list(100, "p")), m));
   expect_refused(manifest(list(201, "a"), ""), "201 animations");
   expect_refused(manifest(list(100, "a"), list(101, "p")), "201 files in all");
+}
+
+static void test_the_default_is_the_server_choice_and_a_broken_one_counts_as_absent()
+{
+  Manifest m;
+  TEST_ASSERT_TRUE(reads(manifest("", ""), m));
+  TEST_ASSERT_TRUE(m.server_choice.is_none());
+  TEST_ASSERT_TRUE(reads(manifest_with_default(R"({"schedule":"seasons"})"), m));
+  TEST_ASSERT_EQUAL_STRING("seasons", m.server_choice.schedule.c_str());
+  TEST_ASSERT_TRUE(m.server_choice.playlists.empty());
+  TEST_ASSERT_TRUE(reads(manifest_with_default(R"({"playlists":["a","b"]})"), m));
+  TEST_ASSERT_TRUE(m.server_choice.schedule.empty());
+  TEST_ASSERT_TRUE((m.server_choice.playlists == std::vector<std::string>{"a", "b"}));
+  TEST_ASSERT_TRUE(reads(manifest_with_default(R"({"playlists":["a","b","c","d","e","f","g","h"]})"), m));
+  TEST_ASSERT_EQUAL(8, m.server_choice.playlists.size());
+  // A default that breaks its rules counts as absent, and the manifest is still read.
+  for (const char *broken :
+       {R"(null)", R"("seasons")", R"(5)", R"([])", R"({})", R"({"schedule":"a","playlists":["b"]})",
+        R"({"schedule":5})", R"({"schedule":null})", R"({"schedule":"Bad"})", R"({"schedule":""})",
+        R"({"playlists":[]})", R"({"playlists":["a","a"]})", R"({"playlists":[1]})", R"({"playlists":["Bad"]})",
+        R"({"playlists":["a","b","c","d","e","f","g","h","i"]})", R"({"playlists":"a"})", R"({"other":"x"})",
+        R"({"schedule":"a","other":1})"})
+  {
+    TEST_ASSERT_TRUE_MESSAGE(reads(manifest_with_default(broken), m), broken);
+    TEST_ASSERT_TRUE_MESSAGE(m.server_choice.is_none(), broken);
+  }
 }
 
 static void test_the_schedules_list_is_optional_and_read_like_playlists()
@@ -705,6 +738,7 @@ public:
   uint32_t time_sync_hours = 0;
 
   std::vector<std::string> fetched, downloaded, installed;
+  std::vector<pixelart::ServerChoice> server_choices; // what a check stored, in order
   const Updater *watched = nullptr; // when set, how many files its plan holds is noted at every manifest read
   std::vector<size_t> planned_at_fetch;
   size_t memory_budget = SIZE_MAX; // what memory_available() grants a manifest parse, in bytes at once
@@ -756,6 +790,7 @@ public:
     memory_asks++;
     return memory_rule ? memory_rule(total, block) : total <= memory_budget;
   }
+  void store_server_choice(const pixelart::ServerChoice &choice) override { server_choices.push_back(choice); }
   void discard_download() override { discards++; }
   bool stored_digest(Kind kind, const std::string &id, std::string &sha256) override
   {
@@ -873,6 +908,56 @@ static void settle(Updater &u, uint64_t now)
     u.tick(now);
   // A board that is about to restart stays busy, but has nothing more to do.
   TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, u.busy() && u.wait_ms(now) == 0 ? 1 : 0, "still busy");
+}
+
+static void test_a_check_stores_the_default_of_the_manifest_before_it_installs_anything()
+{
+  FakeHost host;
+  serve(host, {{"a", "AAA"}, {"b", "BBBB"}});
+  host.manifest_text = manifest_with_default(R"({"schedule":"seasons"})");
+  Updater u(host);
+  u.configure(config());
+  u.request_check();
+  settle(u, 1000);
+  TEST_ASSERT_EQUAL(1, host.server_choices.size());
+  TEST_ASSERT_EQUAL_STRING("seasons", host.server_choices[0].schedule.c_str());
+  TEST_ASSERT_EQUAL(0, host.installed.size()); // notify mode installs nothing, and the choice is stored all the same
+
+  // A manifest without a default, or with a broken one, stores none.
+  host.manifest_text = manifest("", "");
+  u.request_check();
+  settle(u, 2000);
+  host.manifest_text = manifest_with_default(R"({"schedule":5})");
+  u.request_check();
+  settle(u, 3000);
+  TEST_ASSERT_EQUAL(3, host.server_choices.size());
+  TEST_ASSERT_TRUE(host.server_choices[1].is_none());
+  TEST_ASSERT_TRUE(host.server_choices[2].is_none());
+}
+
+static void test_a_check_stores_no_choice_when_it_reads_no_manifest_for_the_animations()
+{
+  FakeHost host;
+  serve(host, {{"a", "AAA"}});
+  host.manifest_text = manifest_with_default(R"({"schedule":"seasons"})");
+  Updater u(host);
+  Config c = config();
+  c.animations = false;
+  u.configure(c);
+  u.request_check();
+  settle(u, 1000);
+  TEST_ASSERT_EQUAL(0, host.server_choices.size()); // updates of animations off: the last choice stays
+
+  c.animations = true;
+  u.configure(c);
+  host.manifest_error = Error::NetworkError;
+  u.request_check();
+  settle(u, 2000);
+  host.manifest_text = "not a manifest";
+  host.manifest_error = Error::None;
+  u.request_check();
+  settle(u, 3000);
+  TEST_ASSERT_EQUAL(0, host.server_choices.size()); // a check that fails before the manifest is parsed changes nothing
 }
 
 static void test_the_first_check_runs_5_minutes_after_the_first_address()
@@ -3828,6 +3913,7 @@ int main(int, char **)
   RUN_TEST(test_the_format_and_the_version_are_checked);
   RUN_TEST(test_a_manifest_entry_needs_a_valid_id_path_size_and_checksum);
   RUN_TEST(test_a_manifest_lists_at_most_200_files);
+  RUN_TEST(test_the_default_is_the_server_choice_and_a_broken_one_counts_as_absent);
   RUN_TEST(test_the_schedules_list_is_optional_and_read_like_playlists);
   RUN_TEST(test_the_200_files_count_schedules_too);
   RUN_TEST(test_the_firmware_list_is_checked_only_for_what_the_board_uses);
@@ -3845,6 +3931,8 @@ int main(int, char **)
   RUN_TEST(test_a_window_inside_the_day_includes_its_start_and_not_its_end);
   RUN_TEST(test_a_window_whose_end_is_before_its_start_runs_over_midnight);
   RUN_TEST(test_a_narrow_window_waits_for_the_time_when_it_is_not_known);
+  RUN_TEST(test_a_check_stores_the_default_of_the_manifest_before_it_installs_anything);
+  RUN_TEST(test_a_check_stores_no_choice_when_it_reads_no_manifest_for_the_animations);
   RUN_TEST(test_the_first_check_runs_5_minutes_after_the_first_address);
   RUN_TEST(test_the_delay_after_a_check_is_random_and_a_failure_retries_after_30_minutes);
   RUN_TEST(test_nothing_is_checked_when_updates_are_off_or_the_board_is_offline);

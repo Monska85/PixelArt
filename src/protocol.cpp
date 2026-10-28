@@ -7,6 +7,7 @@
 #include <net_auth.h>
 #include <pixel_codec.h>
 #include <pixelart_engine.h>
+#include <server_choice.h>
 #include <strict_json.h>
 
 #include <algorithm>
@@ -785,7 +786,7 @@ void apply_changes(const settings::Values &before)
 {
   const settings::Values &now = settings::current();
   if (now.playlist != before.playlist || now.play != before.play || now.playlists != before.playlists ||
-      now.timezone != before.timezone)
+      now.schedule != before.schedule || now.timezone != before.timezone)
     request_choice(); // playback follows the play settings, and the schedule the local date
   if (now.wifi_power != before.wifi_power)
     network::set_power(now.wifi_power);
@@ -827,6 +828,7 @@ void add_settings(JsonDocument &reply)
   JsonArray playlists = out["playlists"].to<JsonArray>();
   for (const std::string &id : v.playlists)
     playlists.add(id);
+  out["schedule"] = v.schedule;
   out["wifi_power"] = v.wifi_power;
   out["update_mode"] = v.update_mode;
   out["update_firmware"] = v.update_firmware;
@@ -881,6 +883,10 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   {
     if (const char *failure = save_settings(settings::defaults_with_new_token()))
       return fail("storage_error", std::string("the files are removed but ") + failure);
+    if (!settings::set_server_choice(pixelart::ServerChoice()))
+      return fail("storage_error",
+                  "the files are removed and the settings reset but the server choice cannot be forgotten");
+    request_choice();
     close_wifi_client(); // the old token is gone
     add_settings(reply);
   }
@@ -910,6 +916,9 @@ const std::string &animation_source_rule()
                                   std::to_string(settings::MAX_ANIMATION_SOURCE) + " characters";
   return rule;
 }
+
+// The ID rule of a `schedule` is checked afterwards, as for `playlists`: `invalid_id`, not `bad_request`.
+bool any_text(const std::string &) { return true; }
 
 Status optional_text(JsonObjectConst request, const char *key, bool (*valid)(const std::string &), const char *rule,
                      std::string &out)
@@ -986,12 +995,13 @@ Status read_playlists(JsonVariantConst value, std::vector<std::string> &out)
   return {};
 }
 
-// What a request says about what to play. `playlist` and `playlists` are read only when present.
+// What a request says about what to play. `playlist`, `playlists` and `schedule` are read only when present.
 struct PlayFields
 {
   bool has_play = false;
   bool has_playlists = false;
   bool has_playlist = false;
+  bool has_schedule = false;
   std::vector<std::string> playlists;
   std::string playlist;
 };
@@ -1009,6 +1019,12 @@ Status apply_play(const PlayFields &fields, settings::Values &next)
     if (fields.has_playlist && fields.playlist != next.playlist)
       return fail("bad_request", "playlist must be " + next.playlist + " with these play and playlists");
   }
+  else if (fields.has_schedule)
+  {
+    // The schedule alone leaves play and playlists as they are, so a `playlist` has to agree with them.
+    if (fields.has_playlist && fields.playlist != next.playlist)
+      return fail("bad_request", "playlist must be " + next.playlist + " with these play and playlists");
+  }
   else if (fields.has_playlist)
   {
     // An older client: its `default` means Automatic, another playlist My playlists with that one.
@@ -1023,7 +1039,7 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
   if (!request["token"].isUnbound())
     return fail("bad_request", "token is read only");
   if (Status s =
-          allow_only(request, {"brightness", "playlist", "play", "playlists", "wifi_power", "update_mode",
+          allow_only(request, {"brightness", "playlist", "play", "playlists", "schedule", "wifi_power", "update_mode",
                                "update_firmware", "update_animations", "check_hours", "install_start", "install_end",
                                "timezone", "time_sync_hours", "ntp_server", "animation_source", "network_login"});
       s.code)
@@ -1043,10 +1059,12 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
   play.has_play = !request["play"].isUnbound();
   play.has_playlists = !request["playlists"].isUnbound();
   play.has_playlist = !request["playlist"].isUnbound();
+  play.has_schedule = !request["schedule"].isUnbound();
   for (Status s :
        {play.has_playlist ? read_playlist(request["playlist"], play.playlist) : Status{},
-        optional_text(request, "play", settings::valid_play, "auto or playlists", next.play),
+        optional_text(request, "play", settings::valid_play, "auto, playlists or schedule", next.play),
         play.has_playlists ? read_playlists(request["playlists"], play.playlists) : Status{},
+        optional_text(request, "schedule", any_text, "text", next.schedule),
         optional_text(request, "wifi_power", settings::valid_wifi_power, "auto, 8.5, 11, 13, 15, 17, 18.5 or 19.5",
                       next.wifi_power),
         optional_text(request, "update_mode", settings::valid_update_mode, "off, notify or automatic",
@@ -1073,11 +1091,16 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
   if (play.has_playlist)
     if (Status s = check_id(play.playlist, "playlist"); s.code)
       return s;
+  if (play.has_schedule)
+    if (Status s = check_id(next.schedule, "schedule"); s.code)
+      return s;
   for (const std::string &id : play.playlists)
     if (Status s = check_id(id, "playlists"); s.code)
       return s;
   if (play.has_playlist && !storage::exists(playlist_file(play.playlist)))
     return fail("not_found", "no such playlist");
+  if (play.has_schedule && !storage::exists(schedule_file(next.schedule)))
+    return fail("not_found", "no such schedule");
   for (const std::string &id : play.playlists)
     if (!storage::exists(playlist_file(id)))
       return fail("not_found", "no such playlist: " + id);
@@ -1087,6 +1110,41 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
   if (const char *failure = save_settings(next))
     return fail("storage_error", failure);
   add_settings(reply);
+  return {};
+}
+
+// `choice` as a reply field: the object, or null for none.
+template <typename Field> void set_server_choice_field(Field field, const pixelart::ServerChoice &choice)
+{
+  if (choice.is_none())
+  {
+    field.set(nullptr);
+    return;
+  }
+  JsonObject object = field.template to<JsonObject>();
+  if (!choice.schedule.empty())
+    object["schedule"] = choice.schedule;
+  else
+  {
+    JsonArray list = object["playlists"].to<JsonArray>();
+    for (const std::string &id : choice.playlists)
+      list.add(id);
+  }
+}
+
+Status cmd_server_choice_set(JsonObjectConst request, JsonDocument &reply)
+{
+  if (Status s = allow_only(request, {"choice"}); s.code)
+    return s;
+  JsonVariantConst value = request["choice"];
+  pixelart::ServerChoice choice; // null is none
+  if (value.isUnbound() || (!value.isNull() && !pixelart::read_server_choice(value, choice)))
+    return fail("bad_request", "choice must be null, {\"schedule\": ID} or {\"playlists\": [1 to " +
+                                   std::to_string(pixelart::MAX_SCHEDULE_PLAYLISTS) + " IDs, no ID twice]}");
+  if (!settings::set_server_choice(choice))
+    return fail("storage_error", "the server choice cannot be saved");
+  request_choice(); // the player chooses again when the choice changed
+  set_server_choice_field(reply["choice"], choice);
   return {};
 }
 
@@ -1117,7 +1175,12 @@ Status cmd_status(JsonObjectConst request, JsonDocument &reply)
   refresh_choice();
   const PlayStatus p = play_status();
   JsonObject play = reply["play"].to<JsonObject>();
-  play["mode"] = p.automatic ? settings::PLAY_AUTO : settings::PLAY_PLAYLISTS;
+  play["mode"] = p.mode;
+  play["source"] = pixelart::play_source_name(p.source);
+  if (p.schedule.empty())
+    play["schedule"] = nullptr;
+  else
+    play["schedule"] = p.schedule;
   play["reason"] = pixelart::play_reason_name(p.reason);
   if (p.entry >= 0)
     play["entry"] = p.entry;
@@ -1130,6 +1193,7 @@ Status cmd_status(JsonObjectConst request, JsonDocument &reply)
     play["playing"] = nullptr;
   else
     play["playing"] = p.playing;
+  set_server_choice_field(play["server_choice"], p.server_choice);
   JsonObject update = reply["update"].to<JsonObject>();
   update["state"] = u.state;
   update["progress"] = u.progress;
@@ -1286,6 +1350,7 @@ const Command COMMANDS[] = {
     {"delete_all", cmd_delete_all},
     {"settings_get", cmd_settings_get},
     {"settings_set", cmd_settings_set},
+    {"server_choice_set", cmd_server_choice_set},
     {"status", cmd_status},
     {"update_check", cmd_update_check},
     {"update_install", cmd_update_install},

@@ -5,6 +5,7 @@
 
 #include <ArduinoJson.h>
 #include <pixelart_engine.h>
+#include <server_choice.h>
 #include <unity.h>
 
 #include <algorithm>
@@ -333,27 +334,47 @@ static void test_schedule_resolver_rows()
   {
     const std::string at = std::string("resolver.json: ") + row["name"].as<const char *>();
     const std::string play = row["play"].as<std::string>();
-    TEST_ASSERT_TRUE_MESSAGE(play == "auto" || play == "playlists", (at + ": play").c_str());
-    const pixelart::Schedule *schedule = nullptr;
-    if (!row["schedule"].isNull())
+    TEST_ASSERT_TRUE_MESSAGE(play == "auto" || play == "playlists" || play == "schedule", (at + ": play").c_str());
+    const pixelart::PlayMode mode = play == "auto"        ? pixelart::PlayMode::Auto
+                                    : play == "playlists" ? pixelart::PlayMode::Playlists
+                                                          : pixelart::PlayMode::Schedule;
+    // The valid schedules stored on the board, by ID, as the file names them.
+    std::map<std::string, const pixelart::Schedule *> stored;
+    for (JsonPairConst pair : row["stored"].as<JsonObjectConst>())
     {
-      TEST_ASSERT_TRUE_MESSAGE(schedules.count(row["schedule"].as<std::string>()) == 1,
-                               (at + ": no such schedule").c_str());
-      schedule = &schedules.at(row["schedule"].as<std::string>());
+      const std::string key = pair.value().as<std::string>();
+      TEST_ASSERT_TRUE_MESSAGE(schedules.count(key) == 1, (at + ": no such schedule " + key).c_str());
+      stored[pair.key().c_str()] = &schedules.at(key);
     }
+    pixelart::ServerChoice server;
+    if (!row["server_choice"].isNull())
+      TEST_ASSERT_TRUE_MESSAGE(pixelart::read_server_choice(row["server_choice"], server),
+                               (at + ": server_choice is not valid").c_str());
+    int lookups = 0;
+    const pixelart::ScheduleLookup lookup = [&](const std::string &id) -> const pixelart::Schedule *
+    {
+      lookups++;
+      const auto found = stored.find(id);
+      return found == stored.end() ? nullptr : found->second;
+    };
     pixelart::LocalDate date;
     if (!row["date"].isNull())
       date = row_date(row["date"].as<const char *>());
     const std::vector<std::string> playable = text_list(row["playable"]);
     const pixelart::PlayChoice choice =
-        pixelart::choose_playlists(play == "auto" ? pixelart::PlayMode::Auto : pixelart::PlayMode::Playlists,
-                                   text_list(row["playlists"]), schedule, row["date"].isNull() ? nullptr : &date,
+        pixelart::choose_playlists(mode, text_list(row["playlists"]), row["schedule"].as<std::string>(), server, lookup,
+                                   row["date"].isNull() ? nullptr : &date,
                                    [&](const std::string &id)
                                    {
                                      return std::find(playable.begin(), playable.end(), id) != playable.end();
                                    });
+    TEST_ASSERT_TRUE_MESSAGE(lookups <= 2, (at + ": more than two schedules asked for").c_str());
 
     JsonVariantConst expected = row["expected"];
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(expected["source"].as<const char *>(), pixelart::play_source_name(choice.source),
+                                     (at + ": source").c_str());
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(expected["schedule"].isNull() ? "" : expected["schedule"].as<const char *>(),
+                                     choice.schedule.c_str(), (at + ": schedule").c_str());
     TEST_ASSERT_EQUAL_STRING_MESSAGE(expected["reason"].as<const char *>(), pixelart::play_reason_name(choice.reason),
                                      (at + ": reason").c_str());
     TEST_ASSERT_EQUAL_INT_MESSAGE(expected["entry"].isNull() ? -1 : expected["entry"].as<int>(), choice.entry,

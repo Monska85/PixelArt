@@ -73,6 +73,9 @@ struct TempData
     settings::fail_playlist_saves_after(-1);
     settings::fail_play_saves_after(-1);
     settings::fail_playlists_saves_after(-1);
+    settings::fail_schedule_saves_after(-1);
+    settings::fail_server_choice_saves(false);
+    settings::sim_forget_server_choice();
     settings::fail_token_saves(false);
     settings::sim_forget_play_keys();
     std::error_code ignored; // a destructor must not throw

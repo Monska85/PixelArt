@@ -13,6 +13,8 @@
 
 #ifndef PIXELART_SIM
 #include <Preferences.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #endif
 
 namespace settings
@@ -31,12 +33,15 @@ std::string start_token;
 int playlist_saves_left = -1;
 int play_saves_left = -1;
 int playlists_saves_left = -1;
+int schedule_saves_left = -1;
+bool server_choice_saves_fail = false;
 // The `playlist`, `play` and `playlists` keys, kept once sim_store_play_keys() was called. An empty text is a
 // missing key.
 bool play_keys_kept = false;
 std::string playlist_key;
 std::string play_key;
 std::string playlists_key;
+std::string schedule_key;
 
 bool use_save(int &saves_left)
 {
@@ -50,6 +55,29 @@ bool use_save(int &saves_left)
 
 Values values;
 
+// The server choice and its generation. The update task stores it as the loop task reads it, so `ChoiceLock` guards
+// both on the board.
+pixelart::ServerChoice stored_server_choice;
+uint32_t choice_generation = 0;
+
+#ifndef PIXELART_SIM
+SemaphoreHandle_t choice_mutex = nullptr;
+StaticSemaphore_t choice_mutex_storage;
+
+struct ChoiceLock
+{
+  ChoiceLock() { xSemaphoreTake(choice_mutex, portMAX_DELAY); }
+  ~ChoiceLock() { xSemaphoreGive(choice_mutex); }
+  ChoiceLock(const ChoiceLock &) = delete;
+  ChoiceLock &operator=(const ChoiceLock &) = delete;
+};
+#else
+struct ChoiceLock
+{
+  ChoiceLock() {}
+};
+#endif
+
 // The order the settings are saved in, and put back in reverse. `playlist` goes first: it is what an older
 // firmware reads.
 enum class Field
@@ -57,6 +85,7 @@ enum class Field
   Playlist,
   Play,
   Playlists,
+  Schedule,
   Brightness,
   WifiPower,
   UpdateMode,
@@ -85,6 +114,8 @@ bool differs(Field field, const Values &a, const Values &b)
     return a.play != b.play || a.play_stored != b.play_stored;
   case Field::Playlists:
     return a.playlists != b.playlists || a.play_stored != b.play_stored;
+  case Field::Schedule:
+    return a.schedule != b.schedule;
   case Field::Brightness:
     return a.brightness != b.brightness;
   case Field::WifiPower:
@@ -122,6 +153,8 @@ bool differs(Field field, const Values &a, const Values &b)
 #ifndef PIXELART_SIM
 const char *NAMESPACE = "pixelart";
 const char *KEY_SCHEMA = "schema";
+// Outside Field: the server choice is not a setting, and a reset of the settings handles it on its own.
+const char *KEY_SERVER_CHOICE = "server_choice";
 constexpr uint8_t SCHEMA = 1;
 
 // NVS keys are at most 15 characters.
@@ -137,6 +170,8 @@ const char *key_of(Field field)
     return "play";
   case Field::Playlists:
     return "playlists";
+  case Field::Schedule:
+    return "schedule";
   case Field::Brightness:
     return "brightness";
   case Field::WifiPower:
@@ -230,6 +265,25 @@ bool split_playlists(const std::string &text, std::vector<std::string> &out)
   }
 }
 
+#ifndef PIXELART_SIM
+// The server choice as the text stored under its key: `s:<id>` or `p:<id>,<id>...`. IDs never hold `:` or `,`.
+std::string choice_text(const pixelart::ServerChoice &choice)
+{
+  return choice.schedule.empty() ? "p:" + join_playlists(choice.playlists) : "s:" + choice.schedule;
+}
+
+// The choice of a stored text, none when it is not one.
+pixelart::ServerChoice choice_from_text(const std::string &text)
+{
+  pixelart::ServerChoice choice;
+  if (text.compare(0, 2, "s:") == 0 && valid_playlist_id(text.substr(2)))
+    choice.schedule = text.substr(2);
+  else if (text.compare(0, 2, "p:") == 0 && !split_playlists(text.substr(2), choice.playlists))
+    choice.playlists.clear();
+  return choice;
+}
+#endif
+
 // Saves one field of `v`. Returns false when it cannot be saved.
 bool write(Field field, const Values &v)
 {
@@ -244,12 +298,16 @@ bool write(Field field, const Values &v)
     return false;
   if (field == Field::Playlists && !use_save(playlists_saves_left))
     return false;
+  if (field == Field::Schedule && !use_save(schedule_saves_left))
+    return false;
   if (play_keys_kept && field == Field::Playlist)
     playlist_key = v.playlist;
   else if (play_keys_kept && field == Field::Play)
     play_key = v.play_stored ? v.play : "";
   else if (play_keys_kept && field == Field::Playlists)
     playlists_key = v.play_stored ? join_playlists(v.playlists) : "";
+  else if (play_keys_kept && field == Field::Schedule)
+    schedule_key = v.schedule;
   return true;
 #else
   switch (field)
@@ -260,6 +318,8 @@ bool write(Field field, const Values &v)
     return v.play_stored ? put_text(field, v.play) : remove_key(field);
   case Field::Playlists:
     return v.play_stored ? put_text(field, join_playlists(v.playlists)) : remove_key(field);
+  case Field::Schedule:
+    return put_text(field, v.schedule);
   case Field::Brightness:
     return prefs.putUChar(key_of(field), v.brightness) == sizeof(uint8_t);
   case Field::WifiPower:
@@ -310,6 +370,9 @@ void take(Field field, Values &to, const Values &from)
   case Field::Playlists:
     to.playlists = from.playlists;
     to.play_stored = from.play_stored;
+    break;
+  case Field::Schedule:
+    to.schedule = from.schedule;
     break;
   case Field::Brightness:
     to.brightness = from.brightness;
@@ -381,7 +444,12 @@ bool valid_timezone(const std::string &value)
   return !value.empty() && value.size() <= MAX_TIMEZONE && printable_ascii(value, true);
 }
 
-bool valid_play(const std::string &value) { return value == PLAY_AUTO || value == PLAY_PLAYLISTS; }
+bool valid_play(const std::string &value)
+{
+  return value == PLAY_AUTO || value == PLAY_PLAYLISTS || value == PLAY_SCHEDULE;
+}
+
+bool valid_schedule_id(const std::string &value) { return pixelart::is_valid_id(value.c_str()); }
 
 bool valid_time_sync_hours(uint32_t value) { return value >= 1 && value <= MAX_TIME_SYNC_HOURS; }
 
@@ -397,7 +465,7 @@ bool valid_ntp_server(const std::string &value)
 
 std::string reported_playlist(const std::string &play, const std::vector<std::string> &playlists)
 {
-  return play == PLAY_AUTO || playlists.empty() ? DEFAULT_PLAYLIST : playlists.front();
+  return play != PLAY_PLAYLISTS || playlists.empty() ? DEFAULT_PLAYLIST : playlists.front();
 }
 
 void derive_play(Values &v)
@@ -480,10 +548,23 @@ void load_play(Values &v, const std::string &play, const std::string &playlists_
   }
 }
 
+#ifndef PIXELART_SIM
+void load_server_choice()
+{
+  stored_server_choice = pixelart::ServerChoice();
+  if (prefs.isKey(KEY_SERVER_CHOICE))
+    stored_server_choice = choice_from_text(prefs.getString(KEY_SERVER_CHOICE, "").c_str());
+}
+#endif
+
 } // namespace
 
 void begin()
 {
+#ifndef PIXELART_SIM
+  if (!choice_mutex)
+    choice_mutex = xSemaphoreCreateMutexStatic(&choice_mutex_storage);
+#endif
   values = Values();
 #ifndef PIXELART_SIM
   if (prefs.begin(NAMESPACE, false))
@@ -507,6 +588,8 @@ void begin()
     values.token = stored_text(Field::Token, "", valid_token);
     // No write here: a board upgraded from a firmware without `play` derives it from `playlist`.
     load_play(values, stored_text(Field::Play, "", valid_play), stored_text(Field::Playlists, "", valid_any));
+    values.schedule = stored_text(Field::Schedule, DEFAULT_SCHEDULE, valid_schedule_id);
+    load_server_choice();
   }
 #endif
 #ifdef PIXELART_SIM
@@ -514,6 +597,7 @@ void begin()
   {
     values.playlist = valid_playlist_id(playlist_key) ? playlist_key : DEFAULT_PLAYLIST;
     load_play(values, play_key, playlists_key);
+    values.schedule = valid_schedule_id(schedule_key) ? schedule_key : DEFAULT_SCHEDULE;
   }
   values.token = start_token;
 #endif
@@ -583,6 +667,40 @@ Commit commit(const Values &next)
   return Commit::Ok;
 }
 
+pixelart::ServerChoice server_choice(uint32_t *generation)
+{
+  ChoiceLock lock;
+  if (generation)
+    *generation = choice_generation;
+  return stored_server_choice;
+}
+
+uint32_t server_choice_generation()
+{
+  ChoiceLock lock;
+  return choice_generation;
+}
+
+bool set_server_choice(const pixelart::ServerChoice &choice)
+{
+  ChoiceLock lock;
+  if (choice == stored_server_choice)
+    return true;
+#ifdef PIXELART_SIM
+  if (server_choice_saves_fail)
+    return false;
+#else
+  const std::string text = choice_text(choice);
+  const bool stored = choice.is_none() ? (!prefs.isKey(KEY_SERVER_CHOICE) || prefs.remove(KEY_SERVER_CHOICE))
+                                       : prefs.putString(KEY_SERVER_CHOICE, text.c_str()) == text.size();
+  if (!stored)
+    return false;
+#endif
+  stored_server_choice = choice;
+  choice_generation++;
+  return true;
+}
+
 bool set_brightness(uint8_t value)
 {
   Values next = values;
@@ -603,11 +721,16 @@ void fail_brightness_saves(bool fail) { brightness_saves_fail = fail; }
 void fail_playlist_saves_after(int successes) { playlist_saves_left = successes; }
 void fail_play_saves_after(int successes) { play_saves_left = successes; }
 void fail_playlists_saves_after(int successes) { playlists_saves_left = successes; }
+void fail_schedule_saves_after(int successes) { schedule_saves_left = successes; }
+void fail_server_choice_saves(bool fail) { server_choice_saves_fail = fail; }
+void sim_forget_server_choice() { stored_server_choice = pixelart::ServerChoice(); }
 void fail_token_saves(bool fail) { token_saves_fail = fail; }
 void sim_set_start_token(const std::string &token) { start_token = token; }
-void sim_store_play_keys(const std::string &playlist, const std::string &play, const std::string &playlists)
+void sim_store_play_keys(const std::string &playlist, const std::string &play, const std::string &playlists,
+                         const std::string &schedule)
 {
   play_keys_kept = true;
+  schedule_key = schedule;
   playlist_key = playlist;
   play_key = play;
   playlists_key = playlists;

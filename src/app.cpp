@@ -37,9 +37,11 @@ constexpr uint64_t MAX_LAG_US = 1000000;
 struct Choice
 {
   bool made = false;
-  bool automatic = true;
+  pixelart::PlayMode mode = pixelart::PlayMode::Auto;
   pixelart::PlayChoice play;
-  // Automatic with a valid schedule: the choice depends on the local date, which it was made for.
+  // The generation of the server choice it was made from: another task may store a new one at any time.
+  uint32_t server_generation = 0;
+  // The list comes from a schedule: the choice depends on the local date, which it was made for.
   bool dated = false;
   bool date_known = false;
   pixelart::LocalDate date;
@@ -322,11 +324,12 @@ bool date_moved(const Choice &choice)
   return known != choice.date_known || (known && today != choice.date);
 }
 
-// A moved date is an event: the board chooses again, and tries the skipped playlists again. The same list keeps
-// its position.
-void notice_date(const Choice &choice)
+// A moved date and a new server choice are events: the board chooses again, and tries the skipped playlists
+// again. The same list keeps its position.
+void notice_events(const Choice &choice)
 {
-  if (choice.made && choice.dated && date_moved(choice))
+  if (choice.made &&
+      ((choice.dated && date_moved(choice)) || settings::server_choice_generation() != choice.server_generation))
   {
     choose_again = true;
     skipped.clear();
@@ -344,15 +347,36 @@ bool load_failed_busy(const std::string &file, const std::vector<pixelart::Diagn
   return false;
 }
 
-// Loads /schedules/default.json. False when there is no valid one, and `busy` when an update holds the memory.
-bool load_played_schedule(pixelart::Schedule &schedule, bool &busy, task_sync::Wait wait)
+// Loads the schedule `id`. False when there is no valid one, and `busy` when an update holds the memory.
+bool load_schedule(const std::string &id, pixelart::Schedule &schedule, bool &busy, task_sync::Wait wait)
 {
   std::vector<pixelart::Diagnostic> diagnostics;
-  if (load_stored_schedule(PLAYED_SCHEDULE, schedule, diagnostics, wait))
+  if (load_stored_schedule(id, schedule, diagnostics, wait))
     return true;
-  if (load_failed_busy(schedule_file(PLAYED_SCHEDULE), diagnostics))
+  if (load_failed_busy(schedule_file(id), diagnostics))
     busy = true;
   return false;
+}
+
+pixelart::PlayMode play_mode(const std::string &play)
+{
+  if (play == settings::PLAY_PLAYLISTS)
+    return pixelart::PlayMode::Playlists;
+  return play == settings::PLAY_SCHEDULE ? pixelart::PlayMode::Schedule : pixelart::PlayMode::Auto;
+}
+
+const char *play_mode_name(pixelart::PlayMode mode)
+{
+  switch (mode)
+  {
+  case pixelart::PlayMode::Playlists:
+    return settings::PLAY_PLAYLISTS;
+  case pixelart::PlayMode::Schedule:
+    return settings::PLAY_SCHEDULE;
+  case pixelart::PlayMode::Auto:
+    break;
+  }
+  return settings::PLAY_AUTO;
 }
 
 // Whether a playlist is valid and has an item whose animation is stored. `busy` when an update holds the memory.
@@ -380,17 +404,18 @@ bool make_choice(task_sync::Wait wait = task_sync::Wait::Limited)
   const settings::Values &values = settings::current();
   Choice choice;
   choice.made = true;
-  choice.automatic = values.play == settings::PLAY_AUTO;
+  choice.mode = play_mode(values.play);
+  const pixelart::ServerChoice server = settings::server_choice(&choice.server_generation);
   bool busy = false;
+  // One schedule at a time: the resolver asks for the named one, then `default`, and the first is freed first.
   pixelart::Schedule schedule;
-  const bool scheduled = choice.automatic && load_played_schedule(schedule, busy, wait);
-  if (busy)
-    return false;
-  if (scheduled)
+  auto find_schedule = [&](const std::string &id) -> const pixelart::Schedule *
   {
-    choice.dated = true;
-    choice.date_known = updates::local_date(choice.date);
-  }
+    schedule = pixelart::Schedule();
+    return !busy && load_schedule(id, schedule, busy, wait) ? &schedule : nullptr;
+  };
+  pixelart::LocalDate date;
+  const bool date_known = updates::local_date(date);
   // A playlist can come up more than once (in an entry, the fallback and `default`): each is read once.
   std::vector<std::pair<std::string, bool>> seen;
   auto playable = [&](const std::string &id)
@@ -403,11 +428,16 @@ bool make_choice(task_sync::Wait wait = task_sync::Wait::Limited)
     seen.emplace_back(id, ok);
     return ok;
   };
-  choice.play = pixelart::choose_playlists(choice.automatic ? pixelart::PlayMode::Auto : pixelart::PlayMode::Playlists,
-                                           values.playlists, scheduled ? &schedule : nullptr,
-                                           choice.date_known ? &choice.date : nullptr, playable);
+  choice.play = pixelart::choose_playlists(choice.mode, values.playlists, values.schedule, server, find_schedule,
+                                           date_known ? &date : nullptr, playable);
   if (busy)
     return false;
+  choice.dated = !choice.play.schedule.empty();
+  if (choice.dated)
+  {
+    choice.date_known = date_known;
+    choice.date = date;
+  }
   newest = std::move(choice);
   choose_again = false;
   updates::set_schedule_needs_time(newest.dated);
@@ -425,7 +455,7 @@ bool list_changed()
 {
   if (!in_pass)
     return false;
-  notice_date(newest);
+  notice_events(newest);
   // When an update holds the memory, the choice is tried again when the next animation ends.
   if (choose_again && !choose_without_waiting())
     return false;
@@ -517,7 +547,7 @@ size_t skipped_playlist_count() { return skipped.size(); }
 void refresh_choice()
 {
   // The time became known or local midnight passed: `status` reports the newest list at once.
-  notice_date(newest);
+  notice_events(newest);
   if (!newest.made || choose_again)
     choose_without_waiting();
 }
@@ -525,17 +555,27 @@ void refresh_choice()
 PlayStatus play_status()
 {
   PlayStatus status;
+  status.server_choice = settings::server_choice();
   if (!newest.made)
   {
     // The first choice could not be made at boot: what the setting asks for, as without a schedule, and nothing
     // playing yet.
     const settings::Values &values = settings::current();
-    status.automatic = values.play == settings::PLAY_AUTO;
-    status.reason = status.automatic ? pixelart::PlayReason::NoSchedule : pixelart::PlayReason::User;
-    status.playlists = status.automatic ? std::vector<std::string>{settings::DEFAULT_PLAYLIST} : values.playlists;
+    const pixelart::PlayMode mode = play_mode(values.play);
+    status.mode = play_mode_name(mode);
+    if (mode == pixelart::PlayMode::Playlists)
+    {
+      status.source = pixelart::PlaySource::Playlists;
+      status.reason = pixelart::PlayReason::Playlists;
+      status.playlists = values.playlists;
+    }
+    else
+      status.playlists = {settings::DEFAULT_PLAYLIST};
     return status;
   }
-  status.automatic = newest.automatic;
+  status.mode = play_mode_name(newest.mode);
+  status.source = newest.play.source;
+  status.schedule = newest.play.schedule;
   status.reason = newest.play.reason;
   status.entry = newest.play.entry;
   status.playlists = newest.play.playlists;

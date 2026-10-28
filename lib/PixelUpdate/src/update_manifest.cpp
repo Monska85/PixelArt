@@ -4,6 +4,7 @@
 
 #include <ArduinoJson.h>
 #include <pixelart_engine.h>
+#include <server_choice.h>
 #include <strict_json.h>
 
 #include <algorithm>
@@ -51,6 +52,7 @@ void make_filter(JsonDocument &filter)
     filter[list][0]["size"] = true;
     filter[list][0]["sha256"] = true;
   }
+  filter["default"] = true; // whole, so an object with another key is seen as invalid
   filter["firmware"][0]["board"] = true;
   filter["firmware"][0]["part"] = true;
   filter["firmware"][0]["file"] = true;
@@ -284,6 +286,8 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
     return false;
   if (doc["schedules"].is<JsonArrayConst>() && !read_list(doc["schedules"], "schedules", manifest.schedules, reason))
     return false;
+
+  pixelart::read_server_choice(doc["default"], manifest.server_choice); // none when absent or invalid
 
   if (doc["firmware"].is<JsonArrayConst>()) // the filter drops a firmware that is not a list
   {

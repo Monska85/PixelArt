@@ -111,6 +111,9 @@ public:
   virtual void discard_download() = 0;
   // SHA-256 of a stored file, false when the file is not stored.
   virtual bool stored_digest(Kind kind, const std::string &id, std::string &sha256) = 0;
+  // Stores what the manifest of a check says Automatic plays (none when it has no `default`), before any installation.
+  // A host that cannot store it keeps the old choice.
+  virtual void store_server_choice(const pixelart::ServerChoice &) {}
   // Free bytes of the file system, false when they cannot be read.
   virtual bool free_space(size_t &bytes) = 0;
   // The local time as minutes after midnight, false when the time is not known.

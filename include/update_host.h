@@ -12,6 +12,7 @@
 #include "app.h"
 #include "firmware.h"
 #include "platform.h"
+#include "settings.h"
 #include "storage.h"
 #include "updates.h"
 
@@ -53,6 +54,9 @@ public:
     bytes = total - used;
     return true;
   }
+
+  // A choice that cannot be saved leaves the old one: the next check stores it again.
+  void store_server_choice(const pixelart::ServerChoice &choice) override { settings::set_server_choice(choice); }
 
   void discard_download() override { storage::remove(TEMP_FILE); }
 

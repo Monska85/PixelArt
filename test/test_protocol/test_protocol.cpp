@@ -208,6 +208,8 @@ static void start_settings(JsonVariantConst start)
     TEST_ASSERT_EQUAL_STRING_MESSAGE(settings::reported_playlist(values.play, values.playlists).c_str(),
                                      values.playlist.c_str(), "the playlist of a case agrees with play and playlists");
   }
+  if (!start["schedule"].isNull())
+    values.schedule = start["schedule"].as<std::string>();
   if (!start["wifi_power"].isNull())
     values.wifi_power = start["wifi_power"].as<std::string>();
   if (!start["update_mode"].isNull())
@@ -920,6 +922,86 @@ static void test_a_restart_keeps_a_change_made_while_the_stored_playlists_are_un
                             {"xmas"});
 }
 
+static void test_a_schedule_is_read_back_after_a_restart_and_a_missing_or_unusable_one_is_default()
+{
+  sim::reset();
+  TempData data("protocol");
+  settings::sim_store_play_keys("default", "schedule", "default", "seasons");
+  setup();
+  TEST_ASSERT_EQUAL_STRING("seasons", settings::current().schedule.c_str());
+  TEST_ASSERT_EQUAL_STRING(settings::PLAY_SCHEDULE, settings::current().play.c_str());
+  TEST_ASSERT_TRUE(settings::current().play_stored);
+  TEST_ASSERT_EQUAL_STRING("default", settings::playlist().c_str());
+
+  for (const char *key : {"", "Not an ID"})
+  {
+    settings::sim_store_play_keys("default", "schedule", "default", key);
+    setup();
+    TEST_ASSERT_EQUAL_STRING(settings::DEFAULT_SCHEDULE, settings::current().schedule.c_str());
+  }
+  // An older firmware chose another playlist while My choice was Schedule: its choice is the newer one.
+  settings::sim_store_play_keys("xmas", "schedule", "default", "seasons");
+  setup();
+  TEST_ASSERT_EQUAL_STRING(settings::PLAY_PLAYLISTS, settings::current().play.c_str());
+  TEST_ASSERT_EQUAL_STRING("seasons", settings::current().schedule.c_str());
+}
+
+static void test_a_schedule_that_cannot_be_saved_changes_nothing_and_a_saved_one_is_kept()
+{
+  sim::reset();
+  TempData data("protocol");
+  data.write("schedules/seasons.json", R"({"format":"pixelart-schedule/1","fallback":["default"]})");
+  settings::sim_store_play_keys("default", "", "");
+  setup();
+  Replies replies;
+  settings::fail_schedule_saves_after(0);
+  replies.send(request(1, R"("cmd":"settings_set","schedule":"seasons")"));
+  const std::string failed = reply_json(replies.pop(), "settings_set");
+  TEST_ASSERT_TRUE_MESSAGE(failed.find("\"error\":\"storage_error\"") != std::string::npos, failed.c_str());
+  TEST_ASSERT_EQUAL_STRING(settings::DEFAULT_SCHEDULE, settings::current().schedule.c_str());
+
+  settings::fail_schedule_saves_after(-1);
+  replies.send(request(2, R"("cmd":"settings_set","schedule":"seasons")"));
+  const std::string saved = reply_json(replies.pop(), "settings_set");
+  TEST_ASSERT_TRUE_MESSAGE(saved.find("\"schedule\":\"seasons\"") != std::string::npos, saved.c_str());
+  setup(); // a restart reads the key back, and `schedule` alone left `play` as it was
+  TEST_ASSERT_EQUAL_STRING("seasons", settings::current().schedule.c_str());
+  TEST_ASSERT_EQUAL_STRING(settings::PLAY_AUTO, settings::current().play.c_str());
+}
+
+static void test_the_server_choice_survives_a_restart_and_changes_only_when_it_is_stored()
+{
+  sim::reset();
+  TempData data("protocol");
+  setup();
+  uint32_t generation = 0;
+  TEST_ASSERT_TRUE(settings::server_choice(&generation).is_none());
+  const uint32_t start = generation;
+
+  pixelart::ServerChoice schedule;
+  schedule.schedule = "seasons";
+  TEST_ASSERT_TRUE(settings::set_server_choice(schedule));
+  TEST_ASSERT_TRUE(settings::server_choice(&generation) == schedule);
+  TEST_ASSERT_EQUAL_UINT32(start + 1, generation);
+  TEST_ASSERT_TRUE(settings::set_server_choice(schedule)); // the same choice is not a change
+  TEST_ASSERT_EQUAL_UINT32(start + 1, settings::server_choice_generation());
+
+  setup(); // a restart does not forget it, as the board's storage does not
+  TEST_ASSERT_TRUE(settings::server_choice() == schedule);
+
+  pixelart::ServerChoice list;
+  list.playlists = {"a", "b"};
+  settings::fail_server_choice_saves(true);
+  TEST_ASSERT_FALSE(settings::set_server_choice(list));
+  TEST_ASSERT_TRUE(settings::server_choice(&generation) == schedule); // nothing changed
+  TEST_ASSERT_EQUAL_UINT32(start + 1, generation);
+  settings::fail_server_choice_saves(false);
+  TEST_ASSERT_TRUE(settings::set_server_choice(list));
+  TEST_ASSERT_TRUE(settings::set_server_choice(pixelart::ServerChoice()));
+  TEST_ASSERT_TRUE(settings::server_choice(&generation).is_none());
+  TEST_ASSERT_EQUAL_UINT32(start + 3, generation);
+}
+
 static void test_delete_all_keeps_the_settings_when_they_cannot_be_reset()
 {
   sim::reset();
@@ -1129,7 +1211,7 @@ static void test_status_reports_the_choice_made_at_boot_while_an_update_holds_th
   JsonDocument doc = status_play(replies, 1);
   task_sync::sim_block_loop(false);
   TEST_ASSERT_EQUAL_STRING("playlists", doc["play"]["mode"]);
-  TEST_ASSERT_EQUAL_STRING("user", doc["play"]["reason"]);
+  TEST_ASSERT_EQUAL_STRING("playlists", doc["play"]["reason"]);
   TEST_ASSERT_EQUAL(1, doc["play"]["playlists"].size());
   TEST_ASSERT_EQUAL_STRING("christmas", doc["play"]["playlists"][0]);
   TEST_ASSERT_EQUAL_STRING("christmas", doc["play"]["playing"]);
@@ -1162,7 +1244,7 @@ static void test_status_before_the_first_choice_reports_the_setting()
   doc = status_play(replies, 2);
   task_sync::sim_block_loop(false);
   TEST_ASSERT_EQUAL_STRING("playlists", doc["play"]["mode"]);
-  TEST_ASSERT_EQUAL_STRING("user", doc["play"]["reason"]);
+  TEST_ASSERT_EQUAL_STRING("playlists", doc["play"]["reason"]);
   TEST_ASSERT_TRUE(doc["play"]["entry"].isNull());
   TEST_ASSERT_EQUAL(2, doc["play"]["playlists"].size());
   TEST_ASSERT_EQUAL_STRING("christmas", doc["play"]["playlists"][0]);
@@ -1538,6 +1620,9 @@ int main(int, char **)
   RUN_TEST(test_a_playlists_key_that_cannot_be_put_back_leaves_what_a_restart_reads);
   RUN_TEST(test_a_restart_keeps_a_change_made_after_a_rollback_changed_the_playlist_alone);
   RUN_TEST(test_a_restart_keeps_a_change_made_while_the_stored_playlists_are_unusable);
+  RUN_TEST(test_a_schedule_is_read_back_after_a_restart_and_a_missing_or_unusable_one_is_default);
+  RUN_TEST(test_a_schedule_that_cannot_be_saved_changes_nothing_and_a_saved_one_is_kept);
+  RUN_TEST(test_the_server_choice_survives_a_restart_and_changes_only_when_it_is_stored);
   RUN_TEST(test_delete_all_keeps_the_settings_when_they_cannot_be_reset);
   RUN_TEST(test_delete_all_says_so_when_the_settings_are_partly_reset);
   RUN_TEST(test_wifi_forget_says_so_when_the_network_task_cannot_take_it);

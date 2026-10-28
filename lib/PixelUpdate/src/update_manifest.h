@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <pixelart_engine.h>
+
 #include <cstddef>
 #include <functional>
 #include <string>
@@ -54,8 +56,9 @@ struct Manifest
   std::string version;
   std::vector<FileEntry> animations;
   std::vector<FileEntry> playlists;
-  std::vector<FileEntry> schedules;    // optional in the manifest: empty when it has none
-  std::vector<FirmwareEntry> firmware; // entries with part `app`
+  std::vector<FileEntry> schedules;     // optional in the manifest: empty when it has none
+  std::vector<FirmwareEntry> firmware;  // entries with part `app`
+  pixelart::ServerChoice server_choice; // the `default`: none when it is absent or breaks its rules
 };
 
 // Reads a manifest. On failure, returns false and `reason` says why (short plain text, for logs).
@@ -65,7 +68,8 @@ struct Manifest
 // `id`, `file`,
 // `size` of at least 1 or `sha256`, an ID listed twice in one kind, and a file path that is_safe_relative_path()
 // refuses. A `schedules` list is optional and counts as absent when it is not a list; its entries are read as those
-// of `playlists`. A `firmware` list is optional and counts as absent when it is not a list; its entries need `board`
+// of `playlists`. A `default` is read by pixelart::read_server_choice() and counts as absent when it breaks its rules.
+// A `firmware` list is optional and counts as absent when it is not a list; its entries need `board`
 // and `part`, and an `app` entry the file fields as well. Other fields are ignored. A size over the limit of its kind
 // is not refused here: that file fails on its own when it is installed.
 bool parse_manifest(const char *json, size_t length, Manifest &out, std::string &reason);

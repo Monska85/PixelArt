@@ -21,6 +21,8 @@ constexpr uint8_t DEFAULT_BRIGHTNESS = 100;
 constexpr const char *DEFAULT_PLAYLIST = pixelart::DEFAULT_PLAYLIST_ID;
 constexpr const char *PLAY_AUTO = "auto";
 constexpr const char *PLAY_PLAYLISTS = "playlists";
+constexpr const char *PLAY_SCHEDULE = "schedule";
+constexpr const char *DEFAULT_SCHEDULE = pixelart::DEFAULT_SCHEDULE_ID;
 constexpr const char *DEFAULT_WIFI_POWER = "auto";
 constexpr const char *DEFAULT_UPDATE_MODE = "automatic";
 constexpr uint16_t DEFAULT_CHECK_HOURS = 6;
@@ -49,11 +51,13 @@ struct Values
   uint8_t brightness = DEFAULT_BRIGHTNESS;
   // `playlist`, `play` and `playlists` always keep playlist == reported_playlist(play, playlists). `playlist` is the
   // one an older client and an older firmware see, stored under the key older firmware reads, so a rolled back
-  // firmware plays the same. A commit() whose rollback cannot put back the `play` or `playlists` key sets the three
-  // to what begin() reads back after a restart.
+  // firmware plays the same (`default` for Automatic and for My choice, Schedule). A commit() whose rollback cannot put
+  // back the `play` or `playlists` key sets the three to what begin() reads back after a restart.
   std::string playlist = DEFAULT_PLAYLIST;
-  std::string play = PLAY_AUTO; // `auto` or `playlists`
+  std::string play = PLAY_AUTO; // `auto`, `playlists` or `schedule`
   std::vector<std::string> playlists = {DEFAULT_PLAYLIST};
+  // The schedule of My choice, Schedule, kept while another mode is active. Stored under its own key once set.
+  std::string schedule = DEFAULT_SCHEDULE;
   // True when the `play` and `playlists` keys exist in storage, hold valid values and agree with `playlist`: `play`
   // and `playlists` are then the stored values. False means derive_play() supplies them from `playlist`, so an
   // upgraded board plays as before without any write; the next change of either one writes both keys.
@@ -91,10 +95,20 @@ bool valid_check_hours(uint32_t value);
 bool valid_minutes(uint32_t value);
 bool valid_timezone(const std::string &value);
 bool valid_play(const std::string &value);
+bool valid_schedule_id(const std::string &value);
 bool valid_time_sync_hours(uint32_t value);
 bool valid_ntp_server(const std::string &value);
 bool valid_animation_source(const std::string &value);
 bool valid_token(const std::string &value);
+
+// The server choice (docs/board/wifi-and-updates-v1.md#server-choice): what the release says Automatic plays. It is
+// not a setting: it lives under its own key, outside Values and settings_get, and the update task stores it too,
+// so these calls are safe from both tasks. A missing or unreadable value is none.
+// The generation grows each time the choice changes, so the player notices a change another task made.
+pixelart::ServerChoice server_choice(uint32_t *generation = nullptr);
+uint32_t server_choice_generation();
+// Stores the choice (none removes it). False, with the old choice kept, when it cannot be stored.
+bool set_server_choice(const pixelart::ServerChoice &choice);
 
 // Loads the stored settings. A missing or unusable value takes its default;
 // the simulator starts from the defaults, except for the keys of
@@ -127,7 +141,7 @@ enum class Commit
 // Stores every setting of `next` that differs from the current one, all or
 // nothing: when one cannot be saved, the ones saved before it are put back.
 // Values are stored only when they differ, which saves flash writes. The
-// order of saving is fixed: playlist, play, playlists, brightness, then the others.
+// order of saving is fixed: playlist, play, playlists, schedule, brightness, then the others.
 Commit commit(const Values &next);
 
 // Change one setting. Return false if the value could not be stored; the
@@ -146,15 +160,21 @@ void sim_set_start_token(const std::string &token);
 void fail_brightness_saves(bool fail);
 // Lets `successes` more changes of the playlist succeed, then fails every one. -1 restores normal saving.
 void fail_playlist_saves_after(int successes);
-// The same for the `play` and the `playlists` keys.
+// The same for the `play`, the `playlists` and the `schedule` keys.
 void fail_play_saves_after(int successes);
 void fail_playlists_saves_after(int successes);
+void fail_schedule_saves_after(int successes);
+// Makes every save of the server choice fail.
+void fail_server_choice_saves(bool fail);
+// Forgets the server choice the simulator keeps for the run.
+void sim_forget_server_choice();
 // Makes every save of the token fail.
 void fail_token_saves(bool fail);
-// Keeps the `playlist`, `play` and `playlists` keys as the board stores them, starting from these texts (an
-// empty text is a missing key, `playlists` holds the IDs joined by commas): the next begin() reads them, and
-// every save updates them, so a test can restart the board with what it stored.
-void sim_store_play_keys(const std::string &playlist, const std::string &play, const std::string &playlists);
+// Keeps the `playlist`, `play`, `playlists` and `schedule` keys as the board stores them, starting from these
+// texts (an empty text is a missing key, `playlists` holds the IDs joined by commas): the next begin() reads them,
+// and every save updates them, so a test can restart the board with what it stored.
+void sim_store_play_keys(const std::string &playlist, const std::string &play, const std::string &playlists,
+                         const std::string &schedule = "");
 // Goes back to starting from the defaults.
 void sim_forget_play_keys();
 #endif

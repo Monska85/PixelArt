@@ -278,41 +278,79 @@ private:
   uint16_t fallback_[MAX_SCHEDULE_PLAYLISTS] = {};
 };
 
-// The playlist the board plays when Automatic has no schedule or every playlist it names is skipped.
+// The playlist the board plays when its choice has no list left to play (docs/format/playlist-v1.md).
 constexpr const char *DEFAULT_PLAYLIST_ID = "default";
+// The schedule the board's own rule uses when nothing else chooses one.
+constexpr const char *DEFAULT_SCHEDULE_ID = "default";
+
+// What the release says Automatic plays (docs/board/wifi-and-updates-v1.md#server-choice): a schedule, or 1 to
+// MAX_SCHEDULE_PLAYLISTS playlists, or nothing. The IDs are valid and a list holds none twice.
+struct ServerChoice
+{
+  std::string schedule;               // the schedule it names, empty when it names playlists or nothing
+  std::vector<std::string> playlists; // the playlists it names, empty when it names a schedule or nothing
+
+  bool is_none() const { return schedule.empty() && playlists.empty(); }
+  bool operator==(const ServerChoice &other) const
+  {
+    return schedule == other.schedule && playlists == other.playlists;
+  }
+  bool operator!=(const ServerChoice &other) const { return !(*this == other); }
+};
 
 // The rules of docs/format/playlist-v1.md#how-the-board-chooses-what-to-play.
 enum class PlayMode : uint8_t
 {
   Auto,
-  Playlists
+  Playlists,
+  Schedule
+};
+
+enum class PlaySource : uint8_t
+{
+  Server,
+  Playlists,
+  Schedule,
+  Fallback
 };
 
 enum class PlayReason : uint8_t
 {
-  User,
+  Playlists,
   Schedule,
   Fallback,
   NoTime,
   NoSchedule
 };
 
-// `user`, `schedule`, `fallback`, `no_time` or `no_schedule`.
+// `server`, `playlists`, `schedule` or `fallback`.
+const char *play_source_name(PlaySource source);
+
+// `playlists`, `schedule`, `fallback`, `no_time` or `no_schedule`.
 const char *play_reason_name(PlayReason reason);
 
 struct PlayChoice
 {
+  PlaySource source = PlaySource::Fallback;
   PlayReason reason = PlayReason::NoSchedule;
-  int entry = -1; // the winning entry, -1 when none won
+  std::string schedule; // the schedule the list comes from, empty when none
+  int entry = -1;       // the winning entry, -1 when none won
   std::vector<std::string> playlists;
   int playing = -1; // index in `playlists` of the first playable playlist, -1: every animation plays
 };
 
-// The list the board plays. `user` is the `playlists` setting, `schedule` the valid schedule `default` or null,
-// `date` the local date or null while the time is not known, and `playable` says whether the board can play a
-// playlist. Resolves one date: never loops over days or years.
-PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user, const Schedule *schedule,
-                            const LocalDate *date, const std::function<bool(const std::string &)> &playable);
+// The valid stored schedule `id`, or null. The result stays valid until the next call, so the board keeps one
+// schedule in memory at a time.
+using ScheduleLookup = std::function<const Schedule *(const std::string &id)>;
+
+// What the board plays. `user`, `user_schedule` and `mode` are the settings `playlists`, `schedule` and `play`;
+// `server` is the server choice; `schedule_by_id` finds a valid stored schedule and is called at most twice (the
+// named schedule, then `default`), never again for a `default` it did not find; `date` is the local date or null
+// while the time is not known; `playable` says whether the board can play a playlist. Resolves one date: never
+// loops over days or years.
+PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user, const std::string &user_schedule,
+                            const ServerChoice &server, const ScheduleLookup &schedule_by_id, const LocalDate *date,
+                            const std::function<bool(const std::string &)> &playable);
 
 // Plays an animation frame by frame. The animation must outlive the player.
 class Player
