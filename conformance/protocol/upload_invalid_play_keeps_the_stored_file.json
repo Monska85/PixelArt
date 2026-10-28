@@ -1,0 +1,57 @@
+{
+  "description": "a rejected play file leaves the stored one as it was",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}",
+    "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}"
+  },
+  "steps": [
+    {
+      "send": "@PR 503cfd2c {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":41,\"sha256\":\"50c32636bbf46c5fd4ebb028bde1ffe7fade295a018c1c38fe2d6cf172bcb2bb\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 38d087d7 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7fX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 41
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+        "upload.tmp": null
+      }
+    }
+  ]
+}

@@ -5,30 +5,19 @@
     "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
     "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
     "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
-    "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}"
+    "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}",
+    "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}"
   },
   "update_source": {
     "local_date": "2026-12-25"
   },
   "steps": [
     {
-      "send": "@PR 479a938c {\"seq\":1,\"cmd\":\"server_choice_set\",\"choice\":{\"schedule\":\"seasons\"}}"
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
     },
     {
       "expect": {
         "seq": 1,
-        "ok": true,
-        "choice": {
-          "schedule": "seasons"
-        }
-      }
-    },
-    {
-      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
-    },
-    {
-      "expect": {
-        "seq": 2,
         "ok": true,
         "wifi": {
           "state": "connected",
@@ -70,20 +59,20 @@
       }
     },
     {
-      "send": "@PR 7b1cf2bb {\"seq\":3,\"cmd\":\"delete\",\"kind\":\"schedule\",\"id\":\"seasons\"}"
+      "send": "@PR ff2deb4a {\"seq\":2,\"cmd\":\"delete\",\"kind\":\"schedule\",\"id\":\"seasons\"}"
     },
     {
       "expect": {
-        "seq": 3,
+        "seq": 2,
         "ok": true
       }
     },
     {
-      "send": "@PR f7862428 {\"seq\":4,\"cmd\":\"status\"}"
+      "send": "@PR d7145863 {\"seq\":3,\"cmd\":\"status\"}"
     },
     {
       "expect": {
-        "seq": 4,
+        "seq": 3,
         "ok": true,
         "wifi": {
           "state": "connected",

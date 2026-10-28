@@ -1,0 +1,126 @@
+{
+  "description": "a check in automatic mode installs the play file of the manifest with the other files, and the server wins over a stored one",
+  "settings": {
+    "update_mode": "automatic"
+  },
+  "files": {
+    "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"playlists\":[\"default\"]}}"
+  },
+  "update_source": {
+    "files": {
+      "manifest.json": {
+        "json": {
+          "format": "pixelart-manifest/1",
+          "version": "1.4.0",
+          "released": "2026-11-05",
+          "content_version": "1.4.0",
+          "animations": [
+            {
+              "id": "red",
+              "name": "Red",
+              "version": 1,
+              "file": "animations/red.json",
+              "size": 147,
+              "sha256": "c578d329190c36c2b023ba25a889bdd5096aefda89cd38c32473a31efb3f2588"
+            }
+          ],
+          "playlists": [
+            {
+              "id": "default",
+              "file": "playlists/default.json",
+              "size": 96,
+              "sha256": "3a5c252d1adc48248dae300b5c3659281783c1e4e81de896f4c4825c1e3d8317"
+            }
+          ],
+          "schedules": [
+            {
+              "id": "seasons",
+              "name": "Seasons",
+              "file": "schedules/seasons.json",
+              "size": 163,
+              "sha256": "11f51cf5d9870988d9efa6a37f3addc7efa3c79a2aa057fc6ee2ceab5f1f9200"
+            }
+          ],
+          "play": [
+            {
+              "id": "default",
+              "file": "play/default.json",
+              "size": 61,
+              "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+            }
+          ]
+        }
+      },
+      "animations/red.json": "{\"format\":\"pixelart/1\",\"name\":\"Red\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+      "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"red\"}]}",
+      "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"default\"]}]}",
+      "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}"
+    }
+  },
+  "steps": [
+    {
+      "send": "@PR 935d27e0 {\"seq\":1,\"cmd\":\"update_check\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "play": {
+          "mode": "auto",
+          "source": "server",
+          "schedule": "seasons",
+          "reason": "no_time",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": "default",
+          "server_choice": {
+            "schedule": "seasons"
+          }
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": 0,
+          "last_result": "ok",
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "expect_files": {
+        "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+        "update.tmp": null
+      }
+    }
+  ]
+}

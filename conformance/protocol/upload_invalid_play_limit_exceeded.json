@@ -1,0 +1,133 @@
+{
+  "description": "a play file with 9 playlists is rejected with limit_exceeded, and 8 are accepted",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 0c9d836b {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":99,\"sha256\":\"1dee892e53f138b1d7a176aa147d4af0f3d120b114024a32897599933d343aac\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 6c99fc2c {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6WyJwMCIsInAxIiwicDIiLCJwMyIsInA0IiwicDUiLCJwNiIsInA3IiwicDgiXX19\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 99
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "limit_exceeded",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 4b625f0f {\"seq\":4,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":94,\"sha256\":\"840122adc53e5653413f033b0771f5a6abc7237005b122665be6e87766e01c16\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 1b6a0286 {\"seq\":5,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6WyJwMCIsInAxIiwicDIiLCJwMyIsInA0IiwicDUiLCJwNiIsInA3Il19fQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "received": 94
+      }
+    },
+    {
+      "send": "@PR ea2d75bf {\"seq\":6,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true,
+        "warnings": [
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"playlists\":[\"p0\",\"p1\",\"p2\",\"p3\",\"p4\",\"p5\",\"p6\",\"p7\"]}}"
+      }
+    }
+  ]
+}

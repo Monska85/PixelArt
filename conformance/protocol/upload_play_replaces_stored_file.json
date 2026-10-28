@@ -1,0 +1,47 @@
+{
+  "description": "uploading a play file replaces the stored file with the same ID",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}",
+    "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}"
+  },
+  "steps": [
+    {
+      "send": "@PR 869d3c44 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":66,\"sha256\":\"928000da31feeda3a45dc82efcf707b90359f36d956f8d9d25b2c1f7e65e8952\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 2a0edbf1 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6WyJoYWxsb3dlZW4iXX19\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 66
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "expect_files": {
+        "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"playlists\":[\"halloween\"]}}"
+      }
+    }
+  ]
+}

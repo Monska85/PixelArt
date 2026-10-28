@@ -1,0 +1,56 @@
+{
+  "description": "a play file naming playlists that are not stored is stored with one unknown_playlist warning for each",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR e3a67e93 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":83,\"sha256\":\"557f365f58a3f648721cceb79de320a13b931872aa7bf337ec4e69cdbf5fe8ee\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 63d6b740 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6WyJoYWxsb3dlZW4iLCJnaG9zdCIsInNwaXJpdCJdfX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 83
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "warnings": [
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"playlists\":[\"halloween\",\"ghost\",\"spirit\"]}}"
+      }
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Monska85/PixelArt/schema/play-1.schema.json",
-  "title": "PixelArt play choice, format pixelart-play/1",
-  "description": "What the release says Automatic plays: one schedule or a list of playlists. That the schedule or the playlists exist in the content is checked by the tools, see docs/format/play-v1.md.",
+  "title": "PixelArt play file, format pixelart-play/1",
+  "description": "What the release says Automatic plays: one schedule or a list of playlists. That the schedule or the playlists exist is reported as a warning, see docs/format/play-v1.md.",
   "type": "object",
   "required": ["format", "default"],
   "additionalProperties": false,

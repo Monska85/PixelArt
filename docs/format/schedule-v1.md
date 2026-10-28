@@ -11,7 +11,7 @@ The JSON Schema in [`schema/schedule-1.schema.json`](../../schema/schedule-1.sch
 - Like animations and playlists, a schedule is written in YAML or JSON, and the board stores and reads JSON only. The JSON follows the same rules as for [animations](pixelart-v1.md#files): strict JSON in valid UTF-8, no U+0000 in any text, integers without fraction or exponent, and text lengths counted in characters.
 - In the repository, schedules live in `content/schedules/`, and a release publishes `content/schedules/<id>.yaml` as `schedules/<id>.json`. On the board, they live in `/schedules/`.
 - Schedule file names follow the same rules as animation IDs.
-- A board stores any number of schedules, within its storage, and plays one at a time: the one the server choice names, the one the user chose, or the schedule `default` as the board's own rule. Every schedule is listed, validated, installed by updates and deleted like any other file.
+- A board stores any number of schedules, within its storage, and plays one at a time: the one the server choice (the [play file](play-v1.md)) names, the one the user chose, or the schedule `default` as the board's own rule. Every schedule is listed, validated, installed by updates and deleted like any other file.
 
 ## Example
 

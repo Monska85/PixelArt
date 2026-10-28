@@ -1,0 +1,26 @@
+{
+  "description": "list names an invalid play file, which is still listed so a client can delete it",
+  "files": {
+    "play/default.json": "not json"
+  },
+  "steps": [
+    {
+      "send": "@PR 9f7d4fd2 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"play\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "play",
+        "entries": [
+          {
+            "id": "default",
+            "size": 8,
+            "sha256": "7ccfa1fbf3940e6f0c0375d87c0f9235a50514e14cb427bdfaf5077987b26ccf"
+          }
+        ],
+        "more": false
+      }
+    }
+  ]
+}

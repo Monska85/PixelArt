@@ -1,0 +1,46 @@
+{
+  "description": "delete removes a play file, and a name is looked up per kind",
+  "files": {
+    "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "play/other.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}"
+  },
+  "steps": [
+    {
+      "send": "@PR 6e012493 {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"schedule\",\"id\":\"default\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 833e00ec {\"seq\":2,\"cmd\":\"delete\",\"kind\":\"play\",\"id\":\"default\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true
+      }
+    },
+    {
+      "expect_files": {
+        "play/default.json": null,
+        "play/other.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}"
+      }
+    },
+    {
+      "send": "@PR fcf79b7f {\"seq\":3,\"cmd\":\"delete\",\"kind\":\"play\",\"id\":\"default\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    }
+  ]
+}

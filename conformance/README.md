@@ -1,6 +1,6 @@
 # Conformance suite
 
-Test cases for the [`pixelart/1` animation format](../docs/format/pixelart-v1.md), the [`pixelart-playlist/1` playlist format](../docs/format/playlist-v1.md) and the [`pixelart-schedule/1` schedule format](../docs/format/schedule-v1.md), with the rules that choose what the board plays. Every implementation of the formats must pass all of them. Today there are two: the engine in `lib/PixelEngine/`, used by the firmware and the simulator, and the web app engine in `web/src/engine`. `make test` runs the first locally (`pio test -e native_test`), `make web-test` runs the second, and CI runs both.
+Test cases for the [`pixelart/1` animation format](../docs/format/pixelart-v1.md), the [`pixelart-playlist/1` playlist format](../docs/format/playlist-v1.md) and the [`pixelart-schedule/1` schedule format](../docs/format/schedule-v1.md) and the [`pixelart-play/1` play file format](../docs/format/play-v1.md), with the rules that choose what the board plays. Every implementation of the formats must pass all of them. Today there are two: the engine in `lib/PixelEngine/`, used by the firmware and the simulator, and the web app engine in `web/src/engine`. `make test` runs the first locally (`pio test -e native_test`), `make web-test` runs the second, and CI runs both.
 
 ## Layout
 
@@ -8,6 +8,7 @@ Test cases for the [`pixelart/1` animation format](../docs/format/pixelart-v1.md
 - `invalid/<case>.json`: an animation that must be rejected, and `invalid/<case>.expected.json`: the error code it must report.
 - `playlist/valid/` and `playlist/invalid/`: the same for playlists.
 - `schedule/valid/` and `schedule/invalid/`: the same for schedules.
+- `play/valid/` and `play/invalid/`: the same for play files.
 - `schedule/winner.json` and `schedule/resolver.json`: rows of the rules that choose what the board plays, see [Schedule rows](#schedule-rows).
 
 ## Expected results
@@ -67,13 +68,21 @@ For a valid schedule, the expected file lists `fallback` and the entries in the 
 
 A valid schedule case is also valid for the build tools: none of them has a tie. An invalid schedule case expects one of the codes of the [schedule validation](../docs/format/schedule-v1.md#validation): `format_unsupported`, `structure`, `limit_exceeded` or `invalid_date`. A part beyond the signed 64-bit range is not an integer for the format: `year_2_pow_63`, `month_2_pow_64` and `day_below_int64` expect `structure`, and `year_int64_max`, the largest signed 64-bit integer, expects `invalid_date`.
 
+For a valid play file, the expected file holds its `default` as written:
+
+```json
+{ "default": { "playlists": ["halloween", "christmas"] } }
+```
+
+An invalid play file case expects one of the codes of the [play file validation](../docs/format/play-v1.md#validation): `format_unsupported`, `structure` or `limit_exceeded`. The warnings `unknown_schedule` and `unknown_playlist` never reject a file, so no case in `play/invalid/` expects them: `unknown_schedule_and_playlists_are_not_errors` in `play/valid/` names files nothing stores, and the protocol cases `upload_play_unknown_schedule` and `upload_play_unknown_playlist` check the warnings. The `file_1024_bytes` and `file_too_large` cases are the pair for the 1 KiB limit: they are valid JSON followed by white space, which the format allows.
+
 ## Strict JSON cases
 
-Files are strict JSON in valid UTF-8 and text lengths count characters, as the [format specification](../docs/format/pixelart-v1.md#files) says. The `strict_json_*` cases in `invalid/`, `playlist/invalid/` and `schedule/invalid/` each break one rule (comment, single quotes, unquoted key, a number outside the JSON grammar, a raw control character, data after the value, byte order mark, invalid, overlong or surrogate UTF-8, U+0000 in a text or a key, a fraction or exponent where an integer is required) and expect `structure`. The `name_128_characters` and `name_129_characters` cases use the two-byte character `é`, so the byte count of the name is twice its length.
+Files are strict JSON in valid UTF-8 and text lengths count characters, as the [format specification](../docs/format/pixelart-v1.md#files) says. The `strict_json_*` cases in `invalid/`, `playlist/invalid/`, `schedule/invalid/` and `play/invalid/` each break one rule (comment, single quotes, unquoted key, a number outside the JSON grammar, a raw control character, data after the value, byte order mark, invalid, overlong or surrogate UTF-8, U+0000 in a text or a key, a fraction or exponent where an integer is required) and expect `structure`. The `name_128_characters` and `name_129_characters` cases use the two-byte character `é`, so the byte count of the name is twice its length.
 
 ## Null cases
 
-A field that is present is checked even when its value is `null`, as the format specifications say. The `null_*` cases in `invalid/`, `playlist/invalid/` and `schedule/invalid/` each set one field that is present to `null`, optional or required (top-level fields, sprite and part positions, the fields of a `show` entry, the fields of a frame, a frame inside a loop, the playlist fields, the schedule fields, a part of an end and an ID of a list), and expect `structure`. The exception is `null_background`, which expects `unknown_color`, because the format reports a background that is not a color with that diagnostic. The `version_max` and `version_over_max` cases are the pair for the largest `version`, 2147483647.
+A field that is present is checked even when its value is `null`, as the format specifications say. The `null_*` cases in `invalid/`, `playlist/invalid/`, `schedule/invalid/` and `play/invalid/` each set one field that is present to `null`, optional or required (top-level fields, sprite and part positions, the fields of a `show` entry, the fields of a frame, a frame inside a loop, the playlist fields, the schedule fields, a part of an end, the fields of a play file's `default` and an ID of a list), and expect `structure`. The exception is `null_background`, which expects `unknown_color`, because the format reports a background that is not a color with that diagnostic. The `version_max` and `version_over_max` cases are the pair for the largest `version`, 2147483647.
 
 ## Brightness rows
 
@@ -133,7 +142,7 @@ A field that is present is checked even when its value is `null`, as the format 
 
 - `play`, `playlists` and `schedule`: the settings of the same names.
 - `stored`: the valid schedules stored on the board, an object from the schedule ID to a key of `schedules`. A schedule that is not in it is not stored, or not valid: the board cannot play it.
-- `server_choice`: the server choice, `null` for none, `{"schedule": "<id>"}` or `{"playlists": ["<id>", ...]}`.
+- `server_choice`: the server choice, which is the `default` of the valid play file `/play/default.json`: `null` for none, `{"schedule": "<id>"}` or `{"playlists": ["<id>", ...]}`. The rows give it directly, as the result of reading that file; the protocol cases `status_play_*` check the reading.
 - `date`: the local date, or `null` when the time is not known.
 - `playable`: the IDs of the stored playlists the board can play; every other ID is skipped.
 - `expected`: what `status.play` reports besides `mode` and `server_choice`: `source` (`server`, `playlists`, `schedule` or `fallback`), `schedule` (the ID of the schedule the list comes from, or `null`), `reason`, `entry`, `playlists` (the list the board plays, after the fallback chain) and `playing` (the first playable playlist of that list, or `null` when the board plays every animation).
@@ -168,7 +177,7 @@ A case is one JSON object:
 ```
 
 - `capacity` (optional): size of the simulated file system in bytes. The default is 983,040, the size of the board's data partition. Space is used in blocks of 4,096 bytes per file.
-- `files` (optional): the files that exist before the board boots, by path from the root of the file system. The value is the text of the file, or `{"base64": "..."}` for bytes that are not text.
+- `files` (optional): the files that exist before the board boots, by path from the root of the file system (`animations/`, `playlists/`, `schedules/` and `play/`; the board's server choice is `play/default.json`). The value is the text of the file, or `{"base64": "..."}` for bytes that are not text.
 - `settings` (optional): the settings the board starts with, any of those of `settings_get`, the `token` included, which the board makes itself otherwise. The values are the ones the protocol allows. A case that gives neither `play` nor `playlists` starts a board that has never stored them, which derives them from `playlist` as the [protocol](../docs/protocol/protocol-v1.md#older-clients) says; a case that gives one of them gives both, with a `playlist` that agrees with them. A case that gives `schedule` starts a board that has stored it; without it the board reads `default`. A case that logs in gives the token, and writes the `hmac` of each `auth` with an independent tool, from that token and the nonce it gave.
 - `transport` (optional): `usb` (the default) or `wifi`. With `wifi`, each `send` goes to the board as a request that arrived over WiFi, one line without a newline, and the replies are the ones that transport gets: no token, and `usb_only` for the commands reserved for USB. The WiFi client is connected from the start of the case, not logged in.
 - `nonces` (optional): the nonces the board hands out for `auth_challenge`, in order, each as 32 lowercase hexadecimal digits. The first `auth_challenge` of the case gets the first one, and so on. Without them the nonce is random and a case cannot compute the answer.
@@ -200,5 +209,5 @@ The rules for format cases apply here too. In addition:
 
 - The requests and the expected replies are written from the specification, never copied from what an implementation sent. A reply the specification does not fix (a message, a diagnostic place) uses `"<any>"`.
 - A CRC-32 or SHA-256 in a case is computed with an independent tool, on the bytes the case spells out: `python3 -c 'import zlib,sys; print("%08x" % zlib.crc32(sys.argv[1].encode()))' '{"seq":1,"cmd":"info"}'` and `sha256sum` or `hashlib.sha256`. Base64 comes from `base64` or `python3 -m base64`.
-- Keep one idea per case, and name the case after it: `framing_*`, `info_*`, `list_*`, `get_*`, `upload_*`, `delete_*` (`delete_all_*` for `delete_all`), `settings_*`, `status_*`, `token_*`, `cert_*`, `usb_*` (the USB transport next to a WiFi client), `wifi_*` (`wifi_login_*` for the network login), `update_*` (`update_failure_*` for a failed file or check, `update_manifest_*` for a manifest the board refuses).
+- Keep one idea per case, and name the case after it: `framing_*`, `info_*`, `list_*`, `get_*`, `upload_*`, `delete_*` (`delete_all_*` for `delete_all`), `settings_*`, `status_*`, `token_*`, `cert_*`, `usb_*` (the USB transport next to a WiFi client), `wifi_*` (`wifi_login_*` for the network login), `update_*` (`update_failure_*` for a failed file or check, `update_manifest_*` for a manifest the board refuses, `update_play_*` for the play file).
 - Every change to the protocol comes with new cases.

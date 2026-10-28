@@ -122,6 +122,9 @@
           ],
           "schedule": [
             "pixelart-schedule/1"
+          ],
+          "play": [
+            "pixelart-play/1"
           ]
         },
         "canvas": {
@@ -142,7 +145,8 @@
           "page": 8,
           "animation": 65536,
           "playlist": 16384,
-          "schedule": 16384
+          "schedule": 16384,
+          "play": 1024
         }
       }
     }

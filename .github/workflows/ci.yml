@@ -273,7 +273,7 @@ jobs:
           node: true
 
       # The end-to-end tests run against the simulator, and the YAML tests compare with the converted files
-      - name: Build the simulator and convert the animations, playlists and schedules
+      - name: Build the simulator and convert the animations, playlists, schedules and the play file
         run: |
           python3 tools/pixelart.py build
           pio run -e native

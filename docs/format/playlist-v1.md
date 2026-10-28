@@ -9,7 +9,7 @@ The JSON Schema in [`schema/playlist-1.schema.json`](../../schema/playlist-1.sch
 ## Files
 
 - Like animations, a playlist is written in YAML or JSON, and the board stores and reads JSON only. The JSON follows the same rules as for [animations](pixelart-v1.md#files): strict JSON in valid UTF-8, no U+0000 in any text, integers without fraction or exponent, and text lengths counted in characters.
-- On the board, playlists live in `/playlists/`. Which of them the board plays depends on its `play`, `playlists` and `schedule` [settings](../protocol/protocol-v1.md#settings_get-settings_set), on the server choice and on the [schedules](schedule-v1.md) it stores, as [How the board chooses what to play](#how-the-board-chooses-what-to-play) describes. A new board with no server choice plays `/playlists/default.json`, as before schedules existed, until a release, a schedule or a client changes it.
+- On the board, playlists live in `/playlists/`. Which of them the board plays depends on its `play`, `playlists` and `schedule` [settings](../protocol/protocol-v1.md#settings_get-settings_set), on the server choice (the [play file](play-v1.md)) and on the [schedules](schedule-v1.md) it stores, as [How the board chooses what to play](#how-the-board-chooses-what-to-play) describes. A board with no server choice (no valid play file) plays `/playlists/default.json`, as before schedules existed, until a release, a schedule or a client changes it.
 - Playlist file names follow the same rules as animation IDs.
 
 ## Example
@@ -60,7 +60,7 @@ The board computes a list of playlists, then plays it. Why it works this way is 
 Three inputs decide it besides the files:
 
 - **My choice** is the `play` [setting](../protocol/protocol-v1.md#settings_get-settings_set): `playlists` (the ordered `playlists` setting) or `schedule` (the `schedule` setting, one schedule ID).
-- **Automatic** is `play` `auto`. The board follows the **server choice**: what the release says to play, stored from the manifest's [`default`](manifest-v1.md#default) at each check, or from the `server_choice_set` command ([protocol](../protocol/protocol-v1.md#server_choice_set)). The server choice is none, a schedule, or a list of 1 to 8 playlists.
+- **Automatic** is `play` `auto`. The board follows the **server choice**: what the release says to play, which is the `default` of the valid play file `/play/default.json` ([play file](play-v1.md)). The server choice is none, a schedule, or a list of 1 to 8 playlists.
 - **The board's own rule** is what the board plays when it has nothing better: the schedule `default` if it is stored and valid, else the playlist `default`.
 
 | `play`      | Condition                                                                                                   | List                                         | `source`    |
@@ -82,7 +82,7 @@ Three inputs decide it besides the files:
 
 **The board's own rule** plays the schedule `default` as above when it is stored and valid (`status.play.schedule` is then `default`), and the playlist `default` otherwise: the list is `[default]` and the reason `no_schedule`. It never tries the schedule `default` a second time: a server choice or a `schedule` setting that names `default` and finds it missing goes straight to `[default]`. With no schedule and no server choice, a board plays exactly what it played before schedules existed: `/playlists/default.json`.
 
-A schedule is valid when `/schedules/<id>.json` exists and passes the engine's validation. The board loads at most two schedules for one choice, the named one and then `default`, one at a time. The reason, the source and the schedule used are what `status` reports in `play` ([protocol](../protocol/protocol-v1.md#status)). The board needs the time whenever the choice uses a schedule, whatever the source.
+A schedule is valid when `/schedules/<id>.json` exists and passes the engine's validation. The board reads the play file `default` first (1 KiB at most), then loads at most two schedules for one choice, the named one and then `default`, one at a time. The reason, the source and the schedule used are what `status` reports in `play` ([protocol](../protocol/protocol-v1.md#status)). The board needs the time whenever the choice uses a schedule, whatever the source.
 
 ### Playlists the board cannot play
 
@@ -112,10 +112,9 @@ The board computes the list again:
 - at boot, before the board connects to the network;
 - when the time becomes known;
 - at local midnight, when the local date changes, which the board notices when an animation ends;
-- when a playlist or a schedule is stored or deleted: an upload (`put_end`), an update, `delete` or `delete_all`;
+- when a playlist, a schedule or the play file `default` is stored or deleted: an upload (`put_end`), an update, `delete` or `delete_all`;
 - when `timezone` changes;
-- when the play settings change: `play`, `playlists`, `schedule`, or `playlist` as an older client sets it;
-- when the server choice changes: a check that stores a different one, or `server_choice_set`.
+- when the play settings change: `play`, `playlists`, `schedule`, or `playlist` as an older client sets it.
 
 A new list takes effect when the current animation ends: the animation playing at the moment finishes unchanged, and its remaining repeats are cut, as they were when the active playlist changed. A new list that is the same as the old one, the same playlists in the same order, keeps the position: the board goes on with the playlist and the item it was at. A different list starts from its first playlist. A playlist that is stored or deleted always starts the list again from its first playlist, even when the list is the same, as an upload or a deletion of a playlist restarted the active playlist before.
 

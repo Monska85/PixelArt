@@ -13,6 +13,7 @@
       "expect": {
         "seq": 1,
         "ok": true,
+        "play": 0,
         "schedules": 0,
         "playlists": 0,
         "animations": 0,

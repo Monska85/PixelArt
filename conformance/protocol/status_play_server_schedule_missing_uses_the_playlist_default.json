@@ -5,30 +5,19 @@
     "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
     "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
     "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
-    "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}"
+    "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}",
+    "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"ghost\"}}"
   },
   "update_source": {
     "local_date": "2026-10-31"
   },
   "steps": [
     {
-      "send": "@PR 034b959a {\"seq\":1,\"cmd\":\"server_choice_set\",\"choice\":{\"schedule\":\"ghost\"}}"
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
     },
     {
       "expect": {
         "seq": 1,
-        "ok": true,
-        "choice": {
-          "schedule": "ghost"
-        }
-      }
-    },
-    {
-      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
-    },
-    {
-      "expect": {
-        "seq": 2,
         "ok": true,
         "wifi": {
           "state": "connected",

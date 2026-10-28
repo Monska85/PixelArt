@@ -26,7 +26,7 @@ sim := ".pio/build/native/program"
 default:
     @just --list
 
-# Build data/ (the board's files) from content/animations/, content/playlists/ and content/schedules/
+# Build data/ (the board's files) from content/animations/, content/playlists/, content/schedules/ and content/play.yaml
 data:
     {{python}} tools/pixelart.py build
 
@@ -42,16 +42,16 @@ build board=board:
 build-all:
     nice -n {{nice}} pio run -j {{jobs}} -e esp32c3 -e esp32 -e esp32s3
 
-# Flash the firmware and the content (animations, playlists and schedules) of this working tree
+# Flash the firmware and the content (animations, playlists, schedules and the play file) of this working tree
 upload board=board: data
     nice -n {{nice}} pio run -j {{jobs}} -e {{board}} -t upload
     nice -n {{nice}} pio run -j {{jobs}} -e {{board}} -t uploadfs
 
-# Flash only the firmware, keeping the animations, playlists and schedules on the board
+# Flash only the firmware, keeping the animations, playlists, schedules and the play file on the board
 upload-firmware board=board:
     nice -n {{nice}} pio run -j {{jobs}} -e {{board}} -t upload
 
-# Flash only the animations, playlists and schedules, keeping the firmware
+# Flash only the animations, playlists, schedules and the play file, keeping the firmware
 upload-content board=board: data
     nice -n {{nice}} pio run -j {{jobs}} -e {{board}} -t uploadfs
 
@@ -109,7 +109,7 @@ release-firmware folder=site:
     nice -n {{nice}} pio run -j {{jobs}} -e esp32c3 -e esp32 -e esp32s3
     nice -n {{nice}} {{python}} tools/release.py build --out "{{folder}}" --schema
 
-# Build the content release (animations, playlists, schedules and their manifest) into site/ (or `just release-content out-folder`)
+# Build the content release (animations, playlists, schedules, the play file and their manifest) into site/ (or `just release-content out-folder`)
 release-content folder=site: data
     #!/usr/bin/env sh
     set -eu

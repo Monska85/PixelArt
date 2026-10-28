@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Converts animation, playlist and schedule sources (YAML or JSON) to the JSON files the board reads.
+"""Converts animation, playlist, schedule and play sources (YAML or JSON) to the JSON files the board reads.
 
     python3 tools/pixelart.py build [--source DIR] [--out DIR] [--schema]
     python3 tools/pixelart.py board (--port DEVICE | --ws URL) [--token TOKEN] COMMAND
@@ -11,10 +11,9 @@ of the board's file system. The file name (without extension) is the ID. With
 --schema, every file is also checked against the JSON Schemas in schema/ (needs
 the jsonschema package). Schedules are always checked in full, ties included
 (docs/format/schedule-v1.md), and a playlist they name that the source lacks is
-a warning. <source>/play.yaml, when it exists, is checked too (docs/format/play-v1.md):
-it must name a schedule or playlists the source has. It is not a file of the board,
-so it is not written to <out>. The full validation of animations and playlists, including
-references between sprites, runs in the engine: see `make validate`.
+a warning. <source>/play.yaml, when it exists, is built as <out>/play/default.json (docs/format/play-v1.md);
+the schedule or playlists it names that the source lacks are warnings. The full validation of animations and
+playlists, including references between sprites, runs in the engine: see `make validate`.
 
 The board command talks to a board over USB serial (--port, needs pyserial), to
 the simulator over its WebSocket (--ws ws://127.0.0.1:8765) or to a board over
@@ -26,7 +25,7 @@ as an HMAC and never printed. Commands reserved for USB (wifi, token, wipe
 --settings) are refused over WiFi. COMMAND is one of:
 
     info                           firmware, storage and limits of the board
-    ls [--kind KIND]               stored animations, playlists and schedules
+    ls [--kind KIND]               stored animations, playlists, schedules and play files
     put FILE [--id ID] [--kind KIND]   upload a YAML or JSON file
     get ID [--kind KIND] [-o FILE]     download a file, checked against its SHA-256
     rm ID [--kind KIND]            delete a file
@@ -34,11 +33,11 @@ as an HMAC and never printed. Commands reserved for USB (wifi, token, wipe
                                    a list takes IDs separated by commas: playlists=halloween,christmas
     status                         WiFi state, network name, address, signal, transmit power and update state
     update check                   check for updates now and wait for the result
-    update install animations      install the animations, playlists and schedules the last check found, and wait
+    update install animations      install the animations, playlists, schedules and play files the last check found, and wait
     update install firmware [--force]  install the firmware the last check found, and wait for the restart;
                                    --force also installs a version a rollback put on the skip list
     wifi [--forget]                set up WiFi with Improv over USB (--port only), or forget the stored network
-    wipe [--settings] [--yes]      delete every animation, playlist and schedule, and with --settings reset the settings,
+    wipe [--settings] [--yes]      delete every animation, playlist, schedule and play file, and with --settings reset the settings,
                                    forget the WiFi network and make a new token
 
 The serial port can be open in one program only: close the serial monitor first.
@@ -523,16 +522,21 @@ def check_schedule(document, size=None, playlists=None):
 
 
 PLAY_FORMAT = "pixelart-play/1"
+PLAY_MAX_BYTES = 1024
 
 
-def validate_play(document, schedules, playlists):
-    """The diagnostics of a pixelart-play/1 document, all errors (docs/format/play-v1.md#validation).
+def validate_play(document, size=None, schedules=None, playlists=None):
+    """The diagnostics of a pixelart-play/1 document, its errors and its unknown_schedule and unknown_playlist
+    warnings (docs/format/play-v1.md#validation).
 
-    schedules and playlists are the sets of IDs the content has: a choice that names another one is an error.
+    size is the length of its JSON in bytes, when known. schedules and playlists are the sets of IDs the board or the
+    release has: without one, no warning about that kind.
     """
     diagnostics = Diagnostics()
+    if size is not None and size > PLAY_MAX_BYTES:
+        diagnostics.error("limit_exceeded", "", f"the file is {size} bytes, more than {PLAY_MAX_BYTES}")
     if not isinstance(document, dict):
-        diagnostics.error("format_unsupported", "", "a play choice is an object")
+        diagnostics.error("format_unsupported", "", "a play file is a JSON object")
         return diagnostics
     if document.get("format") != PLAY_FORMAT:
         diagnostics.error("format_unsupported", "format", f"the format is not {PLAY_FORMAT}")
@@ -557,41 +561,41 @@ def validate_play(document, schedules, playlists):
         value = choice["schedule"]
         if not isinstance(value, str) or not ID_PATTERN.fullmatch(value):
             diagnostics.error("structure", "default.schedule", "a schedule ID: lowercase letters, digits, _ and -, at most 32 characters")
-        elif value not in schedules:
-            diagnostics.error("unknown_schedule", "default.schedule", f"no schedule '{value}' in the content")
+        elif schedules is not None and value not in schedules:
+            diagnostics.add("warning", "unknown_schedule", "default.schedule", f"no schedule '{value}'")
     else:
-        found = Diagnostics()
-        _check_playlists(found, choice["playlists"], "default.playlists", None)
-        for d in found:
-            diagnostics.error(d["code"], d["where"], d["message"])
-        if not found.has_errors():
-            for i, item in enumerate(choice["playlists"]):
-                if item not in playlists:
-                    diagnostics.error("unknown_playlist", f"default.playlists[{i}]", f"no playlist '{item}' in the content")
+        _check_playlists(diagnostics, choice["playlists"], "default.playlists", playlists)
     return diagnostics
 
 
-def check_play_file(source, built, validator):
-    """Checks <source>/play.yaml against the schema (validator, or None) and the content built. True when it is fine."""
+def build_play_file(source, out, built, validator):
+    """Builds <source>/play.yaml as <out>/play/default.json. 1 when it fails, else 0 (also without the file) and
+    the number of files written."""
     path = source / PLAY_FILE
     if not path.is_file():
-        return True
+        return 0, 0
     try:
         document = load_source(path)
-        compact_json(document)
+        data = compact_json(document)
     except (yaml.YAMLError, TypeError, ValueError) as e:
         print(f"{path}: {e}", file=sys.stderr)
-        return False
-    ok = True
+        return 1, 0
     if validator is not None:
-        for problem in sorted(validator.iter_errors(document), key=lambda e: list(e.absolute_path)):
+        problems = sorted(validator.iter_errors(document), key=lambda e: list(e.absolute_path))
+        for problem in problems:
             where = ".".join(str(p) for p in problem.absolute_path) or "(root)"
             print(f"{path}: {where}: {problem.message}", file=sys.stderr)
-            ok = False
+        if problems:
+            return 1, 0
     # Always, with or without --schema: that the files exist is beyond the schema
-    diagnostics = validate_play(document, set(built.get("schedules", ())), set(built.get("playlists", ())))
+    diagnostics = validate_play(document, len(data), set(built.get("schedules", ())), set(built.get("playlists", ())))
     print_diagnostics(str(path), diagnostics, sys.stderr)
-    return ok and not diagnostics.has_errors()
+    if diagnostics.has_errors():
+        return 1, 0
+    target = out / "play" / "default.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    return 0, 1
 
 
 def build(source, out, use_schema):
@@ -651,8 +655,9 @@ def build(source, out, use_schema):
             target.write_bytes(data)
             built.setdefault(kind, []).append(name)
             written += 1
-    if not check_play_file(source, built, play_validator):
-        errors += 1
+    failed, wrote = build_play_file(source, out, built, play_validator)
+    errors += failed
+    written += wrote
     print(f"pixelart: wrote {written} files to {out}" + (f", {errors} failed" if errors else ""))
     return 1 if errors else 0
 
@@ -668,10 +673,12 @@ CONNECT_DELAYS = (0.2, 0.4, 0.8, 1.6, 3.2)  # seconds waited after each refused 
 # A reply line is at most 16 KiB (protocol-v1.md, limits): a line or a fragmented message gets that plus margin.
 MAX_LINE = 64 * 1024
 DEFAULT_CHUNK = 512
-KIND_FOLDERS = {"animations": "animation", "playlists": "playlist", "schedules": "schedule"}
-KIND_FORMATS = {"pixelart/1": "animation", "pixelart-playlist/1": "playlist", SCHEDULE_FORMAT: "schedule"}
+KIND_FOLDERS = {"animations": "animation", "playlists": "playlist", "schedules": "schedule", "play": "play"}
+KIND_FORMATS = {"pixelart/1": "animation", "pixelart-playlist/1": "playlist", SCHEDULE_FORMAT: "schedule",
+                PLAY_FORMAT: "play"}
 # The board's own limits (docs/protocol/protocol-v1.md, limits): the most a client accepts when the board names none.
-FILE_LIMITS = {"animation": 64 * 1024, "playlist": 16 * 1024, "schedule": SCHEDULE_MAX_BYTES}
+FILE_LIMITS = {"animation": 64 * 1024, "playlist": 16 * 1024, "schedule": SCHEDULE_MAX_BYTES,
+               "play": PLAY_MAX_BYTES}
 # Control (Cc), format (Cf, which holds the bidirectional overrides and zero-width marks), line and paragraph
 # separators (Zl, Zp) and lone surrogates (Cs) change what a terminal shows or cannot be printed.
 _UNSAFE_CATEGORIES = {"Cc", "Cf", "Zl", "Zp", "Cs"}
@@ -997,7 +1004,7 @@ def print_diagnostics(label, diagnostics, stream=sys.stderr):
 
 
 def infer_kind(path, document):
-    """animation, playlist or schedule, from the folder the file is in, else from its `format` field."""
+    """animation, playlist, schedule or play, from the folder the file is in, else from its `format` field."""
     kind = KIND_FOLDERS.get(path.resolve().parent.name)
     if kind is None and isinstance(document, dict):
         kind = KIND_FORMATS.get(document.get("format"))
@@ -1143,10 +1150,10 @@ def board_info(board, args):
 
 
 def board_kinds(board):
-    """The kinds of file the board stores. A firmware older than schedules has no formats.schedule and answers
-    invalid_kind to the kind schedule."""
-    has_schedules = "schedule" in dict_of(board.info.get("formats"))
-    return ["animation", "playlist"] + (["schedule"] if has_schedules else [])
+    """The kinds of file the board stores. A firmware older than schedules or than the play file has no
+    formats.schedule or formats.play and answers invalid_kind to that kind."""
+    formats = dict_of(board.info.get("formats"))
+    return ["animation", "playlist"] + [kind for kind in ("schedule", "play") if kind in formats]
 
 
 def board_ls(board, args):
@@ -1170,8 +1177,9 @@ def board_put(board, args):
         raise BoardError(f"{path}: {e}")
     kind = args.kind or infer_kind(path, document)
     if kind is None:
-        raise BoardError(f"{path}: cannot tell an animation, a playlist or a schedule apart: pass --kind")
-    file_id = args.id or path.stem
+        raise BoardError(f"{path}: cannot tell an animation, a playlist, a schedule or a play file apart: pass --kind")
+    # content/play.yaml is built as the ID default, the one the board uses
+    file_id = args.id or ("default" if kind == "play" else path.stem)
     if not ID_PATTERN.match(file_id):
         raise BoardError(f"invalid ID '{file_id}': use lowercase letters, digits, _ and -, at most 32 characters (--id)")
     try:
@@ -1228,9 +1236,9 @@ DEFAULTS_TEXT = (f"brightness {DEFAULT_SETTINGS['brightness']}, play {DEFAULT_SE
 
 def board_wipe(board, args):
     reset = args.settings
-    question = ("Delete every animation, playlist and schedule on the board and put the settings back to their defaults "
+    question = ("Delete every animation, playlist, schedule and play file on the board and put the settings back to their defaults "
                 f"({DEFAULTS_TEXT}, over USB only)? " if reset
-                else "Delete every animation, playlist and schedule on the board? The settings stay. ")
+                else "Delete every animation, playlist, schedule and play file on the board? The settings stay. ")
     if not args.yes and not confirmed(question + "Type yes to continue: "):
         print("nothing deleted", file=sys.stderr)
         return 1
@@ -1244,14 +1252,14 @@ def board_wipe(board, args):
             raise BoardError(f"{e}: nothing was deleted; update the board's firmware to use wipe --settings") from e
         raise
     playlists, animations = reply.get("playlists"), reply.get("animations")
-    # A firmware older than schedules leaves schedules out of the reply
-    schedules = reply.get("schedules", 0)
-    if not (is_count(playlists) and is_count(animations) and is_count(schedules)):
+    # A firmware older than schedules or than the play file leaves that count out of the reply
+    counts = {name: reply[name] for name in ("play", "schedules") if name in reply}
+    if not (is_count(playlists) and is_count(animations) and all(is_count(n) for n in counts.values())):
         raise BoardError("the board reports invalid counts for delete_all")
-    if "schedules" in reply:
-        print(f"deleted {schedules} schedules, {playlists} playlists and {animations} animations")
-    else:
-        print(f"deleted {playlists} playlists and {animations} animations")
+    names = {"play": "play files", "schedules": "schedules"}
+    parts = [f"{counts[name]} {names[name]}" for name in ("play", "schedules") if name in counts]
+    print("deleted " + ", ".join(parts + [f"{playlists} playlists"]) + f" and {animations} animations" if parts
+          else f"deleted {playlists} playlists and {animations} animations")
     if reset:
         settings = reply.get("settings")
         if not isinstance(settings, dict):
@@ -1599,15 +1607,15 @@ def add_board_parser(sub):
     b.add_argument("--token", help="the board's token, for a board over WiFi with network login on "
                                    "(safer: the environment variable PIXELART_TOKEN)")
     commands = b.add_subparsers(dest="board_command", required=True)
-    kinds = ("animation", "playlist", "schedule")
+    kinds = ("animation", "playlist", "schedule", "play")
     commands.add_parser("info", help="firmware, storage and limits")
     ls = commands.add_parser("ls", help="list the stored files")
     ls.add_argument("--kind", choices=kinds, help="only this kind (default: every kind the board stores)")
-    put = commands.add_parser("put", help="upload an animation, a playlist or a schedule (YAML or JSON)")
+    put = commands.add_parser("put", help="upload an animation, a playlist, a schedule or a play file (YAML or JSON)")
     put.add_argument("file", type=Path)
-    put.add_argument("--id", help="file ID (default: the file name without extension)")
+    put.add_argument("--id", help="file ID (default: the file name without extension, `default` for a play file)")
     put.add_argument("--kind", choices=kinds,
-                     help="default: from the animations/, playlists/ or schedules/ folder, else the format field")
+                     help="default: from the animations/, playlists/, schedules/ or play/ folder, else the format field")
     get = commands.add_parser("get", help="download a stored file, checking its SHA-256")
     get.add_argument("id")
     get.add_argument("--kind", choices=kinds, default="animation")
@@ -1615,7 +1623,7 @@ def add_board_parser(sub):
     rm = commands.add_parser("rm", help="delete a stored file")
     rm.add_argument("id")
     rm.add_argument("--kind", choices=kinds, default="animation")
-    wipe = commands.add_parser("wipe", help="delete every animation, playlist and schedule; the settings stay unless --settings")
+    wipe = commands.add_parser("wipe", help="delete every animation, playlist, schedule and play file; the settings stay unless --settings")
     wipe.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     wipe.add_argument("--settings", action="store_true",
                       help=f"also put the settings back to their defaults ({DEFAULTS_TEXT}; USB only)")
@@ -1629,7 +1637,7 @@ def add_board_parser(sub):
     update_commands.add_parser("check", help="check now")
     install = update_commands.add_parser("install", help="install what the last check found, ignoring the install window")
     install.add_argument("target", choices=("animations", "firmware"),
-                         help="animations: the animations, playlists and schedules; firmware: the firmware, which restarts the board")
+                         help="animations: the animations, playlists, schedules and play files; firmware: the firmware, which restarts the board")
     install.add_argument("--force", action="store_true",
                          help="firmware only: also install the version a rollback put on the skip list")
     wifi = commands.add_parser("wifi", help="set up WiFi with Improv over USB, asking for the name and password")
@@ -1641,7 +1649,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     b = sub.add_parser("build", help="convert sources to the board's JSON files")
     b.add_argument("--source", type=Path, default=ROOT / "content",
-                   help="folder with animations/, playlists/ and schedules/ (default: content/)")
+                   help="folder with animations/, playlists/, schedules/ and play.yaml (default: content/)")
     b.add_argument("--out", type=Path, default=ROOT / "data", help="output folder (default: data/)")
     b.add_argument("--schema", action="store_true", help="also check every file against the JSON Schemas")
     add_board_parser(sub)

@@ -1,0 +1,53 @@
+{
+  "description": "get reads a stored play file, and a missing one or one of another kind is not_found",
+  "files": {
+    "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}"
+  },
+  "steps": [
+    {
+      "send": "@PR 04f275ee {\"seq\":1,\"cmd\":\"get\",\"kind\":\"play\",\"id\":\"default\",\"offset\":0,\"length\":512}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "size": 61,
+        "offset": 0,
+        "data": "eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InNjaGVkdWxlIjoic2Vhc29ucyJ9fQ=="
+      }
+    },
+    {
+      "send": "@PR 2d1d72d0 {\"seq\":2,\"cmd\":\"get\",\"kind\":\"play\",\"id\":\"other\",\"offset\":0,\"length\":10}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 5987d53f {\"seq\":3,\"cmd\":\"get\",\"kind\":\"schedule\",\"id\":\"default\",\"offset\":0,\"length\":10}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 48e0914b {\"seq\":4,\"cmd\":\"get\",\"kind\":\"play\",\"id\":\"Bad\",\"offset\":0,\"length\":10}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    }
+  ]
+}

@@ -13,8 +13,8 @@
       build everything first.
   tools/release.py content [--out site] [--schema]
       Write the content release site from the converted files in data/ (`make data`): animations/, playlists/,
-      schedules/ and a manifest.json with no firmware, and with the `default` of content/play.yaml when that file
-      exists. Run `make release-content`.
+      schedules/, play/ (the play file `make data` builds from content/play.yaml, when that file exists) and a
+      manifest.json with no firmware. Run `make release-content`.
   tools/release.py check-site URL
       Fail when URL (the address GitHub Pages announces or serves the site at) is not the site address computed
       from this environment by the rules of tools/site_url.py, the address a firmware built here looks for. It
@@ -24,7 +24,7 @@
       into the site GitHub Pages serves. Used by the release workflow and `make release-site`.
 
 The layout and the manifest are specified in docs/format/manifest-v1.md. `build` needs PlatformIO (pio) on the
-PATH, PyYAML is needed only by `content`, to read content/play.yaml. --schema needs jsonschema. Needs Python 3.8+ and works on Linux and macOS.
+PATH, PyYAML is not used here. --schema needs jsonschema. Needs Python 3.8+ and works on Linux and macOS.
 """
 
 import argparse
@@ -333,7 +333,7 @@ def check_manifest_limits(manifest):
     the size limit already, so the number is checked first and each limit gives its own message."""
     files = sum(len(manifest.get(key, [])) for key in CONTENT_KEYS)
     if files > MAX_MANIFEST_FILES:
-        raise ReleaseError(f"manifest.json lists {files} animations, playlists and schedules, more than the "
+        raise ReleaseError(f"manifest.json lists {files} animations, playlists, schedules and play files, more than the "
                            f"{MAX_MANIFEST_FILES} a board takes")
     size = len(json_text(manifest).encode("utf-8"))
     if size > MAX_MANIFEST_BYTES:
@@ -407,7 +407,7 @@ def reset_site(site):
 
 
 def build_site(out, version, use_schema):
-    """The firmware release site: firmware files and manifests, no animations, playlists or schedules."""
+    """The firmware release site: firmware files and manifests, no animations, playlists, schedules or play files."""
     if not fw_version.SAFE_VERSION.fullmatch(version):
         raise ReleaseError(f"'{version}' is not a valid version")
     site = site_path(out)
@@ -440,33 +440,9 @@ def build_site(out, version, use_schema):
     print(f"release: firmware version {version}, {len(firmware)} firmware files in {site}")
 
 
-def read_play_default(source, schedules, playlists):
-    """The `default` of <source>/play.yaml (docs/format/play-v1.md), or None when the content has no such file.
-
-    schedules and playlists are the IDs the release contains: a choice that names another one is refused."""
-    path = Path(source) / "play.yaml"
-    if path.is_symlink():
-        raise ReleaseError(f"{path}: a symbolic link, not a file of the content")
-    if not path.exists():
-        return None
-    if not path.is_file():
-        raise ReleaseError(f"{path}: not a regular file")
-    import pixelart  # needs PyYAML, which only this step uses
-    try:
-        document = pixelart.load_source(path)
-    except (OSError, ValueError, pixelart.yaml.YAMLError) as e:
-        raise ReleaseError(f"{path}: {e}")
-    diagnostics = pixelart.validate_play(document, set(schedules), set(playlists))
-    if diagnostics.has_errors():
-        problems = "; ".join(f"{d['code']} at {d['where'] or '(root)'}: {d['message']}" for d in diagnostics)
-        raise ReleaseError(f"{path}: {problems}")
-    return document["default"]
-
-
-def build_content_site(out, version, data, use_schema, source=None):
-    """The content release site: the animations, playlists and schedules of `data` and a manifest with no firmware.
-
-    source is the content folder, for its play.yaml: without it the manifest has no `default`."""
+def build_content_site(out, version, data, use_schema):
+    """The content release site: the animations, playlists, schedules and play file of `data` and a manifest with no
+    firmware."""
     if not fw_version.SAFE_VERSION.fullmatch(version):
         raise ReleaseError(f"'{version}' is not a valid version")
     site = site_path(out)
@@ -477,6 +453,7 @@ def build_content_site(out, version, data, use_schema, source=None):
     if not animations or not playlists:
         raise ReleaseError(f"{data} has no animations or no playlists: run make data")
     schedules = collect_documents(Path(data), "schedules", site, False)
+    play = collect_documents(Path(data), "play", site, False)
 
     manifest = {
         "format": FORMAT,
@@ -488,12 +465,12 @@ def build_content_site(out, version, data, use_schema, source=None):
         "playlists": playlists,
         "schedules": schedules,
     }
-    default = read_play_default(source, [e["id"] for e in schedules], [e["id"] for e in playlists]) if source else None
-    if default is not None:
-        manifest["default"] = default
+    # A content without a play.yaml has no data/play/ and no list
+    if play:
+        manifest["play"] = play
     write_manifest(site, manifest, use_schema)
     print(f"release: content version {version}, {len(animations)} animations, {len(playlists)} playlists, "
-          f"{len(schedules)} schedules in {site}")
+          f"{len(schedules)} schedules, {len(play)} play files in {site}")
 
 
 def list_tree(root, label):
@@ -528,11 +505,11 @@ def find_conflicts(first, second):
 
 
 # What an archive may hold besides its manifest.json. A firmware release published before the content package also
-# carries animations/ and playlists/; no firmware release carries schedules/.
+# carries animations/ and playlists/; no firmware release carries schedules/ or play/.
 FIRMWARE_FOLDERS = ("firmware/", "animations/", "playlists/")
-CONTENT_FOLDERS = ("animations/", "playlists/", "schedules/")
-# The manifest lists of the content, which the 200-entry limit counts. schedules is optional.
-CONTENT_KEYS = ("animations", "playlists", "schedules")
+CONTENT_FOLDERS = ("animations/", "playlists/", "schedules/", "play/")
+# The manifest lists of the content, which the 200-entry limit counts. schedules and play are optional.
+CONTENT_KEYS = ("animations", "playlists", "schedules", "play")
 
 
 def read_release_manifest(folder, label, files):
@@ -548,8 +525,6 @@ def read_release_manifest(folder, label, files):
     for key in (*CONTENT_KEYS, "firmware"):
         if key in manifest and not (isinstance(manifest[key], list) and all(isinstance(e, dict) for e in manifest[key])):
             raise ReleaseError(f"the manifest.json of the {label} folder has a bad {key} list")
-    if "default" in manifest and not isinstance(manifest["default"], dict):
-        raise ReleaseError(f"the manifest.json of the {label} folder has a bad default")
     return manifest
 
 
@@ -568,7 +543,7 @@ def assembled_manifest(firmware, content):
 
 
 def merged_manifest(firmware, content):
-    """The firmware's manifest with the content release's version, animations, playlists and schedules."""
+    """The firmware's manifest with the content release's version, animations, playlists, schedules and play files."""
     version = content.get("version")
     if not isinstance(version, str) or not fw_version.SAFE_VERSION.fullmatch(version):
         raise ReleaseError("the content manifest has no valid version")
@@ -581,8 +556,8 @@ def merged_manifest(firmware, content):
     # A content release made before schedules has no list, and the site then has none either
     if "schedules" in content:
         manifest["schedules"] = content["schedules"]
-    if "default" in content:
-        manifest["default"] = content["default"]
+    if "play" in content:
+        manifest["play"] = content["play"]
     return manifest
 
 
@@ -730,7 +705,7 @@ def main():
         elif args.command == "assemble":
             assemble_site(args.out, args.firmware, args.content, args.web, args.schema)
         elif args.command == "content":
-            build_content_site(args.out, describe_content_version(), ROOT / "data", args.schema, ROOT / "content")
+            build_content_site(args.out, describe_content_version(), ROOT / "data", args.schema)
         else:
             build_site(args.out, describe_version(), args.schema)
     except ReleaseError as e:

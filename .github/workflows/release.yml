@@ -1,9 +1,9 @@
 name: Release
 
 # release-please keeps up to three release pull requests open on main, one for
-# the firmware (tags vX.Y.Z), one for the content, the animations, playlists and
-# schedules (tags content-vX.Y.Z), and one for the web app (tags web-vX.Y.Z). Merging one
-# tags the release; the jobs below then build it and publish its GitHub Release.
+# the firmware (tags vX.Y.Z), one for the content, the animations, playlists,
+# schedules and the play file (tags content-vX.Y.Z), and one for the web app
+# (tags web-vX.Y.Z). Merging one tags the release; the jobs below then build it and publish its GitHub Release.
 # The GitHub Pages site always holds the latest of the three, assembled after any
 # release. See "Releases" in README.md.
 on:
@@ -297,7 +297,7 @@ jobs:
           set -eu
           assets="$RUNNER_TEMP/assets"
           mkdir "$assets"
-          # manifest.json, animations/, playlists/ and schedules/, ready to be merged into the Pages site or served as an animation source
+          # manifest.json, animations/, playlists/, schedules/ and play/, ready to be merged into the Pages site or served as an animation source
           (cd "$RUNNER_TEMP/content" && zip -q -r -X "$assets/pixelart-content-${VERSION}.zip" .)
           gh release upload "$TAG" "$assets/pixelart-content-${VERSION}.zip" --clobber
 
