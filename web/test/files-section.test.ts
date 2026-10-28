@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PlayMode } from "../src/engine";
 import type { Entry, PlayStatus, Settings } from "../src/protocol";
 import type { BoardFileList } from "../src/ui/fileLists";
 import { readFilesOpen, summarize, writeFilesOpen } from "../src/ui/board/filesSection";
@@ -135,13 +136,16 @@ describe("the Files card summary on a firmware that knows schedules", () => {
   const two = known("a", "b");
   const one = known("p");
   const names = new Map<string, string | null>([["p", "Christmas"]]);
-  const choice = (play: "auto" | "playlists"): Settings => ({ brightness: 50, playlist: "p", play, playlists: ["p"] });
-  const playing = (id: string | null, mode: "auto" | "playlists" = "auto"): PlayStatus => ({
+  const choice = (play: PlayMode): Settings => ({ brightness: 50, playlist: "p", play, playlists: ["p"] });
+  const playing = (id: string | null, mode: PlayMode = "auto"): PlayStatus => ({
     mode,
-    reason: mode === "auto" ? "schedule" : "user",
+    source: { auto: "server", playlists: "playlists", schedule: "schedule" }[mode] as PlayStatus["source"],
+    schedule: mode === "playlists" ? null : "s",
+    reason: mode === "playlists" ? "playlists" : "schedule",
     entry: 0,
     playlists: ["p"],
     playing: id,
+    serverChoice: null,
   });
 
   it("counts the schedules, in the singular for one", () => {
@@ -165,7 +169,10 @@ describe("the Files card summary on a firmware that knows schedules", () => {
     const base = { animations: two, playlists: one, schedules: known("s"), playlistNames: names, play: null };
     expect(summarize({ ...base, settings: choice("auto") })).toBe("2 animations, 1 playlist, 1 schedule, Automatic");
     expect(summarize({ ...base, settings: choice("playlists") })).toBe(
-      "2 animations, 1 playlist, 1 schedule, My playlists",
+      "2 animations, 1 playlist, 1 schedule, My choice, playlists",
+    );
+    expect(summarize({ ...base, settings: choice("schedule") })).toBe(
+      "2 animations, 1 playlist, 1 schedule, My choice, schedule",
     );
   });
 
@@ -179,13 +186,16 @@ describe("the Files card summary on a firmware that knows schedules", () => {
     );
     expect(
       summarize({ ...base, settings: choice("playlists"), playlistNames: names, play: playing("p", "playlists") }),
-    ).toBe("2 animations, 1 playlist, 1 schedule, My playlists: playing Christmas");
+    ).toBe("2 animations, 1 playlist, 1 schedule, My choice, playlists: playing Christmas");
+    expect(
+      summarize({ ...base, settings: choice("schedule"), playlistNames: names, play: playing("p", "schedule") }),
+    ).toBe("2 animations, 1 playlist, 1 schedule, My choice, schedule: playing Christmas");
   });
 
   it("names the choice alone while the status still says what the other choice played", () => {
     const base = { animations: two, playlists: one, schedules: known("s"), playlistNames: names };
     expect(summarize({ ...base, settings: choice("playlists"), play: playing("p") })).toBe(
-      "2 animations, 1 playlist, 1 schedule, My playlists",
+      "2 animations, 1 playlist, 1 schedule, My choice, playlists",
     );
   });
 

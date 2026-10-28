@@ -18,6 +18,7 @@ import {
   type LocalDate,
   type PlayMode,
   type Schedule,
+  type ServerChoice,
 } from "../src/engine";
 import { REPO, caseFiles, expectedPath, readBytes } from "./helpers";
 
@@ -182,25 +183,38 @@ describe("schedule winner rules", () => {
 
 describe("how the board chooses what to play", () => {
   const file = json(`${SUITE}/schedule/resolver.json`);
-  const schedules = rowSchedules(file.schedules);
+  const documents = rowSchedules(file.schedules);
   const rows: {
     name: string;
     play: PlayMode;
     playlists: string[];
-    schedule: string | null;
+    schedule: string;
+    stored: Record<string, string>;
+    server_choice: ServerChoice | null;
     date: string | null;
     playable: string[];
-    expected: { reason: string; entry: number | null; playlists: string[]; playing: string | null };
+    expected: {
+      source: string;
+      schedule: string | null;
+      reason: string;
+      entry: number | null;
+      playlists: string[];
+      playing: string | null;
+    };
   }[] = file.rows;
   it("has rows", () => expect(rows.length).toBeGreaterThan(0));
   it.each(rows.map((r) => [r.name, r] as const))("%s", (_name, row) => {
-    const choice = choosePlaylists(
-      row.play,
-      row.playlists,
-      row.schedule === null ? null : schedules.get(row.schedule)!,
-      row.date === null ? null : localDate(row.date),
-      (id) => row.playable.includes(id),
-    );
+    // `stored` maps each stored ID to the document it holds.
+    const schedules = new Map(Object.entries(row.stored).map(([id, key]) => [id, documents.get(key)!]));
+    const choice = choosePlaylists({
+      mode: row.play,
+      playlists: row.playlists,
+      schedule: row.schedule,
+      serverChoice: row.server_choice,
+      schedules,
+      date: row.date === null ? null : localDate(row.date),
+      playable: (id) => row.playable.includes(id),
+    });
     expect(choice).toEqual(row.expected);
   });
 });

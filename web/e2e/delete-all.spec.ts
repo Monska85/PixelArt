@@ -79,8 +79,8 @@ test("Delete everything can also reset the settings: brightness 100 and playlist
   copyFileSync(stored(simulator, "playlists", "default"), stored(simulator, "playlists", "mine"));
   const replies = watchReplies(page, "delete_all");
   await connectSimulator(page, simulator);
-  await page.getByRole("radio", { name: "My playlists" }).check();
-  await expect(page.getByRole("radio", { name: "My playlists" })).toBeChecked();
+  await page.getByRole("radio", { name: "My choice" }).check();
+  await expect(page.getByRole("radio", { name: "My choice" })).toBeChecked();
   await page.getByRole("slider", { name: "Brightness" }).focus();
   await page.getByRole("slider", { name: "Brightness" }).press("PageDown");
   await expect(page.getByTestId("brightness-value")).not.toHaveText("100");

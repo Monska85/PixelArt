@@ -36,6 +36,7 @@ describe("parseManifest", () => {
       animations: [{ id: "star", name: "STAR", version: 2, size: 100, sha256: SHA }],
       playlists: [{ id: "default", name: "Default", version: null, size: 50, sha256: SHA }],
       schedules: [],
+      default: null,
     });
   });
 

@@ -7,7 +7,7 @@
 // `make web-screenshots-update`, and update the image count in web/README.md. Every state is
 // its own test with its own simulator, so one that breaks does not hide the others.
 
-import { readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   animations,
@@ -30,7 +30,7 @@ import {
 } from "../e2e/fixtures";
 import type { Page } from "@playwright/test";
 import { connectScripted, scriptedBoard } from "../e2e/scripted";
-import { watchBoard } from "../e2e/board";
+import { setServerChoice, watchBoard } from "../e2e/board";
 
 const SIZES = [
   { width: 1280, height: 800 },
@@ -67,6 +67,11 @@ function libraryStates(simulator: Simulator): void {
 /** star is published and candle is not: a playlist that names them has one animation to install and one it cannot. */
 function missingAnimations(simulator: Simulator): void {
   for (const id of ["star", "candle"]) rmSync(stored(simulator, "animations", id));
+}
+
+/** A second schedule, Summer, next to the stored one, so the choice of a schedule has something to choose from. */
+function addSummer(simulator: Simulator): void {
+  copyFileSync(file("summer.json"), stored(simulator, "schedules", "summer"));
 }
 
 function emptyBoard(simulator: Simulator): void {
@@ -230,10 +235,58 @@ export const states = {
     await page.getByTestId("what-to-play").scrollIntoViewIfNeeded();
     await check();
   },
+  "board-automatic-server-schedule": async ({ page, simulator, check }) => {
+    addSummer(simulator);
+    await setServerChoice(simulator, { schedule: "summer" });
+    await connected(page, simulator);
+    const automatic = page.getByTestId("play-auto");
+    await expect(automatic.getByTestId("server-choice")).toHaveText("The site plays the schedule Summer.");
+    await expect(automatic.getByTestId("play-next")).toContainText("Next change:");
+    await automatic.getByRole("button", { name: "Show the schedule" }).click();
+    await expect(page.getByTestId("schedule-view")).toContainText("Beach days");
+    await page.getByTestId("what-to-play").scrollIntoViewIfNeeded();
+    await check();
+  },
+  "board-my-schedule": async ({ page, simulator, check }) => {
+    addSummer(simulator);
+    await connected(page, simulator);
+    await page.getByRole("radio", { name: "Schedule", exact: true }).check();
+    await page.getByRole("combobox", { name: "Schedule", exact: true }).selectOption("summer");
+    const mine = page.getByTestId("my-schedule");
+    await expect(page.getByRole("radio", { name: "My choice", exact: true })).toBeChecked();
+    await expect(mine.getByTestId("my-schedule-now")).toContainText("Now:");
+    await mine.getByRole("button", { name: "Show the schedule" }).click();
+    await expect(mine.getByTestId("schedule-view")).toContainText("Beach days");
+    await mine.scrollIntoViewIfNeeded();
+    await check();
+  },
+  "board-my-schedule-disabled": async ({ page, simulator, check }) => {
+    rmSync(stored(simulator, "schedules", "default"));
+    await connected(page, simulator);
+    await expect(page.getByRole("radio", { name: "Schedule", exact: true })).toBeDisabled();
+    await expect(page.getByTestId("no-schedule-link")).toBeVisible();
+    await page.getByTestId("what-to-play").scrollIntoViewIfNeeded();
+    await check();
+  },
+  "board-my-schedule-missing": async ({ page, simulator, check }) => {
+    addSummer(simulator);
+    await connected(page, simulator);
+    await page.getByRole("radio", { name: "Schedule", exact: true }).check();
+    await page.getByRole("combobox", { name: "Schedule", exact: true }).selectOption("summer");
+    await expect(page.getByRole("radio", { name: "My choice", exact: true })).toBeChecked();
+    // The schedule is deleted while it is chosen: the board keeps the setting and plays its own rule.
+    await showBoardSchedules(page);
+    await more(page, "summer").click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page.getByTestId("my-schedule-missing")).toBeVisible();
+    await page.getByTestId("my-schedule-missing").scrollIntoViewIfNeeded();
+    await check();
+  },
   "board-my-playlists": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await page.getByRole("radio", { name: "My playlists" }).check();
-    const mine = page.getByTestId("play-playlists");
+    await page.getByRole("radio", { name: "My choice", exact: true }).check();
+    const mine = page.getByTestId("play-mine");
     await mine.getByLabel("Add a playlist").selectOption("holiday");
     await mine.getByRole("button", { name: "Add" }).click();
     await expect(mine.getByRole("listitem")).toHaveCount(2);

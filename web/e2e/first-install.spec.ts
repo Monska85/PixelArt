@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { decodeLine, encodeLine } from "../src/protocol/framing";
 import { closeInstallDialog, fakeSerial, portLog } from "./first-install";
 import { expect, stored, summary, test, type Simulator } from "./fixtures";
+import type { Page } from "@playwright/test";
 
 const published = JSON.parse(
   readFileSync(fileURLToPath(new URL("./site/published.json", import.meta.url)), "utf8"),
@@ -19,6 +20,18 @@ const files = (simulator: Simulator): string[] => [
   ...schedules(simulator),
 ];
 
+/** The commands the page sends over any WebSocket it opens afterwards, in order, with `server_choice_set`'s choice. */
+function watchCommands(page: Page): Array<{ cmd: string; choice?: unknown }> {
+  const sent: Array<{ cmd: string; choice?: unknown }> = [];
+  page.on("websocket", (socket) =>
+    socket.on("framesent", (frame) => {
+      const request = decodeLine(new TextEncoder().encode(String(frame.payload)));
+      if (typeof request?.cmd === "string") sent.push({ cmd: request.cmd, choice: request.choice });
+    }),
+  );
+  return sent;
+}
+
 /** A board that has just been flashed with an empty file system: none of the published files is there. */
 function emptyBoard(simulator: Simulator): void {
   for (const path of files(simulator)) rmSync(path, { force: true });
@@ -31,6 +44,7 @@ test("installs the published animations, playlists and schedules over the port E
   emptyBoard(simulator);
   // The port fails twice first, as a port does while the board restarts: the app tries again every second.
   await fakeSerial(page, { board: simulator.address, failOpens: 2 });
+  const commands = watchCommands(page);
   await page.goto("/#firmware");
   await expect(page.getByRole("checkbox", { name: BOX })).toBeChecked();
   await expect(page.getByText(/Keep the board connected until they are installed/)).toBeVisible();
@@ -44,6 +58,12 @@ test("installs the published animations, playlists and schedules over the port E
   await expect(page.getByTestId("connection-state")).toHaveText("Connected");
   expect(await portLog(page)).toEqual({ opens: 3, pickerRequests: 0 });
   await expect(page.getByTestId("content-not-installed")).toHaveCount(0);
+  // The site's `default` goes to the board once, after the last file.
+  await expect
+    .poll(() => commands.filter((c) => c.cmd === "server_choice_set"))
+    .toEqual([{ cmd: "server_choice_set", choice: { schedule: "default" } }]);
+  const names = commands.map((c) => c.cmd);
+  expect(names.indexOf("server_choice_set")).toBeGreaterThan(names.lastIndexOf("put_end"));
 });
 
 test("sends the published schedule only to a firmware that reports schedules", async ({ page, simulator }) => {
@@ -51,6 +71,7 @@ test("sends the published schedule only to a firmware that reports schedules", a
   // The simulator plays a firmware from before schedules: its info has no formats.schedule.
   const port = new URL(simulator.address).port;
   const begun: unknown[] = [];
+  const choices: unknown[] = [];
   await page.routeWebSocket(
     (url) => url.port === port,
     (socket) => {
@@ -58,6 +79,7 @@ test("sends the published schedule only to a firmware that reports schedules", a
       socket.onMessage((message) => {
         const request = decodeLine(new TextEncoder().encode(String(message)));
         if (request?.cmd === "put_begin") begun.push(request.kind);
+        if (request?.cmd === "server_choice_set") choices.push(request.choice);
         server.send(message);
       });
       server.onMessage((message) => {
@@ -81,6 +103,8 @@ test("sends the published schedule only to a firmware that reports schedules", a
   for (const path of schedules(simulator)) expect(existsSync(path), path).toBe(false);
   expect(begun.length).toBeGreaterThan(0);
   expect(begun).not.toContain("schedule");
+  // That firmware has no server choice either.
+  expect(choices).toEqual([]);
 });
 
 test("installs nothing when the box is unchecked", async ({ page, simulator }) => {

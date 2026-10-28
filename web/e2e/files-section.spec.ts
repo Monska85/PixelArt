@@ -222,8 +222,8 @@ test("a playlist that misses animations is flagged while the section is closed, 
 test("the summary follows What to play and says when the board plays every animation", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
   const line = page.getByTestId("files-summary");
-  await page.getByRole("radio", { name: "My playlists" }).check();
-  await expect(line).toContainText("My playlists: playing Christmas");
+  await page.getByRole("radio", { name: "My choice" }).check();
+  await expect(line).toContainText("My choice, playlists: playing Christmas");
 
   // Without the playlist default, Automatic has nothing to play from the schedule's fallback.
   rmSync(stored(simulator, "playlists", "default"));

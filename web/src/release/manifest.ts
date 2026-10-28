@@ -2,7 +2,7 @@
 
 // The release manifest (docs/format/manifest-v1.md) as the web app reads it.
 
-import { FILE_LIMITS, isValidId } from "../engine";
+import { FILE_LIMITS, isValidId, parseServerChoice, type ServerChoice } from "../engine";
 import { isCount, isRecord } from "../protocol/guards";
 
 const MANIFEST_FORMAT = "pixelart-manifest/1";
@@ -28,6 +28,8 @@ export interface Manifest {
   playlists: Published[];
   /** Empty for a manifest without `schedules` (older releases). */
   schedules: Published[];
+  /** What the release says Automatic plays (the manifest's `default`); null when it has none or it breaks its rules. */
+  default: ServerChoice | null;
 }
 
 /** The version the animations, playlists and schedules were released with: the content version, else the manifest's own. */
@@ -83,6 +85,7 @@ export function parseManifest(text: string): Manifest | null {
     animations: parseEntries(document.animations, "animation"),
     playlists: parseEntries(document.playlists, "playlist"),
     schedules: parseEntries(document.schedules, "schedule"),
+    default: parseServerChoice(document.default),
   };
 }
 

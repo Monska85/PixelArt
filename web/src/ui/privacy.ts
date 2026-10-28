@@ -27,7 +27,7 @@ export const FOOTER_TEXT =
 
 /** Under the Time server field: the one outside host the board asks for the time, and what it learns. */
 export const TIME_SERVER_NOTE =
-  "The board asks this server for the time when Automatic plays a schedule or the install window is narrower than the whole day. The request carries none of your data; the server sees the board's IP address.";
+  "The board asks this server for the time when the board plays a schedule or the install window is narrower than the whole day. The request carries none of your data; the server sees the board's IP address.";
 
 export const PASSWORD_NOTE = "The password goes straight to the board over USB. It is never sent anywhere else.";
 

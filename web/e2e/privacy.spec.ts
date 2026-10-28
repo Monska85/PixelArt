@@ -70,7 +70,7 @@ test("the footer link opens the Privacy view, which is not in the navigation", a
   await expect(view).toContainText("pool.ntp.org");
   // The time server is asked only while the board needs the time: a schedule, or a narrow install window.
   await expect(view.getByRole("region", { name: "What your board contacts" })).toContainText(
-    "only while it needs the time: when Automatic plays a schedule, or when the install window is narrower than the whole day",
+    "only while it needs the time: when the board plays a schedule, or when the install window is narrower than the whole day",
   );
   await expect(page.getByTestId("footer-text")).toHaveText(
     "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board. The board itself contacts only its update source and its time server.",

@@ -60,6 +60,8 @@ if (process.env.NO_RELEASE !== "1") {
     playlists: published.playlists.map((id) => describe("playlists", id)),
     // A release before schedules has no list: the fixture of such a site leaves the key out.
     ...(published.schedules ? { schedules: published.schedules.map((id) => describe("schedules", id)) } : {}),
+    // What the release says Automatic plays, as the manifest's `default`.
+    ...(published.default ? { default: published.default } : {}),
   };
   writeFileSync(join(root, "manifest.json"), JSON.stringify(manifest, null, 2));
   cpSync(join(here, "site", "firmware"), join(root, "firmware"), { recursive: true });

@@ -3,8 +3,8 @@
 // The texts and rules of What to play and the time settings (docs/web/web-app-v1.md#settings), kept out of the
 // components so they can be tested.
 
-import type { LocalDate, Schedule, ScheduleEnd, ScheduleEntry } from "../../engine";
-import { MAX_SCHEDULE_PLAYLISTS } from "../../engine";
+import type { LocalDate, Schedule, ScheduleEnd, ScheduleEntry, ServerChoice } from "../../engine";
+import { DEFAULT_PLAYLIST_ID, DEFAULT_SCHEDULE_ID, MAX_SCHEDULE_PLAYLISTS } from "../../engine";
 import type { PlayStatus } from "../../protocol";
 import { parseHours } from "./hours";
 
@@ -46,6 +46,60 @@ export const entryLabel = (entry: ScheduleEntry | undefined, index: number): str
 export function playlistList(ids: readonly string[]): string {
   if (ids.length <= 1) return ids[0] ?? "";
   return `${ids.slice(0, -1).join(", ")} and ${ids.at(-1)}`;
+}
+
+/** The stored files by ID with their names (null: none): what the sentences below say a name or an ID for. */
+type Names = ReadonlyMap<string, string | null>;
+
+const named = (names: Names, id: string): string => names.get(id) || id;
+
+/** What the board plays by its own rule, when Automatic or My choice has nothing usable: in words. */
+export const ownRule = (schedules: { has: (id: string) => boolean }): string =>
+  schedules.has(DEFAULT_SCHEDULE_ID) ? `the schedule ${DEFAULT_SCHEDULE_ID}` : `the playlist ${DEFAULT_PLAYLIST_ID}`;
+
+/** What the site chose for Automatic, in the terms of My choice, and the board's own rule when it cannot follow it. */
+export function describeServerChoice(
+  choice: ServerChoice | null,
+  stored: { schedules: Names; playlists: Names },
+): string {
+  const own = ownRule(stored.schedules);
+  if (choice === null) return `The site has not chosen what to play, so the board plays ${own}.`;
+  if ("schedule" in choice)
+    return stored.schedules.has(choice.schedule)
+      ? `The site plays the schedule ${named(stored.schedules, choice.schedule)}.`
+      : `The site chose the schedule ${choice.schedule}, which this board does not store, so it plays ${own}.`;
+  const list = playlistList(choice.playlists.map((id) => named(stored.playlists, id)));
+  return choice.playlists.some((id) => stored.playlists.has(id))
+    ? `The site plays the ${choice.playlists.length === 1 ? "playlist" : "playlists"} ${list}.`
+    : `The site chose the ${choice.playlists.length === 1 ? "playlist" : "playlists"} ${list}, which this board does not store, so it plays ${own}.`;
+}
+
+/**
+ * The schedule the Automatic card shows: the one the board says it plays from while it is in Automatic, else the one
+ * Automatic would play, from the server choice and the stored schedules. Null when it is a list or there is none.
+ */
+export function automaticSchedule(
+  choice: ServerChoice | null,
+  stored: ReadonlySet<string>,
+  play: PlayStatus | null,
+): string | null {
+  if (play?.mode === "auto") return play.schedule;
+  if (choice && "playlists" in choice) return null;
+  if (choice && stored.has(choice.schedule)) return choice.schedule;
+  return stored.has(DEFAULT_SCHEDULE_ID) ? DEFAULT_SCHEDULE_ID : null;
+}
+
+/** What a deletion of the schedule the board plays from does, in words; `remaining` are the schedules left. */
+export function describeScheduleDeletion(play: PlayStatus, remaining: ReadonlySet<string>): string {
+  const own = ownRule(remaining);
+  switch (play.source) {
+    case "server":
+      return `The site chose this schedule for Automatic: the board will then play ${own}.`;
+    case "schedule":
+      return `My choice plays this schedule: the board will then play ${own}.`;
+    default:
+      return `Automatic plays this schedule: the board will then play ${own}.`;
+  }
 }
 
 /** What the board says it plays now, in Automatic, from `status.play`. */

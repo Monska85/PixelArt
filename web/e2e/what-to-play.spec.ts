@@ -2,23 +2,35 @@
 
 // "What to play" and the time settings on a firmware that knows schedules: the simulator, with the schedule of
 // e2e/board-files/schedules/default.json (Quiet season, February 1 to March 15, plays holiday; the fallback is
-// default).
+// default) and, where a test adds it, e2e/files/summer.json (Beach days, June 1 to August 31, plays default; the
+// fallback is holiday).
 
-import { existsSync } from "node:fs";
+import { copyFileSync, existsSync } from "node:fs";
 import type { Page } from "@playwright/test";
+import { setServerChoice } from "./board";
 import {
   connectSimulator,
   expect,
+  file,
   showBoardPlaylists,
   showBoardSchedules,
   stored,
   test,
   watchRequests,
+  type Simulator,
 } from "./fixtures";
 
 const settingsCard = (page: Page) => page.getByRole("region", { name: "Settings" });
 const automatic = (page: Page) => page.getByTestId("play-auto");
-const mine = (page: Page) => page.getByTestId("play-playlists");
+const mine = (page: Page) => page.getByTestId("play-mine");
+const choice = (page: Page, name: "Automatic" | "My choice") => page.getByRole("radio", { name, exact: true });
+const segment = (page: Page, name: "Playlists" | "Schedule") => page.getByRole("radio", { name, exact: true });
+const announced = (page: Page) => page.getByTestId("what-to-play-status");
+/** The Active mark of a schedule row: a playlist of the same ID has its own. */
+const activeSchedule = (page: Page, id: string) =>
+  page.getByRole("table", { name: "Schedules on the board" }).getByTestId(`active-${id}`);
+const addSummer = (simulator: Simulator): void =>
+  copyFileSync(file("summer.json"), stored(simulator, "schedules", "summer"));
 const list = (page: Page) => page.getByRole("list", { name: "My playlists, in the order they play" });
 /** The fields of every settings_set the page sent, without seq and cmd. */
 const sent = (requests: Array<Record<string, unknown>>) =>
@@ -32,7 +44,10 @@ test.describe("on a date of the schedule", () => {
   test("Automatic says what the board plays, the next change, and shows the schedule", async ({ page, simulator }) => {
     await page.clock.setFixedTime(new Date("2026-02-10T12:00:00Z"));
     await connectSimulator(page, simulator);
-    await expect(page.getByRole("radio", { name: "Automatic" })).toBeChecked();
+    await expect(choice(page, "Automatic")).toBeChecked();
+    await expect(automatic(page).getByTestId("server-choice")).toHaveText(
+      "The site has not chosen what to play, so the board plays the schedule default.",
+    );
     await expect(automatic(page).getByTestId("play-now")).toHaveText(
       "Now: Quiet season is on: the board plays holiday.",
     );
@@ -79,21 +94,35 @@ test("without a schedule, Automatic plays the playlist default", async ({ page, 
   );
   await expect(automatic(page).getByTestId("no-schedule")).toContainText("This board stores no schedule");
   await expect(automatic(page).getByTestId("no-schedule")).toContainText("The site publishes the schedule below");
+  await expect(automatic(page).getByTestId("server-choice")).toHaveText(
+    "The site has not chosen what to play, so the board plays the playlist default.",
+  );
+
+  // Schedule is then disabled, with a link to the Schedules tab of the Files section.
+  await expect(segment(page, "Schedule")).toBeDisabled();
+  await page.getByRole("button", { name: "Schedules tab of Files" }).click();
+  const tab = page.getByRole("tab", { name: /^Schedules/ });
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(tab).toBeFocused();
+  await expect(page.getByText("No schedules on this board")).toBeVisible();
 });
 
-test("My playlists: choose, add, reorder, remove, and each change sends only what changed", async ({
+test("My choice, Playlists: choose, add, reorder, remove, and each change sends only what changed", async ({
   page,
   simulator,
 }) => {
   const requests = watchRequests(page, "settings_set");
   await connectSimulator(page, simulator);
   // A board that never stored play reads its playlist: default means Automatic, with the list [default].
+  await expect(choice(page, "Automatic")).toBeChecked();
+  await expect(segment(page, "Playlists")).toBeChecked();
   await expect(list(page).getByRole("listitem")).toHaveText([/default: Christmas/]);
   await expect(list(page).getByRole("button", { name: "Remove default, playlist 1" })).toBeDisabled();
 
-  await page.getByRole("radio", { name: "My playlists" }).check();
-  await expect(page.getByRole("radio", { name: "My playlists" })).toBeChecked();
+  await choice(page, "My choice").check();
+  await expect(choice(page, "My choice")).toBeChecked();
   await expect.poll(() => sent(requests)).toEqual([{ play: "playlists" }]);
+  await expect(announced(page)).toHaveText("My choice chosen, Playlists.");
 
   await mine(page).getByLabel("Add a playlist").selectOption("holiday");
   await mine(page).getByRole("button", { name: "Add" }).click();
@@ -141,11 +170,11 @@ test("the list is kept while Automatic plays, and can be changed meanwhile", asy
   await mine(page).getByRole("button", { name: "Add" }).click();
   // playlists alone keeps Automatic.
   await expect.poll(() => sent(requests)).toEqual([{ playlists: ["default", "holiday"] }]);
-  await expect(page.getByRole("radio", { name: "Automatic" })).toBeChecked();
-  await expect(mine(page)).toContainText("Automatic is on. This list is kept");
+  await expect(choice(page, "Automatic")).toBeChecked();
+  await expect(mine(page)).toContainText("Automatic is on. This list is kept for when you choose My choice, Playlists");
 
-  await page.getByRole("radio", { name: "My playlists" }).check();
-  await page.getByRole("radio", { name: "Automatic" }).check();
+  await choice(page, "My choice").check();
+  await choice(page, "Automatic").check();
   await expect
     .poll(() => sent(requests))
     .toEqual([{ playlists: ["default", "holiday"] }, { play: "playlists" }, { play: "auto" }]);
@@ -208,7 +237,7 @@ test.describe("the time settings", () => {
     const server = time.getByLabel("Time server");
     await expect(server).toHaveValue("pool.ntp.org");
     await expect(time.getByTestId("time-server-note")).toHaveText(
-      "The board asks this server for the time when Automatic plays a schedule or the install window is narrower than the whole day. The request carries none of your data; the server sees the board's IP address.",
+      "The board asks this server for the time when the board plays a schedule or the install window is narrower than the whole day. The request carries none of your data; the server sees the board's IP address.",
     );
     await server.fill("time server!");
     await expect(time).toContainText("A host name or IPv4 address of 1 to 64 characters");
@@ -220,5 +249,146 @@ test.describe("the time settings", () => {
     await expect.poll(() => sent(requests).at(-1)).toEqual({ ntp_server: "pool.ntp.org" });
     await expect(server).toHaveValue("pool.ntp.org");
     expect(requests).toHaveLength(5);
+  });
+});
+
+test.describe("what the site chose", () => {
+  test.use({ simulatorArgs: ["--date", "2026-07-10"], timezoneId: "UTC" });
+
+  test("a schedule: Automatic names it, plays by it and marks it Active in the files", async ({ page, simulator }) => {
+    await page.clock.setFixedTime(new Date("2026-07-10T12:00:00Z"));
+    addSummer(simulator);
+    await setServerChoice(simulator, { schedule: "summer" });
+    await connectSimulator(page, simulator);
+    await expect(choice(page, "Automatic")).toBeChecked();
+    await expect(automatic(page).getByTestId("server-choice")).toHaveText("The site plays the schedule Summer.");
+    await expect(automatic(page).getByTestId("play-now")).toHaveText("Now: Beach days is on: the board plays default.");
+    await expect(automatic(page).getByTestId("play-next")).toHaveText(
+      "Next change: September 1, 2026, the fallback: holiday.",
+    );
+    await automatic(page).getByRole("button", { name: "Show the schedule" }).click();
+    await expect(page.getByRole("table", { name: "Summer, stored on this board" })).toContainText("Beach days");
+    await showBoardSchedules(page);
+    await expect(activeSchedule(page, "summer")).toHaveText("Active");
+    await expect(activeSchedule(page, "default")).toHaveCount(0);
+
+    // Deleting it says whose choice it is and what plays instead.
+    await page.getByRole("button", { name: "More actions for summer" }).click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await expect(page.getByRole("dialog", { name: "Delete summer?" })).toContainText(
+      "The site chose this schedule for Automatic: the board will then play the schedule default.",
+    );
+  });
+
+  test("playlists: Automatic names them and plays them in turn, with no schedule to show", async ({
+    page,
+    simulator,
+  }) => {
+    await setServerChoice(simulator, { playlists: ["holiday", "default"] });
+    await connectSimulator(page, simulator);
+    await expect(automatic(page).getByTestId("server-choice")).toHaveText(
+      "The site plays the playlists Quiet evening and Christmas.",
+    );
+    await expect(automatic(page).getByTestId("play-now")).toHaveText("Now: The board plays holiday and default.");
+    await expect(automatic(page).getByRole("button", { name: "Show the schedule" })).toHaveCount(0);
+    await expect(automatic(page).getByTestId("play-next")).toHaveCount(0);
+    await expect(page.getByTestId("files-summary")).toContainText("Automatic: playing Quiet evening");
+  });
+
+  test("a schedule the board lacks: Automatic says what the board plays by its own rule", async ({
+    page,
+    simulator,
+  }) => {
+    await setServerChoice(simulator, { schedule: "ghost" });
+    await connectSimulator(page, simulator);
+    await expect(automatic(page).getByTestId("server-choice")).toHaveText(
+      "The site chose the schedule ghost, which this board does not store, so it plays the schedule default.",
+    );
+    await expect(automatic(page).getByTestId("play-now")).toContainText("the board plays the fallback, default.");
+  });
+
+  test("My choice, Schedule: look, choose, switch, and each change sends only what changes", async ({
+    page,
+    simulator,
+  }) => {
+    await page.clock.setFixedTime(new Date("2026-07-10T12:00:00Z"));
+    addSummer(simulator);
+    const requests = watchRequests(page, "settings_set");
+    await connectSimulator(page, simulator);
+    await expect(choice(page, "Automatic")).toBeChecked();
+    await expect(page.getByRole("radiogroup", { name: "My choice plays" })).toBeVisible();
+
+    // Automatic has no segment of its own: looking at Schedule sends nothing.
+    await segment(page, "Schedule").check();
+    await expect(page.getByRole("combobox", { name: "Schedule", exact: true })).toHaveValue("default");
+    await expect(announced(page)).toHaveText("Schedule chosen.");
+    expect(requests).toHaveLength(0);
+    await expect(choice(page, "Automatic")).toBeChecked();
+    await expect(mine(page)).toContainText("Automatic is on. Choosing a schedule here switches to My choice.");
+
+    // Choosing one from Automatic also chooses Schedule.
+    await page.getByRole("combobox", { name: "Schedule", exact: true }).selectOption("summer");
+    await expect.poll(() => sent(requests)).toEqual([{ schedule: "summer", play: "schedule" }]);
+    await expect(choice(page, "My choice")).toBeChecked();
+    await expect(segment(page, "Schedule")).toBeChecked();
+    await expect(announced(page)).toHaveText("My choice chosen, Schedule.");
+    await expect(page.getByTestId("my-schedule-now")).toHaveText("Now: Beach days is on: the board plays default.");
+    await expect(page.getByTestId("my-schedule-next")).toHaveText(
+      "Next change: September 1, 2026, the fallback: holiday.",
+    );
+    await page.getByTestId("my-schedule").getByRole("button", { name: "Show the schedule" }).click();
+    await expect(page.getByRole("table", { name: "Summer, stored on this board" })).toBeVisible();
+
+    // While Schedule plays, a schedule alone is sent.
+    await page.getByRole("combobox", { name: "Schedule", exact: true }).selectOption("default");
+    await expect.poll(() => sent(requests).at(-1)).toEqual({ schedule: "default" });
+    await expect(page.getByTestId("my-schedule-now")).toHaveText(
+      "Now: No entry of the schedule is on today: the board plays the fallback, default.",
+    );
+
+    // The segment is the play value, sent when it changes.
+    await segment(page, "Playlists").check();
+    await expect.poll(() => sent(requests).at(-1)).toEqual({ play: "playlists" });
+    await expect(announced(page)).toHaveText("Playlists chosen.");
+    await segment(page, "Schedule").check();
+    await expect.poll(() => sent(requests).at(-1)).toEqual({ play: "schedule" });
+    await expect(page.getByRole("combobox", { name: "Schedule", exact: true })).toHaveValue("default");
+
+    await choice(page, "Automatic").check();
+    await expect.poll(() => sent(requests).at(-1)).toEqual({ play: "auto" });
+    await expect(announced(page)).toHaveText("Automatic chosen.");
+    // Automatic shows Playlists again: My choice plays the playlists, whatever schedule was kept.
+    await expect(segment(page, "Playlists")).toBeChecked();
+    await choice(page, "My choice").check();
+    await expect.poll(() => sent(requests).at(-1)).toEqual({ play: "playlists" });
+    expect(requests).toHaveLength(6);
+  });
+
+  test("a chosen schedule that is not stored is marked, and the board plays its own rule", async ({
+    page,
+    simulator,
+  }) => {
+    addSummer(simulator);
+    await connectSimulator(page, simulator);
+    await segment(page, "Schedule").check();
+    await page.getByRole("combobox", { name: "Schedule", exact: true }).selectOption("summer");
+    await expect(segment(page, "Schedule")).toBeChecked();
+    await showBoardSchedules(page);
+    await expect(activeSchedule(page, "summer")).toHaveText("Active");
+    await page.getByRole("button", { name: "More actions for summer" }).click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    const dialog = page.getByRole("dialog", { name: "Delete summer?" });
+    await expect(dialog).toContainText("My choice plays this schedule: the board will then play the schedule default.");
+    await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+
+    await expect(page.getByTestId("my-schedule-missing")).toHaveText(
+      "The schedule summer is not stored, so the board plays the schedule default while it is chosen.",
+    );
+    await expect(page.getByRole("combobox", { name: "Schedule", exact: true })).toHaveValue("summer");
+    await expect(page.getByRole("combobox", { name: "Schedule", exact: true }).locator("option:checked")).toHaveText(
+      "summer (not stored)",
+    );
+    await expect(page.getByTestId("my-schedule-now")).toContainText("the board plays the fallback, default.");
+    await expect(activeSchedule(page, "default")).toHaveText("Active");
   });
 });

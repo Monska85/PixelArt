@@ -3,6 +3,7 @@
 // A scripted board for the protocol client tests: an in-memory implementation
 // of the commands, with hooks to damage, drop or reorder what it says.
 
+import { choosePlaylists, loadSchedule, parseServerChoice, type PlayMode, type Schedule } from "../src/engine";
 import { crc32Hex } from "../src/protocol/crc32";
 import { decodeLine, type Body } from "../src/protocol/framing";
 import { sha256Hex } from "../src/protocol/files";
@@ -33,7 +34,11 @@ export class FakeBoard implements Transport {
    */
   schedules = false;
   /** `play` and `playlists` once a client set one of them; null: derived from `playlist`, as on an upgraded board. */
-  storedPlay: { play: "auto" | "playlists"; playlists: string[] } | null = null;
+  storedPlay: { play: PlayMode; playlists: string[] } | null = null;
+  /** The `schedule` setting once a client set it; null reads `default`. */
+  storedSchedule: string | null = null;
+  /** What the release says Automatic plays, as `server_choice_set` stored it. */
+  serverChoice: Body | null = null;
   time = { time_sync_hours: 6, ntp_server: "pool.ntp.org" };
   /** The play state `status` reports; null derives one from the settings and the stored files. */
   statusPlay: Body | null = null;
@@ -97,7 +102,7 @@ export class FakeBoard implements Transport {
   }
 
   /** `play` and `playlists` as the board reads them: stored, or derived from `playlist`. */
-  private play(): { play: "auto" | "playlists"; playlists: string[] } {
+  private play(): { play: PlayMode; playlists: string[] } {
     if (this.storedPlay) return this.storedPlay;
     const { playlist } = this.settings;
     return { play: playlist === "default" ? "auto" : "playlists", playlists: [playlist] };
@@ -110,7 +115,8 @@ export class FakeBoard implements Transport {
       brightness: this.settings.brightness,
       play,
       playlists: [...playlists],
-      playlist: play === "auto" ? "default" : playlists[0],
+      schedule: this.storedSchedule ?? "default",
+      playlist: play === "playlists" ? playlists[0] : "default",
       ...this.time,
     };
   }
@@ -125,10 +131,11 @@ export class FakeBoard implements Transport {
   // invalid_id before not_found, then the agreement of `playlist` with `play` and `playlists`.
   private setWithPlay(r: Body): Body {
     const seq = r.seq;
-    const { play, playlists, playlist, time_sync_hours: hours, ntp_server: server } = r;
+    const { play, playlists, playlist, schedule, time_sync_hours: hours, ntp_server: server } = r;
     const hasPlay = "play" in r;
     const hasList = "playlists" in r;
-    if (hasPlay && play !== "auto" && play !== "playlists") return this.fail(seq, "bad_request");
+    if (hasPlay && play !== "auto" && play !== "playlists" && play !== "schedule") return this.fail(seq, "bad_request");
+    if ("schedule" in r && typeof schedule !== "string") return this.fail(seq, "bad_request");
     if (
       hasList &&
       (!Array.isArray(playlists) ||
@@ -145,44 +152,49 @@ export class FakeBoard implements Transport {
       return this.fail(seq, "bad_request");
     const ids = [...(hasList ? (playlists as string[]) : []), ...(typeof playlist === "string" ? [playlist] : [])];
     if (ids.some((id) => !ID.test(id))) return this.fail(seq, "invalid_id");
+    if (typeof schedule === "string" && !ID.test(schedule)) return this.fail(seq, "invalid_id");
     if (ids.some((id) => !this.files.playlist.has(id))) return this.fail(seq, "not_found");
+    if (typeof schedule === "string" && !this.files.schedule.has(schedule)) return this.fail(seq, "not_found");
     let next = this.storedPlay;
     if (hasPlay || hasList) {
       const current = this.play();
       next = {
-        play: hasPlay ? (play as "auto" | "playlists") : current.play,
+        play: hasPlay ? (play as PlayMode) : current.play,
         playlists: hasList ? [...(playlists as string[])] : current.playlists,
       };
-      const agreed = next.play === "auto" ? "default" : next.playlists[0];
+      const agreed = next.play === "playlists" ? next.playlists[0] : "default";
       if (typeof playlist === "string" && playlist !== agreed) return this.fail(seq, "bad_request");
     } else if (typeof playlist === "string" && this.storedPlay)
       next = { play: playlist === "default" ? "auto" : "playlists", playlists: [playlist] };
     if (typeof r.brightness === "number") this.settings.brightness = r.brightness;
     this.storedPlay = next;
-    if (next) this.settings.playlist = next.play === "auto" ? "default" : (next.playlists[0] as string);
+    if (typeof schedule === "string") this.storedSchedule = schedule;
+    if (next) this.settings.playlist = next.play === "playlists" ? (next.playlists[0] as string) : "default";
     else if (typeof playlist === "string") this.settings.playlist = playlist;
     if (typeof hours === "number") this.time.time_sync_hours = hours;
     if (typeof server === "string") this.time.ntp_server = server;
     return { seq, ok: true, settings: this.reported() };
   }
 
-  /** A `status.play` that follows the settings: no time, and the fallback of a stored schedule `default`. */
+  /** A `status.play` that follows the settings and the stored files, with no time: what the engine chooses. */
   private playStatus(): Body {
     if (this.statusPlay) return this.statusPlay;
     const { play, playlists } = this.play();
-    const playing = (list: string[]): string | null => list.find((id) => this.files.playlist.has(id)) ?? null;
-    if (play === "playlists")
-      return { mode: play, reason: "user", entry: null, playlists, playing: playing(playlists) };
-    const stored = this.files.schedule.get("default");
-    const fallback = stored ? (JSON.parse(new TextDecoder().decode(stored)) as { fallback?: string[] }).fallback : null;
-    const list = fallback ?? ["default"];
-    return {
+    const schedules = new Map<string, Schedule>();
+    for (const [id, bytes] of this.files.schedule) {
+      const { schedule } = loadSchedule(bytes);
+      if (schedule) schedules.set(id, schedule);
+    }
+    const chosen = choosePlaylists({
       mode: play,
-      reason: stored ? "no_time" : "no_schedule",
-      entry: null,
-      playlists: list,
-      playing: playing(list),
-    };
+      playlists,
+      schedule: this.storedSchedule ?? "default",
+      serverChoice: parseServerChoice(this.serverChoice),
+      schedules,
+      date: null,
+      playable: (id) => this.files.playlist.has(id),
+    });
+    return { mode: play, ...chosen, server_choice: this.serverChoice };
   }
 
   private fail(seq: unknown, error: string, message = error, more: Body = {}): Body {
@@ -288,6 +300,8 @@ export class FakeBoard implements Transport {
         if (r.settings !== true) return { seq, ok: true, ...removed };
         this.settings = { brightness: 100, playlist: "default" };
         this.storedPlay = null;
+        this.storedSchedule = null;
+        this.serverChoice = null;
         this.time = { time_sync_hours: 6, ntp_server: "pool.ntp.org" };
         return { seq, ok: true, ...removed, settings: this.reported() };
       }
@@ -297,6 +311,13 @@ export class FakeBoard implements Transport {
         return { seq, ok: true, settings: this.reported() };
       case "settings_set":
         return this.schedules ? this.setWithPlay(r) : this.setOld(r);
+      case "server_choice_set": {
+        if (!this.schedules) return this.fail(seq, "unknown_command");
+        const choice = r.choice === null ? null : parseServerChoice(r.choice);
+        if (r.choice !== null && choice === null) return this.fail(seq, "bad_request");
+        this.serverChoice = choice;
+        return { seq, ok: true, choice };
+      }
       case "status":
         if (!this.schedules) return this.fail(seq, "unknown_command");
         return { seq, ok: true, wifi: { state: "connected" }, time: { known: false }, play: this.playStatus() };

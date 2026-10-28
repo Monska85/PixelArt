@@ -7,13 +7,10 @@ import { downloadPublished } from "../../release/library";
 import type { Published } from "../../release/manifest";
 import type { ManifestState } from "../useManifest";
 
-/** The one schedule the board plays (docs/format/schedule-v1.md#files). */
-export const PLAYED_SCHEDULE = "default";
-
 /**
- * The schedule the Automatic card shows. "board": the board's `/schedules/default.json`, or null when it is not valid
- * (the board then plays as with no schedule). "site": the schedule the site publishes, for a board that stores none.
- * "none": neither is there. "loading": being read, or the board's list is not known yet.
+ * A schedule a card shows. "board": the board's file, or null when it is not valid (the board then plays as with no
+ * schedule). "site": the schedule the site publishes, for a board that stores none. "none": neither is there.
+ * "loading": being read, or the board's list is not known yet.
  */
 export type ScheduleSource =
   | { status: "loading" }
@@ -29,24 +26,50 @@ function sourceKey(
   stored: Entry[] | null,
   entry: Entry | null,
   library: ManifestState,
+  siteId: string | null,
   published: Published | null | undefined,
 ): string | null {
   if (stored === null) return null;
-  if (entry) return `board:${entry.sha256 ?? ""}:${entry.size}`;
+  if (entry) return `board:${entry.id}:${entry.sha256 ?? ""}:${entry.size}`;
+  if (siteId === null) return "none";
   if (library.status === "loading") return null;
   if (published) return `site:${published.sha256}`;
   return "none";
 }
 
+/** The schedules read from the board, by SHA-256, so two cards that show one file read it once. */
+const READS = new Map<string, Promise<Schedule | null>>();
+const MAX_READS = 16;
+
+function readBoardSchedule(client: BoardClient, entry: Entry): Promise<Schedule | null> {
+  const key = entry.sha256 === null ? null : `${entry.sha256}:${entry.size}`;
+  const cached = key === null ? undefined : READS.get(key);
+  if (cached) return cached;
+  const read = downloadFile(client, "schedule", entry.id, entry).then((bytes) => loadSchedule(bytes).schedule);
+  if (key !== null) {
+    if (READS.size >= MAX_READS) READS.delete(READS.keys().next().value as string);
+    READS.set(key, read);
+    read.catch(() => READS.delete(key));
+  }
+  return read;
+}
+
 /**
- * Reads the board's schedule `default` when its list has one, again when its SHA-256 changes; otherwise the published
- * one of the release the app is served with. A read that fails counts as no schedule to show.
+ * Reads the board's schedule `id` when its list has it, again when its SHA-256 changes. Without it, and when `siteId`
+ * is given, the published schedule of that ID of the release the app is served with. A read that fails counts as no
+ * schedule to show.
  */
-export function useScheduleSource(client: BoardClient, stored: Entry[] | null, library: ManifestState): ScheduleSource {
-  const entry = stored?.find((e) => e.id === PLAYED_SCHEDULE) ?? null;
+export function useScheduleSource(
+  client: BoardClient,
+  stored: Entry[] | null,
+  library: ManifestState,
+  id: string | null,
+  siteId: string | null = null,
+): ScheduleSource {
+  const entry = (id !== null && stored?.find((e) => e.id === id)) || null;
   const published =
-    library.status === "ready" ? library.manifest.schedules.find((e) => e.id === PLAYED_SCHEDULE) : null;
-  const key = sourceKey(stored, entry, library, published);
+    siteId !== null && library.status === "ready" ? library.manifest.schedules.find((e) => e.id === siteId) : null;
+  const key = sourceKey(stored, entry, library, siteId, published);
   const [source, setSource] = useState<{ key: string | null; value: ScheduleSource }>({
     key: null,
     value: { status: "loading" },
@@ -59,8 +82,7 @@ export function useScheduleSource(client: BoardClient, stored: Entry[] | null, l
       let value: ScheduleSource;
       try {
         if (entry) {
-          const bytes = await downloadFile(client, "schedule", entry.id, entry);
-          value = { status: "board", schedule: loadSchedule(bytes).schedule };
+          value = { status: "board", schedule: await readBoardSchedule(client, entry) };
         } else {
           const schedule = published ? loadSchedule(await downloadPublished("schedule", published)).schedule : null;
           value = schedule ? { status: "site", schedule } : { status: "none" };

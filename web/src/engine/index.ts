@@ -4,23 +4,30 @@ export { loadAnimation } from "./animation";
 export { loadPlaylist } from "./playlist";
 export {
   NEXT_CHANGE_DAYS,
+  DEFAULT_PLAYLIST_ID,
+  DEFAULT_SCHEDULE_ID,
   PLAY_REASONS,
+  PLAY_SOURCES,
   choosePlaylists,
   isScheduleDate,
   loadSchedule,
   nextDay,
   nextScheduleChange,
+  parseServerChoice,
   scheduleWinner,
 } from "./schedule";
 export type {
   LocalDate,
   PlayChoice,
+  PlayInputs,
   PlayMode,
   PlayReason,
+  PlaySource,
   Schedule,
   ScheduleEnd,
   ScheduleEntry,
   ScheduleResult,
+  ServerChoice,
 } from "./schedule";
 export { Player } from "./player";
 export {

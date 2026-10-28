@@ -2,6 +2,7 @@
 
 import { FolderUp, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { downloadFile, isUpdateRunning, sha256Hex, supportsSchedules, type BoardClient } from "../../protocol";
 import { BlockedNote } from "../common/BlockedNote";
 import { ConfirmDialog } from "../common/ConfirmDialog";
@@ -178,7 +179,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
     client,
     activePlaylist: active,
     knowsSchedules: whatToPlay,
-    automatic: whatToPlay && data.settings?.play === "auto",
+    play,
     disabled: lost,
     onChanged: changed,
     onError: report,
@@ -331,6 +332,16 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
             disabled={lost}
             onSettings={setSettings}
             onPlayChanged={statusPoll.refresh}
+            onShowSchedules={() => {
+              // The tab list is shown and the Schedules tab selected only after the render: commit it first.
+              flushSync(() => {
+                setList("schedule");
+                reveal();
+              });
+              document
+                .querySelector<HTMLElement>('[data-testid="files-card"] [role="tab"][aria-selected="true"]')
+                ?.focus();
+            }}
             onError={report}
           />
         )}

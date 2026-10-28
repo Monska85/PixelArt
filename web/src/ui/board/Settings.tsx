@@ -27,7 +27,9 @@ const PlaySettings = lazy(() => import("./PlaySettings").then((m) => ({ default:
  * "Playback while commands run" (What the board plays): keep the two in step. `playlist` changes it too, but the app
  * sends it only to a firmware without What to play, which reports no `status.play`.
  */
-const CHOICE_SETTINGS = ["play", "playlists", "timezone"] as const satisfies ReadonlyArray<keyof SettingsChanges>;
+const CHOICE_SETTINGS = ["play", "playlists", "schedule", "timezone"] as const satisfies ReadonlyArray<
+  keyof SettingsChanges
+>;
 
 interface Props {
   client: BoardClient;
@@ -52,6 +54,8 @@ interface Props {
   onSettings: (settings: Settings) => void;
   /** A change of what to play or of the time zone: the board chooses again, and the status says what. */
   onPlayChanged: () => void;
+  /** Opens the Files section on its Schedules tab. */
+  onShowSchedules: () => void;
   onError: (error: ShownError) => void;
 }
 
@@ -68,6 +72,7 @@ export function SettingsPanel({
   disabled,
   onSettings,
   onPlayChanged,
+  onShowSchedules,
   onError,
 }: Props) {
   // The slider shows what the user is dragging; the view shows what the board answered.
@@ -154,6 +159,7 @@ export function SettingsPanel({
             play={play}
             disabled={disabled}
             change={change}
+            onShowSchedules={onShowSchedules}
           />
         </Suspense>
       ) : (

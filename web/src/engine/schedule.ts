@@ -382,12 +382,22 @@ export function scheduleWinner(schedule: Schedule, date: LocalDate): number {
   return best;
 }
 
-export type PlayMode = "auto" | "playlists";
+/** `play`: Automatic (the server choice), or My choice as a list of playlists or as a schedule. */
+export type PlayMode = "auto" | "playlists" | "schedule";
 /** Why the board plays what it plays, as `status.play.reason` names it. */
-export const PLAY_REASONS = ["user", "schedule", "fallback", "no_time", "no_schedule"] as const;
+export const PLAY_REASONS = ["playlists", "schedule", "fallback", "no_time", "no_schedule"] as const;
 export type PlayReason = (typeof PLAY_REASONS)[number];
+/** Where the list comes from, as `status.play.source` names it. */
+export const PLAY_SOURCES = ["server", "playlists", "schedule", "fallback"] as const;
+export type PlaySource = (typeof PLAY_SOURCES)[number];
+
+/** What the release says Automatic plays (docs/format/play-v1.md): a schedule or a list of playlists. */
+export type ServerChoice = { schedule: string } | { playlists: string[] };
 
 export interface PlayChoice {
+  source: PlaySource;
+  /** The ID of the schedule the list comes from, or null. */
+  schedule: string | null;
   reason: PlayReason;
   /** The winning entry, or null when none won. */
   entry: number | null;
@@ -397,44 +407,111 @@ export interface PlayChoice {
   playing: string | null;
 }
 
-/** The playlist the board plays when Automatic has no schedule or every playlist it names is skipped. */
+/**
+ * The server choice in `value` (the manifest's `default` or `status.play.server_choice`), or null when it is absent or
+ * breaks the rules of docs/format/play-v1.md: exactly one of `schedule` (an ID) or `playlists` (1 to 8 IDs, none twice).
+ */
+export function parseServerChoice(value: unknown): ServerChoice | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const keys = Object.keys(value);
+  if (keys.length !== 1) return null;
+  const { schedule, playlists } = value as { schedule?: unknown; playlists?: unknown };
+  if (keys[0] === "schedule") return typeof schedule === "string" && isValidId(schedule) ? { schedule } : null;
+  if (keys[0] !== "playlists" || !Array.isArray(playlists)) return null;
+  const ok =
+    playlists.length >= 1 &&
+    playlists.length <= MAX_SCHEDULE_PLAYLISTS &&
+    playlists.every((id) => typeof id === "string" && isValidId(id)) &&
+    new Set(playlists).size === playlists.length;
+  return ok ? { playlists: playlists as string[] } : null;
+}
+
+/** The playlist the board plays when no schedule or list gives a playable one: the last fallback. */
 export const DEFAULT_PLAYLIST_ID = "default";
+/** The schedule the board's own rule tries when Automatic or My choice has nothing usable. */
+export const DEFAULT_SCHEDULE_ID = "default";
+
+export interface PlayInputs {
+  mode: PlayMode;
+  /** The `playlists` setting. */
+  playlists: readonly string[];
+  /** The `schedule` setting. */
+  schedule: string;
+  serverChoice: ServerChoice | null;
+  /** The valid schedules stored on the board, by ID. */
+  schedules: ReadonlyMap<string, Schedule>;
+  /** The local date, or null while the time is not known. */
+  date: LocalDate | null;
+  /** Whether the board can play a playlist. */
+  playable: (id: string) => boolean;
+}
 
 /**
- * The list the board plays. `user` is the `playlists` setting, `schedule` the valid schedule `default` or null, `date`
- * the local date or null while the time is not known, and `playable` says whether the board can play a playlist.
- * Resolves one date: never loops over days or years.
+ * The list the board plays, by the table of docs/format/playlist-v1.md#how-the-board-chooses-what-to-play. Resolves
+ * one date: never loops over days or years.
  */
-export function choosePlaylists(
-  mode: PlayMode,
-  user: readonly string[],
-  schedule: Schedule | null,
-  date: LocalDate | null,
-  playable: (id: string) => boolean,
-): PlayChoice {
-  const choice = (list: readonly string[], reason: PlayReason, entry: number | null): PlayChoice => ({
+export function choosePlaylists({
+  mode,
+  playlists,
+  schedule,
+  serverChoice,
+  schedules,
+  date,
+  playable,
+}: PlayInputs): PlayChoice {
+  const choice = (
+    source: PlaySource,
+    scheduleId: string | null,
+    list: readonly string[],
+    reason: PlayReason,
+    entry: number | null,
+  ): PlayChoice => ({
+    source,
+    schedule: scheduleId,
     reason,
     entry,
     playlists: [...list],
     playing: list.find(playable) ?? null,
   });
-  // My playlists never fall back to `default`: every playlist skipped plays every animation.
-  if (mode === "playlists") return choice(user, "user", null);
-  if (!schedule) return choice([DEFAULT_PLAYLIST_ID], "no_schedule", null);
-  let reason: PlayReason = "no_time";
-  let entry: number | null = null;
-  if (date) {
-    const winner = scheduleWinner(schedule, date);
-    if (winner >= 0) {
-      const chosen = choice(schedule.entries[winner]!.playlists, "schedule", winner);
-      if (chosen.playing !== null) return chosen;
-      // Every playlist of the winning entry is skipped: entry still names it.
-      entry = winner;
+  // The existing Automatic chain for one valid schedule.
+  const fromSchedule = (source: PlaySource, id: string, valid: Schedule): PlayChoice => {
+    let reason: PlayReason = "no_time";
+    let entry: number | null = null;
+    if (date) {
+      const winner = scheduleWinner(valid, date);
+      if (winner >= 0) {
+        const chosen = choice(source, id, valid.entries[winner]!.playlists, "schedule", winner);
+        if (chosen.playing !== null) return chosen;
+        // Every playlist of the winning entry is skipped: entry still names it.
+        entry = winner;
+      }
+      reason = "fallback";
     }
-    reason = "fallback";
+    const fallback = choice(source, id, valid.fallback, reason, entry);
+    return fallback.playing !== null ? fallback : choice(source, id, [DEFAULT_PLAYLIST_ID], reason, entry);
+  };
+  // The board's own rule: the schedule `default` if it is valid and stored, else the playlist `default`.
+  const boardRule = (): PlayChoice => {
+    const own = schedules.get(DEFAULT_SCHEDULE_ID);
+    return own
+      ? fromSchedule("fallback", DEFAULT_SCHEDULE_ID, own)
+      : choice("fallback", null, [DEFAULT_PLAYLIST_ID], "no_schedule", null);
+  };
+
+  // My playlists never fall back to `default`: every playlist skipped plays every animation.
+  if (mode === "playlists") return choice("playlists", null, playlists, "playlists", null);
+  if (mode === "schedule") {
+    const mine = schedules.get(schedule);
+    return mine ? fromSchedule("schedule", schedule, mine) : boardRule();
   }
-  const fallback = choice(schedule.fallback, reason, entry);
-  return fallback.playing !== null ? fallback : choice([DEFAULT_PLAYLIST_ID], reason, entry);
+  if (serverChoice && "schedule" in serverChoice) {
+    const named = schedules.get(serverChoice.schedule);
+    if (named) return fromSchedule("server", serverChoice.schedule, named);
+  } else if (serverChoice) {
+    const listed = choice("server", null, serverChoice.playlists, "playlists", null);
+    if (listed.playing !== null) return listed;
+  }
+  return boardRule();
 }
 
 /** The day after `date`. */

@@ -9,6 +9,7 @@ import {
   loadSchedule,
   nextDay,
   nextScheduleChange,
+  parseServerChoice,
   type LocalDate,
   type Schedule,
 } from "../src/engine";
@@ -19,6 +20,7 @@ import {
   getSettings,
   getStatus,
   listFiles,
+  setServerChoice,
   setSettings,
   supportsSchedules,
   uploadFile,
@@ -27,8 +29,11 @@ import type { PlayStatus, SettingsChanges } from "../src/protocol";
 import { parseManifest } from "../src/release/manifest";
 import {
   addReason,
+  automaticSchedule,
   describeEnd,
   describePlay,
+  describeScheduleDeletion,
+  describeServerChoice,
   describeToday,
   editReason,
   listToSend,
@@ -101,6 +106,7 @@ describe("a board that knows schedules", () => {
       playlist: "default",
       play: "auto",
       playlists: ["default"],
+      schedule: "default",
       time_sync_hours: 6,
       ntp_server: "pool.ntp.org",
     });
@@ -113,6 +119,7 @@ describe("a board that knows schedules", () => {
               playlist: "x",
               play: "sometimes",
               playlists: ["a", 3],
+              schedule: 5,
               time_sync_hours: -1,
               ntp_server: 5,
             },
@@ -137,8 +144,12 @@ describe("a board that knows schedules", () => {
       { playlists: ["halloween", "christmas"] },
       { play: "playlists" },
       { play: "auto" },
+      { play: "schedule", schedule: "seasons" },
+      { schedule: "default" },
       { time_sync_hours: 24, ntp_server: "time.example.org" },
     ];
+    board.files.schedule.set("seasons", text(SCHEDULE));
+    board.files.schedule.set("default", text(SCHEDULE));
     for (const change of changes) {
       const settings = await setSettings(client, change);
       expect(board.requests.at(-1)).toEqual({ seq: board.requests.at(-1)?.seq, cmd: "settings_set", ...change });
@@ -154,6 +165,58 @@ describe("a board that knows schedules", () => {
       playlists: ["halloween"],
     });
     expect(await setSettings(client, { playlist: "default" })).toMatchObject({ play: "auto", playlists: ["default"] });
+  });
+
+  it("keeps the schedule while another choice plays, and reports playlist default for My choice, Schedule", async () => {
+    const { board, client } = await connected(true);
+    board.files.schedule.set("seasons", text(SCHEDULE));
+    expect(await setSettings(client, { play: "schedule", schedule: "seasons" })).toMatchObject({
+      play: "schedule",
+      schedule: "seasons",
+      playlist: "default",
+    });
+    expect(await setSettings(client, { play: "playlists" })).toMatchObject({ schedule: "seasons" });
+    await expect(setSettings(client, { schedule: "ghost" })).rejects.toMatchObject({ code: "not_found" });
+    await expect(setSettings(client, { schedule: "Bad" })).rejects.toMatchObject({ code: "invalid_id" });
+    await expect(setSettings(client, { play: "schedule", playlist: "halloween" })).rejects.toMatchObject({
+      code: "bad_request",
+    });
+  });
+
+  it("sends and reads the server choice", async () => {
+    const { board, client } = await connected(true);
+    expect(await setServerChoice(client, { schedule: "seasons" })).toEqual({ schedule: "seasons" });
+    expect(board.requests.at(-1)).toMatchObject({ cmd: "server_choice_set", choice: { schedule: "seasons" } });
+    expect((await getStatus(client)).play?.serverChoice).toEqual({ schedule: "seasons" });
+    expect(await setServerChoice(client, { playlists: ["christmas", "halloween"] })).toEqual({
+      playlists: ["christmas", "halloween"],
+    });
+    expect(await setServerChoice(client, null)).toBeNull();
+    expect(board.requests.at(-1)).toMatchObject({ cmd: "server_choice_set", choice: null });
+    expect((await getStatus(client)).play?.serverChoice).toBeNull();
+    const old = await connected(false);
+    await expect(setServerChoice(old.client, null)).rejects.toMatchObject({ code: "unknown_command" });
+  });
+
+  it("reads a server choice by the rules of the format, and anything else as none", () => {
+    expect(parseServerChoice({ schedule: "seasons" })).toEqual({ schedule: "seasons" });
+    expect(parseServerChoice({ playlists: ["a", "b"] })).toEqual({ playlists: ["a", "b"] });
+    const nine = Array.from({ length: 9 }, (_, i) => `p${i}`);
+    for (const bad of [
+      null,
+      "seasons",
+      [],
+      {},
+      { schedule: "seasons", playlists: ["a"] },
+      { schedule: "Bad" },
+      { schedule: 3 },
+      { playlists: [] },
+      { playlists: ["a", "a"] },
+      { playlists: ["a", 3] },
+      { playlists: nine },
+      { other: "a" },
+    ])
+      expect(parseServerChoice(bad), JSON.stringify(bad)).toBeNull();
   });
 
   it("surfaces the board's error codes for a disagreeing playlist, a missing playlist and a bad time server", async () => {
@@ -173,22 +236,78 @@ describe("a board that knows schedules", () => {
     board.files.schedule.set("default", text(SCHEDULE));
     expect((await getStatus(client)).play).toEqual({
       mode: "auto",
+      source: "fallback",
+      schedule: "default",
       reason: "no_time",
       entry: null,
       playlists: ["default"],
       playing: "default",
+      serverChoice: null,
     });
-    board.statusPlay = { mode: "auto", reason: "schedule", entry: 1, playlists: ["christmas"], playing: "christmas" };
-    expect((await getStatus(client)).play).toMatchObject({ reason: "schedule", entry: 1 });
-    board.statusPlay = { mode: "auto", reason: "because", entry: 1, playlists: [], playing: null };
+    board.statusPlay = {
+      mode: "auto",
+      source: "server",
+      schedule: "seasons",
+      reason: "schedule",
+      entry: 1,
+      playlists: ["christmas"],
+      playing: "christmas",
+      server_choice: { schedule: "seasons" },
+    };
+    expect((await getStatus(client)).play).toMatchObject({
+      source: "server",
+      schedule: "seasons",
+      reason: "schedule",
+      entry: 1,
+      serverChoice: { schedule: "seasons" },
+    });
+    board.statusPlay = { mode: "auto", source: "fallback", reason: "because", entry: 1, playlists: [], playing: null };
     expect((await getStatus(client)).play).toBeNull();
-    board.statusPlay = { mode: "playlists", reason: "user", entry: null, playlists: ["a"], playing: null };
-    expect((await getStatus(client)).play).toEqual({
+    board.statusPlay = {
+      mode: "auto",
+      source: "elsewhere",
+      reason: "schedule",
+      entry: 1,
+      playlists: [],
+      playing: null,
+    };
+    expect((await getStatus(client)).play).toBeNull();
+    board.statusPlay = {
       mode: "playlists",
-      reason: "user",
+      source: "playlists",
+      schedule: null,
+      reason: "playlists",
       entry: null,
       playlists: ["a"],
       playing: null,
+      server_choice: { schedule: "Bad" },
+    };
+    expect((await getStatus(client)).play).toEqual({
+      mode: "playlists",
+      source: "playlists",
+      schedule: null,
+      reason: "playlists",
+      entry: null,
+      playlists: ["a"],
+      playing: null,
+      serverChoice: null,
+    });
+  });
+
+  it("derives status.play from the settings, the stored schedules and the server choice", async () => {
+    const { board, client } = await connected(true);
+    board.files.schedule.set("seasons", text(SCHEDULE));
+    await setServerChoice(client, { schedule: "seasons" });
+    expect((await getStatus(client)).play).toMatchObject({ source: "server", schedule: "seasons", reason: "no_time" });
+    await setSettings(client, { play: "schedule", schedule: "seasons" });
+    expect((await getStatus(client)).play).toMatchObject({ mode: "schedule", source: "schedule" });
+    await setSettings(client, { play: "playlists", playlists: ["halloween"] });
+    expect((await getStatus(client)).play).toMatchObject({
+      mode: "playlists",
+      source: "playlists",
+      schedule: null,
+      playlists: ["halloween"],
+      serverChoice: { schedule: "seasons" },
     });
   });
 
@@ -196,10 +315,12 @@ describe("a board that knows schedules", () => {
     const { board, client } = await connected(true);
     board.files.schedule.set("default", text(SCHEDULE));
     await setSettings(client, { play: "playlists", playlists: ["halloween"] });
+    await setServerChoice(client, { schedule: "default" });
     expect(await deleteAll(client, { resetSettings: true })).toMatchObject({
       schedules: 1,
-      settings: { play: "auto", playlists: ["default"], playlist: "default", time_sync_hours: 6 },
+      settings: { play: "auto", playlists: ["default"], schedule: "default", playlist: "default", time_sync_hours: 6 },
     });
+    expect((await getStatus(client)).play?.serverChoice).toBeNull();
     const old = await connected(false);
     expect((await deleteAll(old.client)).schedules).toBeNull();
   });
@@ -217,6 +338,22 @@ describe("the manifest's schedules", () => {
       )?.schedules,
     ).toEqual([{ id: "default", name: "Seasons", version: null, size: 300, sha256: sha }]);
     expect(parseManifest(manifest(undefined))?.schedules).toEqual([]);
+  });
+
+  it("come with the choice the release makes for Automatic, when it follows the rules", () => {
+    const withDefault = (value: unknown) =>
+      parseManifest(JSON.stringify({ format: "pixelart-manifest/1", version: "1.0.0", default: value }))?.default;
+    expect(withDefault({ schedule: "seasons" })).toEqual({ schedule: "seasons" });
+    expect(withDefault({ playlists: ["a", "b"] })).toEqual({ playlists: ["a", "b"] });
+    expect(withDefault(undefined)).toBeNull();
+    for (const bad of [
+      {},
+      { schedule: "seasons", playlists: ["a"] },
+      { schedule: "Bad" },
+      { playlists: [] },
+      "seasons",
+    ])
+      expect(withDefault(bad), JSON.stringify(bad)).toBeNull();
   });
 
   it("leave out an entry in another folder or larger than a board stores", () => {
@@ -321,12 +458,16 @@ describe("the words of What to play and of the time settings", () => {
   const seasons = loaded(SCHEDULE);
   const play = (fields: Partial<PlayStatus>): PlayStatus => ({
     mode: "auto",
+    source: "fallback",
+    schedule: "default",
     reason: "schedule",
     entry: null,
     playlists: ["default"],
     playing: "default",
+    serverChoice: null,
     ...fields,
   });
+  const names = (...ids: Array<[string, string | null]>) => new Map<string, string | null>(ids);
 
   it("say what the board plays and why", () => {
     expect(describePlay(play({ entry: 1, playlists: ["christmas"], playing: "christmas" }), seasons)).toBe(
@@ -343,6 +484,52 @@ describe("the words of What to play and of the time settings", () => {
     );
     expect(describePlay(play({ reason: "no_schedule" }), null)).toBe(
       "The board stores no valid schedule default: it plays the playlist default.",
+    );
+  });
+
+  it("say what the site chose for Automatic, in the terms of My choice, and what the board plays when it cannot follow", () => {
+    const stored = { schedules: names(["seasons", "Seasons"]), playlists: names(["a", "Alpha"], ["b", null]) };
+    expect(describeServerChoice({ schedule: "seasons" }, stored)).toBe("The site plays the schedule Seasons.");
+    expect(describeServerChoice({ playlists: ["a", "b"] }, stored)).toBe("The site plays the playlists Alpha and b.");
+    expect(describeServerChoice({ playlists: ["a"] }, stored)).toBe("The site plays the playlist Alpha.");
+    expect(describeServerChoice(null, stored)).toBe(
+      "The site has not chosen what to play, so the board plays the playlist default.",
+    );
+    expect(describeServerChoice({ schedule: "ghost" }, stored)).toBe(
+      "The site chose the schedule ghost, which this board does not store, so it plays the playlist default.",
+    );
+    expect(describeServerChoice({ playlists: ["x", "y"] }, stored)).toBe(
+      "The site chose the playlists x and y, which this board does not store, so it plays the playlist default.",
+    );
+    const withDefault = { ...stored, schedules: names(["default", "Seasons"]) };
+    expect(describeServerChoice(null, withDefault)).toBe(
+      "The site has not chosen what to play, so the board plays the schedule default.",
+    );
+  });
+
+  it("find the schedule the Automatic card shows", () => {
+    const stored = new Set(["default", "seasons"]);
+    expect(automaticSchedule({ schedule: "seasons" }, stored, null)).toBe("seasons");
+    expect(automaticSchedule({ schedule: "ghost" }, stored, null)).toBe("default");
+    expect(automaticSchedule(null, stored, null)).toBe("default");
+    expect(automaticSchedule(null, new Set(["seasons"]), null)).toBeNull();
+    expect(automaticSchedule({ playlists: ["a"] }, stored, null)).toBeNull();
+    // While Automatic plays, the board's own word wins.
+    expect(automaticSchedule({ schedule: "seasons" }, stored, play({ schedule: "default" }))).toBe("default");
+    expect(automaticSchedule(null, stored, play({ schedule: null }))).toBeNull();
+    expect(automaticSchedule(null, stored, play({ mode: "playlists", schedule: null }))).toBe("default");
+  });
+
+  it("say what deleting the schedule the board plays from does", () => {
+    const left = new Set<string>();
+    expect(describeScheduleDeletion(play({ source: "fallback" }), left)).toBe(
+      "Automatic plays this schedule: the board will then play the playlist default.",
+    );
+    expect(describeScheduleDeletion(play({ source: "server", schedule: "seasons" }), new Set(["default"]))).toBe(
+      "The site chose this schedule for Automatic: the board will then play the schedule default.",
+    );
+    expect(describeScheduleDeletion(play({ mode: "schedule", source: "schedule", schedule: "mine" }), left)).toBe(
+      "My choice plays this schedule: the board will then play the playlist default.",
     );
   });
 

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { supportsSchedules } from "../../protocol";
+import { setServerChoice, supportsSchedules } from "../../protocol";
 import type { SerialPortLike } from "../../protocol/serial";
 import { contentVersionOf, type Manifest } from "../../release/manifest";
 import { Button } from "../components/button";
 import { ErrorAlert } from "../common/ErrorAlert";
 import { ErrorList, useErrorList } from "../common/ErrorList";
+import { toShownError } from "../errors";
 import { session, useSession, type ConnectionState } from "../session";
 import { useUploadQueue } from "../queue/useUploadQueue";
 import { announceActivity } from "../upload";
@@ -43,7 +44,7 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
   // a repeated effect run never starts the queue twice and leaving the view drops it.
   const [phase, setPhase] = useState<Phase>("idle");
   const job = useRef<Job | null>(null);
-  const latest = useLatest({ manifest, enabled });
+  const latest = useLatest({ manifest, enabled, report });
 
   useEffect(() => {
     async function start(port: SerialPortLike, release: Manifest): Promise<void> {
@@ -100,13 +101,24 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
         ? manifest.schedules.map((entry) => ({ kind: "schedule" as const, entry }))
         : []),
     ];
-    void install(items, manifest).finally(() => {
-      current.stop();
-      if (job.current !== current) return;
-      job.current = null;
-      setPhase("idle");
-    });
-  }, [phase, state, client, install]);
+    void install(items, manifest)
+      .then(async () => {
+        // After the files. Only a board that knows schedules has the command; a manifest without `default` clears
+        // the board's choice, as an update check does.
+        if (!supportsSchedules(client.info)) return;
+        try {
+          await setServerChoice(client, manifest.default);
+        } catch (error) {
+          latest.current.report(toShownError("Setting what Automatic plays", error));
+        }
+      })
+      .finally(() => {
+        current.stop();
+        if (job.current !== current) return;
+        job.current = null;
+        setPhase("idle");
+      });
+  }, [phase, state, client, install, latest]);
 
   const notice: ReactNode = (
     <>

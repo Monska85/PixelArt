@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-
 import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2, TriangleAlert } from "lucide-react";
 import {
   useEffect,
@@ -12,7 +10,14 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
-import { nextScheduleChange, scheduleWinner, type PlayMode, type Schedule } from "../../engine";
+import {
+  DEFAULT_SCHEDULE_ID,
+  nextScheduleChange,
+  scheduleWinner,
+  type LocalDate,
+  type PlayMode,
+  type Schedule,
+} from "../../engine";
 import type { BoardClient, Entry, PlayStatus, Settings, SettingsChanges } from "../../protocol";
 import { Field } from "../common/Field";
 import { Alert, AlertDescription } from "../components/alert";
@@ -23,16 +28,19 @@ import { IconButton } from "../components/icon-button";
 import { Select } from "../components/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/table";
 import { ReasonTooltip } from "../components/tooltip";
-import { useManifest } from "../useManifest";
+import { useManifest, type ManifestState } from "../useManifest";
 import {
   addReason,
+  automaticSchedule,
   describeEnd,
   describePlay,
+  describeServerChoice,
   describeToday,
   editReason,
   entryLabel,
   formatDate,
   listToSend,
+  ownRule,
   playlistList,
   removeReason,
 } from "./play";
@@ -40,11 +48,11 @@ import { browserTimeZone, localDateIn, zoneOfSetting } from "./timezones";
 import { useFocusAfter } from "./useFocusAfter";
 import { usePendingSend } from "./usePendingSend";
 import { useReorder } from "./useReorder";
-import { useScheduleSource } from "./useScheduleSource";
+import { useScheduleSource, type ScheduleSource } from "./useScheduleSource";
 
 export interface WhatToPlayProps {
   client: BoardClient;
-  /** The settings of a firmware that knows schedules: `play` and `playlists` are there. */
+  /** The settings of a firmware that knows schedules: `play`, `playlists` and `schedule` are there. */
   settings: Settings;
   /** The stored playlists by ID with their names, or null while they are not known. */
   playlists: ReadonlyMap<string, string | null> | null;
@@ -55,60 +63,106 @@ export interface WhatToPlayProps {
   disabled: boolean;
   /** Sends a change; the caller shows the board's answer or the error. */
   change: (changes: SettingsChanges, context: string) => Promise<void>;
+  /** Opens the Files section on its Schedules tab. */
+  onShowSchedules: () => void;
 }
 
-const MODES: ReadonlyArray<{ value: PlayMode; label: string; text: string }> = [
-  {
-    value: "auto",
-    label: "Automatic",
-    text: "The schedule chooses the playlists for each season, and the fallback for the rest of the year.",
-  },
-  { value: "playlists", label: "My playlists", text: "Your playlists, each one played in full, in turn." },
+type Choice = "auto" | "mine";
+type Segment = "playlists" | "schedule";
+
+const SEGMENTS: ReadonlyArray<{ value: Segment; label: string }> = [
+  { value: "playlists", label: "Playlists" },
+  { value: "schedule", label: "Schedule" },
 ];
 
+const segmentLabel = (segment: Segment): string => SEGMENTS.find((s) => s.value === segment)!.label;
+
 /**
- * "What to play" on a firmware that knows schedules: Automatic (the schedule `default`) or My playlists (the
- * `playlists` setting). Each change is sent at once, and only what changes: `play` for the choice, `playlists` for
- * the list, which is kept while Automatic plays.
+ * "What to play" on a firmware that knows schedules, one card with two choices: Automatic (what the site chose, or the
+ * board's own rule) and My choice, which is Playlists (the `playlists` setting) or Schedule (the `schedule` setting).
+ * Each change is sent at once, and only what changes: `play` for the choice and the segment, `playlists` for the
+ * list and `schedule` for the schedule, which are kept while another choice plays.
  */
-export function WhatToPlay({ client, settings, playlists, schedules, play, disabled, change }: WhatToPlayProps) {
+export function WhatToPlay({
+  client,
+  settings,
+  playlists,
+  schedules,
+  play,
+  disabled,
+  change,
+  onShowSchedules,
+}: WhatToPlayProps) {
   const { pending, send } = usePendingSend(change);
-  // The choice being sent shows as chosen until the board answers; its answer then decides.
+  const library = useManifest();
+  // The `play` being sent shows as chosen until the board answers; its answer then decides.
   const [choosing, setChoosing] = useState<PlayMode | null>(null);
+  // The segment the user looked at while Automatic plays, which has none of its own: it shows Playlists otherwise.
+  const [looking, setLooking] = useState<Segment | null>(null);
+  const [announcement, setAnnouncement] = useState("");
   const group = useId();
   const mode = settings.play ?? "auto";
   const busy = disabled || pending;
+  const segmentOf = (value: PlayMode): Segment =>
+    value === "schedule" ? "schedule" : value === "playlists" ? "playlists" : (looking ?? "playlists");
+  const segment = segmentOf(mode);
+  const shown = choosing ?? mode;
+  const choice: Choice = shown === "auto" ? "auto" : "mine";
+  const shownSegment = segmentOf(shown);
+  // The board's own state decides what is announced, so a change that fails is not announced.
+  const [seen, setSeen] = useState({ auto: mode === "auto", segment });
+  if (seen.auto !== (mode === "auto") || seen.segment !== segment) {
+    setSeen({ auto: mode === "auto", segment });
+    setAnnouncement(
+      seen.auto !== (mode === "auto")
+        ? mode === "auto"
+          ? "Automatic chosen."
+          : `My choice chosen, ${segmentLabel(segment)}.`
+        : `${segmentLabel(segment)} chosen.`,
+    );
+  }
 
-  const choice = (value: PlayMode, body: ReactNode) => {
-    const option = MODES.find((m) => m.value === value)!;
-    const checked = (choosing ?? mode) === value;
+  const scheduleNames = useMemo(() => new Map((schedules ?? []).map((e) => [e.id, e.name])), [schedules]);
+  const noSchedules = schedules !== null && schedules.length === 0;
+  // The board reads its local date in its own time zone: the app does the same.
+  const today = localDateIn(zoneOfSetting(settings.timezone, browserTimeZone()));
+
+  function choose(value: PlayMode, context: string): void {
+    setChoosing(value);
+    void send({ play: value }, context).finally(() => setChoosing(null));
+  }
+
+  const pane = (value: Choice, label: string, text: string, body: ReactNode) => {
+    const checked = choice === value;
     return (
       <section
         aria-labelledby={`${group}-${value}`}
         data-testid={`play-${value}`}
-        className={cn(
-          "flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3",
-          checked && "border-primary ring-1 ring-primary",
-        )}
+        className={cn("flex min-w-0 flex-col gap-3 rounded-md p-3", checked && "bg-accent/40")}
       >
         <label className="flex cursor-pointer items-start gap-3 has-disabled:cursor-not-allowed">
           <input
             type="radio"
-            name={group}
+            name={`${group}-choice`}
             value={value}
             checked={checked}
             disabled={busy}
+            aria-labelledby={`${group}-${value}`}
+            aria-describedby={`${group}-${value}-text`}
             className="mt-0.5 size-4 shrink-0 accent-primary"
             onChange={() => {
-              setChoosing(value);
-              void send({ play: value }, `Choosing ${option.label}`).finally(() => setChoosing(null));
+              setLooking(null);
+              if (value === "auto") choose("auto", "Choosing Automatic");
+              else choose(shownSegment, "Choosing My choice");
             }}
           />
           <span className="flex min-w-0 flex-col gap-1">
             <span id={`${group}-${value}`} className="text-sm font-medium leading-none">
-              {option.label}
+              {label}
             </span>
-            <span className="text-xs text-muted-foreground">{option.text}</span>
+            <span id={`${group}-${value}-text`} className="text-xs text-muted-foreground">
+              {text}
+            </span>
           </span>
         </label>
         {body}
@@ -119,48 +173,181 @@ export function WhatToPlay({ client, settings, playlists, schedules, play, disab
   return (
     <fieldset className="flex min-w-0 flex-col gap-3" data-testid="what-to-play">
       <legend className="mb-1.5 text-sm font-medium leading-none">What to play</legend>
-      {choice(
-        "auto",
-        <Automatic client={client} settings={settings} schedules={schedules} play={mode === "auto" ? play : null} />,
-      )}
-      {choice(
-        "playlists",
-        <MyPlaylists
-          list={settings.playlists ?? [settings.playlist]}
-          playlists={playlists}
-          automatic={mode === "auto"}
-          busy={busy}
-          send={send}
-        />,
-      )}
+      <p className="sr-only" aria-live="polite" data-testid="what-to-play-status">
+        {announcement}
+      </p>
+      <div className="grid min-w-0 gap-1 rounded-lg border border-border p-1 md:grid-cols-2 md:items-start">
+        {pane(
+          "auto",
+          "Automatic",
+          "What the site chose for this board, or the board's own rule when it chose nothing.",
+          <Automatic
+            client={client}
+            today={today}
+            schedules={schedules}
+            scheduleNames={scheduleNames}
+            playlists={playlists}
+            play={play}
+            library={library}
+          />,
+        )}
+        {pane(
+          "mine",
+          "My choice",
+          "Your playlists, each one played in full, in turn, or one of the schedules on the board.",
+          <div className="flex min-w-0 flex-col gap-3 sm:pl-7" data-testid="my-choice">
+            <div
+              role="radiogroup"
+              aria-label="My choice plays"
+              className="inline-flex self-start rounded-md border border-input bg-card p-0.5"
+            >
+              {SEGMENTS.map(({ value, label }) => {
+                const locked = busy || (value === "schedule" && noSchedules);
+                return (
+                  <label
+                    key={value}
+                    className={cn(
+                      "relative cursor-pointer rounded px-3 py-1 text-sm font-medium has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring has-disabled:cursor-not-allowed has-disabled:opacity-50",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name={`${group}-segment`}
+                      value={value}
+                      checked={shownSegment === value}
+                      disabled={locked}
+                      // Invisible over its label: a click and a pointer land on the control itself.
+                      className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                      onChange={() => {
+                        // Automatic has no segment of its own: looking at one changes nothing on the board.
+                        if (mode === "auto") setLooking(value);
+                        else choose(value, `Choosing ${label}`);
+                      }}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
+            {noSchedules && (
+              <p className="text-xs text-muted-foreground" data-testid="no-schedule-link">
+                This board stores no schedule. Add one in the{" "}
+                <button
+                  type="button"
+                  className="font-medium text-primary underline underline-offset-4"
+                  onClick={onShowSchedules}
+                >
+                  Schedules tab of Files
+                </button>
+                .
+              </p>
+            )}
+            {shownSegment === "playlists" ? (
+              <MyPlaylists
+                list={settings.playlists ?? [settings.playlist]}
+                playlists={playlists}
+                automatic={mode === "auto"}
+                busy={busy}
+                send={send}
+              />
+            ) : (
+              <MySchedule
+                client={client}
+                id={settings.schedule ?? DEFAULT_SCHEDULE_ID}
+                today={today}
+                schedules={schedules}
+                scheduleNames={scheduleNames}
+                play={mode === "schedule" ? play : null}
+                automatic={mode === "auto"}
+                library={library}
+                busy={busy}
+                send={send}
+              />
+            )}
+          </div>,
+        )}
+      </div>
     </fieldset>
   );
 }
 
 function Automatic({
   client,
-  settings,
+  today,
   schedules,
+  scheduleNames,
+  playlists,
   play,
+  library,
 }: {
   client: BoardClient;
-  settings: Settings;
+  today: LocalDate;
   schedules: Entry[] | null;
-  /** `status.play` while Automatic is chosen. */
+  scheduleNames: ReadonlyMap<string, string | null>;
+  playlists: ReadonlyMap<string, string | null> | null;
+  /** `status.play`, or null while it is not known. */
   play: PlayStatus | null;
+  library: ManifestState;
 }) {
-  const library = useManifest();
-  const source = useScheduleSource(client, schedules, library);
+  const choice = play?.serverChoice ?? null;
+  const id = schedules === null ? null : automaticSchedule(choice, new Set(scheduleNames.keys()), play);
+  // A board that stores no schedule shows the one the site publishes: the schedule the site chose, else `default`.
+  const siteChoice = library.status === "ready" ? library.manifest.default : null;
+  const siteId =
+    schedules !== null && schedules.length === 0
+      ? siteChoice && "schedule" in siteChoice
+        ? siteChoice.schedule
+        : DEFAULT_SCHEDULE_ID
+      : null;
+  const source = useScheduleSource(client, schedules, library, id, siteId);
+
+  return (
+    <div className="flex min-w-0 flex-col gap-2 text-sm sm:pl-7" data-testid="automatic">
+      {play !== null && schedules !== null && playlists !== null && (
+        <p data-testid="server-choice">{describeServerChoice(choice, { schedules: scheduleNames, playlists })}</p>
+      )}
+      {schedules !== null && schedules.length === 0 && (
+        <p className="text-muted-foreground" data-testid="no-schedule">
+          This board stores no schedule.
+          {source.status === "site" &&
+            " The site publishes the schedule below, which comes with the animations and playlists."}
+        </p>
+      )}
+      <ScheduleDetails
+        prefix="play"
+        id={id ?? siteId}
+        source={source}
+        today={today}
+        status={play?.mode === "auto" ? play : null}
+      />
+    </div>
+  );
+}
+
+/** Now, the next change and the schedule itself for a schedule the board stores, or the one the site publishes. */
+function ScheduleDetails({
+  prefix,
+  id,
+  source,
+  today,
+  status,
+}: {
+  /** The test ids start with it: `<prefix>-now` and `<prefix>-next`. */
+  prefix: string;
+  id: string | null;
+  source: ScheduleSource;
+  today: LocalDate;
+  /** `status.play` while the choice this card belongs to is the one that plays, else null. */
+  status: PlayStatus | null;
+}) {
   const [open, setOpen] = useState(false);
   const viewId = useId();
-  // The board reads its local date in its own time zone: the app does the same.
-  const today = localDateIn(zoneOfSetting(settings.timezone, browserTimeZone()));
   const schedule = source.status === "board" || source.status === "site" ? source.schedule : null;
   const onBoard = source.status === "board" ? source.schedule : null;
   const todayEntry = schedule ? scheduleWinner(schedule, today) : -1;
 
   let now: string | null = null;
-  if (play) now = describePlay(play, onBoard);
+  if (status) now = describePlay(status, onBoard);
   else if (onBoard) now = describeToday(onBoard, todayEntry);
   // The status polls render this often: the next change is worked out again only for a new schedule or day.
   const { year, month, day } = today;
@@ -170,29 +357,22 @@ function Automatic({
   );
 
   return (
-    <div className="flex min-w-0 flex-col gap-2 text-sm sm:pl-7" data-testid="automatic">
+    <>
       {source.status === "loading" && <p className="text-muted-foreground">Reading the schedule...</p>}
       {source.status === "board" && source.schedule === null && (
         <Alert variant="warning">
           <AlertDescription className="text-foreground">
-            The schedule default on the board is not valid, so Automatic plays the playlist default.
+            The schedule {id} on the board is not valid, so the board does not use it.
           </AlertDescription>
         </Alert>
       )}
-      {(source.status === "none" || source.status === "site") && (
-        <p className="text-muted-foreground" data-testid="no-schedule">
-          This board stores no schedule, so Automatic plays the playlist default.
-          {source.status === "site" &&
-            " The site publishes the schedule below, which comes with the animations and playlists."}
-        </p>
-      )}
       {now && (
-        <p data-testid="play-now">
+        <p data-testid={`${prefix}-now`}>
           <span className="font-medium">Now:</span> {now}
         </p>
       )}
       {onBoard && (
-        <p data-testid="play-next">
+        <p data-testid={`${prefix}-next`}>
           <span className="font-medium">Next change:</span>{" "}
           {next
             ? `${formatDate(next.date)}, ${next.entry === null ? "the fallback" : entryLabel(onBoard.entries[next.entry], next.entry)}: ${playlistList(next.playlists)}.`
@@ -212,28 +392,36 @@ function Automatic({
             {open ? "Hide the schedule" : "Show the schedule"}
           </Button>
           {open && (
-            <ScheduleView id={viewId} schedule={schedule} published={source.status === "site"} today={todayEntry} />
+            <ScheduleView
+              id={viewId}
+              scheduleId={id ?? ""}
+              schedule={schedule}
+              published={source.status === "site"}
+              today={todayEntry}
+            />
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
 /** The schedule, read only: its entries in file order and the fallback, with the entry that wins today marked. */
 function ScheduleView({
   id,
+  scheduleId,
   schedule,
   published,
   today,
 }: {
   id: string;
+  scheduleId: string;
   schedule: Schedule;
   published: boolean;
   /** The entry that wins today, or -1. */
   today: number;
 }) {
-  const title = `${schedule.name ?? "Schedule default"}, ${published ? "published by the site" : "stored on this board"}`;
+  const title = `${schedule.name ?? `Schedule ${scheduleId}`}, ${published ? "published by the site" : "stored on this board"}`;
   return (
     <div id={id} className="min-w-0 overflow-hidden rounded-lg border border-border" data-testid="schedule-view">
       <Table className="table-fixed" aria-label={title}>
@@ -268,6 +456,79 @@ function ScheduleView({
           </TableRow>
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+/** My choice, Schedule: one of the stored schedules, with now, the next change and the schedule itself. */
+function MySchedule({
+  client,
+  id,
+  today,
+  schedules,
+  scheduleNames,
+  play,
+  automatic,
+  library,
+  busy,
+  send,
+}: {
+  client: BoardClient;
+  /** The `schedule` setting. */
+  id: string;
+  today: LocalDate;
+  schedules: Entry[] | null;
+  scheduleNames: ReadonlyMap<string, string | null>;
+  /** `status.play` while My choice, Schedule plays, else null. */
+  play: PlayStatus | null;
+  automatic: boolean;
+  library: ManifestState;
+  busy: boolean;
+  send: (changes: SettingsChanges, context: string) => Promise<void>;
+}) {
+  const source = useScheduleSource(client, schedules, library, id);
+  const absent = schedules !== null && !scheduleNames.has(id);
+  const label = (entry: Entry): string => (entry.name ? `${entry.id}: ${entry.name}` : entry.id);
+
+  return (
+    <div className="flex min-w-0 flex-col gap-2 text-sm" data-testid="my-schedule">
+      {automatic && (
+        <p className="text-xs text-muted-foreground">
+          Automatic is on. Choosing a schedule here switches to My choice.
+        </p>
+      )}
+      <Field label="Schedule">
+        {(control) => (
+          <Select
+            {...control}
+            value={id}
+            disabled={busy || schedules === null || schedules.length === 0}
+            onChange={(e) =>
+              // The schedule alone keeps the choice that plays; from Automatic it also chooses Schedule.
+              void send(
+                automatic ? { schedule: e.target.value, play: "schedule" } : { schedule: e.target.value },
+                "Choosing the schedule",
+              )
+            }
+          >
+            {(schedules === null || absent) && <option value={id}>{absent ? `${id} (not stored)` : id}</option>}
+            {(schedules ?? []).map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {label(entry)}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      {absent && (
+        <Alert variant="warning" data-testid="my-schedule-missing">
+          <AlertDescription className="text-foreground">
+            The schedule <code>{id}</code> is not stored, so the board plays {ownRule(scheduleNames)} while it is
+            chosen.
+          </AlertDescription>
+        </Alert>
+      )}
+      <ScheduleDetails prefix="my-schedule" id={id} source={source} today={today} status={play} />
     </div>
   );
 }
@@ -357,7 +618,7 @@ function MyPlaylists({
     <div className="flex min-w-0 flex-col gap-3 sm:pl-7" data-testid="my-playlists">
       {automatic && (
         <p className="text-xs text-muted-foreground">
-          Automatic is on. This list is kept for when you choose My playlists, and you can change it meanwhile.
+          Automatic is on. This list is kept for when you choose My choice, Playlists, and you can change it meanwhile.
         </p>
       )}
       <p className="sr-only" aria-live="polite" data-testid="my-playlists-status">

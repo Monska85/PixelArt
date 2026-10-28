@@ -157,6 +157,7 @@ describe("running the queue", () => {
         animations: [{ id: "lib", name: null, version: 1, size: bytes.length, sha256: await sha256Hex(bytes) }],
         playlists: [],
         schedules: [],
+        default: null,
       });
 
       it("downloads it and sends it before the playlist", async () => {

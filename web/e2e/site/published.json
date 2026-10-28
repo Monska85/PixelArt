@@ -3,5 +3,6 @@
   "contentVersion": "0.2.0",
   "animations": ["snowflake", "star", "wreath"],
   "playlists": ["default"],
-  "schedules": ["default"]
+  "schedules": ["default"],
+  "default": { "schedule": "default" }
 }

@@ -40,7 +40,7 @@ describe("the privacy texts", () => {
       "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board. The board itself contacts only its update source and its time server.",
     );
     expect(TIME_SERVER_NOTE).toBe(
-      "The board asks this server for the time when Automatic plays a schedule or the install window is narrower than the whole day. The request carries none of your data; the server sees the board's IP address.",
+      "The board asks this server for the time when the board plays a schedule or the install window is narrower than the whole day. The request carries none of your data; the server sees the board's IP address.",
     );
     expect(PASSWORD_NOTE).toBe("The password goes straight to the board over USB. It is never sent anywhere else.");
     expect(TOKEN_CARD_NOTE).toBe(

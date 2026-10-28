@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { Page } from "@playwright/test";
+import type { ServerChoice } from "../src/engine";
 import { decodeLine, encodeLine } from "../src/protocol/framing";
 import type { Simulator } from "./fixtures";
 
@@ -101,7 +102,7 @@ function withoutSchedules(reply: Record<string, unknown>): Record<string, unknow
     }
   if (typeof out.settings === "object" && out.settings !== null) {
     const settings = { ...(out.settings as Record<string, unknown>) };
-    for (const key of ["play", "playlists", "time_sync_hours", "ntp_server"]) delete settings[key];
+    for (const key of ["play", "playlists", "schedule", "time_sync_hours", "ntp_server"]) delete settings[key];
     out.settings = settings;
   }
   delete out.play;
@@ -145,4 +146,22 @@ export async function firmwareBeforeSchedules(
     },
   );
   return { requests, replies: (cmd) => replies.filter((r) => r.cmd === cmd).map((r) => r.reply) };
+}
+
+/**
+ * Stores what the release says Automatic plays on the simulator, as an update check or the USB install would, over a
+ * connection of its own that ends before the page's starts.
+ */
+export async function setServerChoice(simulator: Simulator, choice: ServerChoice | null): Promise<void> {
+  const socket = new WebSocket(simulator.address);
+  const answer = new Promise<Record<string, unknown> | null>((resolve, reject) => {
+    socket.onopen = () => socket.send(encodeLine({ seq: 1, cmd: "server_choice_set", choice }));
+    socket.onerror = () => reject(new Error("the simulator did not take the server choice"));
+    socket.onmessage = (event) => resolve(decodeLine(new TextEncoder().encode(String(event.data))));
+  });
+  const closed = new Promise<void>((resolve) => (socket.onclose = () => resolve()));
+  const reply = await answer;
+  socket.close();
+  await closed;
+  if (reply?.ok !== true) throw new Error(`the simulator refused the server choice: ${JSON.stringify(reply)}`);
 }

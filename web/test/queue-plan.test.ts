@@ -59,6 +59,7 @@ const manifest = (...ids: string[]): Manifest => ({
   animations: ids.map(published),
   playlists: [],
   schedules: [],
+  default: null,
 });
 
 describe("planning against the board", () => {

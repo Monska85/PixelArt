@@ -4,7 +4,7 @@ import { Download, FileJson, FileText, Pencil, Play, Plus, Trash2, Upload } from
 import { useState } from "react";
 import { loadAnimation } from "../../engine";
 import { session } from "../session";
-import { deleteFile, downloadFile, type BoardClient, type Entry, type Kind } from "../../protocol";
+import { deleteFile, downloadFile, type BoardClient, type Entry, type Kind, type PlayStatus } from "../../protocol";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
 import { IconButton } from "../components/icon-button";
@@ -20,7 +20,7 @@ import { toShownError, type ShownError } from "../errors";
 import { jsonBytesToYaml, saveBytes } from "../files";
 import { formatSize } from "../format";
 import { InstallMissingButton, MissingBadge, type MissingContext } from "./MissingAnimations";
-import { PLAYED_SCHEDULE } from "./useScheduleSource";
+import { describeScheduleDeletion } from "./play";
 
 interface Props {
   client: BoardClient;
@@ -30,8 +30,8 @@ interface Props {
   activePlaylist: string | null;
   /** The board has What to play: `activePlaylist` is then the playlist it plays now. */
   knowsSchedules?: boolean;
-  /** The board plays the schedule `default` (Automatic). */
-  automatic?: boolean;
+  /** What the board says it plays: the schedule it plays from is the active one. */
+  play?: PlayStatus | null;
   disabled: boolean;
   onChanged: () => void;
   onError: (error: ShownError) => void;
@@ -58,7 +58,7 @@ export function FilesList({
   list,
   activePlaylist,
   knowsSchedules = false,
-  automatic = false,
+  play = null,
   disabled,
   onChanged,
   onError,
@@ -126,7 +126,7 @@ export function FilesList({
   if (entries.length === 0 && kind === "schedule")
     return (
       <EmptyList title="No schedules on this board">
-        A schedule chooses the playlists Automatic plays in each season. The published one comes with Install all in the
+        A schedule chooses the playlists the board plays in each season. The published one comes with Install all in the
         Library, with the update over WiFi (Install animations, when Animation updates is on) and with Install from
         scratch. Upload your own YAML or JSON schedule with Upload files.
       </EmptyList>
@@ -173,7 +173,7 @@ export function FilesList({
       badge: (
         <>
           {((kind === "playlist" && entry.id === activePlaylist) ||
-            (kind === "schedule" && automatic && entry.id === PLAYED_SCHEDULE)) && (
+            (kind === "schedule" && entry.id === play?.schedule)) && (
             <Badge variant="success" data-testid={`active-${entry.id}`}>
               Active
             </Badge>
@@ -261,8 +261,8 @@ export function FilesList({
                 : "The board plays this playlist now: it will then skip it, and play every animation when no other playlist of its list can play."}
             </p>
           )}
-          {kind === "schedule" && automatic && confirm.id === PLAYED_SCHEDULE && (
-            <p>Automatic plays this schedule: the board will then play the playlist default.</p>
+          {kind === "schedule" && play && confirm.id === play.schedule && (
+            <p>{describeScheduleDeletion(play, new Set(entries.map((e) => e.id).filter((id) => id !== confirm.id)))}</p>
           )}
           {kind === "animation" && held === confirm.id && (
             <p data-testid="only-copy">The editor holds this animation and it has no other saved copy.</p>

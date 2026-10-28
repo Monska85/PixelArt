@@ -3,7 +3,13 @@
 // What the board stores: listing, download, upload, delete, settings
 // (docs/protocol/protocol-v1.md#commands) with the recovery of tools/pixelart.py.
 
-import { DEFAULT_PLAYLIST_ID, type PlayMode } from "../engine/schedule";
+import {
+  DEFAULT_PLAYLIST_ID,
+  DEFAULT_SCHEDULE_ID,
+  parseServerChoice,
+  type PlayMode,
+  type ServerChoice,
+} from "../engine/schedule";
 import { FILE_LIMITS } from "../engine/types";
 import {
   BoardError,
@@ -37,6 +43,8 @@ export interface Settings {
   // What to play (docs/protocol/protocol-v1.md#settings_get-settings_set): present when the firmware knows schedules.
   play?: PlayMode;
   playlists?: string[];
+  /** The schedule My choice, Schedule plays; `default` unless set. */
+  schedule?: string;
   // The settings of WiFi and updates (docs/protocol/protocol-v1.md): present when the board's firmware has them.
   wifi_power?: string;
   update_mode?: string;
@@ -69,6 +77,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   playlist: DEFAULT_PLAYLIST_ID,
   play: "auto",
   playlists: [DEFAULT_PLAYLIST_ID],
+  schedule: DEFAULT_SCHEDULE_ID,
   time_sync_hours: DEFAULT_TIME_SYNC_HOURS,
   ntp_server: DEFAULT_NTP_SERVER,
 };
@@ -221,7 +230,15 @@ export async function deleteAll(client: BoardClient, { resetSettings = false } =
   return { ...removed, settings: parseSettings(reply) };
 }
 
-const TEXT_SETTINGS = ["wifi_power", "update_mode", "timezone", "ntp_server", "animation_source", "token"] as const;
+const TEXT_SETTINGS = [
+  "wifi_power",
+  "update_mode",
+  "timezone",
+  "schedule",
+  "ntp_server",
+  "animation_source",
+  "token",
+] as const;
 const FLAG_SETTINGS = ["update_firmware", "update_animations", "network_login"] as const;
 const NUMBER_SETTINGS = ["check_hours", "install_start", "install_end", "time_sync_hours"] as const;
 
@@ -235,7 +252,7 @@ function parseSettings(reply: Body): Settings {
   for (const key of TEXT_SETTINGS) if (typeof s[key] === "string") settings[key] = s[key];
   for (const key of FLAG_SETTINGS) if (typeof s[key] === "boolean") settings[key] = s[key];
   for (const key of NUMBER_SETTINGS) if (isCount(s[key])) settings[key] = s[key];
-  if (s.play === "auto" || s.play === "playlists") settings.play = s.play;
+  if (s.play === "auto" || s.play === "playlists" || s.play === "schedule") settings.play = s.play;
   if (Array.isArray(s.playlists) && s.playlists.length > 0 && s.playlists.every((id) => typeof id === "string"))
     settings.playlists = s.playlists as string[];
   return settings;
@@ -247,6 +264,15 @@ export async function getSettings(client: BoardClient): Promise<Settings> {
 
 export async function setSettings(client: BoardClient, changes: SettingsChanges): Promise<Settings> {
   return parseSettings(await client.command("settings_set", changes));
+}
+
+/**
+ * `server_choice_set`: stores what the release says Automatic plays, or none for `null`. For a board that gets its
+ * content over USB, where no update check reads a manifest. Returns the choice the board stored.
+ */
+export async function setServerChoice(client: BoardClient, choice: ServerChoice | null): Promise<ServerChoice | null> {
+  const reply = await client.command("server_choice_set", { choice });
+  return parseServerChoice(reply.choice);
 }
 
 /** `token_regenerate`, over USB only: a new token replaces the old one, and the board closes its WiFi client. */

@@ -2,7 +2,15 @@
 
 // `status`: the board's WiFi, time, play and update state (docs/protocol/protocol-v1.md#status).
 
-import { PLAY_REASONS, type PlayMode, type PlayReason } from "../engine/schedule";
+import {
+  PLAY_REASONS,
+  PLAY_SOURCES,
+  parseServerChoice,
+  type PlayMode,
+  type PlayReason,
+  type PlaySource,
+  type ServerChoice,
+} from "../engine/schedule";
 import type { BoardClient } from "./client";
 import type { Body } from "./framing";
 import { isRecord } from "./guards";
@@ -67,9 +75,16 @@ export interface UpdateStatus {
 const isPlayReason = (value: unknown): value is PlayReason =>
   typeof value === "string" && (PLAY_REASONS as readonly string[]).includes(value);
 
+const isPlaySource = (value: unknown): value is PlaySource =>
+  typeof value === "string" && (PLAY_SOURCES as readonly string[]).includes(value);
+
 /** What the board plays and why (`status.play`), on a firmware that knows schedules. */
 export interface PlayStatus {
   mode: PlayMode;
+  /** Where the list comes from: the server choice, My choice, or the board's own rule. */
+  source: PlaySource;
+  /** The ID of the schedule the list comes from, or null. */
+  schedule: string | null;
   reason: PlayReason;
   /** The winning entry's 0-based index in the schedule, or null. */
   entry: number | null;
@@ -77,6 +92,8 @@ export interface PlayStatus {
   playlists: string[];
   /** The playlist now playing or the next to start, or null when the board plays every animation. */
   playing: string | null;
+  /** What the release says Automatic plays, in every mode; null when there is none. */
+  serverChoice: ServerChoice | null;
 }
 
 export interface BoardStatus {
@@ -140,16 +157,19 @@ function parseUpdate(value: unknown): UpdateStatus {
 
 function parsePlay(value: unknown): PlayStatus | null {
   if (!isRecord(value)) return null;
-  const { mode, reason, entry, playlists, playing } = value;
-  if (mode !== "auto" && mode !== "playlists") return null;
-  if (!isPlayReason(reason)) return null;
+  const { mode, source, schedule, reason, entry, playlists, playing } = value;
+  if (mode !== "auto" && mode !== "playlists" && mode !== "schedule") return null;
+  if (!isPlaySource(source) || !isPlayReason(reason)) return null;
   if (!Array.isArray(playlists) || !playlists.every((id) => typeof id === "string")) return null;
   return {
     mode,
+    source,
+    schedule: text(schedule),
     reason,
     entry: typeof entry === "number" && Number.isSafeInteger(entry) && entry >= 0 ? entry : null,
     playlists: playlists as string[],
     playing: text(playing),
+    serverChoice: parseServerChoice(value.server_choice),
   };
 }
 
