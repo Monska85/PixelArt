@@ -398,7 +398,7 @@ export interface PlayChoice {
 }
 
 /** The playlist the board plays when Automatic has no schedule or every playlist it names is skipped. */
-const DEFAULT_PLAYLIST_ID = "default";
+export const DEFAULT_PLAYLIST_ID = "default";
 
 /**
  * The list the board plays. `user` is the `playlists` setting, `schedule` the valid schedule `default` or null, `date`

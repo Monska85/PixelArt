@@ -3,7 +3,7 @@
 // What the board stores: listing, download, upload, delete, settings
 // (docs/protocol/protocol-v1.md#commands) with the recovery of tools/pixelart.py.
 
-import type { PlayMode } from "../engine/schedule";
+import { DEFAULT_PLAYLIST_ID, type PlayMode } from "../engine/schedule";
 import { FILE_LIMITS } from "../engine/types";
 import {
   BoardError,
@@ -66,9 +66,9 @@ export const DEFAULT_TIME_SYNC_HOURS = 6;
  */
 export const DEFAULT_SETTINGS: Readonly<Settings> = {
   brightness: 100,
-  playlist: "default",
+  playlist: DEFAULT_PLAYLIST_ID,
   play: "auto",
-  playlists: ["default"],
+  playlists: [DEFAULT_PLAYLIST_ID],
   time_sync_hours: DEFAULT_TIME_SYNC_HOURS,
   ntp_server: DEFAULT_NTP_SERVER,
 };

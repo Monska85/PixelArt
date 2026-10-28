@@ -278,10 +278,10 @@ private:
   uint16_t fallback_[MAX_SCHEDULE_PLAYLISTS] = {};
 };
 
-// The rules of docs/format/playlist-v1.md#how-the-board-chooses-what-to-play.
 // The playlist the board plays when Automatic has no schedule or every playlist it names is skipped.
 constexpr const char *DEFAULT_PLAYLIST_ID = "default";
 
+// The rules of docs/format/playlist-v1.md#how-the-board-chooses-what-to-play.
 enum class PlayMode : uint8_t
 {
   Auto,
