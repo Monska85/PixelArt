@@ -159,8 +159,8 @@ struct Shared
   bool busy = false;
   pixelart_update::Status status;
   bool time_known = false;
-  // The local date, valid when `time_known`. Board only: the loop task reads it here because the network task
-  // owns TZ, and localtime_r() on the loop task would race its tzset().
+  // The local date, valid when `time_known`. Written in every build, read only on the board: the loop task reads
+  // it here because the network task owns TZ, and localtime_r() on the loop task would race its tzset().
   pixelart::LocalDate date;
   bool schedule_needs_time = false; // the player plays a schedule
 };
