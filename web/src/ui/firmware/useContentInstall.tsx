@@ -123,7 +123,7 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
         >
           <p>
             The board could not be reached after the installation. It shows its &quot;no animations&quot; image until it
-            gets them. Connect the board, then use <strong>Install all</strong> in the{" "}
+            gets them. Connect the board, then use <strong>Install all</strong>, <strong>Everything</strong>, in the{" "}
             <a href="#library" className="font-medium text-primary underline underline-offset-4">
               Library view
             </a>

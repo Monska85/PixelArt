@@ -5,6 +5,8 @@
 // live in are carried here, in a small table, because the board has no time zone database. Offsets are written the
 // POSIX way: the sign is the opposite of the usual one (CET-1 is one hour ahead of UTC).
 
+import type { LocalDate } from "../../engine";
+
 /** Central European, Eastern European and Western European rules share the day and the hour (01:00 UTC). */
 const CET = "CET-1CEST,M3.5.0,M10.5.0/3";
 const EET = "EET-2EEST,M3.5.0/3,M10.5.0/4";
@@ -146,7 +148,7 @@ export function zoneOfSetting(posix: string | undefined, browser: string | null)
 }
 
 /** Today's date in an IANA zone, or in the browser's own zone when `zone` is null or unknown to the browser. */
-export function localDateIn(zone: string | null, now: Date = new Date()): { year: number; month: number; day: number } {
+export function localDateIn(zone: string | null, now: Date = new Date()): LocalDate {
   try {
     if (zone !== null) {
       const parts = new Intl.DateTimeFormat("en-US", {

@@ -69,6 +69,18 @@ void apply_server(const std::string &server)
   snprintf(server_name, sizeof(server_name), "%s", server.c_str());
 }
 
+// Whether `interval_ms` has already passed since the last answer. Measured as the time elapsed, which a deadline
+// more than about 24.8 days past cannot be: the wrapping comparison of configure() would read it as ahead.
+bool interval_passed() { return (uint32_t)(millis() - synced_at) >= interval_ms; }
+
+// Waits until the new interval ends after the last answer, or goes Off at once when it already ended, so
+// configure() starts SNTP again.
+void resume_later()
+{
+  resume_at = synced_at + interval_ms;
+  state = interval_passed() ? Sntp::Off : Sntp::Resuming;
+}
+
 // SNTP waits out the interval it was started with before it asks again. So after an answer a new interval
 // stops it, and it starts again when the new interval ends after the last answer, also when the interval
 // changes again while it waits. While it still waits for its first answer, the new interval applies after
@@ -79,14 +91,13 @@ void apply_interval(uint32_t interval)
     return;
   interval_ms = interval;
   if (state == Sntp::Resuming)
-    resume_at = synced_at + interval_ms;
+    resume_later();
   if (state != Sntp::Running)
     return;
   if (synced)
   {
     stop();
-    state = Sntp::Resuming;
-    resume_at = synced_at + interval_ms;
+    resume_later();
   }
   else
     esp_sntp_set_sync_interval(interval_ms);

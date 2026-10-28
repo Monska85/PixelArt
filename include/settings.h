@@ -50,10 +50,11 @@ struct Values
   std::string playlist = DEFAULT_PLAYLIST;
   std::string play = PLAY_AUTO; // `auto` or `playlists`
   std::vector<std::string> playlists = {DEFAULT_PLAYLIST};
-  // Whether `play` and `playlists` are stored. Until they are, both are derived from `playlist`
-  // (derive_play()), so an upgraded board plays as before without any write. `play` and `playlists` are
-  // stored together and always agree with `playlist` (reported_playlist()): a commit that cannot put one of
-  // their keys back sets the three to what begin() reads back after a restart.
+  // Whether `play` and `playlists` are stored and agree with `playlist`. Until they are, both are derived from
+  // `playlist` (derive_play()), so an upgraded board plays as before without any write, and the next change of
+  // either one writes both keys. `play` and `playlists` are stored together and always agree with `playlist`
+  // (reported_playlist()): a commit that cannot put one of their keys back sets the three to what begin() reads
+  // back after a restart.
   bool play_stored = false;
   std::string wifi_power = DEFAULT_WIFI_POWER;
   std::string update_mode = DEFAULT_UPDATE_MODE;
@@ -94,8 +95,9 @@ bool valid_animation_source(const std::string &value);
 bool valid_token(const std::string &value);
 
 // Loads the stored settings. A missing or unusable value takes its default;
-// the simulator always starts from the defaults. The first start makes the
-// token with the hardware random number generator.
+// the simulator starts from the defaults, except for the keys of
+// sim_store_play_keys(). The first start makes the token with the hardware
+// random number generator.
 void begin();
 
 const Values &current();
@@ -147,6 +149,12 @@ void fail_play_saves_after(int successes);
 void fail_playlists_saves_after(int successes);
 // Makes every save of the token fail.
 void fail_token_saves(bool fail);
+// Keeps the `playlist`, `play` and `playlists` keys as the board stores them, starting from these texts (an
+// empty text is a missing key, `playlists` holds the IDs joined by commas): the next begin() reads them, and
+// every save updates them, so a test can restart the board with what it stored.
+void sim_store_play_keys(const std::string &playlist, const std::string &play, const std::string &playlists);
+// Goes back to starting from the defaults.
+void sim_forget_play_keys();
 #endif
 
 } // namespace settings

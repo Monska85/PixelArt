@@ -82,6 +82,9 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   const playlists = entriesOf(data.playlists);
   const schedules = entriesOf(data.schedules);
   const knowsSchedules = supportsSchedules(info);
+  // What to play replaces the Active playlist menu on a firmware that knows schedules and reports `play`: the active
+  // playlist, the Settings card and the notes of the lists all follow this one value.
+  const whatToPlay = knowsSchedules && data.settings?.play !== undefined;
   const animationIds = animations && new Set(animations.map((a) => a.id));
   const playlistNames = playlists && new Map(playlists.map((p) => [p.id, p.name]));
 
@@ -124,9 +127,9 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
     // `refresh` is made again on every render and only reads the session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateRunning]);
-  // On a firmware that knows schedules, the active playlist is the one the board says it plays.
+  // With What to play, the active playlist is the one the board says it plays.
   const play = statusPoll.status?.play ?? null;
-  const active = knowsSchedules ? (play?.playing ?? null) : (data.settings?.playlist ?? null);
+  const active = whatToPlay ? (play?.playing ?? null) : (data.settings?.playlist ?? null);
   const library = useManifest();
   const named = usePlaylistAnimations(client, playlists, uploadRunning);
   const missing = missingByPlaylist(named, animationIds);
@@ -174,8 +177,8 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   const listProps = {
     client,
     activePlaylist: active,
-    knowsSchedules,
-    automatic: knowsSchedules && data.settings?.play === "auto",
+    knowsSchedules: whatToPlay,
+    automatic: whatToPlay && data.settings?.play === "auto",
     disabled: lost,
     onChanged: changed,
     onError: report,
@@ -319,6 +322,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
             playlists={playlistNames}
             schedules={schedules}
             play={play}
+            whatToPlay={whatToPlay}
             active={active}
             missing={active === null ? [] : (missing.get(active) ?? [])}
             missingContext={missingContext}

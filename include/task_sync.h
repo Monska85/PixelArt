@@ -46,6 +46,9 @@ private:
 // Test hook: while blocked, the network task holds the lock, and a loop-task HeapLock is not held, as after
 // the 2 s timeout on the board.
 void sim_block_loop(bool blocked);
+// Test hook: blocks the loop as sim_block_loop(true) does once `frames` more frames were shown, as when the
+// network task takes the lock while an animation plays. sim_block_loop() cancels it.
+void sim_block_loop_after_frames(unsigned frames);
 // Test hook: how many loop-task HeapLocks were made since the program started.
 unsigned sim_loop_lock_attempts();
 #endif

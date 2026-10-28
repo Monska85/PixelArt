@@ -44,7 +44,9 @@ bool load_stored_schedule(const std::string &id, pixelart::Schedule &schedule,
 // reports the reason on the serial port once, if the file is missing or invalid.
 bool play_stored_animation(const std::string &id, uint16_t times = 1);
 
-// Forgets what the player chose and where it was, at boot: the first pass chooses again.
+// Forgets what the player chose and where it was, and makes the first choice. Called at boot once the storage and
+// the updates are ready and before the network task starts, so the choice cannot wait for an update and `status`
+// always has one to report. When it cannot be made, the first pass chooses again.
 void begin_player();
 
 // Plays the list of playlists once, each playlist in full, from the playlist it was at. Without a playlist it
@@ -69,7 +71,9 @@ bool choice_pending();
 // How many playlists the player skips until the next event. For tests.
 size_t skipped_playlist_count();
 
-// What `status` reports in `play`: the newest list, and the playlist playing or the next one to start.
+// What `status` reports in `play`: the newest list, and the playlist playing or the next one to start. While an
+// update connection holds the memory, the last choice made. Before the first choice, the list the setting asks
+// for (`default` for Automatic) and nothing playing.
 struct PlayStatus
 {
   bool automatic = true;

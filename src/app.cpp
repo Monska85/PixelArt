@@ -493,13 +493,21 @@ size_t skipped_playlist_count() { return skipped.size(); }
 
 PlayStatus play_status()
 {
+  // The time became known or local midnight passed: `status` reports the newest list at once.
+  if (newest.made && newest.dated && date_moved(newest))
+    choose_again = true;
   // `status` never waits for the memory an update holds: it reports the last choice meanwhile.
   if ((!newest.made || choose_again) && !task_sync::network_holds_lock())
     make_choice();
   PlayStatus status;
   if (!newest.made)
   {
-    status.automatic = settings::current().play == settings::PLAY_AUTO;
+    // The first choice could not be made at boot: what the setting asks for, as without a schedule, and nothing
+    // playing yet.
+    const settings::Values &values = settings::current();
+    status.automatic = values.play == settings::PLAY_AUTO;
+    status.reason = status.automatic ? pixelart::PlayReason::NoSchedule : pixelart::PlayReason::User;
+    status.playlists = status.automatic ? std::vector<std::string>{settings::DEFAULT_PLAYLIST} : values.playlists;
     return status;
   }
   status.automatic = newest.automatic;
@@ -525,6 +533,7 @@ void begin_player()
   leave_list = false;
   place.reset();
   skipped.clear();
+  make_choice();
 }
 
 namespace

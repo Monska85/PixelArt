@@ -332,10 +332,13 @@ void Schedule::Loader::read(const char *json, size_t length)
 
   if (!root["entries"].is<JsonVariantConst>())
     return;
-  JsonArrayConst entries = root["entries"].as<JsonArrayConst>();
   if (!root["entries"].is<JsonArrayConst>())
+  {
     error("structure", "entries", "must be a list");
-  else if (entries.size() > MAX_SCHEDULE_ENTRIES)
+    return;
+  }
+  JsonArrayConst entries = root["entries"].as<JsonArrayConst>();
+  if (entries.size() > MAX_SCHEDULE_ENTRIES)
     error("limit_exceeded", "entries", "more than " + std::to_string(MAX_SCHEDULE_ENTRIES) + " entries");
   else
   {

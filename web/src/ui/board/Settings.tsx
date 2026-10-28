@@ -3,7 +3,6 @@
 import { Suspense, lazy, useRef, useState, type ReactNode } from "react";
 import {
   setSettings,
-  supportsSchedules,
   type BoardClient,
   type Entry,
   type PlayStatus,
@@ -23,6 +22,13 @@ import { ActiveMissingNote, type MissingContext } from "./MissingAnimations";
 // What to play and the time settings of a firmware that knows schedules, loaded when such a board connects.
 const PlaySettings = lazy(() => import("./PlaySettings").then((m) => ({ default: m.PlaySettings })));
 
+/**
+ * The settings whose change makes the board choose what to play again, as docs/protocol/protocol-v1.md says in
+ * "Playback while commands run" (What the board plays): keep the two in step. `playlist` changes it too, but the app
+ * sends it only to a firmware without What to play, which reports no `status.play`.
+ */
+const CHOICE_SETTINGS = ["play", "playlists", "timezone"] as const satisfies ReadonlyArray<keyof SettingsChanges>;
+
 interface Props {
   client: BoardClient;
   settings: Settings;
@@ -32,7 +38,12 @@ interface Props {
   schedules: Entry[] | null;
   /** `status.play`, or null while it is not known or on a firmware without it. */
   play: PlayStatus | null;
-  /** The playlist the board plays: `playlist` on a firmware older than schedules, else `status.play.playing`. */
+  /**
+   * The board has What to play (a firmware that knows schedules and reports `play`), in place of the Active playlist
+   * menu: `active` is then `status.play.playing`.
+   */
+  whatToPlay: boolean;
+  /** The playlist the board plays: `playlist` without What to play, else `status.play.playing`. */
   active: string | null;
   /** The animations the active playlist names that the board lacks; empty when none or not known. */
   missing: string[];
@@ -50,6 +61,7 @@ export function SettingsPanel({
   playlists,
   schedules,
   play,
+  whatToPlay,
   active,
   missing,
   missingContext,
@@ -69,14 +81,12 @@ export function SettingsPanel({
   const queued = useRef<number | null>(null);
   const value = dragging ?? settings.brightness;
   const stored = playlists === null || playlists.has(settings.playlist);
-  // A firmware that knows schedules has "What to play"; an older one keeps the Active playlist menu.
-  const knowsSchedules = supportsSchedules(client.info) && settings.play !== undefined;
 
   async function change(changes: SettingsChanges, context: string): Promise<void> {
     sending.current = true;
     try {
       onSettings(await setSettings(client, changes));
-      if ("play" in changes || "playlists" in changes || "timezone" in changes) onPlayChanged();
+      if (CHOICE_SETTINGS.some((key) => key in changes)) onPlayChanged();
     } catch (error) {
       onError(toShownError(context, error));
     }
@@ -134,7 +144,7 @@ export function SettingsPanel({
           From 0 to 255. An animation can lower this with its own brightness, never raise it.
         </p>
       </div>
-      {knowsSchedules ? (
+      {whatToPlay ? (
         <Suspense fallback={<LoadingNote>Reading what the board plays...</LoadingNote>}>
           <PlaySettings
             client={client}
@@ -155,14 +165,14 @@ export function SettingsPanel({
           onChange={(playlist) => void change({ playlist }, "Changing the active playlist")}
         />
       )}
-      {!knowsSchedules && !stored && (
+      {!whatToPlay && !stored && (
         <Alert variant="warning">
           <AlertDescription className="text-foreground">
             The playlist <code>{settings.playlist}</code> is not stored, so the board plays every animation.
           </AlertDescription>
         </Alert>
       )}
-      {active !== null && (knowsSchedules || stored) && missing.length > 0 && (
+      {active !== null && (whatToPlay || stored) && missing.length > 0 && (
         <ActiveMissingNote playlist={active} missing={missing} context={missingContext} />
       )}
     </SettingsCard>

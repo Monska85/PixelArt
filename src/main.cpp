@@ -37,10 +37,10 @@ void setup()
   if (!mounted)
     Serial.println("pixelart: cannot mount the file system");
   firmware::health(mounted); // settings are read and the file system is mounted: a trial that is not healthy ends here
-  begin_player();
   protocol::begin();
   task_sync::begin();
   updates::begin(settings::current());
+  begin_player(); // its first choice reads the files before the network task can hold the memory
   network::begin(settings::current().wifi_power);
 }
 

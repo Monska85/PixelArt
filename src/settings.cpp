@@ -31,6 +31,12 @@ std::string start_token;
 int playlist_saves_left = -1;
 int play_saves_left = -1;
 int playlists_saves_left = -1;
+// The `playlist`, `play` and `playlists` keys, kept once sim_store_play_keys() was called. An empty text is a
+// missing key.
+bool play_keys_kept = false;
+std::string playlist_key;
+std::string play_key;
+std::string playlists_key;
 
 bool use_save(int &saves_left)
 {
@@ -192,6 +198,7 @@ uint16_t stored_number(Field field, uint16_t fallback, bool (*valid)(uint32_t))
   uint16_t value = prefs.getUShort(key_of(field), fallback);
   return valid(value) ? value : fallback;
 }
+#endif
 
 bool valid_playlist_id(const std::string &id) { return pixelart::is_valid_id(id.c_str()); }
 
@@ -222,7 +229,6 @@ bool split_playlists(const std::string &text, std::vector<std::string> &out)
     start = comma + 1;
   }
 }
-#endif
 
 // Saves one field of `v`. Returns false when it cannot be saved.
 bool write(Field field, const Values &v)
@@ -238,7 +244,12 @@ bool write(Field field, const Values &v)
     return false;
   if (field == Field::Playlists && !use_save(playlists_saves_left))
     return false;
-  (void)v;
+  if (play_keys_kept && field == Field::Playlist)
+    playlist_key = v.playlist;
+  else if (play_keys_kept && field == Field::Play)
+    play_key = v.play_stored ? v.play : "";
+  else if (play_keys_kept && field == Field::Playlists)
+    playlists_key = v.play_stored ? join_playlists(v.playlists) : "";
   return true;
 #else
   switch (field)
@@ -448,6 +459,29 @@ Values defaults_with_new_token()
   return fresh;
 }
 
+namespace
+{
+
+// Sets `play` and `playlists` of `v` from the stored `play` key (empty when missing) and `playlists` key. When
+// they are missing, unusable or do not agree with `playlist`, both are derived from `playlist` and count as not
+// stored, so the next change of either one writes both keys.
+void load_play(Values &v, const std::string &play, const std::string &playlists_text)
+{
+  derive_play(v);
+  v.play_stored = false;
+  std::vector<std::string> playlists;
+  // An older firmware, run after a rollback, may have changed `playlist` alone: its choice is the newer one.
+  if (valid_play(play) && split_playlists(playlists_text, playlists) &&
+      reported_playlist(play, playlists) == v.playlist)
+  {
+    v.play = play;
+    v.playlists = std::move(playlists);
+    v.play_stored = true;
+  }
+}
+
+} // namespace
+
 void begin()
 {
   values = Values();
@@ -472,24 +506,15 @@ void begin()
     values.network_login = prefs.getBool(key_of(Field::NetworkLogin), false);
     values.token = stored_text(Field::Token, "", valid_token);
     // No write here: a board upgraded from a firmware without `play` derives it from `playlist`.
-    derive_play(values);
-    const std::string play = stored_text(Field::Play, "", valid_play);
-    std::vector<std::string> playlists;
-    if (!play.empty() && split_playlists(stored_text(Field::Playlists, "", valid_any), playlists))
-    {
-      values.play_stored = true;
-      // An older firmware, run after a rollback, may have changed `playlist` alone: its choice is the newer one.
-      if (reported_playlist(play, playlists) == values.playlist)
-      {
-        values.play = play;
-        values.playlists = playlists;
-      }
-    }
-    else if (!play.empty())
-      values.play_stored = true; // `playlists` is unusable: both are derived, and both are written at the next change
+    load_play(values, stored_text(Field::Play, "", valid_play), stored_text(Field::Playlists, "", valid_any));
   }
 #endif
 #ifdef PIXELART_SIM
+  if (play_keys_kept)
+  {
+    values.playlist = valid_playlist_id(playlist_key) ? playlist_key : DEFAULT_PLAYLIST;
+    load_play(values, play_key, playlists_key);
+  }
   values.token = start_token;
 #endif
   if (values.token.empty())
@@ -514,14 +539,8 @@ namespace
 // leave a pair the board would not read after a restart.
 void settle_play(Values &v, const Values &play_from, const Values &playlists_from)
 {
-  derive_play(v);
-  v.play_stored = play_from.play_stored;
-  if (play_from.play_stored && playlists_from.play_stored &&
-      reported_playlist(play_from.play, playlists_from.playlists) == v.playlist)
-  {
-    v.play = play_from.play;
-    v.playlists = playlists_from.playlists;
-  }
+  load_play(v, play_from.play_stored ? play_from.play : "",
+            playlists_from.play_stored ? join_playlists(playlists_from.playlists) : "");
 }
 
 } // namespace
@@ -586,6 +605,14 @@ void fail_play_saves_after(int successes) { play_saves_left = successes; }
 void fail_playlists_saves_after(int successes) { playlists_saves_left = successes; }
 void fail_token_saves(bool fail) { token_saves_fail = fail; }
 void sim_set_start_token(const std::string &token) { start_token = token; }
+void sim_store_play_keys(const std::string &playlist, const std::string &play, const std::string &playlists)
+{
+  play_keys_kept = true;
+  playlist_key = playlist;
+  play_key = play;
+  playlists_key = playlists;
+}
+void sim_forget_play_keys() { play_keys_kept = false; }
 #endif
 
 } // namespace settings

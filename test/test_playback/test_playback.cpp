@@ -359,6 +359,29 @@ static void test_a_busy_heap_keeps_the_last_frame_and_retries_after_200_ms()
   TEST_ASSERT_EQUAL_STRING("aaa", shown().c_str());
 }
 
+static void test_a_new_choice_waits_while_an_update_holds_the_memory_when_an_animation_ends()
+{
+  TempData data("playback");
+  write_abc(data, 2);
+  setup();
+  sim::serial_input(request(1, R"("cmd":"settings_set","play":"playlists","playlists":["p_a"])"));
+  play_from_storage(); // the default list, every animation, until the setting is read
+  play_from_storage();
+  TEST_ASSERT_FALSE(choice_pending());
+  sim::reset();
+
+  // During a, a setting asks for a new choice and an update takes the memory. When a ends the board does not
+  // try to choose, which would wait for the memory up to 2 seconds on the board: it loaded p_a and a only.
+  sim::serial_input(request(2, R"("cmd":"settings_set","timezone":"CET-1")"));
+  task_sync::sim_block_loop_after_frames(1);
+  const unsigned attempts = task_sync::sim_loop_lock_attempts();
+  play_from_storage();
+  TEST_ASSERT_EQUAL(2, task_sync::sim_loop_lock_attempts() - attempts);
+  TEST_ASSERT_TRUE(choice_pending());
+  task_sync::sim_block_loop(false);
+  TEST_ASSERT_EQUAL_STRING("aa", shown().c_str());
+}
+
 static void test_my_playlists_play_each_in_full_then_from_the_first()
 {
   TempData data("playback");
@@ -550,6 +573,7 @@ int main(int, char **)
   RUN_TEST(test_boot_removes_a_leftover_temporary_file);
   RUN_TEST(test_no_animations_image_waits_for_commands_too);
   RUN_TEST(test_a_busy_heap_keeps_the_last_frame_and_retries_after_200_ms);
+  RUN_TEST(test_a_new_choice_waits_while_an_update_holds_the_memory_when_an_animation_ends);
   RUN_TEST(test_my_playlists_play_each_in_full_then_from_the_first);
   RUN_TEST(test_a_missing_playlist_of_the_list_is_skipped);
   RUN_TEST(test_a_playlist_skipped_at_every_pass_is_remembered_once);

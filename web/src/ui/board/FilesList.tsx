@@ -27,7 +27,7 @@ interface Props {
   /** What the session knows of this list: only a known list can be empty. */
   list: BoardFileList;
   activePlaylist: string | null;
-  /** The board knows schedules: `activePlaylist` is then the playlist it plays now. */
+  /** The board has What to play: `activePlaylist` is then the playlist it plays now. */
   knowsSchedules?: boolean;
   /** The board plays the schedule `default` (Automatic). */
   automatic?: boolean;
@@ -129,8 +129,9 @@ export function FilesList({
   if (entries.length === 0 && kind === "schedule")
     return (
       <EmptyList title="No schedules on this board">
-        A schedule chooses the playlists Automatic plays in each season. Upload a YAML or JSON schedule with Upload
-        files, or install the published one from the Firmware view with the animations and playlists.
+        A schedule chooses the playlists Automatic plays in each season. The published one comes with Install all in the
+        Library, with the update over WiFi (Install animations, when Animation updates is on) and with Install from
+        scratch. Upload your own YAML or JSON schedule with Upload files.
       </EmptyList>
     );
   if (entries.length === 0)

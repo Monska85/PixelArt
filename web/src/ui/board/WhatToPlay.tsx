@@ -27,6 +27,7 @@ import {
 } from "./play";
 import { browserTimeZone, localDateIn, zoneOfSetting } from "./timezones";
 import { useFocusAfter } from "./useFocusAfter";
+import { usePendingSend } from "./usePendingSend";
 import { useReorder } from "./useReorder";
 import { useScheduleSource } from "./useScheduleSource";
 
@@ -60,21 +61,12 @@ const MODES: ReadonlyArray<{ value: PlayMode; label: string; text: string }> = [
  * the list, which is kept while Automatic plays.
  */
 export function WhatToPlay({ client, settings, playlists, schedules, play, disabled, change }: WhatToPlayProps) {
-  const [pending, setPending] = useState(false);
+  const { pending, send } = usePendingSend(change);
   // The choice being sent shows as chosen until the board answers; its answer then decides.
   const [choosing, setChoosing] = useState<PlayMode | null>(null);
   const group = useId();
   const mode = settings.play ?? "auto";
   const busy = disabled || pending;
-
-  async function send(changes: SettingsChanges, context: string): Promise<void> {
-    setPending(true);
-    try {
-      await change(changes, context);
-    } finally {
-      setPending(false);
-    }
-  }
 
   const choice = (value: PlayMode, body: ReactNode) => {
     const option = MODES.find((m) => m.value === value)!;

@@ -339,6 +339,7 @@ static void run_case(const fs::path &file)
     data.write(f.key().c_str(), file_bytes(f.value()));
   setup();
   start_settings(doc["settings"]);
+  begin_player(); // the board boots with the settings of the case: its first choice follows them
   start_update_source(doc["update_source"]);
   updates::poll(); // the board has its address from the start: the first check is 5 minutes away
   const bool wifi = std::string(doc["transport"] | "usb") == "wifi";
@@ -839,7 +840,7 @@ static void test_a_play_key_that_cannot_be_put_back_leaves_what_a_restart_reads(
 
   // Automatic with the same list and a new brightness: the brightness fails, and putting `play` back fails, so
   // the keys hold playlist "one", play "auto" and playlists "one,two". A restart reads a `play` that does not
-  // agree with `playlist`, and derives My playlists of "one".
+  // agree with `playlist`, and derives My playlists of "one", not stored, so the next change saves both keys.
   settings::Values next = settings::current();
   next.play = settings::PLAY_AUTO;
   next.playlist = settings::reported_playlist(next.play, next.playlists);
@@ -851,7 +852,7 @@ static void test_a_play_key_that_cannot_be_put_back_leaves_what_a_restart_reads(
   TEST_ASSERT_EQUAL_STRING("one", v.playlist.c_str());
   TEST_ASSERT_EQUAL_STRING(settings::PLAY_PLAYLISTS, v.play.c_str());
   TEST_ASSERT_TRUE(v.playlists == std::vector<std::string>{"one"});
-  TEST_ASSERT_TRUE(v.play_stored);
+  TEST_ASSERT_FALSE(v.play_stored);
   TEST_ASSERT_EQUAL(settings::DEFAULT_BRIGHTNESS, v.brightness);
 }
 
@@ -864,7 +865,7 @@ static void test_a_playlists_key_that_cannot_be_put_back_leaves_what_a_restart_r
 
   // A new list and a new brightness: the brightness fails, and putting `playlists` back fails, so the keys hold
   // playlist "one", play "playlists" and playlists "two,one". A restart reads a list whose first playlist does
-  // not agree with `playlist`, and derives My playlists of "one".
+  // not agree with `playlist`, and derives My playlists of "one", not stored, so the next change saves both keys.
   settings::Values next = my_playlists({"two", "one"});
   next.brightness = 7;
   settings::fail_brightness_saves(true);
@@ -874,8 +875,49 @@ static void test_a_playlists_key_that_cannot_be_put_back_leaves_what_a_restart_r
   TEST_ASSERT_EQUAL_STRING("one", v.playlist.c_str());
   TEST_ASSERT_EQUAL_STRING(settings::PLAY_PLAYLISTS, v.play.c_str());
   TEST_ASSERT_TRUE(v.playlists == std::vector<std::string>{"one"});
-  TEST_ASSERT_TRUE(v.play_stored);
+  TEST_ASSERT_FALSE(v.play_stored);
   TEST_ASSERT_EQUAL(settings::DEFAULT_BRIGHTNESS, v.brightness);
+}
+
+// A restart that reads `play` and `playlists` keys that do not agree with `playlist`, or that it cannot use,
+// derives both from `playlist`. A change of one of them then saves both, so the next restart reads the change.
+static void restart_keeps_a_change_of(const char *playlist_key, const char *play_key, const char *playlists_key,
+                                      const char *change, const char *play, std::vector<std::string> playlists)
+{
+  sim::reset();
+  TempData data("protocol");
+  for (const char *id : {"xmas", "b"})
+    data.write(std::string("playlists/") + id + ".json",
+               R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[{"animation":"dot"}]})");
+  settings::sim_store_play_keys(playlist_key, play_key, playlists_key);
+  setup();
+  Replies replies;
+  replies.send(request(1, std::string(R"("cmd":"settings_set",)") + change));
+  const std::string json = reply_json(replies.pop(), "settings_set");
+  TEST_ASSERT_TRUE_MESSAGE(json.find("\"error\"") == std::string::npos, json.c_str());
+
+  setup(); // a restart reads the keys back
+  const settings::Values &v = settings::current();
+  TEST_ASSERT_EQUAL_STRING(play, v.play.c_str());
+  TEST_ASSERT_TRUE(v.playlists == playlists);
+  TEST_ASSERT_TRUE(v.play_stored);
+}
+
+static void test_a_restart_keeps_a_change_made_after_a_rollback_changed_the_playlist_alone()
+{
+  // An older firmware chose "xmas" while the keys held Automatic: the board plays My playlists of "xmas".
+  restart_keeps_a_change_of("xmas", "auto", "default", R"("playlists":["xmas","b"])", settings::PLAY_PLAYLISTS,
+                            {"xmas", "b"});
+  // An older firmware chose "default" while the keys held My playlists of "xmas": the board plays Automatic.
+  restart_keeps_a_change_of("default", "playlists", "xmas", R"("play":"playlists")", settings::PLAY_PLAYLISTS,
+                            {"default"});
+}
+
+static void test_a_restart_keeps_a_change_made_while_the_stored_playlists_are_unusable()
+{
+  restart_keeps_a_change_of("default", "playlists", "", R"("playlists":["xmas"])", settings::PLAY_AUTO, {"xmas"});
+  restart_keeps_a_change_of("default", "playlists", "Not an ID", R"("playlists":["xmas"])", settings::PLAY_AUTO,
+                            {"xmas"});
 }
 
 static void test_delete_all_keeps_the_settings_when_they_cannot_be_reset()
@@ -1068,6 +1110,61 @@ static void test_status_never_waits_for_the_memory_an_update_holds()
   TEST_ASSERT_EQUAL_STRING("christmas", doc["play"]["playlists"][0]);
 }
 
+static void test_status_reports_the_choice_made_at_boot_while_an_update_holds_the_memory()
+{
+  sim::reset();
+  TempData data("protocol");
+  data.write("animations/dot.json", DOT);
+  data.write("playlists/christmas.json",
+             R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[{"animation":"dot"}]})");
+  settings::sim_store_play_keys("christmas", "playlists", "christmas");
+  setup(); // the first choice is made here, before the network task can hold the memory
+  Replies replies;
+  task_sync::sim_block_loop(true);
+  JsonDocument doc = status_play(replies, 1);
+  task_sync::sim_block_loop(false);
+  TEST_ASSERT_EQUAL_STRING("playlists", doc["play"]["mode"]);
+  TEST_ASSERT_EQUAL_STRING("user", doc["play"]["reason"]);
+  TEST_ASSERT_EQUAL(1, doc["play"]["playlists"].size());
+  TEST_ASSERT_EQUAL_STRING("christmas", doc["play"]["playlists"][0]);
+  TEST_ASSERT_EQUAL_STRING("christmas", doc["play"]["playing"]);
+}
+
+// The first choice cannot be made at boot: status reports what the setting asks for, and nothing playing.
+static void test_status_before_the_first_choice_reports_the_setting()
+{
+  sim::reset();
+  TempData data("protocol");
+  data.write("animations/dot.json", DOT);
+  data.write("playlists/christmas.json",
+             R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[{"animation":"dot"}]})");
+  Replies replies;
+
+  task_sync::sim_block_loop(true);
+  setup();
+  JsonDocument doc = status_play(replies, 1);
+  task_sync::sim_block_loop(false);
+  TEST_ASSERT_EQUAL_STRING("auto", doc["play"]["mode"]);
+  TEST_ASSERT_EQUAL_STRING("no_schedule", doc["play"]["reason"]);
+  TEST_ASSERT_TRUE(doc["play"]["entry"].isNull());
+  TEST_ASSERT_EQUAL(1, doc["play"]["playlists"].size());
+  TEST_ASSERT_EQUAL_STRING("default", doc["play"]["playlists"][0]);
+  TEST_ASSERT_TRUE(doc["play"]["playing"].isNull());
+
+  settings::sim_store_play_keys("christmas", "playlists", "christmas,default");
+  task_sync::sim_block_loop(true);
+  setup();
+  doc = status_play(replies, 2);
+  task_sync::sim_block_loop(false);
+  TEST_ASSERT_EQUAL_STRING("playlists", doc["play"]["mode"]);
+  TEST_ASSERT_EQUAL_STRING("user", doc["play"]["reason"]);
+  TEST_ASSERT_TRUE(doc["play"]["entry"].isNull());
+  TEST_ASSERT_EQUAL(2, doc["play"]["playlists"].size());
+  TEST_ASSERT_EQUAL_STRING("christmas", doc["play"]["playlists"][0]);
+  TEST_ASSERT_EQUAL_STRING("default", doc["play"]["playlists"][1]);
+  TEST_ASSERT_TRUE(doc["play"]["playing"].isNull());
+}
+
 static void test_replies_are_whole_lines()
 {
   // Each reply is one serial line: nothing else is written between its bytes.
@@ -1239,7 +1336,16 @@ static void test_list_falls_back_to_piecewise_hash_when_read_all_fails()
 }
 
 void setUp() {}
-void tearDown() {}
+void tearDown()
+{
+  // A failed assertion skips the destructors that put these back.
+  task_sync::sim_block_loop(false);
+  settings::fail_brightness_saves(false);
+  settings::fail_playlist_saves_after(-1);
+  settings::fail_play_saves_after(-1);
+  settings::fail_playlists_saves_after(-1);
+  settings::sim_forget_play_keys();
+}
 
 // ---- Settings, token and transports ----
 
@@ -1425,6 +1531,8 @@ int main(int, char **)
   RUN_TEST(test_settings_set_says_so_when_the_playlist_cannot_be_put_back);
   RUN_TEST(test_a_play_key_that_cannot_be_put_back_leaves_what_a_restart_reads);
   RUN_TEST(test_a_playlists_key_that_cannot_be_put_back_leaves_what_a_restart_reads);
+  RUN_TEST(test_a_restart_keeps_a_change_made_after_a_rollback_changed_the_playlist_alone);
+  RUN_TEST(test_a_restart_keeps_a_change_made_while_the_stored_playlists_are_unusable);
   RUN_TEST(test_delete_all_keeps_the_settings_when_they_cannot_be_reset);
   RUN_TEST(test_delete_all_says_so_when_the_settings_are_partly_reset);
   RUN_TEST(test_wifi_forget_says_so_when_the_network_task_cannot_take_it);
@@ -1433,6 +1541,8 @@ int main(int, char **)
   RUN_TEST(test_status_reports_the_stored_network_name_as_valid_json);
   RUN_TEST(test_status_reports_no_network_name_when_none_is_stored);
   RUN_TEST(test_status_never_waits_for_the_memory_an_update_holds);
+  RUN_TEST(test_status_reports_the_choice_made_at_boot_while_an_update_holds_the_memory);
+  RUN_TEST(test_status_before_the_first_choice_reports_the_setting);
   RUN_TEST(test_replies_are_whole_lines);
   RUN_TEST(test_protocol_logs_do_not_stop_the_reader);
   RUN_TEST(test_path_traversal_ids_never_reach_storage);

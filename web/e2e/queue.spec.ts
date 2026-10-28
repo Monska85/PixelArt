@@ -124,7 +124,8 @@ test("Install all asks once about differing files: Cancel, Keep the board's, Rep
     await page.getByRole("menuitem", { name: item }).click();
   };
 
-  await installAll("Everything (4)");
+  // The simulator knows schedules: Everything also counts the published schedule, which it has the same.
+  await installAll("Everything (5)");
   const dialog = page.getByRole("dialog", { name: "Replace the stored file?" });
   await expect(dialog.getByTestId("differing-files")).toContainText("star");
   await expect(dialog.getByTestId("differing-files")).not.toContainText("snowflake");

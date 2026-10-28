@@ -480,12 +480,15 @@ def find_schedule_tie(document):
     ranked = _ranked(entries)
     years = [e[side]["year"] for e in entries for side in ("from", "to") if "year" in e[side]]
     undated = [r for r in ranked if "year" not in entries[r[0]]["from"]]
-    cache = {}
+    # Only the entries without a year are kept between years: each year, and so each mask of an entry with a year,
+    # is visited once.
+    undated_masks = {}
 
     def masks_for(year, leap):
+        dated_masks = {}
+
         def mask(i):
-            entry_has_year = "year" in entries[i]["from"]
-            key = (i, year if entry_has_year else None, leap)
+            cache, key = (dated_masks, i) if "year" in entries[i]["from"] else (undated_masks, (i, leap))
             if key not in cache:
                 cache[key] = _year_mask(entries[i], year, leap)
             return cache[key]

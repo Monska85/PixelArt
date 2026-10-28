@@ -9,6 +9,7 @@ import { Select } from "../components/select";
 import { TIME_SERVER_NOTE } from "../privacy";
 import { MAX_SYNC_HOURS, MIN_SYNC_HOURS, ntpServerProblem, parseSyncHours } from "./play";
 import { browserTimeZone, knownTimeZones, posixTimeZone, zoneOfSetting } from "./timezones";
+import { usePendingSend } from "./usePendingSend";
 
 interface Props {
   /** The settings of a firmware that knows schedules: `time_sync_hours` and `ntp_server` are there. */
@@ -22,19 +23,10 @@ interface Props {
  * one control for the board's `timezone`: the schedule and the install window both read it.
  */
 export function TimeSettings({ settings, disabled, change }: Props) {
-  const [pending, setPending] = useState(false);
+  const { pending, send } = usePendingSend(change);
   const [hoursDraft, setHoursDraft] = useState<string | null>(null);
   const [serverDraft, setServerDraft] = useState<string | null>(null);
   const busy = disabled || pending;
-
-  async function send(changes: SettingsChanges, context: string): Promise<void> {
-    setPending(true);
-    try {
-      await change(changes, context);
-    } finally {
-      setPending(false);
-    }
-  }
 
   const browser = browserTimeZone();
   const browserPosix = browser ? posixTimeZone(browser) : null;
@@ -59,7 +51,6 @@ export function TimeSettings({ settings, disabled, change }: Props) {
       ? `A whole number of hours from ${MIN_SYNC_HOURS} to ${MAX_SYNC_HOURS}.`
       : null;
   function commitHours(): void {
-    // The range of time_sync_hours is the one of check_hours.
     const value = hoursDraft === null ? null : parseSyncHours(hoursDraft);
     if (value === null) return;
     setHoursDraft(null);

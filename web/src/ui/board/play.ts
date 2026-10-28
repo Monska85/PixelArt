@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The words of "What to play" and of the time settings (docs/web/web-app-v1.md#settings), apart from the components
-// so they can be tested.
+// The texts and rules of What to play and the time settings (docs/web/web-app-v1.md#settings), kept out of the
+// components so they can be tested.
 
 import type { LocalDate, Schedule, ScheduleEnd, ScheduleEntry } from "../../engine";
 import { MAX_SCHEDULE_PLAYLISTS } from "../../engine";

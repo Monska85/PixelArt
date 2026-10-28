@@ -3,7 +3,7 @@
 import { Check, ChevronDown, CircleDashed, Download, GitCompare, Pencil, Play } from "lucide-react";
 import { useState } from "react";
 import { loadAnimation } from "../../engine";
-import type { BoardClient, Entry } from "../../protocol";
+import { supportsSchedules, type BoardClient, type Entry } from "../../protocol";
 import { downloadPublished, libraryState, type LibraryState } from "../../release/library";
 import type { Manifest, Published, PublishedKind } from "../../release/manifest";
 import { entriesOf, useBoardFiles } from "../board/useBoardData";
@@ -109,7 +109,9 @@ function StateBadge({ state, id }: { state: LibraryState; id: string }) {
 }
 
 function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: LibraryProps) {
-  const { uploadsBlocked } = useSession();
+  const { uploadsBlocked, info } = useSession();
+  // Everything brings the published schedules too, to a board that knows them: an older one answers invalid_kind.
+  const schedules = board !== null && supportsSchedules(info) ? manifest.schedules.length : 0;
   const [list, setList] = useState<ListKind>("animation");
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewing, setPreviewing] = useState<string | null>(null);
@@ -123,10 +125,13 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
   const stored = (kind: PublishedKind): Entry[] | null =>
     board === null ? null : entriesOf(kind === "animation" ? board.animations : board.playlists);
 
+  const published: Record<PublishedKind, Published[]> = {
+    animation: manifest.animations,
+    playlist: manifest.playlists,
+    schedule: manifest.schedules,
+  };
   const everything = (kinds: PublishedKind[]): Array<{ kind: PublishedKind; entry: Published }> =>
-    kinds.flatMap((kind) =>
-      (kind === "animation" ? manifest.animations : manifest.playlists).map((entry) => ({ kind, entry })),
-    );
+    kinds.flatMap((kind) => published[kind].map((entry) => ({ kind, entry })));
 
   async function showPreview(entry: Published): Promise<void> {
     setPreviewing(entry.id);
@@ -240,6 +245,7 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
             loading={queue.busy}
             animations={manifest.animations.length}
             playlists={manifest.playlists.length}
+            schedules={schedules}
             onInstall={(kinds) => void queue.install(everything(kinds), manifest)}
           />
         }
@@ -270,13 +276,17 @@ function BoardListsNote({ lists }: { lists: Pick<LibraryBoard, "animations" | "p
   return null;
 }
 
-/** Install all: every published animation, every published playlist, or everything. */
+/**
+ * Install all: every published animation, every published playlist, or everything, which also brings the `schedules`
+ * published schedules after the playlists (0 for a board that knows none).
+ */
 function InstallAllMenu({
   disabled,
   reason,
   loading,
   animations,
   playlists,
+  schedules,
   onInstall,
 }: {
   disabled: boolean;
@@ -284,8 +294,10 @@ function InstallAllMenu({
   loading: boolean;
   animations: number;
   playlists: number;
+  schedules: number;
   onInstall: (kinds: PublishedKind[]) => void;
 }) {
+  const total = animations + playlists + schedules;
   const trigger = (
     <Button disabled={disabled} loading={loading}>
       {!loading && <Download aria-hidden="true" />}
@@ -304,8 +316,11 @@ function InstallAllMenu({
         <DropdownMenuItem disabled={playlists === 0} onSelect={() => onInstall(["playlist"])}>
           All playlists ({playlists})
         </DropdownMenuItem>
-        <DropdownMenuItem disabled={animations + playlists === 0} onSelect={() => onInstall(["animation", "playlist"])}>
-          Everything ({animations + playlists})
+        <DropdownMenuItem
+          disabled={total === 0}
+          onSelect={() => onInstall(schedules > 0 ? ["animation", "playlist", "schedule"] : ["animation", "playlist"])}
+        >
+          Everything ({total})
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

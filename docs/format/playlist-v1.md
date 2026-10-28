@@ -73,7 +73,7 @@ With no valid schedule, the list is `[default]`, which is exactly what a board p
 
 A playlist of the list is playable when `/playlists/<id>.json` exists, is valid, has the board's canvas, and has at least one enabled item whose animation is stored in `/animations/`. Any other playlist is skipped: one that is missing, invalid, made for another canvas, or with no item the board can play.
 
-When the board cannot read a playlist or a schedule because an update holds the memory, it skips nothing: it waits and reads it again, as it does today for a playlist.
+When the board cannot read a playlist or a schedule because an update holds the memory, it skips nothing: it waits, and reads it again at the next pass. `status` never waits meanwhile: it reports the last choice made.
 
 When the list gives the board nothing to play, it falls back, step by step:
 
@@ -93,7 +93,7 @@ When the list gives the board nothing to play, it falls back, step by step:
 
 The board computes the list again:
 
-- at boot;
+- at boot, before the board connects to the network;
 - when the time becomes known;
 - at local midnight, when the local date changes, which the board notices when an animation ends;
 - when a playlist or a schedule is stored or deleted: an upload (`put_end`), an update, `delete` or `delete_all`;
@@ -102,7 +102,7 @@ The board computes the list again:
 
 A new list takes effect when the current animation ends: the animation playing at the moment finishes unchanged, and its remaining repeats are cut, as they were when the active playlist changed. A new list that is the same as the old one, the same playlists in the same order, keeps the position: the board goes on with the playlist and the item it was at. A different list starts from its first playlist. A playlist that is stored or deleted always starts the list again from its first playlist, even when the list is the same, as an upload or a deletion of a playlist restarted the active playlist before.
 
-`status` reports the newest list at once in `play`, with the playlist the board plays, or the one it will start when the current animation ends ([protocol](../protocol/protocol-v1.md#status)).
+`status` reports the newest list at once in `play`, with the playlist the board plays, or the one it will start when the current animation ends ([protocol](../protocol/protocol-v1.md#status)). While an update connection holds the memory, it reports the last choice made, and the newest one once the connection ends.
 
 The board never loops over years to choose: it resolves one date, over at most 64 entries, at the events above. Ties are refused by the tools, and a board takes the first tied entry in the file.
 

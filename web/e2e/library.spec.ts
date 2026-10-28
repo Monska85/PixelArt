@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,12 +17,14 @@ import {
   test,
   toastWith,
 } from "./fixtures";
+import { connectScripted, scriptedBoard } from "./scripted";
 
 const published = JSON.parse(
   readFileSync(fileURLToPath(new URL("./site/published.json", import.meta.url)), "utf8"),
 ) as {
   animations: string[];
   playlists: string[];
+  schedules: string[];
 };
 const [SAME, MISSING, DIFFERENT] = published.animations as [string, string, string];
 
@@ -134,20 +136,46 @@ test("asks before replacing a different stored file: Cancel, Keep the board's, R
   expect(sha(stored(simulator, "animations", DIFFERENT))).not.toBe(before);
 });
 
-test("installs everything that is missing, playlists too", async ({ page, simulator }) => {
+test("installs everything that is missing, playlists and schedules too", async ({ page, simulator }) => {
   rmSync(stored(simulator, "animations", MISSING));
   rmSync(stored(simulator, "animations", SAME));
   rmSync(stored(simulator, "playlists", "default"));
+  rmSync(stored(simulator, "schedules", "default"));
   await connectSimulator(page, simulator);
   await library(page).click();
   await page.getByRole("button", { name: "Install all" }).click();
-  await page.getByRole("menuitem", { name: `Everything (${published.animations.length + 1})` }).click();
-  await expect(summary(page)).toContainText(`Installed: ${SAME}, ${MISSING}, default`);
+  // The simulator knows schedules: Everything counts the published schedule and installs it after the playlist.
+  const everything = published.animations.length + published.playlists.length + published.schedules.length;
+  await page.getByRole("menuitem", { name: `Everything (${everything})` }).click();
+  await expect(toastWith(page, "Installed 2 animations, 1 playlist and 1 schedule")).toBeVisible();
+  await expect(summary(page)).toContainText(`Installed: ${SAME}, ${MISSING}, default, default`);
   await expect(summary(page)).toContainText(`Skipped, the board has the same file: ${DIFFERENT}`);
   for (const id of [MISSING, SAME]) await expect(state(page, id)).toHaveText("Same");
   expect(existsSync(stored(simulator, "animations", MISSING))).toBe(true);
   expect(existsSync(stored(simulator, "animations", SAME))).toBe(true);
   expect(existsSync(stored(simulator, "playlists", "default"))).toBe(true);
+  expect(existsSync(stored(simulator, "schedules", "default"))).toBe(true);
+});
+
+test("installs everything but the schedules on a board from before schedules", async ({ page }) => {
+  const board = await scriptedBoard(page);
+  // The board stores the fixture animations that are not published, which the published playlist names too.
+  const fixtures = fileURLToPath(new URL("./board-files/animations", import.meta.url));
+  for (const name of readdirSync(fixtures)) {
+    const id = name.replace(/\.json$/, "");
+    if (!published.animations.includes(id)) board.files.animation.set(id, readFileSync(join(fixtures, name)));
+  }
+  await connectScripted(page, board);
+  await expect(page.getByTestId("connection-state")).toHaveText("Connected");
+  await library(page).click();
+  await page.getByRole("button", { name: "Install all" }).click();
+  await page
+    .getByRole("menuitem", { name: `Everything (${published.animations.length + published.playlists.length})` })
+    .click();
+  await expect(toastWith(page, `Installed ${published.animations.length} animations and 1 playlist`)).toBeVisible();
+  for (const id of published.animations) expect(board.files.animation.has(id)).toBe(true);
+  expect([...board.files.playlist.keys()]).toEqual(published.playlists);
+  expect(board.requests.filter((request) => request.kind === "schedule")).toEqual([]);
 });
 
 test("refuses a download that does not match the manifest, by size or by SHA-256", async ({ page, simulator }) => {

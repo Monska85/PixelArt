@@ -10,7 +10,10 @@ import { summarizeStorage } from "./storage";
 interface Props {
   /** `info.storage`, or null for a board that does not say. */
   storage: { total: number; used: number } | null;
-  /** The stored animations and playlists, or null while a list is not known. */
+  /**
+   * The stored animations and playlists, or null while a list is not known. The counts and the estimate wait for every
+   * list, the schedules included on a board that knows them.
+   */
   animations: Entry[] | null;
   playlists: Entry[] | null;
   /** The stored schedules, null while not known; left out for a board that knows none. */
