@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -204,6 +205,109 @@ private:
 
 // True if `id` is a valid animation or playlist ID (file name without extension).
 bool is_valid_id(const char *id);
+
+// Limits from docs/format/schedule-v1.md#limits. MAX_SCHEDULE_PLAYLISTS also bounds the `playlists` setting.
+constexpr size_t MAX_SCHEDULE_FILE_SIZE = 16 * 1024;
+constexpr size_t MAX_SCHEDULE_ENTRIES = 64;
+constexpr size_t MAX_SCHEDULE_PLAYLISTS = 8;
+constexpr int MIN_SCHEDULE_YEAR = 2000;
+constexpr int MAX_SCHEDULE_YEAR = 2999;
+
+// A local date of the Gregorian calendar.
+struct LocalDate
+{
+  uint16_t year = 0;
+  uint8_t month = 0;
+  uint8_t day = 0;
+};
+
+inline bool operator==(const LocalDate &a, const LocalDate &b)
+{
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+inline bool operator!=(const LocalDate &a, const LocalDate &b) { return !(a == b); }
+
+// True for a real date with a year from MIN_SCHEDULE_YEAR to MAX_SCHEDULE_YEAR.
+bool is_schedule_date(const LocalDate &date);
+
+// One end of a schedule entry. A part that is absent is 0.
+struct ScheduleEnd
+{
+  uint16_t year = 0;
+  uint8_t month = 0;
+  uint8_t day = 0;
+};
+
+// A pixelart-schedule/1 document (docs/format/schedule-v1.md), parsed into a compact form: each
+// playlist ID is kept once, and the entries refer to it by index.
+class Schedule
+{
+public:
+  // Parses and validates a schedule. Returns false on any error; a failed load leaves the schedule empty.
+  bool load(const char *json, size_t length, std::vector<Diagnostic> &diagnostics);
+
+  std::vector<std::string> fallback() const { return names(fallback_, fallback_count_); }
+  size_t entry_count() const { return entries_.size(); }
+  const ScheduleEnd &from(size_t entry) const { return entries_[entry].from; }
+  const ScheduleEnd &to(size_t entry) const { return entries_[entry].to; }
+  std::vector<std::string> playlists(size_t entry) const
+  {
+    return names(entries_[entry].playlists, entries_[entry].count);
+  }
+
+  // Index of the entry that wins on `date` by the rules of docs/format/schedule-v1.md#which-entry-wins,
+  // or -1 when no entry matches. A tie goes to the first tied entry in the file. Looks at each entry once.
+  int winner(const LocalDate &date) const;
+
+private:
+  struct Entry
+  {
+    ScheduleEnd from, to;
+    uint8_t parts = 0; // PART_* bits, the same on both ends
+    uint8_t count = 0;
+    uint16_t playlists[MAX_SCHEDULE_PLAYLISTS] = {};
+  };
+
+  std::vector<std::string> names(const uint16_t *indexes, size_t count) const;
+
+  std::vector<std::string> ids_; // every playlist ID the file names, once
+  std::vector<Entry> entries_;
+  uint8_t fallback_count_ = 0;
+  uint16_t fallback_[MAX_SCHEDULE_PLAYLISTS] = {};
+};
+
+// The rules of docs/format/playlist-v1.md#how-the-board-chooses-what-to-play.
+enum class PlayMode : uint8_t
+{
+  Auto,
+  Playlists
+};
+
+enum class PlayReason : uint8_t
+{
+  User,
+  Schedule,
+  Fallback,
+  NoTime,
+  NoSchedule
+};
+
+// `user`, `schedule`, `fallback`, `no_time` or `no_schedule`.
+const char *play_reason_name(PlayReason reason);
+
+struct PlayChoice
+{
+  PlayReason reason = PlayReason::NoSchedule;
+  int entry = -1; // the winning entry, -1 when none won
+  std::vector<std::string> playlists;
+  int playing = -1; // index in `playlists` of the first playable playlist, -1: every animation plays
+};
+
+// The list the board plays. `user` is the `playlists` setting, `schedule` the valid schedule `default` or null,
+// `date` the local date or null while the time is not known, and `playable` says whether the board can play a
+// playlist. Resolves one date: never loops over days or years.
+PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user, const Schedule *schedule,
+                            const LocalDate *date, const std::function<bool(const std::string &)> &playable);
 
 // Plays an animation frame by frame. The animation must outlive the player.
 class Player

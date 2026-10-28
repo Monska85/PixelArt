@@ -2,7 +2,9 @@
 
 // Protocol traffic while the board plays: playback stays on schedule, and
 // brightness, playlist and upload changes reach it at the times the protocol
-// specification gives. Run with: pio test -e native_test (or make test)
+// specification gives. Also the list of playlists the board plays, from the
+// play settings and the schedule (docs/format/playlist-v1.md#how-the-board-chooses-what-to-play).
+// Run with: pio test -e native_test (or make test)
 
 #include <ArduinoJson.h>
 #include <sim.h>
@@ -17,6 +19,7 @@
 #include "protocol.h"
 #include "settings.h"
 #include "task_sync.h"
+#include "updates.h"
 #include "pixelart_test.h"
 
 namespace fs = std::filesystem;
@@ -37,13 +40,31 @@ static std::string playlist_of(std::initializer_list<const char *> animations)
   return R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[)" + items + "]}";
 }
 
-// The animation (a is red, b is green) of each recorded frame, as a letter.
+// The animation (a is red, b is green, c is blue) of each recorded frame, as a letter.
 static std::string shown()
 {
   std::string out;
   for (const sim::Frame &f : sim::frames())
-    out += red(f.at(0, 0)) ? 'a' : green(f.at(0, 0)) ? 'b' : '?';
+    out += red(f.at(0, 0)) ? 'a' : green(f.at(0, 0)) ? 'b' : pixelart_test::blue(f.at(0, 0)) ? 'c' : '?';
   return out;
+}
+
+// A schedule with `fallback` and one entry from `from` to `to` ({month, day} ends) with `playlists`.
+static std::string schedule_of(const char *fallback, const char *from, const char *to, const char *playlists)
+{
+  return std::string(R"({"format":"pixelart-schedule/1","fallback":)") + fallback + R"(,"entries":[{"from":)" + from +
+         R"(,"to":)" + to + R"(,"playlists":)" + playlists + "}]}";
+}
+
+// Three animations of `frames` frames, a red, b green and c blue, and playlists p_a, p_b and p_c of one each.
+static void write_abc(const TempData &data, int frames)
+{
+  data.write("animations/a.json", dot_animation("#ff0000", frames, 100));
+  data.write("animations/b.json", dot_animation("#00ff00", frames, 100));
+  data.write("animations/c.json", dot_animation("#0000ff", frames, 100));
+  data.write("playlists/p_a.json", playlist_of({"a"}));
+  data.write("playlists/p_b.json", playlist_of({"b"}));
+  data.write("playlists/p_c.json", playlist_of({"c"}));
 }
 
 static std::string logs_without_protocol_lines()
@@ -70,7 +91,11 @@ void setUp()
   setup();
 }
 
-void tearDown() { task_sync::sim_block_loop(false); }
+void tearDown()
+{
+  task_sync::sim_block_loop(false);
+  updates::sim_reset();
+}
 
 struct Run
 {
@@ -334,6 +359,142 @@ static void test_a_busy_heap_keeps_the_last_frame_and_retries_after_200_ms()
   TEST_ASSERT_EQUAL_STRING("aaa", shown().c_str());
 }
 
+static void test_my_playlists_play_each_in_full_then_from_the_first()
+{
+  TempData data("playback");
+  write_abc(data, 1);
+  data.write("playlists/two.json", playlist_of({"b", "c"}));
+  setup();
+  sim::serial_input(request(1, R"("cmd":"settings_set","play":"playlists","playlists":["p_a","two"])"));
+  play_from_storage(); // the default list, every animation, until the setting is read
+  sim::reset();
+  play_from_storage();
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("abcabc", shown().c_str());
+}
+
+static void test_a_missing_playlist_of_the_list_is_skipped()
+{
+  TempData data("playback");
+  write_abc(data, 1);
+  setup();
+  sim::serial_input(request(1, R"("cmd":"settings_set","play":"playlists","playlists":["p_a","p_c"])") +
+                    request(2, R"("cmd":"delete","kind":"playlist","id":"p_a")"));
+  play_from_storage();
+  sim::reset();
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("c", shown().c_str());
+}
+
+static void test_automatic_plays_the_winning_entry_of_the_date()
+{
+  TempData data("playback");
+  write_abc(data, 1);
+  data.write("playlists/default.json", playlist_of({"a"}));
+  data.write("schedules/default.json",
+             schedule_of(R"(["p_b"])", R"({"month":12,"day":1})", R"({"month":1,"day":6})", R"(["p_c"])"));
+  setup();
+  play_from_storage(); // the time is not known: the fallback
+  updates::sim_set_local_date({2026, 12, 25});
+  play_from_storage(); // the time became known: the board notices it when this animation ends
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("bbc", shown().c_str());
+  updates::sim_set_local_date({2026, 11, 30});
+  play_from_storage();
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("bbccb", shown().c_str());
+}
+
+static void test_local_midnight_switches_when_the_current_animation_ends()
+{
+  TempData data("playback");
+  data.write("animations/a.json", dot_animation("#ff0000", 2, 100));
+  data.write("animations/b.json", dot_animation("#00ff00", 2, 100));
+  data.write(
+      "playlists/p_a.json",
+      R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[{"animation":"a","repeat":3}]})");
+  data.write("playlists/p_b.json", playlist_of({"b"}));
+  data.write("schedules/default.json",
+             schedule_of(R"(["p_b"])", R"({"month":12,"day":24})", R"({"month":12,"day":24})", R"(["p_a"])"));
+  updates::sim_set_local_date({2026, 12, 24});
+  setup();
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("aaaaaa", shown().c_str());
+  // Midnight: the board notices it when the next animation ends, and cuts the other repeats.
+  updates::sim_set_local_date({2026, 12, 25});
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("aaaaaaaa", shown().c_str());
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("aaaaaaaabb", shown().c_str());
+}
+
+static void test_the_same_list_keeps_its_position()
+{
+  TempData data("playback");
+  write_abc(data, 2);
+  setup();
+  sim::serial_input(request(1, R"("cmd":"settings_set","play":"playlists","playlists":["p_a","p_b","p_c"])"));
+  play_from_storage();
+  sim::reset();
+  // A change that gives the same list, during a: the board goes on with b, then c.
+  sim::serial_input(request(2, R"("cmd":"settings_set","timezone":"CET-1")"));
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("aabbcc", shown().c_str());
+}
+
+static void test_a_stored_playlist_starts_the_list_again()
+{
+  TempData data("playback");
+  write_abc(data, 2);
+  setup();
+  sim::serial_input(request(1, R"("cmd":"settings_set","play":"playlists","playlists":["p_a","p_b","p_c"])"));
+  play_from_storage();
+  sim::reset();
+  // p_c is stored again during a: a finishes, and the list starts again from p_a.
+  const std::string uploaded = playlist_of({"c"});
+  sim::serial_input(put_begin(2, "playlist", "p_c", uploaded) + put_chunk(3, uploaded) +
+                    request(4, R"("cmd":"put_end")"));
+  play_from_storage();
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("aaaabbcc", shown().c_str());
+}
+
+static void test_an_entry_whose_animations_fail_falls_back_in_the_same_pass()
+{
+  TempData data("playback");
+  write_abc(data, 1);
+  data.write("animations/bad.json", dot_animation("gren"));
+  data.write("playlists/broken.json", playlist_of({"bad"}));
+  data.write("schedules/default.json", schedule_of(R"(["p_b"])", R"({"month":1})", R"({"month":12})", R"(["broken"])"));
+  updates::sim_set_local_date({2027, 3, 3});
+  setup();
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("b", shown().c_str());
+}
+
+static void test_the_time_is_asked_for_while_a_schedule_plays()
+{
+  TempData data("playback");
+  write_abc(data, 1);
+  data.write("playlists/default.json", playlist_of({"a"}));
+  setup();
+  updates::poll();
+  play_from_storage();
+  updates::poll();
+  TEST_ASSERT_FALSE(updates::sim_time_needed()); // no schedule
+  data.write("schedules/default.json", schedule_of(R"(["default"])", R"({"month":1})", R"({"month":1})", R"(["p_b"])"));
+  sim::serial_input(request(1, R"("cmd":"settings_set","timezone":"CET-1")"));
+  play_from_storage();
+  play_from_storage();
+  updates::poll();
+  TEST_ASSERT_TRUE(updates::sim_time_needed());
+  sim::serial_input(request(2, R"("cmd":"settings_set","play":"playlists","playlists":["p_a"])"));
+  play_from_storage();
+  play_from_storage();
+  updates::poll();
+  TEST_ASSERT_FALSE(updates::sim_time_needed()); // My playlists ignore the schedule
+}
+
 int main(int, char **)
 {
   UNITY_BEGIN();
@@ -351,5 +512,13 @@ int main(int, char **)
   RUN_TEST(test_boot_removes_a_leftover_temporary_file);
   RUN_TEST(test_no_animations_image_waits_for_commands_too);
   RUN_TEST(test_a_busy_heap_keeps_the_last_frame_and_retries_after_200_ms);
+  RUN_TEST(test_my_playlists_play_each_in_full_then_from_the_first);
+  RUN_TEST(test_a_missing_playlist_of_the_list_is_skipped);
+  RUN_TEST(test_automatic_plays_the_winning_entry_of_the_date);
+  RUN_TEST(test_local_midnight_switches_when_the_current_animation_ends);
+  RUN_TEST(test_the_same_list_keeps_its_position);
+  RUN_TEST(test_a_stored_playlist_starts_the_list_again);
+  RUN_TEST(test_an_entry_whose_animations_fail_falls_back_in_the_same_pass);
+  RUN_TEST(test_the_time_is_asked_for_while_a_schedule_plays);
   return UNITY_END();
 }

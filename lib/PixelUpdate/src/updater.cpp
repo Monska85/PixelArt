@@ -188,7 +188,8 @@ void Updater::tick(uint64_t now)
   const bool online = host_.online();
   if (online)
     schedule_.on_address(now);
-  host_.time_config(config_.enabled && config_.install_start != config_.install_end, config_.timezone);
+  host_.time_config((config_.enabled && config_.install_start != config_.install_end) || config_.schedule_needs_time,
+                    config_.timezone, config_.ntp_server, config_.time_sync_hours);
 
   switch (phase_)
   {

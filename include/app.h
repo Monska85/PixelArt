@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Plays the animations stored on the board, following the playlist rules of
-// docs/format/playlist-v1.md#how-the-board-chooses-what-to-play.
+// Plays the animations stored on the board, following the rules of
+// docs/format/playlist-v1.md#how-the-board-chooses-what-to-play: the list of playlists comes from the
+// play settings and the schedule `default`, and changes when the current animation ends.
 
 #pragma once
 
@@ -11,18 +12,23 @@
 #include <string>
 #include <vector>
 
-// Folders of the animation and playlist files on the board.
+// Folders of the animation, playlist and schedule files on the board.
 constexpr const char *ANIMATIONS_FOLDER = "/animations";
 constexpr const char *PLAYLISTS_FOLDER = "/playlists";
+constexpr const char *SCHEDULES_FOLDER = "/schedules";
+// The only schedule the board plays.
+constexpr const char *PLAYED_SCHEDULE = "default";
 
-// Path of an animation or playlist file on the board, from its ID or name.
+// Path of an animation, playlist or schedule file on the board, from its ID or name.
 std::string animation_file(const std::string &id);
 std::string playlist_file(const std::string &name);
+std::string schedule_file(const std::string &id);
 
 // IDs of the animation files in /animations, and names of the playlists in
-// /playlists, sorted.
+// /playlists and of the schedules in /schedules, sorted.
 std::vector<std::string> stored_animations();
 std::vector<std::string> stored_playlists();
+std::vector<std::string> stored_schedules();
 
 // Read and validate a stored file with the engine. On failure, `diagnostics`
 // says why: the engine's codes, or `missing_file`, `limit_exceeded` (file too
@@ -31,21 +37,39 @@ bool load_stored_animation(const std::string &id, pixelart::Animation &animation
                            std::vector<pixelart::Diagnostic> &diagnostics);
 bool load_stored_playlist(const std::string &name, pixelart::Playlist &playlist,
                           std::vector<pixelart::Diagnostic> &diagnostics);
+bool load_stored_schedule(const std::string &id, pixelart::Schedule &schedule,
+                          std::vector<pixelart::Diagnostic> &diagnostics);
 
 // Loads /animations/<id>.json and plays it `times` times. Returns false, and
 // reports the reason on the serial port once, if the file is missing or invalid.
 bool play_stored_animation(const std::string &id, uint16_t times = 1);
 
-// Plays the active playlist (the `playlist` setting, `default` unless changed)
-// once. Without a usable playlist, plays every valid animation in alphabetical
-// order; without any, shows a built-in image. Returns early, after the
-// current animation, when request_playlist_reload() was called meanwhile.
+// Forgets what the player chose and where it was, at boot: the first pass chooses again.
+void begin_player();
+
+// Plays the list of playlists once, each playlist in full, from the playlist it was at. Without a playlist it
+// can play, plays every valid animation in alphabetical order; without any, shows a built-in image. Returns
+// early, after the current animation, when the list changed meanwhile.
 void play_from_storage();
 
-// Asks the player to read the active playlist again and start it from its
-// first item when the current animation ends. Called when a playlist file or
-// the active playlist changes.
+// A playlist or a schedule was stored or deleted: the player chooses its list again and starts it from its
+// first playlist when the current animation ends.
 void request_playlist_reload();
 
-// Whether a reload is requested and not yet done. For tests.
+// The play settings or the time zone changed: the player chooses its list again when the current animation
+// ends, and keeps its position when the list is the same.
+void request_play_update();
+
+// Whether a new choice is requested and not yet applied. For tests.
 bool playlist_reload_pending();
+
+// What `status` reports in `play`: the newest list, and the playlist playing or the next one to start.
+struct PlayStatus
+{
+  bool automatic = true;
+  pixelart::PlayReason reason = pixelart::PlayReason::NoSchedule;
+  int entry = -1;
+  std::vector<std::string> playlists;
+  std::string playing; // empty: every animation plays, or the "no animations" image
+};
+PlayStatus play_status();

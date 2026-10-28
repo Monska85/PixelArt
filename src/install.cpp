@@ -27,6 +27,20 @@ MemoryProbe memory_probe = platform_memory;
 
 Memory memory() { return memory_probe(); }
 
+size_t size_limit(Kind kind)
+{
+  switch (kind)
+  {
+  case Kind::Animation:
+    return pixelart::MAX_FILE_SIZE;
+  case Kind::Playlist:
+    return pixelart::MAX_PLAYLIST_FILE_SIZE;
+  case Kind::Schedule:
+    break;
+  }
+  return pixelart::MAX_SCHEDULE_FILE_SIZE;
+}
+
 bool memory_fits(size_t size)
 {
   const Memory now = memory_probe();
@@ -40,9 +54,9 @@ void set_memory_probe(MemoryProbe probe) { memory_probe = probe ? probe : platfo
 #endif
 
 Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagnostic> &diagnostics,
-                pixelart::Playlist *playlist)
+                pixelart::Playlist *playlist, pixelart::Schedule *schedule)
 {
-  const size_t limit = kind == Kind::Animation ? pixelart::MAX_FILE_SIZE : pixelart::MAX_PLAYLIST_FILE_SIZE;
+  const size_t limit = size_limit(kind);
   task_sync::HeapLock lock(task_sync::Owner::Loop);
   if (!lock.held())
     return Result::OutOfMemory; // an update connection holds the memory
@@ -63,31 +77,37 @@ Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagno
     pixelart::Animation animation;
     valid = animation.load(buffer.data.get(), buffer.size, diagnostics);
   }
-  else
+  else if (kind == Kind::Playlist)
   {
     pixelart::Playlist local;
     pixelart::Playlist &target = playlist ? *playlist : local;
+    valid = target.load(buffer.data.get(), buffer.size, diagnostics);
+  }
+  else
+  {
+    pixelart::Schedule local;
+    pixelart::Schedule &target = schedule ? *schedule : local;
     valid = target.load(buffer.data.get(), buffer.size, diagnostics);
   }
   return valid ? Result::Ok : Result::Invalid;
 }
 
 Result check(Kind kind, const std::string &path, size_t expected_size, std::vector<pixelart::Diagnostic> &diagnostics,
-             pixelart::Playlist *playlist)
+             pixelart::Playlist *playlist, pixelart::Schedule *schedule)
 {
   size_t stored = 0;
   if (!storage::file_size(path, stored) || (expected_size != SIZE_ANY && stored != expected_size))
     return Result::StorageError;
   if (!memory_fits(stored))
     return Result::OutOfMemory;
-  return validate(kind, path, diagnostics, playlist);
+  return validate(kind, path, diagnostics, playlist, schedule);
 }
 
 bool commit(Kind kind, const std::string &path, const std::string &target)
 {
   if (!storage::rename(path, target))
     return false;
-  if (kind == Kind::Playlist)
+  if (kind != Kind::Animation)
     request_playlist_reload();
   return true;
 }

@@ -4,6 +4,7 @@
 
 #include <pixelart_engine.h>
 
+#include <algorithm>
 #include <cctype>
 #include <vector>
 
@@ -17,6 +18,8 @@
 namespace settings
 {
 
+static_assert(MAX_PLAYLISTS == pixelart::MAX_SCHEDULE_PLAYLISTS, "the playlists setting holds as many as an entry");
+
 namespace
 {
 
@@ -29,10 +32,13 @@ int playlist_saves_left = -1; // -1: every save works
 
 Values values;
 
-// The order the settings are saved in, and put back in reverse.
+// The order the settings are saved in, and put back in reverse. `playlist` goes first: it is what an older
+// firmware reads.
 enum class Field
 {
   Playlist,
+  Play,
+  Playlists,
   Brightness,
   WifiPower,
   UpdateMode,
@@ -42,6 +48,8 @@ enum class Field
   InstallStart,
   InstallEnd,
   Timezone,
+  TimeSyncHours,
+  NtpServer,
   AnimationSource,
   NetworkLogin,
   Token,
@@ -55,6 +63,10 @@ bool differs(Field field, const Values &a, const Values &b)
   {
   case Field::Playlist:
     return a.playlist != b.playlist;
+  case Field::Play:
+    return a.play != b.play || a.play_stored != b.play_stored;
+  case Field::Playlists:
+    return a.playlists != b.playlists || a.play_stored != b.play_stored;
   case Field::Brightness:
     return a.brightness != b.brightness;
   case Field::WifiPower:
@@ -73,6 +85,10 @@ bool differs(Field field, const Values &a, const Values &b)
     return a.install_end != b.install_end;
   case Field::Timezone:
     return a.timezone != b.timezone;
+  case Field::TimeSyncHours:
+    return a.time_sync_hours != b.time_sync_hours;
+  case Field::NtpServer:
+    return a.ntp_server != b.ntp_server;
   case Field::AnimationSource:
     return a.animation_source != b.animation_source;
   case Field::NetworkLogin:
@@ -99,6 +115,10 @@ const char *key_of(Field field)
   {
   case Field::Playlist:
     return "playlist";
+  case Field::Play:
+    return "play";
+  case Field::Playlists:
+    return "playlists";
   case Field::Brightness:
     return "brightness";
   case Field::WifiPower:
@@ -117,6 +137,10 @@ const char *key_of(Field field)
     return "inst_end";
   case Field::Timezone:
     return "timezone";
+  case Field::TimeSyncHours:
+    return "time_sync_h";
+  case Field::NtpServer:
+    return "ntp_server";
   case Field::AnimationSource:
     return "anim_source";
   case Field::NetworkLogin:
@@ -137,6 +161,8 @@ bool put_text(Field field, const std::string &text)
 }
 bool put_number(Field field, uint16_t value) { return prefs.putUShort(key_of(field), value) == sizeof(uint16_t); }
 bool put_flag(Field field, bool value) { return prefs.putBool(key_of(field), value) == sizeof(uint8_t); }
+// Removes a key, as for a value that was never stored. A key that is not there is already removed.
+bool remove_key(Field field) { return !prefs.isKey(key_of(field)) || prefs.remove(key_of(field)); }
 
 // A stored text, or `fallback` when the key was never written (getString logs an error then) or is not valid.
 std::string stored_text(Field field, const std::string &fallback, bool (*valid)(const std::string &))
@@ -147,6 +173,8 @@ std::string stored_text(Field field, const std::string &fallback, bool (*valid)(
   return valid(text.c_str()) ? std::string(text.c_str()) : fallback;
 }
 
+bool valid_any(const std::string &) { return true; }
+
 uint16_t stored_number(Field field, uint16_t fallback, bool (*valid)(uint32_t))
 {
   uint16_t value = prefs.getUShort(key_of(field), fallback);
@@ -154,6 +182,34 @@ uint16_t stored_number(Field field, uint16_t fallback, bool (*valid)(uint32_t))
 }
 
 bool valid_playlist_id(const std::string &id) { return pixelart::is_valid_id(id.c_str()); }
+
+// `playlists` is stored as its IDs joined by commas, a character IDs never hold.
+std::string join_playlists(const std::vector<std::string> &ids)
+{
+  std::string text;
+  for (const std::string &id : ids)
+    text += (text.empty() ? "" : ",") + id;
+  return text;
+}
+
+// The stored list, or false when it is not a valid `playlists` value.
+bool split_playlists(const std::string &text, std::vector<std::string> &out)
+{
+  out.clear();
+  size_t start = 0;
+  for (;;)
+  {
+    const size_t comma = text.find(',', start);
+    std::string id = text.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+    if (!pixelart::is_valid_id(id.c_str()) || out.size() == MAX_PLAYLISTS ||
+        std::find(out.begin(), out.end(), id) != out.end())
+      return false;
+    out.push_back(std::move(id));
+    if (comma == std::string::npos)
+      return true;
+    start = comma + 1;
+  }
+}
 #endif
 
 // Saves one field of `v`. Returns false when it cannot be saved.
@@ -178,6 +234,10 @@ bool write(Field field, const Values &v)
   {
   case Field::Playlist:
     return put_text(field, v.playlist);
+  case Field::Play:
+    return v.play_stored ? put_text(field, v.play) : remove_key(field);
+  case Field::Playlists:
+    return v.play_stored ? put_text(field, join_playlists(v.playlists)) : remove_key(field);
   case Field::Brightness:
     return prefs.putUChar(key_of(field), v.brightness) == sizeof(uint8_t);
   case Field::WifiPower:
@@ -196,6 +256,10 @@ bool write(Field field, const Values &v)
     return put_number(field, v.install_end);
   case Field::Timezone:
     return put_text(field, v.timezone);
+  case Field::TimeSyncHours:
+    return put_number(field, v.time_sync_hours);
+  case Field::NtpServer:
+    return put_text(field, v.ntp_server);
   case Field::AnimationSource:
     return put_text(field, v.animation_source);
   case Field::NetworkLogin:
@@ -216,6 +280,14 @@ void take(Field field, Values &to, const Values &from)
   {
   case Field::Playlist:
     to.playlist = from.playlist;
+    break;
+  case Field::Play:
+    to.play = from.play;
+    to.play_stored = from.play_stored;
+    break;
+  case Field::Playlists:
+    to.playlists = from.playlists;
+    to.play_stored = from.play_stored;
     break;
   case Field::Brightness:
     to.brightness = from.brightness;
@@ -243,6 +315,12 @@ void take(Field field, Values &to, const Values &from)
     break;
   case Field::Timezone:
     to.timezone = from.timezone;
+    break;
+  case Field::TimeSyncHours:
+    to.time_sync_hours = from.time_sync_hours;
+    break;
+  case Field::NtpServer:
+    to.ntp_server = from.ntp_server;
     break;
   case Field::AnimationSource:
     to.animation_source = from.animation_source;
@@ -279,6 +357,31 @@ bool valid_minutes(uint32_t value) { return value < MINUTES_PER_DAY; }
 bool valid_timezone(const std::string &value)
 {
   return !value.empty() && value.size() <= MAX_TIMEZONE && printable_ascii(value, true);
+}
+
+bool valid_play(const std::string &value) { return value == PLAY_AUTO || value == PLAY_PLAYLISTS; }
+
+bool valid_time_sync_hours(uint32_t value) { return value >= 1 && value <= MAX_TIME_SYNC_HOURS; }
+
+bool valid_ntp_server(const std::string &value)
+{
+  if (value.empty() || value.size() > MAX_NTP_SERVER)
+    return false;
+  for (unsigned char c : value)
+    if (!isalnum(c) && c != '.' && c != '-')
+      return false;
+  return true;
+}
+
+std::string reported_playlist(const std::string &play, const std::vector<std::string> &playlists)
+{
+  return play == PLAY_AUTO || playlists.empty() ? DEFAULT_PLAYLIST : playlists.front();
+}
+
+void derive_play(Values &v)
+{
+  v.play = v.playlist == DEFAULT_PLAYLIST ? PLAY_AUTO : PLAY_PLAYLISTS;
+  v.playlists = {v.playlist};
 }
 
 bool valid_animation_source(const std::string &value)
@@ -352,9 +455,27 @@ void begin()
     values.install_start = stored_number(Field::InstallStart, 0, valid_minutes);
     values.install_end = stored_number(Field::InstallEnd, 0, valid_minutes);
     values.timezone = stored_text(Field::Timezone, DEFAULT_TIMEZONE, valid_timezone);
+    values.time_sync_hours = stored_number(Field::TimeSyncHours, DEFAULT_TIME_SYNC_HOURS, valid_time_sync_hours);
+    values.ntp_server = stored_text(Field::NtpServer, DEFAULT_NTP_SERVER, valid_ntp_server);
     values.animation_source = stored_text(Field::AnimationSource, DEFAULT_ANIMATION_SOURCE, valid_animation_source);
     values.network_login = prefs.getBool(key_of(Field::NetworkLogin), false);
     values.token = stored_text(Field::Token, "", valid_token);
+    // No write here: a board upgraded from a firmware without `play` derives it from `playlist`.
+    derive_play(values);
+    const std::string play = stored_text(Field::Play, "", valid_play);
+    std::vector<std::string> playlists;
+    if (!play.empty() && split_playlists(stored_text(Field::Playlists, "", valid_any), playlists))
+    {
+      values.play_stored = true;
+      // An older firmware, run after a rollback, may have changed `playlist` alone: its choice is the newer one.
+      if (reported_playlist(play, playlists) == values.playlist)
+      {
+        values.play = play;
+        values.playlists = playlists;
+      }
+    }
+    else if (!play.empty())
+      values.play_stored = true; // `playlists` is unusable: both are derived, and both are written at the next change
   }
 #endif
 #ifdef PIXELART_SIM
@@ -397,6 +518,8 @@ Commit commit(const Values &next)
         take(*it, after, next);
         partly = true;
       }
+    if (!after.play_stored)
+      derive_play(after); // what the board reads after a restart
     values = after;
     return partly ? Commit::PartlyChanged : Commit::Failed;
   }
@@ -415,6 +538,7 @@ bool set_playlist(const std::string &id)
 {
   Values next = values;
   next.playlist = id;
+  derive_play(next);
   return commit(next) == Commit::Ok;
 }
 

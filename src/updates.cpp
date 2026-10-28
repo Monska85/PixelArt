@@ -131,9 +131,9 @@ public:
 
   bool local_minutes(uint16_t &minutes) override { return net_time::local_minutes(minutes); }
 
-  void time_config(bool needed, const std::string &timezone) override
+  void time_config(bool needed, const std::string &timezone, const std::string &server, uint32_t sync_hours) override
   {
-    net_time::configure(needed, online(), timezone);
+    net_time::configure(needed, online(), timezone, server, sync_hours);
   }
 
 private:
@@ -159,6 +159,7 @@ struct Shared
   bool busy = false;
   pixelart_update::Status status;
   bool time_known = false;
+  bool schedule_needs_time = false; // the player plays a schedule
 };
 
 Shared shared;
@@ -179,6 +180,8 @@ pixelart_update::Config make_config(const settings::Values &v)
   c.firmware_manifest = FIRMWARE_MANIFEST;
   c.firmware_allow_http = FIRMWARE_ALLOW_HTTP;
   c.timezone = v.timezone;
+  c.ntp_server = v.ntp_server;
+  c.time_sync_hours = v.time_sync_hours;
   return c;
 }
 
@@ -305,7 +308,9 @@ pixelart_update::Error install_temp_file(Kind kind, const std::string &id)
     ~RemoveTemp() { storage::remove(TEMP_FILE); }
   } remove_temp;
   std::vector<pixelart::Diagnostic> diagnostics;
-  const install::Kind install_kind = kind == Kind::Animation ? install::Kind::Animation : install::Kind::Playlist;
+  const install::Kind install_kind = kind == Kind::Animation  ? install::Kind::Animation
+                                     : kind == Kind::Playlist ? install::Kind::Playlist
+                                                              : install::Kind::Schedule;
   switch (install::check(install_kind, TEMP_FILE, install::SIZE_ANY, diagnostics))
   {
   case install::Result::Ok:
@@ -317,7 +322,10 @@ pixelart_update::Error install_temp_file(Kind kind, const std::string &id)
   case install::Result::Invalid:
     return Error::InvalidFile;
   }
-  if (!install::commit(install_kind, TEMP_FILE, kind == Kind::Animation ? animation_file(id) : playlist_file(id)))
+  const std::string target = kind == Kind::Animation  ? animation_file(id)
+                             : kind == Kind::Playlist ? playlist_file(id)
+                                                      : schedule_file(id);
+  if (!install::commit(install_kind, TEMP_FILE, target))
     return Error::StorageError;
   return Error::None;
 }
@@ -343,10 +351,28 @@ void apply(const settings::Values &values)
   {
     Locked guard;
     shared.config = make_config(values);
+    shared.config.schedule_needs_time = shared.schedule_needs_time;
     shared.config_dirty = true;
   }
   network::wake();
 }
+
+void set_schedule_needs_time(bool needed)
+{
+  {
+    Locked guard;
+    if (shared.schedule_needs_time == needed)
+      return;
+    shared.schedule_needs_time = needed;
+    shared.config.schedule_needs_time = needed;
+    shared.config_dirty = true;
+  }
+  network::wake();
+}
+
+#ifndef PIXELART_SIM
+bool local_date(pixelart::LocalDate &date) { return net_time::local_date(date); }
+#endif
 
 Snapshot snapshot()
 {

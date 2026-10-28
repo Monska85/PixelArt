@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Checks a received animation or playlist file with the engine, for everything that stores a file
+// Checks a received animation, playlist or schedule file with the engine, for everything that stores a file
 // from outside: an upload (`put_end`) and a download of the update task. Runs on the loop task.
 
 #pragma once
@@ -17,8 +17,12 @@ namespace install
 enum class Kind
 {
   Animation,
-  Playlist
+  Playlist,
+  Schedule
 };
+
+// The largest file of a kind.
+size_t size_limit(Kind kind);
 
 enum class Result
 {
@@ -50,19 +54,19 @@ void set_memory_probe(MemoryProbe probe);
 #endif
 
 // Reads `path` (at most the limit of `kind`) and loads it with the engine, which also fills
-// `diagnostics` with warnings. A valid playlist is left in `playlist` when it is given. Takes the
-// lock for large allocations while the file is in memory.
+// `diagnostics` with warnings. A valid playlist or schedule is left in `playlist` or `schedule` when it is
+// given. Takes the lock for large allocations while the file is in memory.
 Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagnostic> &diagnostics,
-                pixelart::Playlist *playlist = nullptr);
+                pixelart::Playlist *playlist = nullptr, pixelart::Schedule *schedule = nullptr);
 
 // Checks a received file in `path` before it is stored: its size (`expected_size`, unless that is
 // SIZE_ANY), the memory it needs, and then validate(). StorageError also covers a size that differs.
 constexpr size_t SIZE_ANY = (size_t)-1;
 Result check(Kind kind, const std::string &path, size_t expected_size, std::vector<pixelart::Diagnostic> &diagnostics,
-             pixelart::Playlist *playlist = nullptr);
+             pixelart::Playlist *playlist = nullptr, pixelart::Schedule *schedule = nullptr);
 
-// Moves the checked file `path` to `target`. A playlist also asks the player to reload its playlist.
-// False when the file cannot be moved.
+// Moves the checked file `path` to `target`. A playlist or a schedule also makes the player choose what to
+// play again. False when the file cannot be moved.
 bool commit(Kind kind, const std::string &path, const std::string &target);
 
 } // namespace install

@@ -119,6 +119,14 @@ static std::string manifest(const std::string &animations, const std::string &pl
          "],\"playlists\":[" + playlists + "]}";
 }
 
+// The same manifest with a `schedules` list.
+static std::string manifest_with_schedules(const std::string &animations, const std::string &playlists,
+                                           const std::string &schedules)
+{
+  std::string m = manifest(animations, playlists);
+  return m.substr(0, m.size() - 1) + ",\"schedules\":[" + schedules + "]}";
+}
+
 static const std::string FIRMWARE_APP = "{\"board\":\"esp32c3\",\"chip\":\"ESP32-C3\",\"part\":\"app\",\"offset\":"
                                         "65536,\"file\":\"firmware/esp32c3/app-1.2.0.bin\","
                                         "\"size\":365568,\"sha256\":\"" +
@@ -306,6 +314,85 @@ static void test_a_manifest_lists_at_most_200_files()
   TEST_ASSERT_TRUE(reads(manifest(list(100, "a"), list(100, "p")), m));
   expect_refused(manifest(list(201, "a"), ""), "201 animations");
   expect_refused(manifest(list(100, "a"), list(101, "p")), "201 files in all");
+}
+
+static void test_the_schedules_list_is_optional_and_read_like_playlists()
+{
+  Manifest m;
+  TEST_ASSERT_TRUE(reads(manifest("", ""), m));
+  TEST_ASSERT_EQUAL(0, m.schedules.size());
+  TEST_ASSERT_TRUE(
+      reads(manifest_with_schedules("", "", anim_entry("default", "schedules/default.json", "270", HEX_A)), m));
+  TEST_ASSERT_EQUAL(1, m.schedules.size());
+  TEST_ASSERT_EQUAL_STRING("default", m.schedules[0].id.c_str());
+  TEST_ASSERT_EQUAL_STRING("schedules/default.json", m.schedules[0].file.c_str());
+  TEST_ASSERT_EQUAL(270, m.schedules[0].size);
+  // A schedules field that is not a list counts as no schedule, as for the firmware.
+  TEST_ASSERT_TRUE(reads(
+      "{\"format\":\"pixelart-manifest/1\",\"version\":\"1.0.0\",\"animations\":[],\"playlists\":[],\"schedules\":{}}",
+      m));
+  TEST_ASSERT_EQUAL(0, m.schedules.size());
+  // Its entries follow the rules of the other lists.
+  expect_refused(manifest_with_schedules("", "", anim_entry("Bad", "schedules/a.json", "10", HEX_A)), "a bad id");
+  expect_refused(manifest_with_schedules("", "", anim_entry("a", "../a.json", "10", HEX_A)), "a bad path");
+  expect_refused(manifest_with_schedules("", "", anim_entry("a", "schedules/a.json", "0", HEX_A)), "a size of 0");
+  expect_refused(manifest_with_schedules("", "",
+                                         anim_entry("a", "schedules/a.json", "10", HEX_A) + "," +
+                                             anim_entry("a", "schedules/b.json", "10", HEX_A)),
+                 "an id twice");
+  // The same ID in a playlist and a schedule is two files.
+  TEST_ASSERT_TRUE(reads(manifest_with_schedules("", anim_entry("default", "playlists/default.json", "10", HEX_A),
+                                                 anim_entry("default", "schedules/default.json", "10", HEX_A)),
+                         m));
+}
+
+static void test_the_200_files_count_schedules_too()
+{
+  auto list = [](int count, const char *prefix)
+  {
+    std::string out;
+    for (int i = 0; i < count; i++)
+      out += (i ? "," : "") + anim_entry(prefix + std::to_string(i), "f.json", "10", HEX_A);
+    return out;
+  };
+  Manifest m;
+  TEST_ASSERT_TRUE(reads(manifest_with_schedules(list(100, "a"), list(99, "p"), list(1, "s")), m));
+  TEST_ASSERT_TRUE(reads(manifest_with_schedules("", "", list(200, "s")), m));
+  expect_refused(manifest_with_schedules(list(100, "a"), list(99, "p"), list(2, "s")), "201 files with schedules");
+  expect_refused(manifest_with_schedules("", "", list(201, "s")), "201 schedules");
+}
+
+static void test_the_plan_installs_schedules_after_playlists()
+{
+  Manifest m;
+  TEST_ASSERT_TRUE(reads(manifest_with_schedules(anim_entry("a", "animations/a.json", "10", HEX_A),
+                                                 anim_entry("p", "playlists/p.json", "20", HEX_A),
+                                                 anim_entry("new", "schedules/new.json", "30", HEX_A) + "," +
+                                                     anim_entry("same", "schedules/same.json", "40", HEX_A) + "," +
+                                                     anim_entry("changed", "schedules/changed.json", "50", HEX_A)),
+                         m));
+  TEST_ASSERT_EQUAL(5 * sizeof(PlanItem), plan_block(m));
+  std::map<std::string, std::string> stored = {
+      {"s:same", HEX_A}, {"s:changed", std::string(64, 'b')}, {"s:unlisted", HEX_A}, {"p:new", HEX_A}};
+  std::vector<PlanItem> plan =
+      plan_sync(m,
+                [&](Kind kind, const std::string &id, std::string &sha)
+                {
+                  const char *prefix = kind == Kind::Animation ? "a:" : kind == Kind::Playlist ? "p:" : "s:";
+                  auto it = stored.find(prefix + id);
+                  if (it == stored.end())
+                    return false;
+                  sha = it->second;
+                  return true;
+                });
+  TEST_ASSERT_EQUAL(4, plan.size());
+  TEST_ASSERT_TRUE(plan[0].kind == Kind::Animation);
+  TEST_ASSERT_TRUE(plan[1].kind == Kind::Playlist);
+  // A stored playlist with the ID of a schedule does not count as the schedule.
+  TEST_ASSERT_TRUE(plan[2].kind == Kind::Schedule && plan[2].id == "new" && !plan[2].replace);
+  TEST_ASSERT_TRUE(plan[3].kind == Kind::Schedule && plan[3].id == "changed" && plan[3].replace);
+  TEST_ASSERT_EQUAL_STRING("schedules/changed.json", plan[3].file.c_str());
+  TEST_ASSERT_EQUAL(16384, size_limit(Kind::Schedule));
 }
 
 static void test_the_firmware_list_is_checked_only_for_what_the_board_uses()
@@ -614,7 +701,8 @@ public:
   std::string activated;
   std::vector<std::string> events;
   bool needs_time = false;
-  std::string zone;
+  std::string zone, time_server;
+  uint32_t time_sync_hours = 0;
 
   std::vector<std::string> fetched, downloaded, installed;
   const Updater *watched = nullptr; // when set, how many files its plan holds is noted at every manifest read
@@ -671,7 +759,7 @@ public:
   void discard_download() override { discards++; }
   bool stored_digest(Kind kind, const std::string &id, std::string &sha256) override
   {
-    auto it = stored.find(std::string(kind == Kind::Animation ? "a:" : "p:") + id);
+    auto it = stored.find(std::string(kind == Kind::Animation ? "a:" : kind == Kind::Playlist ? "p:" : "s:") + id);
     if (it == stored.end())
       return false;
     sha256 = it->second;
@@ -736,10 +824,12 @@ public:
     restarts++;
   }
   uint8_t firmware_progress() override { return progress; }
-  void time_config(bool needed, const std::string &timezone) override
+  void time_config(bool needed, const std::string &timezone, const std::string &server, uint32_t sync_hours) override
   {
     needs_time = needed;
     zone = timezone;
+    time_server = server;
+    time_sync_hours = sync_hours;
   }
 };
 
@@ -1760,6 +1850,29 @@ static void test_the_time_is_needed_only_for_a_window_narrower_than_the_day()
   TEST_ASSERT_FALSE(host.needs_time);
   c.enabled = true;
   c.install_end = 60; // equal: the whole day
+  u.configure(c);
+  u.tick(0);
+  TEST_ASSERT_FALSE(host.needs_time);
+}
+
+static void test_a_schedule_needs_the_time_whatever_the_updates()
+{
+  FakeHost host;
+  Updater u(host);
+  Config c = firmware_config();
+  c.ntp_server = "time.example.org";
+  c.time_sync_hours = 24;
+  c.schedule_needs_time = true;
+  u.configure(c);
+  u.tick(0);
+  TEST_ASSERT_TRUE(host.needs_time);
+  TEST_ASSERT_EQUAL_STRING("time.example.org", host.time_server.c_str());
+  TEST_ASSERT_EQUAL(24, host.time_sync_hours);
+  c.enabled = false; // the updates off: the schedule still needs the time
+  u.configure(c);
+  u.tick(0);
+  TEST_ASSERT_TRUE(host.needs_time);
+  c.schedule_needs_time = false;
   u.configure(c);
   u.tick(0);
   TEST_ASSERT_FALSE(host.needs_time);
@@ -3715,11 +3828,14 @@ int main(int, char **)
   RUN_TEST(test_the_format_and_the_version_are_checked);
   RUN_TEST(test_a_manifest_entry_needs_a_valid_id_path_size_and_checksum);
   RUN_TEST(test_a_manifest_lists_at_most_200_files);
+  RUN_TEST(test_the_schedules_list_is_optional_and_read_like_playlists);
+  RUN_TEST(test_the_200_files_count_schedules_too);
   RUN_TEST(test_the_firmware_list_is_checked_only_for_what_the_board_uses);
   RUN_TEST(test_file_urls_resolve_against_the_manifest_url);
   RUN_TEST(test_file_urls_are_refused_when_they_could_leave_the_manifests_folder);
   RUN_TEST(test_redirects_never_leave_https_for_http_and_http_needs_permission);
   RUN_TEST(test_the_plan_adds_replaces_and_skips_with_animations_first);
+  RUN_TEST(test_the_plan_installs_schedules_after_playlists);
   RUN_TEST(test_a_firmware_is_available_when_newer_for_this_board_and_not_skipped);
   RUN_TEST(test_the_first_check_comes_5_minutes_after_the_first_address);
   RUN_TEST(test_the_next_check_follows_check_hours_with_up_to_10_minutes_of_delay);
@@ -3763,6 +3879,7 @@ int main(int, char **)
   RUN_TEST(test_no_firmware_is_installed_while_the_running_one_is_on_trial);
   RUN_TEST(test_a_changed_animation_source_keeps_a_firmware_install_waiting_for_its_window);
   RUN_TEST(test_the_time_is_needed_only_for_a_window_narrower_than_the_day);
+  RUN_TEST(test_a_schedule_needs_the_time_whatever_the_updates);
   RUN_TEST(test_the_update_icon_is_the_grid_of_the_specification);
   RUN_TEST(test_the_progress_bar_fills_a_sixteenth_per_6_and_a_quarter_percent);
   RUN_TEST(test_byte_buffer_stops_at_its_limit);

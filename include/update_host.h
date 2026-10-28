@@ -22,7 +22,9 @@ class StorageHost : public pixelart_update::Host
 public:
   bool stored_digest(pixelart_update::Kind kind, const std::string &id, std::string &sha256) override
   {
-    const std::string path = kind == pixelart_update::Kind::Animation ? animation_file(id) : playlist_file(id);
+    const std::string path = kind == pixelart_update::Kind::Animation  ? animation_file(id)
+                             : kind == pixelart_update::Kind::Playlist ? playlist_file(id)
+                                                                       : schedule_file(id);
     storage::Reader file;
     if (file.open(path) != storage::ReadResult::Ok)
       return false;

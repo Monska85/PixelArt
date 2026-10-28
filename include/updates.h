@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <pixelart_engine.h>
+
 #include <cstdint>
 #include <map>
 #include <string>
@@ -47,7 +49,7 @@ struct Snapshot
   const char *last_result = nullptr; // `ok` or an update error, null before the first one
   const char *last_detail = nullptr; // `no_release` when the manifest answered 404, null otherwise
   uint16_t failed_files = 0;
-  uint16_t files = 0;   // animations and playlists to add or replace
+  uint16_t files = 0;   // animations, playlists and schedules to add or replace
   std::string firmware; // the firmware version the last check found, empty when none
   bool firmware_skipped = false;
   bool time_known = false;
@@ -61,6 +63,14 @@ void begin(const settings::Values &values);
 void apply(const settings::Values &values);
 
 Snapshot snapshot();
+
+// Whether the player plays a schedule, which needs the local date: the board then asks for the time whatever
+// the update settings (docs/board/wifi-and-updates-v1.md#time).
+void set_schedule_needs_time(bool needed);
+
+// The local date in the board's time zone, false while the time is not known. On the board it is known only
+// while the time is needed.
+bool local_date(pixelart::LocalDate &date);
 
 // How a request for a check or an installation ends.
 enum class Request
@@ -128,8 +138,13 @@ bool sim_failure_from_name(const std::string &name, Failure &failure);
 // Makes requests fail. `path` is empty for every request (ServerDown always is).
 void sim_inject(Failure failure, const std::string &path = "");
 void sim_clear_failures();
-// The local time for the install window, minutes after midnight; negative: not known.
+// The local time for the install window, minutes after midnight; negative: not known. Without a date, the
+// date is then 2000-01-01.
 void sim_set_local_minutes(int minutes);
+// The local date for the schedule; a year of 0: not known. Without a time, the time is then 12:00.
+void sim_set_local_date(const pixelart::LocalDate &date);
+// Whether the board asks for the time, as set_schedule_needs_time() and the update settings make it, for tests.
+bool sim_time_needed();
 // Forgets what a test did: the source, the failures and the time.
 void sim_reset();
 #endif

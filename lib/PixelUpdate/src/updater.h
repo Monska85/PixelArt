@@ -147,9 +147,10 @@ public:
   // How much of the image is written, from 0 to 100.
   virtual uint8_t firmware_progress() { return 0; }
 
-  // Tells the host whether the time of day is needed (the install window is narrower than the whole day)
-  // and in which POSIX time zone. The board starts and stops SNTP from it.
-  virtual void time_config(bool, const std::string &) {}
+  // Tells the host whether the time of day is needed (an install window narrower than the whole day with the
+  // updates on, or a schedule), in which POSIX time zone, from which server and every how many hours
+  // (docs/board/wifi-and-updates-v1.md#time). The board starts and stops SNTP from it.
+  virtual void time_config(bool, const std::string &, const std::string &, uint32_t) {}
 };
 
 // The update settings the updater follows.
@@ -165,7 +166,11 @@ struct Config
   std::string animation_source;
   std::string firmware_manifest;    // the project's manifest, HTTPS only; empty: no firmware checks
   bool firmware_allow_http = false; // a test build only: the manifest and its firmware may be http://
-  std::string timezone;             // POSIX TZ string of the install window
+  std::string timezone;             // POSIX TZ string of the install window and the schedule
+  // The board plays a schedule in Automatic: the time is needed whatever the update settings.
+  bool schedule_needs_time = false;
+  std::string ntp_server;
+  uint32_t time_sync_hours = 6;
 };
 
 enum class State
@@ -186,7 +191,7 @@ struct Status
   bool has_result = false;
   Error result = Error::None; // of the last check or installation
   uint16_t failed_files = 0;  // in the last animation update
-  uint16_t files = 0;         // animations and playlists still to add or replace
+  uint16_t files = 0;         // animations, playlists and schedules still to add or replace
   // The firmware the last check found, newer than the running one and in the manifest for this board; empty when
   // none. A version on the skip list is reported too, with `firmware_skipped`, so a client can ask for it by force.
   std::string firmware;

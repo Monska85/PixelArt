@@ -2,8 +2,10 @@
 
 #include "app.h"
 
+#include <algorithm>
 #include <cstring>
 #include <set>
+#include <utility>
 
 #include "firmware.h"
 #include "pixel_art.h"
@@ -30,7 +32,30 @@ constexpr size_t MAX_REPORTED = 64;
 // catching up with a burst of frames.
 constexpr uint64_t MAX_LAG_US = 1000000;
 
-bool reload_requested = false;
+// What the board plays: the list of docs/format/playlist-v1.md#how-the-board-chooses-what-to-play and what it
+// was chosen from.
+struct Choice
+{
+  bool made = false;
+  bool automatic = true;
+  pixelart::PlayChoice play;
+  // Automatic with a valid schedule: the choice depends on the local date, which it was made for.
+  bool dated = false;
+  bool date_known = false;
+  pixelart::LocalDate date;
+};
+
+Choice newest;             // the latest choice, the one `status` reports
+Choice applied;            // the choice the player plays
+bool choose_again = true;  // a setting, a file or the time changed since `newest` was made
+bool restart_list = false; // a playlist or a schedule was stored or deleted: the list starts again
+bool in_pass = false;      // play_from_storage() runs: the end of an animation may change the list
+bool leave_list = false;   // the list changed: play_from_storage() returns after the current animation
+size_t position = 0;       // the playlist of `applied` the player is at
+int current = -1;          // the playlist of `applied` that plays, -1 before one starts
+bool pass_played = false;  // an animation of the list played in this pass
+// Playlists that played nothing since the last event, so the next choice falls back past them.
+std::vector<std::string> skipped;
 
 // Deadline of the frame being waited for. Each frame's deadline follows the
 // previous one, so a command that delays one frame does not shift the frames
@@ -225,9 +250,13 @@ std::string animation_file(const std::string &id) { return std::string(ANIMATION
 
 std::string playlist_file(const std::string &name) { return std::string(PLAYLISTS_FOLDER) + "/" + name + JSON_SUFFIX; }
 
+std::string schedule_file(const std::string &id) { return std::string(SCHEDULES_FOLDER) + "/" + id + JSON_SUFFIX; }
+
 std::vector<std::string> stored_animations() { return json_names(ANIMATIONS_FOLDER); }
 
 std::vector<std::string> stored_playlists() { return json_names(PLAYLISTS_FOLDER); }
+
+std::vector<std::string> stored_schedules() { return json_names(SCHEDULES_FOLDER); }
 
 bool load_stored_animation(const std::string &id, pixelart::Animation &animation,
                            std::vector<pixelart::Diagnostic> &diagnostics)
@@ -259,6 +288,140 @@ bool load_stored_playlist(const std::string &name, pixelart::Playlist &playlist,
   return playlist.load(buffer.data.get(), buffer.size, diagnostics);
 }
 
+namespace
+{
+
+bool same_list(const Choice &a, const Choice &b)
+{
+  return a.play.playlists == b.play.playlists && (a.play.playing < 0) == (b.play.playing < 0);
+}
+
+// Whether the local date is not the one `choice` was made for: local midnight, or the time became known or
+// was forgotten. A comparison, cheap enough for the end of every animation.
+bool date_moved(const Choice &choice)
+{
+  pixelart::LocalDate today;
+  const bool known = updates::local_date(today);
+  return known != choice.date_known || (known && today != choice.date);
+}
+
+// Loads /schedules/default.json. False when there is no valid one, and `busy` when an update holds the memory.
+bool load_played_schedule(pixelart::Schedule &schedule, bool &busy)
+{
+  std::vector<pixelart::Diagnostic> diagnostics;
+  if (load_stored_schedule(PLAYED_SCHEDULE, schedule, diagnostics))
+    return true;
+  if (is_busy(diagnostics))
+    busy = true;
+  else if (diagnostics.empty() || diagnostics.front().code != "missing_file")
+    report_once(schedule_file(PLAYED_SCHEDULE), diagnostics); // no schedule at all is normal
+  return false;
+}
+
+// Whether a playlist is valid and has an item whose animation is stored. `busy` when an update holds the memory.
+bool playlist_playable(const std::string &id, bool &busy)
+{
+  pixelart::Playlist playlist;
+  std::vector<pixelart::Diagnostic> diagnostics;
+  if (!load_stored_playlist(id, playlist, diagnostics))
+  {
+    if (is_busy(diagnostics))
+      busy = true;
+    else if (diagnostics.empty() || diagnostics.front().code != "missing_file")
+      report_once(playlist_file(id), diagnostics); // no playlist at all is normal
+    return false;
+  }
+  for (const pixelart::PlaylistItem &item : playlist.items())
+    if (storage::exists(animation_file(item.animation)))
+      return true;
+  return false;
+}
+
+// Chooses what to play into `newest`. False, with `newest` unchanged, when an update holds the memory: the
+// files are read again at the next try.
+bool make_choice()
+{
+  const settings::Values &values = settings::current();
+  Choice choice;
+  choice.made = true;
+  choice.automatic = values.play == settings::PLAY_AUTO;
+  bool busy = false;
+  pixelart::Schedule schedule;
+  const bool scheduled = choice.automatic && load_played_schedule(schedule, busy);
+  if (busy)
+    return false;
+  if (scheduled)
+  {
+    choice.dated = true;
+    choice.date_known = updates::local_date(choice.date);
+  }
+  // A playlist can come up more than once (in an entry, the fallback and `default`): each is read once.
+  std::vector<std::pair<std::string, bool>> seen;
+  auto playable = [&](const std::string &id)
+  {
+    for (const auto &known : seen)
+      if (known.first == id)
+        return known.second;
+    const bool ok =
+        !busy && std::find(skipped.begin(), skipped.end(), id) == skipped.end() && playlist_playable(id, busy);
+    seen.emplace_back(id, ok);
+    return ok;
+  };
+  choice.play = pixelart::choose_playlists(choice.automatic ? pixelart::PlayMode::Auto : pixelart::PlayMode::Playlists,
+                                           values.playlists, scheduled ? &schedule : nullptr,
+                                           choice.date_known ? &choice.date : nullptr, playable);
+  if (busy)
+    return false;
+  newest = std::move(choice);
+  choose_again = false;
+  updates::set_schedule_needs_time(newest.dated);
+  return true;
+}
+
+// Called when an animation ends while the player plays its list: notices local midnight, chooses again when
+// something changed, and says whether the player must leave its place for a new list.
+bool list_changed()
+{
+  if (!in_pass)
+    return false;
+  if (newest.dated && date_moved(newest))
+    choose_again = true;
+  if (choose_again && !make_choice())
+    return false; // an update holds the memory: tried again when the next animation ends
+  return restart_list || !same_list(newest, applied);
+}
+
+// Plays every valid animation in alphabetical order of ID, or shows the "no animations" image.
+void play_every_animation()
+{
+  bool played = false;
+  for (const std::string &id : stored_animations())
+  {
+    played = play_stored_animation(id) || played;
+    if (leave_list)
+      return;
+  }
+  if (!played)
+    show_no_animations();
+}
+
+} // namespace
+
+bool load_stored_schedule(const std::string &id, pixelart::Schedule &schedule,
+                          std::vector<pixelart::Diagnostic> &diagnostics)
+{
+  task_sync::HeapLock lock(task_sync::Owner::Loop);
+  if (!lock.held())
+  {
+    diagnostics.push_back({pixelart::Severity::Error, BUSY_CODE, "", "an update holds the memory"});
+    return false;
+  }
+  storage::Buffer buffer;
+  if (!read_for_engine(schedule_file(id), pixelart::MAX_SCHEDULE_FILE_SIZE, buffer, diagnostics))
+    return false;
+  return schedule.load(buffer.data.get(), buffer.size, diagnostics);
+}
+
 bool play_stored_animation(const std::string &id, uint16_t times)
 {
   pixelart::Animation animation;
@@ -284,48 +447,138 @@ bool play_stored_animation(const std::string &id, uint16_t times)
     player.restart();
     while (player.next(frame))
       draw(frame, animation.brightness());
-    if (reload_requested)
-      break; // the playlist changed: leave the repeats
+    if (list_changed())
+    {
+      leave_list = true;
+      break; // the list changed: leave the repeats
+    }
   }
   return true;
 }
 
-void request_playlist_reload() { reload_requested = true; }
+void request_playlist_reload()
+{
+  choose_again = true;
+  restart_list = true;
+  skipped.clear();
+}
 
-bool playlist_reload_pending() { return reload_requested; }
+void request_play_update()
+{
+  choose_again = true;
+  skipped.clear();
+}
+
+bool playlist_reload_pending() { return choose_again || restart_list || (applied.made && !same_list(newest, applied)); }
+
+PlayStatus play_status()
+{
+  if (!newest.made || choose_again)
+    make_choice(); // while an update holds the memory, the last choice
+  PlayStatus status;
+  if (!newest.made)
+  {
+    status.automatic = settings::current().play == settings::PLAY_AUTO;
+    return status;
+  }
+  status.automatic = newest.automatic;
+  status.reason = newest.play.reason;
+  status.entry = newest.play.entry;
+  status.playlists = newest.play.playlists;
+  // The playlist that plays, or the one that starts when the current animation ends.
+  int playing = newest.play.playing;
+  if (applied.made && !restart_list && same_list(newest, applied) && applied.play.playing >= 0 && current >= 0)
+    playing = current;
+  if (playing >= 0)
+    status.playing = newest.play.playlists[playing];
+  return status;
+}
+
+void begin_player()
+{
+  newest = Choice();
+  applied = Choice();
+  choose_again = true;
+  restart_list = false;
+  in_pass = false;
+  leave_list = false;
+  position = 0;
+  current = -1;
+  pass_played = false;
+  skipped.clear();
+}
 
 void play_from_storage()
 {
-  reload_requested = false;
-  const std::string active = settings::playlist();
-  std::vector<pixelart::PlaylistItem> items;
-  pixelart::Playlist playlist;
-  std::vector<pixelart::Diagnostic> diagnostics;
-  if (load_stored_playlist(active, playlist, diagnostics))
-    items = playlist.items();
-  else if (is_busy(diagnostics))
+  struct Pass
   {
-    restart_schedule();
-    wait(BUSY_RETRY_MS); // the next pass reads the playlist again
-    return;
-  }
-  else if (diagnostics.empty() || diagnostics.front().code != "missing_file")
-    report_once(playlist_file(active), diagnostics); // no playlist at all is normal
-
-  bool played = false;
-  for (const pixelart::PlaylistItem &item : items)
+    Pass() { in_pass = true; }
+    ~Pass() { in_pass = false; }
+  } pass;
+  leave_list = false;
+  for (;;)
   {
-    played = play_stored_animation(item.animation, item.repeat) || played;
-    if (reload_requested)
-      return;
-  }
-  if (!played)
-    for (const std::string &id : stored_animations())
+    // While every animation plays, the board looks at its list again at each pass.
+    const bool every_animation = applied.made && applied.play.playing < 0;
+    if (every_animation)
+      skipped.clear();
+    if ((!newest.made || choose_again || every_animation) && !make_choice())
     {
-      played = play_stored_animation(id) || played;
-      if (reload_requested)
-        return;
+      restart_schedule();
+      wait(BUSY_RETRY_MS); // the next pass reads the files again
+      return;
     }
-  if (!played)
-    show_no_animations();
+    if (!applied.made || restart_list || !same_list(newest, applied))
+    {
+      position = 0;
+      current = -1;
+      pass_played = false;
+      restart_list = false;
+    }
+    applied = newest; // the same list keeps its position
+    if (applied.play.playing < 0)
+    {
+      current = -1;
+      play_every_animation();
+      return;
+    }
+
+    for (; position < applied.play.playlists.size(); position++)
+    {
+      const std::string id = applied.play.playlists[position];
+      pixelart::Playlist playlist;
+      std::vector<pixelart::Diagnostic> diagnostics;
+      if (!load_stored_playlist(id, playlist, diagnostics))
+      {
+        if (is_busy(diagnostics))
+        {
+          restart_schedule();
+          wait(BUSY_RETRY_MS); // the next pass reads the playlist again
+          return;
+        }
+        if (diagnostics.empty() || diagnostics.front().code != "missing_file")
+          report_once(playlist_file(id), diagnostics); // no playlist at all is normal
+        skipped.push_back(id);
+        continue;
+      }
+      current = (int)position;
+      bool played = false;
+      for (const pixelart::PlaylistItem &item : playlist.items())
+      {
+        played = play_stored_animation(item.animation, item.repeat) || played;
+        if (leave_list)
+          return;
+      }
+      if (played)
+        pass_played = true;
+      else
+        skipped.push_back(id); // nothing of it plays now: skipped until the next event
+    }
+    position = 0;
+    const bool any = pass_played;
+    pass_played = false;
+    if (any)
+      return;
+    choose_again = true; // nothing of the list played: the board falls back past it, in this pass
+  }
 }

@@ -192,6 +192,21 @@ static void start_settings(JsonVariantConst start)
     values.brightness = start["brightness"].as<uint8_t>();
   if (!start["playlist"].isNull())
     values.playlist = start["playlist"].as<std::string>();
+  // Without play and playlists the board has never stored them, and derives both from playlist.
+  if (start["play"].isNull() && start["playlists"].isNull())
+    settings::derive_play(values);
+  else
+  {
+    TEST_ASSERT_TRUE_MESSAGE(!start["play"].isNull() && !start["playlists"].isNull(),
+                             "a case that gives play or playlists gives both");
+    values.play = start["play"].as<std::string>();
+    values.playlists.clear();
+    for (JsonVariantConst id : start["playlists"].as<JsonArrayConst>())
+      values.playlists.push_back(id.as<std::string>());
+    values.play_stored = true;
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(settings::reported_playlist(values.play, values.playlists).c_str(),
+                                     values.playlist.c_str(), "the playlist of a case agrees with play and playlists");
+  }
   if (!start["wifi_power"].isNull())
     values.wifi_power = start["wifi_power"].as<std::string>();
   if (!start["update_mode"].isNull())
@@ -208,6 +223,10 @@ static void start_settings(JsonVariantConst start)
     values.install_end = start["install_end"].as<uint16_t>();
   if (!start["timezone"].isNull())
     values.timezone = start["timezone"].as<std::string>();
+  if (!start["time_sync_hours"].isNull())
+    values.time_sync_hours = start["time_sync_hours"].as<uint16_t>();
+  if (!start["ntp_server"].isNull())
+    values.ntp_server = start["ntp_server"].as<std::string>();
   if (!start["animation_source"].isNull())
     values.animation_source = start["animation_source"].as<std::string>();
   if (!start["network_login"].isNull())
@@ -243,6 +262,15 @@ static void start_update_source(JsonVariantConst source)
     TEST_ASSERT_EQUAL_MESSAGE(2, sscanf(source["local_time"].as<const char *>(), "%u:%u", &hours, &minutes),
                               "local_time is HH:MM");
     updates::sim_set_local_minutes((int)(hours * 60 + minutes));
+  }
+  if (!source["local_date"].isNull())
+  {
+    unsigned year = 0, month = 0, day = 0;
+    TEST_ASSERT_EQUAL_MESSAGE(3, sscanf(source["local_date"].as<const char *>(), "%u-%u-%u", &year, &month, &day),
+                              "local_date is YYYY-MM-DD");
+    const pixelart::LocalDate date = {(uint16_t)year, (uint8_t)month, (uint8_t)day};
+    TEST_ASSERT_TRUE_MESSAGE(pixelart::is_schedule_date(date), "local_date is a real date from 2000 to 2999");
+    updates::sim_set_local_date(date);
   }
   std::map<std::string, std::string> files;
   for (JsonPairConst f : source["files"].as<JsonObjectConst>())
