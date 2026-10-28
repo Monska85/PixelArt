@@ -1187,6 +1187,41 @@ class PlayChoiceTest(unittest.TestCase):
         self.assertEqual(pixelart.validate_play(document), [])
 
 
+class BuildStaleOutputTest(unittest.TestCase):
+    PLAYLIST = "format: pixelart-playlist/1\ncanvas: { width: 16, height: 16 }\nitems:\n  - animation: dot\n"
+    SCHEDULE = "format: pixelart-schedule/1\nfallback: [keep]\n"
+
+    def run_build(self, source, out):
+        err = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()) as stdout, contextlib.redirect_stderr(err):
+            code = pixelart.build(source, out, False)
+        return code, stdout.getvalue()
+
+    def test_a_rebuild_leaves_exactly_the_build_of_the_content(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source, out = Path(folder) / "src", Path(folder) / "out"
+            for kind in ("animations", "playlists", "schedules"):
+                (source / kind).mkdir(parents=True)
+            for name in ("keep", "gone", "broken"):
+                (source / "playlists" / f"{name}.yaml").write_text(self.PLAYLIST)
+            (source / "schedules" / "old.yaml").write_text(self.SCHEDULE)
+            self.assertEqual(self.run_build(source, out)[0], 0)
+            # A source deleted, one that now fails, a schedule removed, and files that no source produces, such as an
+            # upload to the simulator, in every folder of the board
+            (source / "playlists" / "gone.yaml").unlink()
+            (source / "playlists" / "broken.yaml").write_text("items: [\n")
+            (source / "schedules" / "old.yaml").unlink()
+            for path in ("animations/uploaded.json", "play/other.json"):
+                (out / path).parent.mkdir(parents=True, exist_ok=True)
+                (out / path).write_text("{}")
+            (out / "playlists" / "notes.txt").write_text("not a board file")
+            code, printed = self.run_build(source, out)
+            self.assertEqual(code, 1)  # broken.yaml fails
+            files = sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file())
+            self.assertEqual(files, ["playlists/keep.json", "playlists/notes.txt"])
+            self.assertIn("removed 5 stale", printed)
+
+
 class BuildPlayTest(unittest.TestCase):
     SCHEDULE = "format: pixelart-schedule/1\nfallback: [default]\n"
     PLAYLIST = "format: pixelart-playlist/1\ncanvas: { width: 16, height: 16 }\nitems:\n  - animation: dot\n"

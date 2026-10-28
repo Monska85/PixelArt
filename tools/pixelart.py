@@ -600,6 +600,19 @@ def build_play_file(source, out, built, validator):
     return 0, 1
 
 
+def remove_stale_outputs(out, outputs):
+    """Removes every JSON file of the board's folders in <out> that this build did not write: the output of a source
+    file that is gone or failed, and anything else stored there, such as a file uploaded to the simulator. <out> is
+    then exactly the build of the content. Returns how many files it removed."""
+    removed = 0
+    for folder in (*KINDS, "play"):
+        for path in sorted((out / folder).glob("*.json")):
+            if f"{folder}/{path.name}" not in outputs:
+                path.unlink()
+                removed += 1
+    return removed
+
+
 def build(source, out, use_schema):
     validators = {}
     play_validator = None
@@ -615,6 +628,7 @@ def build(source, out, use_schema):
     errors = 0
     written = 0
     built = {}
+    outputs = set()  # every file this build wrote, relative to out
     for kind in KINDS:
         files = sorted(p for p in (source / kind).glob("*") if p.suffix in (".yaml", ".yml", ".json"))
         ids = {}
@@ -656,11 +670,16 @@ def build(source, out, use_schema):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
             built.setdefault(kind, []).append(name)
+            outputs.add(f"{kind}/{name}.json")
             written += 1
     failed, wrote = build_play_file(source, out, built, play_validator)
     errors += failed
     written += wrote
-    print(f"pixelart: wrote {written} files to {out}" + (f", {errors} failed" if errors else ""))
+    if wrote:
+        outputs.add("play/default.json")
+    removed = remove_stale_outputs(out, outputs)
+    print(f"pixelart: wrote {written} files to {out}" + (f", removed {removed} stale" if removed else "")
+          + (f", {errors} failed" if errors else ""))
     return 1 if errors else 0
 
 
