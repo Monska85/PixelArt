@@ -38,6 +38,7 @@
             "halloween",
             "christmas"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -75,13 +76,16 @@
         },
         "play": {
           "mode": "playlists",
-          "reason": "user",
+          "source": "playlists",
+          "schedule": null,
+          "reason": "playlists",
           "entry": null,
           "playlists": [
             "halloween",
             "christmas"
           ],
-          "playing": "christmas"
+          "playing": "christmas",
+          "server_choice": null
         },
         "update": {
           "state": "idle",

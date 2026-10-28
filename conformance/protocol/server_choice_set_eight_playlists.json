@@ -1,0 +1,26 @@
+{
+  "description": "a list of 8 playlists is accepted",
+  "steps": [
+    {
+      "send": "@PR 8e98554f {\"seq\":1,\"cmd\":\"server_choice_set\",\"choice\":{\"playlists\":[\"p0\",\"p1\",\"p2\",\"p3\",\"p4\",\"p5\",\"p6\",\"p7\"]}}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "choice": {
+          "playlists": [
+            "p0",
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7"
+          ]
+        }
+      }
+    }
+  ]
+}

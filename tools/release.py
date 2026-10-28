@@ -13,7 +13,8 @@
       build everything first.
   tools/release.py content [--out site] [--schema]
       Write the content release site from the converted files in data/ (`make data`): animations/, playlists/,
-      schedules/ and a manifest.json with no firmware. Run `make release-content`.
+      schedules/ and a manifest.json with no firmware, and with the `default` of content/play.yaml when that file
+      exists. Run `make release-content`.
   tools/release.py check-site URL
       Fail when URL (the address GitHub Pages announces or serves the site at) is not the site address computed
       from this environment by the rules of tools/site_url.py, the address a firmware built here looks for. It
@@ -23,7 +24,7 @@
       into the site GitHub Pages serves. Used by the release workflow and `make release-site`.
 
 The layout and the manifest are specified in docs/format/manifest-v1.md. `build` needs PlatformIO (pio) on the
-PATH, PyYAML is not used here. --schema needs jsonschema. Needs Python 3.8+ and works on Linux and macOS.
+PATH, PyYAML is needed only by `content`, to read content/play.yaml. --schema needs jsonschema. Needs Python 3.8+ and works on Linux and macOS.
 """
 
 import argparse
@@ -439,8 +440,33 @@ def build_site(out, version, use_schema):
     print(f"release: firmware version {version}, {len(firmware)} firmware files in {site}")
 
 
-def build_content_site(out, version, data, use_schema):
-    """The content release site: the animations, playlists and schedules of `data` and a manifest with no firmware."""
+def read_play_default(source, schedules, playlists):
+    """The `default` of <source>/play.yaml (docs/format/play-v1.md), or None when the content has no such file.
+
+    schedules and playlists are the IDs the release contains: a choice that names another one is refused."""
+    path = Path(source) / "play.yaml"
+    if path.is_symlink():
+        raise ReleaseError(f"{path}: a symbolic link, not a file of the content")
+    if not path.exists():
+        return None
+    if not path.is_file():
+        raise ReleaseError(f"{path}: not a regular file")
+    import pixelart  # needs PyYAML, which only this step uses
+    try:
+        document = pixelart.load_source(path)
+    except (OSError, ValueError, pixelart.yaml.YAMLError) as e:
+        raise ReleaseError(f"{path}: {e}")
+    diagnostics = pixelart.validate_play(document, set(schedules), set(playlists))
+    if diagnostics.has_errors():
+        problems = "; ".join(f"{d['code']} at {d['where'] or '(root)'}: {d['message']}" for d in diagnostics)
+        raise ReleaseError(f"{path}: {problems}")
+    return document["default"]
+
+
+def build_content_site(out, version, data, use_schema, source=None):
+    """The content release site: the animations, playlists and schedules of `data` and a manifest with no firmware.
+
+    source is the content folder, for its play.yaml: without it the manifest has no `default`."""
     if not fw_version.SAFE_VERSION.fullmatch(version):
         raise ReleaseError(f"'{version}' is not a valid version")
     site = site_path(out)
@@ -462,6 +488,9 @@ def build_content_site(out, version, data, use_schema):
         "playlists": playlists,
         "schedules": schedules,
     }
+    default = read_play_default(source, [e["id"] for e in schedules], [e["id"] for e in playlists]) if source else None
+    if default is not None:
+        manifest["default"] = default
     write_manifest(site, manifest, use_schema)
     print(f"release: content version {version}, {len(animations)} animations, {len(playlists)} playlists, "
           f"{len(schedules)} schedules in {site}")
@@ -519,6 +548,8 @@ def read_release_manifest(folder, label, files):
     for key in (*CONTENT_KEYS, "firmware"):
         if key in manifest and not (isinstance(manifest[key], list) and all(isinstance(e, dict) for e in manifest[key])):
             raise ReleaseError(f"the manifest.json of the {label} folder has a bad {key} list")
+    if "default" in manifest and not isinstance(manifest["default"], dict):
+        raise ReleaseError(f"the manifest.json of the {label} folder has a bad default")
     return manifest
 
 
@@ -550,6 +581,8 @@ def merged_manifest(firmware, content):
     # A content release made before schedules has no list, and the site then has none either
     if "schedules" in content:
         manifest["schedules"] = content["schedules"]
+    if "default" in content:
+        manifest["default"] = content["default"]
     return manifest
 
 
@@ -697,7 +730,7 @@ def main():
         elif args.command == "assemble":
             assemble_site(args.out, args.firmware, args.content, args.web, args.schema)
         elif args.command == "content":
-            build_content_site(args.out, describe_content_version(), ROOT / "data", args.schema)
+            build_content_site(args.out, describe_content_version(), ROOT / "data", args.schema, ROOT / "content")
         else:
             build_site(args.out, describe_version(), args.schema)
     except ReleaseError as e:

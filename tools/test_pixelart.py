@@ -525,7 +525,7 @@ class WipeTest(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()):
                 code = pixelart.board_wipe(board, types.SimpleNamespace(yes=False, settings=True))
         self.assertEqual(code, 1)
-        self.assertIn("brightness 100, play auto, playlists default, playlist default, time_sync_hours 6, "
+        self.assertIn("brightness 100, play auto, playlists default, schedule default, playlist default, time_sync_hours 6, "
                       "ntp_server pool.ntp.org", asked.call_args.args[0])
         self.assertNotIn("delete_all", self.sent_commands(responder))
 
@@ -551,7 +551,7 @@ class WipeTest(unittest.TestCase):
         help_text = io.StringIO()
         with contextlib.redirect_stdout(help_text), self.assertRaises(SystemExit):
             parser.parse_args(["board", "--port", "x", "wipe", "--help"])
-        self.assertIn("brightness 100, play auto, playlists default, playlist default, time_sync_hours 6, "
+        self.assertIn("brightness 100, play auto, playlists default, schedule default, playlist default, time_sync_hours 6, "
                       "ntp_server pool.ntp.org", " ".join(help_text.getvalue().split()))
 
     def test_the_answer_yes_runs_the_command(self):
@@ -616,9 +616,11 @@ class ArgumentTest(unittest.TestCase):
              "ntp_server": "time.example-1.org"})
         self.assertEqual(pixelart.parse_settings(["play=auto", "playlists=default", "ntp_server=192.168.0.1"]),
                          {"play": "auto", "playlists": ["default"], "ntp_server": "192.168.0.1"})
+        self.assertEqual(pixelart.parse_settings(["play=schedule", "schedule=seasons"]),
+                         {"play": "schedule", "schedule": "seasons"})
         eight = ",".join(f"p{i}" for i in range(8))
         self.assertEqual(len(pixelart.parse_settings([f"playlists={eight}"])["playlists"]), 8)
-        for bad in ["play=schedule", "play=", "playlists=", "playlists=a,", "playlists=a,a", "playlists=A",
+        for bad in ["play=other", "schedule=", "schedule=Bad", "schedule=a,b", "play=", "playlists=", "playlists=a,", "playlists=a,a", "playlists=A",
                     f"playlists={eight},p8", "playlists=a b", "time_sync_hours=0", "time_sync_hours=169",
                     "ntp_server=", "ntp_server=" + "a" * 65, "ntp_server=a_b", "ntp_server=a:123", "ntp_server=a b"]:
             with self.assertRaises(pixelart.BoardError, msg=bad):
@@ -1069,6 +1071,117 @@ class StatusTest(unittest.TestCase):
             pixelart.board_settings(board, types.SimpleNamespace(pairs=[]))
         self.assertIn("wifi_power=auto", out.getvalue())
         self.assertIn("token=abcdefghijklmnop", out.getvalue())
+
+
+class PlayChoiceTest(unittest.TestCase):
+    SCHEDULES, PLAYLISTS = {"seasons"}, {"default", "christmas"}
+
+    def check(self, document):
+        return pixelart.validate_play(document, self.SCHEDULES, self.PLAYLISTS)
+
+    def codes(self, document):
+        return [d["code"] for d in self.check(document)]
+
+    def test_a_schedule_or_a_list_of_playlists_is_valid(self):
+        for choice in ({"schedule": "seasons"}, {"playlists": ["christmas"]}, {"playlists": ["christmas", "default"]}):
+            with self.subTest(choice=choice):
+                self.assertEqual(self.check({"format": "pixelart-play/1", "default": choice}), [])
+
+    def test_the_format_is_checked_first(self):
+        for document in (None, [], "play", {}, {"format": "pixelart-play/2", "default": {"schedule": "seasons"}},
+                         {"default": {"schedule": "seasons"}}):
+            with self.subTest(document=document):
+                self.assertEqual(self.codes(document), ["format_unsupported"])
+
+    def test_the_structure_is_checked(self):
+        play = "pixelart-play/1"
+        for document in ({"format": play},
+                         {"format": play, "default": None},
+                         {"format": play, "default": "seasons"},
+                         {"format": play, "default": {}},
+                         {"format": play, "default": {"schedule": "seasons", "playlists": ["default"]}},
+                         {"format": play, "default": {"schedule": "seasons", "other": 1}},
+                         {"format": play, "default": {"other": 1}},
+                         {"format": play, "default": {"schedule": None}},
+                         {"format": play, "default": {"schedule": 5}},
+                         {"format": play, "default": {"schedule": "Bad ID"}},
+                         {"format": play, "default": {"schedule": "x" * 33}},
+                         {"format": play, "default": {"playlists": "default"}},
+                         {"format": play, "default": {"playlists": None}},
+                         {"format": play, "default": {"playlists": []}},
+                         {"format": play, "default": {"playlists": [1]}},
+                         {"format": play, "default": {"playlists": ["Bad"]}},
+                         {"format": play, "default": {"playlists": ["default", "default"]}},
+                         {"format": play, "default": {"seasons": "x"}, "extra": 1}):
+            with self.subTest(document=document):
+                self.assertIn("structure", self.codes(document))
+
+    def test_more_than_eight_playlists_exceed_the_limit(self):
+        ids = [f"p{i}" for i in range(9)]
+        self.assertIn("limit_exceeded", self.codes({"format": "pixelart-play/1", "default": {"playlists": ids}}))
+        eight = pixelart.validate_play({"format": "pixelart-play/1", "default": {"playlists": ids[:8]}}, set(), set(ids))
+        self.assertEqual(eight, [])
+
+    def test_the_content_must_have_what_the_choice_names(self):
+        self.assertEqual(self.codes({"format": "pixelart-play/1", "default": {"schedule": "ghost"}}), ["unknown_schedule"])
+        self.assertEqual(self.codes({"format": "pixelart-play/1", "default": {"playlists": ["default", "ghost", "other"]}}),
+                         ["unknown_playlist", "unknown_playlist"])
+        self.assertTrue(self.check({"format": "pixelart-play/1", "default": {"schedule": "default"}}).has_errors())
+
+
+class BuildPlayTest(unittest.TestCase):
+    SCHEDULE = "format: pixelart-schedule/1\nfallback: [default]\n"
+    PLAYLIST = "format: pixelart-playlist/1\ncanvas: { width: 16, height: 16 }\nitems:\n  - animation: dot\n"
+
+    def build(self, play, schema=False, schedules=True):
+        with tempfile.TemporaryDirectory() as folder:
+            source, out = Path(folder) / "src", Path(folder) / "out"
+            for kind in ("animations", "playlists", "schedules"):
+                (source / kind).mkdir(parents=True)
+            (source / "playlists" / "default.yaml").write_text(self.PLAYLIST)
+            (source / "playlists" / "christmas.yaml").write_text(self.PLAYLIST)
+            if schedules:
+                (source / "schedules" / "seasons.yaml").write_text(self.SCHEDULE)
+            if play is not None:
+                (source / "play.yaml").write_text(play)
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                code = pixelart.build(source, out, schema)
+            return code, err.getvalue(), sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file())
+
+    def test_a_valid_play_yaml_is_not_written_to_the_board_files(self):
+        for play in ("format: pixelart-play/1\ndefault: {schedule: seasons}\n",
+                     "format: pixelart-play/1\ndefault:\n  playlists: [christmas, default]\n"):
+            for schema in (False, True):
+                with self.subTest(play=play, schema=schema):
+                    code, err, files = self.build(play, schema)
+                    self.assertEqual((code, err), (0, ""))
+                    self.assertEqual(files, ["playlists/christmas.json", "playlists/default.json", "schedules/seasons.json"])
+
+    def test_no_play_yaml_is_fine(self):
+        self.assertEqual(self.build(None)[:2], (0, ""))
+
+    def test_a_play_yaml_with_a_problem_fails_the_build_and_names_the_file(self):
+        for play, message in (("format: pixelart-play/1\ndefault: {schedule: ghost}\n", "unknown_schedule"),
+                              ("format: pixelart-play/1\ndefault: {playlists: [christmas, ghost]}\n", "unknown_playlist"),
+                              ("format: pixelart-play/1\ndefault: {schedule: seasons, playlists: [default]}\n", "exactly one"),
+                              ("format: pixelart-play/1\ndefault: {schedule: seasons}\nextra: 1\n", "unknown field 'extra'"),
+                              ("format: pixelart-play/1\n", "default is required"),
+                              ("format: pixelart-play/2\ndefault: {schedule: seasons}\n", "format_unsupported"),
+                              ("default: {schedule: seasons}\ndefault: {schedule: seasons}\n", "duplicate key"),
+                              ("format: pixelart-play/1\ndefault: {schedule: seasons, playlists: [a]}\n", "exactly one")):
+            for schema in (False, True):
+                with self.subTest(play=play, schema=schema):
+                    code, err, _ = self.build(play, schema)
+                    self.assertEqual(code, 1)
+                    self.assertIn("play.yaml", err)
+                    if not schema or "duplicate" in message:
+                        self.assertIn(message, err)
+
+    def test_a_schedule_that_fails_its_own_check_does_not_count_as_in_the_content(self):
+        code, err, _ = self.build("format: pixelart-play/1\ndefault: {schedule: seasons}\n", schedules=False)
+        self.assertEqual(code, 1)
+        self.assertIn("unknown_schedule", err)
 
 
 class BuildTest(unittest.TestCase):

@@ -33,8 +33,9 @@ jobs:
       # tools/test_site_url.py reads), the documentation and v0/.
       # web: everything the steps of the web job read: the web app, the converted content, the simulator's sources
       # and build scripts, the conformance suite, the tools, the license texts the build copies and the CI setup.
-      # content/** in both covers every content folder: content/animations, content/playlists and content/schedules,
-      # and schema/** covers schema/schedule-1.schema.json, which the build of the content reads.
+      # content/** in both covers every content folder, content/animations, content/playlists and content/schedules,
+      # and the file content/play.yaml, and schema/** covers schema/schedule-1.schema.json and schema/play-1.schema.json,
+      # which the build of the content reads.
       # docs: the documentation and v0/, which no job reads.
       # changed: every changed file, for the last step.
       FILTERS: |

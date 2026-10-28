@@ -9,7 +9,7 @@ The JSON Schema in [`schema/playlist-1.schema.json`](../../schema/playlist-1.sch
 ## Files
 
 - Like animations, a playlist is written in YAML or JSON, and the board stores and reads JSON only. The JSON follows the same rules as for [animations](pixelart-v1.md#files): strict JSON in valid UTF-8, no U+0000 in any text, integers without fraction or exponent, and text lengths counted in characters.
-- On the board, playlists live in `/playlists/`. Which of them the board plays depends on its `play` and `playlists` [settings](../protocol/protocol-v1.md#settings_get-settings_set) and on the [schedule](schedule-v1.md) `default`, as [How the board chooses what to play](#how-the-board-chooses-what-to-play) describes. A new board plays `/playlists/default.json`, as before schedules existed, until a schedule or a client changes it.
+- On the board, playlists live in `/playlists/`. Which of them the board plays depends on its `play`, `playlists` and `schedule` [settings](../protocol/protocol-v1.md#settings_get-settings_set), on the server choice and on the [schedules](schedule-v1.md) it stores, as [How the board chooses what to play](#how-the-board-chooses-what-to-play) describes. A new board with no server choice plays `/playlists/default.json`, as before schedules existed, until a release, a schedule or a client changes it.
 - Playlist file names follow the same rules as animation IDs.
 
 ## Example
@@ -57,17 +57,32 @@ The board computes a list of playlists, then plays it. Why it works this way is 
 
 ### The list
 
-| `play`             | Schedule and date                                        | List                                  | Reason        |
-| ------------------ | -------------------------------------------------------- | ------------------------------------- | ------------- |
-| `playlists`        | Any                                                      | The `playlists` setting.              | `user`        |
-| `auto` (Automatic) | No valid `/schedules/default.json`                       | `[default]`                           | `no_schedule` |
-| `auto`             | A valid schedule, the local date not known               | The schedule's `fallback`.            | `no_time`     |
-| `auto`             | A valid schedule, the local date known, an entry wins    | The `playlists` of the winning entry. | `schedule`    |
-| `auto`             | A valid schedule, the local date known, no entry matches | The schedule's `fallback`.            | `fallback`    |
+Three inputs decide it besides the files:
 
-The winning entry is chosen by the rules of the [schedule format](schedule-v1.md#which-entry-wins), for the local date of the board's clock in its `timezone` ([Time](../board/wifi-and-updates-v1.md#time)). A schedule is valid when `/schedules/default.json` exists and passes the engine's validation; a schedule with another ID is never played. The reason is what `status` reports in `play.reason` ([protocol](../protocol/protocol-v1.md#status)).
+- **My choice** is the `play` [setting](../protocol/protocol-v1.md#settings_get-settings_set): `playlists` (the ordered `playlists` setting) or `schedule` (the `schedule` setting, one schedule ID).
+- **Automatic** is `play` `auto`. The board follows the **server choice**: what the release says to play, stored from the manifest's [`default`](manifest-v1.md#default) at each check, or from the `server_choice_set` command ([protocol](../protocol/protocol-v1.md#server_choice_set)). The server choice is none, a schedule, or a list of 1 to 8 playlists.
+- **The board's own rule** is what the board plays when it has nothing better: the schedule `default` if it is stored and valid, else the playlist `default`.
 
-With no valid schedule, the list is `[default]`, which is exactly what a board played before schedules existed.
+| `play`      | Condition                                                                                                   | List                                         | `source`    |
+| ----------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ----------- |
+| `playlists` | Any                                                                                                         | The `playlists` setting, reason `playlists`. | `playlists` |
+| `schedule`  | The `schedule` setting names a valid stored schedule                                                        | The schedule's list (below).                 | `schedule`  |
+| `schedule`  | Any other case                                                                                              | The board's own rule (below).                | `fallback`  |
+| `auto`      | The server choice is a schedule that is valid and stored                                                    | The schedule's list.                         | `server`    |
+| `auto`      | The server choice is a list of playlists, and at least one of them is playable                              | The server's list, reason `playlists`.       | `server`    |
+| `auto`      | No server choice, or it names a schedule that is missing or invalid, or no playlist of its list is playable | The board's own rule.                        | `fallback`  |
+
+**The schedule's list** is computed from one valid schedule, by the rules of the [schedule format](schedule-v1.md#which-entry-wins), for the local date of the board's clock in its `timezone` ([Time](../board/wifi-and-updates-v1.md#time)):
+
+| Date and entries                 | List                                  | Reason     |
+| -------------------------------- | ------------------------------------- | ---------- |
+| The local date is not known      | The schedule's `fallback`.            | `no_time`  |
+| The date is known, an entry wins | The `playlists` of the winning entry. | `schedule` |
+| The date is known, no entry wins | The schedule's `fallback`.            | `fallback` |
+
+**The board's own rule** plays the schedule `default` as above when it is stored and valid (`status.play.schedule` is then `default`), and the playlist `default` otherwise: the list is `[default]` and the reason `no_schedule`. It never tries the schedule `default` a second time: a server choice or a `schedule` setting that names `default` and finds it missing goes straight to `[default]`. With no schedule and no server choice, a board plays exactly what it played before schedules existed: `/playlists/default.json`.
+
+A schedule is valid when `/schedules/<id>.json` exists and passes the engine's validation. The board loads at most two schedules for one choice, the named one and then `default`, one at a time. The reason, the source and the schedule used are what `status` reports in `play` ([protocol](../protocol/protocol-v1.md#status)). The board needs the time whenever the choice uses a schedule, whatever the source.
 
 ### Playlists the board cannot play
 
@@ -77,9 +92,10 @@ When the board cannot read a playlist or a schedule because an update holds the 
 
 When the list gives the board nothing to play, it falls back, step by step:
 
-- **Automatic, a winning entry:** when every playlist of the entry is skipped, the board uses the schedule's `fallback`, and the reason becomes `fallback`.
-- **Automatic, any list:** when every playlist of the list is skipped (the `fallback` above included), the board uses `[default]`, and the reason stays as it was.
-- **Automatic, `default` skipped too, and every playlist of My playlists skipped:** the board plays every valid animation in `/animations/`, in alphabetical order of ID. My playlists never falls back to `default`, so a board whose old `playlist` setting names a missing playlist plays as it did before schedules existed.
+- **A schedule, a winning entry:** when every playlist of the entry is skipped, the board uses the schedule's `fallback`, and the reason becomes `fallback`. The `entry` stays the winner.
+- **A schedule, any list:** when every playlist of the list is skipped (the `fallback` above included), the board uses `[default]`, and the reason stays as it was. The source stays too.
+- **A server list:** when every playlist of it is skipped, the board uses its own rule, with the source `fallback`.
+- **`[default]` skipped too, and every playlist of My choice, Playlists skipped:** the board plays every valid animation in `/animations/`, in alphabetical order of ID. My choice, Playlists never falls back to `default`, so a board whose old `playlist` setting names a missing playlist plays as it did before schedules existed.
 - **No valid animation at all:** the board shows a built-in "no animations" image.
 
 ### Playing the list
@@ -98,7 +114,8 @@ The board computes the list again:
 - at local midnight, when the local date changes, which the board notices when an animation ends;
 - when a playlist or a schedule is stored or deleted: an upload (`put_end`), an update, `delete` or `delete_all`;
 - when `timezone` changes;
-- when the play settings change: `play`, `playlists`, or `playlist` as an older client sets it.
+- when the play settings change: `play`, `playlists`, `schedule`, or `playlist` as an older client sets it;
+- when the server choice changes: a check that stores a different one, or `server_choice_set`.
 
 A new list takes effect when the current animation ends: the animation playing at the moment finishes unchanged, and its remaining repeats are cut, as they were when the active playlist changed. A new list that is the same as the old one, the same playlists in the same order, keeps the position: the board goes on with the playlist and the item it was at. A different list starts from its first playlist. A playlist that is stored or deleted always starts the list again from its first playlist, even when the list is the same, as an upload or a deletion of a playlist restarted the active playlist before.
 

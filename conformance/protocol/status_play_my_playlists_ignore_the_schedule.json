@@ -1,5 +1,5 @@
 {
-  "description": "My playlists ignore the schedule, also with a local date",
+  "description": "My choice, Playlists ignores the schedule default, also with a local date",
   "files": {
     "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
     "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
@@ -39,12 +39,15 @@
         },
         "play": {
           "mode": "playlists",
-          "reason": "user",
+          "source": "playlists",
+          "schedule": null,
+          "reason": "playlists",
           "entry": null,
           "playlists": [
             "halloween"
           ],
-          "playing": "halloween"
+          "playing": "halloween",
+          "server_choice": null
         },
         "update": {
           "state": "idle",

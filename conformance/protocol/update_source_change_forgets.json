@@ -71,12 +71,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": null,
           "reason": "no_schedule",
           "entry": null,
           "playlists": [
             "default"
           ],
-          "playing": null
+          "playing": null,
+          "server_choice": null
         },
         "update": {
           "state": "idle",
@@ -105,6 +108,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "notify",
           "update_firmware": true,

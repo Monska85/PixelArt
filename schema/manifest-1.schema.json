@@ -163,6 +163,37 @@
           }
         }
       }
+    },
+    "default": {
+      "description": "Optional. What the release says Automatic plays: exactly one of schedule (an ID) or playlists (1 to 8 IDs). See docs/format/manifest-v1.md.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["schedule"],
+          "additionalProperties": false,
+          "properties": {
+            "schedule": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["playlists"],
+          "additionalProperties": false,
+          "properties": {
+            "playlists": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/id"
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "$defs": {

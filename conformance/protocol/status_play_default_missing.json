@@ -1,5 +1,5 @@
 {
-  "description": "Automatic with nothing to play from the schedule or default plays every animation",
+  "description": "With no server choice, Automatic with nothing to play from the schedule default or the playlist default plays every animation",
   "files": {
     "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
     "schedules/default.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}"
@@ -26,12 +26,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
           "reason": "no_time",
           "entry": null,
           "playlists": [
             "default"
           ],
-          "playing": null
+          "playing": null,
+          "server_choice": null
         },
         "update": {
           "state": "idle",

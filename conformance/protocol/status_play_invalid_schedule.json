@@ -1,5 +1,5 @@
 {
-  "description": "Automatic with an invalid schedule plays as with no schedule",
+  "description": "With no server choice, Automatic with an invalid schedule default plays as with no schedule",
   "files": {
     "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
     "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
@@ -28,12 +28,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": null,
           "reason": "no_schedule",
           "entry": null,
           "playlists": [
             "default"
           ],
-          "playing": "default"
+          "playing": "default",
+          "server_choice": null
         },
         "update": {
           "state": "idle",

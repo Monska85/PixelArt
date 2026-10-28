@@ -32,12 +32,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
           "reason": "schedule",
           "entry": 1,
           "playlists": [
             "christmas"
           ],
-          "playing": "christmas"
+          "playing": "christmas",
+          "server_choice": null
         },
         "update": {
           "state": "idle",
@@ -66,6 +69,7 @@
           "playlists": [
             "halloween"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -103,12 +107,15 @@
         },
         "play": {
           "mode": "playlists",
-          "reason": "user",
+          "source": "playlists",
+          "schedule": null,
+          "reason": "playlists",
           "entry": null,
           "playlists": [
             "halloween"
           ],
-          "playing": "halloween"
+          "playing": "halloween",
+          "server_choice": null
         },
         "update": {
           "state": "idle",
@@ -137,6 +144,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -174,12 +182,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
           "reason": "schedule",
           "entry": 1,
           "playlists": [
             "christmas"
           ],
-          "playing": "christmas"
+          "playing": "christmas",
+          "server_choice": null
         },
         "update": {
           "state": "idle",

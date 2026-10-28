@@ -113,10 +113,14 @@ A field that is present is checked even when its value is `null`, as the format 
       "name": "what the row shows",
       "play": "auto",
       "playlists": ["default"],
-      "schedule": "seasons",
+      "schedule": "default",
+      "stored": { "seasons": "seasons" },
+      "server_choice": { "schedule": "seasons" },
       "date": null,
       "playable": ["default"],
       "expected": {
+        "source": "server",
+        "schedule": "seasons",
         "reason": "no_time",
         "entry": null,
         "playlists": ["default"],
@@ -127,11 +131,12 @@ A field that is present is checked even when its value is `null`, as the format 
 }
 ```
 
-- `play` and `playlists`: the settings of the same names.
-- `schedule`: the schedule stored as `/schedules/default.json`, or `null` when no valid one is stored.
+- `play`, `playlists` and `schedule`: the settings of the same names.
+- `stored`: the valid schedules stored on the board, an object from the schedule ID to a key of `schedules`. A schedule that is not in it is not stored, or not valid: the board cannot play it.
+- `server_choice`: the server choice, `null` for none, `{"schedule": "<id>"}` or `{"playlists": ["<id>", ...]}`.
 - `date`: the local date, or `null` when the time is not known.
 - `playable`: the IDs of the stored playlists the board can play; every other ID is skipped.
-- `expected`: what `status.play` reports besides `mode`: `reason`, `entry`, `playlists` (the list the board plays, after the fallback chain) and `playing` (the first playable playlist of that list, or `null` when the board plays every animation).
+- `expected`: what `status.play` reports besides `mode` and `server_choice`: `source` (`server`, `playlists`, `schedule` or `fallback`), `schedule` (the ID of the schedule the list comes from, or `null`), `reason`, `entry`, `playlists` (the list the board plays, after the fallback chain) and `playing` (the first playable playlist of that list, or `null` when the board plays every animation).
 
 ## Rules for new cases
 
@@ -164,7 +169,7 @@ A case is one JSON object:
 
 - `capacity` (optional): size of the simulated file system in bytes. The default is 983,040, the size of the board's data partition. Space is used in blocks of 4,096 bytes per file.
 - `files` (optional): the files that exist before the board boots, by path from the root of the file system. The value is the text of the file, or `{"base64": "..."}` for bytes that are not text.
-- `settings` (optional): the settings the board starts with, any of those of `settings_get`, the `token` included, which the board makes itself otherwise. The values are the ones the protocol allows. A case that gives neither `play` nor `playlists` starts a board that has never stored them, which derives them from `playlist` as the [protocol](../docs/protocol/protocol-v1.md#older-clients) says; a case that gives one of them gives both, with a `playlist` that agrees with them. A case that logs in gives the token, and writes the `hmac` of each `auth` with an independent tool, from that token and the nonce it gave.
+- `settings` (optional): the settings the board starts with, any of those of `settings_get`, the `token` included, which the board makes itself otherwise. The values are the ones the protocol allows. A case that gives neither `play` nor `playlists` starts a board that has never stored them, which derives them from `playlist` as the [protocol](../docs/protocol/protocol-v1.md#older-clients) says; a case that gives one of them gives both, with a `playlist` that agrees with them. A case that gives `schedule` starts a board that has stored it; without it the board reads `default`. A case that logs in gives the token, and writes the `hmac` of each `auth` with an independent tool, from that token and the nonce it gave.
 - `transport` (optional): `usb` (the default) or `wifi`. With `wifi`, each `send` goes to the board as a request that arrived over WiFi, one line without a newline, and the replies are the ones that transport gets: no token, and `usb_only` for the commands reserved for USB. The WiFi client is connected from the start of the case, not logged in.
 - `nonces` (optional): the nonces the board hands out for `auth_challenge`, in order, each as 32 lowercase hexadecimal digits. The first `auth_challenge` of the case gets the first one, and so on. Without them the nonce is random and a case cannot compute the answer.
 - `firmware_version` (optional): the version the simulated firmware runs, which `info.firmware` reports and a manifest's `version` is compared with. The default is the version of the simulator's build, which is never newer than a release.

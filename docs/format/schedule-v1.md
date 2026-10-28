@@ -2,7 +2,7 @@
 
 Status: **implemented** by the tools (`tools/pixelart.py`: the build, the validation and the tie check) and by the engine in `lib/PixelEngine/`, used by the firmware and the simulator, and by the web app (`web/src/engine/schedule.ts`).
 
-A schedule tells the board which [playlists](playlist-v1.md) to play on which days of the year. The project publishes one with every content release, so the server can choose what a board plays in each season, while the user keeps the last word: a board set to My playlists ignores every schedule. Why it works this way is recorded in [ADR 0007](../adr/0007-server-chosen-playlists.md).
+A schedule tells the board which [playlists](playlist-v1.md) to play on which days of the year. The project publishes one with every content release, so the server can choose what a board plays in each season, while the user keeps the last word: a board can be set to play one schedule of its own choice, or a list of playlists that ignores every schedule. Why it works this way is recorded in [ADR 0007](../adr/0007-server-chosen-playlists.md).
 
 The JSON Schema in [`schema/schedule-1.schema.json`](../../schema/schedule-1.schema.json) is the source of truth for the structure and the limits. The rules it cannot express (real dates, the order of the two ends, ties) are the [validation](#validation) rules below.
 
@@ -11,7 +11,7 @@ The JSON Schema in [`schema/schedule-1.schema.json`](../../schema/schedule-1.sch
 - Like animations and playlists, a schedule is written in YAML or JSON, and the board stores and reads JSON only. The JSON follows the same rules as for [animations](pixelart-v1.md#files): strict JSON in valid UTF-8, no U+0000 in any text, integers without fraction or exponent, and text lengths counted in characters.
 - In the repository, schedules live in `content/schedules/`, and a release publishes `content/schedules/<id>.yaml` as `schedules/<id>.json`. On the board, they live in `/schedules/`.
 - Schedule file names follow the same rules as animation IDs.
-- The board plays only the schedule with the ID `default` (`/schedules/default.json`). A schedule with another ID is stored, listed, validated, installed by updates and deleted like any other file, but never played.
+- A board stores any number of schedules, within its storage, and plays one at a time: the one the server choice names, the one the user chose, or the schedule `default` as the board's own rule. Every schedule is listed, validated, installed by updates and deleted like any other file.
 
 ## Example
 
@@ -149,15 +149,15 @@ Entries without a year are checked on the dated years too, with the entries that
 
 ## How the board uses it
 
-The board plays the schedule `default` when its `play` [setting](../protocol/protocol-v1.md#settings_get-settings_set) is `auto` (Automatic):
+The board plays a schedule when the server choice names one (Automatic), when the user chose one (`play` is `schedule`, with the `schedule` [setting](../protocol/protocol-v1.md#settings_get-settings_set)), or, as its own rule, the schedule `default`. For the schedule it plays:
 
 - **The date is known:** the playlists of the winning entry, or `fallback` when no entry matches.
 - **The date is not known:** `fallback`.
-- **No valid `/schedules/default.json`:** the playlist `default`, exactly as a board did before schedules existed.
+- **The schedule is missing or not valid:** the board does not play it. It falls back to its own rule: the schedule `default`, then the playlist `default`, exactly as a board did before schedules existed.
 
 The board plays every playlist of the list in full, in order, then starts from the first again. A playlist it cannot play is skipped, and when it can play none, it falls back further. The local date comes from the board's clock and its `timezone` setting, as [Time](../board/wifi-and-updates-v1.md#time) describes. The whole rule, with the events that make the board choose again, is in [How the board chooses what to play](playlist-v1.md#how-the-board-chooses-what-to-play).
 
-A board set to My playlists (`play` is `playlists`) plays the user's playlists and ignores every schedule.
+A board set to My choice, Playlists (`play` is `playlists`) plays the user's playlists and ignores every schedule.
 
 ## Limits
 

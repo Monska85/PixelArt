@@ -11,7 +11,9 @@ of the board's file system. The file name (without extension) is the ID. With
 --schema, every file is also checked against the JSON Schemas in schema/ (needs
 the jsonschema package). Schedules are always checked in full, ties included
 (docs/format/schedule-v1.md), and a playlist they name that the source lacks is
-a warning. The full validation of animations and playlists, including
+a warning. <source>/play.yaml, when it exists, is checked too (docs/format/play-v1.md):
+it must name a schedule or playlists the source has. It is not a file of the board,
+so it is not written to <out>. The full validation of animations and playlists, including
 references between sprites, runs in the engine: see `make validate`.
 
 The board command talks to a board over USB serial (--port, needs pyserial), to
@@ -70,6 +72,8 @@ ROOT = Path(__file__).resolve().parent.parent
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
 # In build order: a schedule is checked against the playlists built before it
 KINDS = {"animations": "pixelart-1.schema.json", "playlists": "playlist-1.schema.json", "schedules": "schedule-1.schema.json"}
+PLAY_FILE = "play.yaml"
+PLAY_SCHEMA = "play-1.schema.json"
 
 
 class StrictLoader(yaml.SafeLoader):
@@ -518,8 +522,81 @@ def check_schedule(document, size=None, playlists=None):
     return diagnostics
 
 
+PLAY_FORMAT = "pixelart-play/1"
+
+
+def validate_play(document, schedules, playlists):
+    """The diagnostics of a pixelart-play/1 document, all errors (docs/format/play-v1.md#validation).
+
+    schedules and playlists are the sets of IDs the content has: a choice that names another one is an error.
+    """
+    diagnostics = Diagnostics()
+    if not isinstance(document, dict):
+        diagnostics.error("format_unsupported", "", "a play choice is an object")
+        return diagnostics
+    if document.get("format") != PLAY_FORMAT:
+        diagnostics.error("format_unsupported", "format", f"the format is not {PLAY_FORMAT}")
+        return diagnostics
+    for key in document:
+        if key not in ("format", "default"):
+            diagnostics.error("structure", key, f"unknown field '{key}'")
+    if "default" not in document:
+        diagnostics.error("structure", "default", "default is required")
+        return diagnostics
+    choice = document["default"]
+    if not isinstance(choice, dict):
+        diagnostics.error("structure", "default", "default is an object with schedule or playlists")
+        return diagnostics
+    for key in choice:
+        if key not in ("schedule", "playlists"):
+            diagnostics.error("structure", f"default.{key}", f"unknown field '{key}'")
+    kinds = [key for key in ("schedule", "playlists") if key in choice]
+    if len(kinds) != 1:
+        diagnostics.error("structure", "default", "default has exactly one of schedule and playlists")
+    elif kinds[0] == "schedule":
+        value = choice["schedule"]
+        if not isinstance(value, str) or not ID_PATTERN.fullmatch(value):
+            diagnostics.error("structure", "default.schedule", "a schedule ID: lowercase letters, digits, _ and -, at most 32 characters")
+        elif value not in schedules:
+            diagnostics.error("unknown_schedule", "default.schedule", f"no schedule '{value}' in the content")
+    else:
+        found = Diagnostics()
+        _check_playlists(found, choice["playlists"], "default.playlists", None)
+        for d in found:
+            diagnostics.error(d["code"], d["where"], d["message"])
+        if not found.has_errors():
+            for i, item in enumerate(choice["playlists"]):
+                if item not in playlists:
+                    diagnostics.error("unknown_playlist", f"default.playlists[{i}]", f"no playlist '{item}' in the content")
+    return diagnostics
+
+
+def check_play_file(source, built, validator):
+    """Checks <source>/play.yaml against the schema (validator, or None) and the content built. True when it is fine."""
+    path = source / PLAY_FILE
+    if not path.is_file():
+        return True
+    try:
+        document = load_source(path)
+        compact_json(document)
+    except (yaml.YAMLError, TypeError, ValueError) as e:
+        print(f"{path}: {e}", file=sys.stderr)
+        return False
+    ok = True
+    if validator is not None:
+        for problem in sorted(validator.iter_errors(document), key=lambda e: list(e.absolute_path)):
+            where = ".".join(str(p) for p in problem.absolute_path) or "(root)"
+            print(f"{path}: {where}: {problem.message}", file=sys.stderr)
+            ok = False
+    # Always, with or without --schema: that the files exist is beyond the schema
+    diagnostics = validate_play(document, set(built.get("schedules", ())), set(built.get("playlists", ())))
+    print_diagnostics(str(path), diagnostics, sys.stderr)
+    return ok and not diagnostics.has_errors()
+
+
 def build(source, out, use_schema):
     validators = {}
+    play_validator = None
     if use_schema:
         try:
             import jsonschema
@@ -527,6 +604,7 @@ def build(source, out, use_schema):
             sys.exit("pixelart: --schema needs the jsonschema package (pip install jsonschema)")
         for kind, schema in KINDS.items():
             validators[kind] = jsonschema.Draft202012Validator(json.loads((ROOT / "schema" / schema).read_text()))
+        play_validator = jsonschema.Draft202012Validator(json.loads((ROOT / "schema" / PLAY_SCHEMA).read_text()))
 
     errors = 0
     written = 0
@@ -573,6 +651,8 @@ def build(source, out, use_schema):
             target.write_bytes(data)
             built.setdefault(kind, []).append(name)
             written += 1
+    if not check_play_file(source, built, play_validator):
+        errors += 1
     print(f"pixelart: wrote {written} files to {out}" + (f", {errors} failed" if errors else ""))
     return 1 if errors else 0
 
@@ -1137,10 +1217,11 @@ def confirmed(prompt):
 
 # What `wipe --settings` puts back: the defaults of the settings table in docs/protocol/protocol-v1.md, also
 # DEFAULT_SETTINGS in web/src/protocol/files.ts.
-DEFAULT_SETTINGS = {"brightness": 100, "play": "auto", "playlists": ["default"], "playlist": "default",
-                    "time_sync_hours": 6, "ntp_server": "pool.ntp.org"}
+DEFAULT_SETTINGS = {"brightness": 100, "play": "auto", "playlists": ["default"], "schedule": "default",
+                    "playlist": "default", "time_sync_hours": 6, "ntp_server": "pool.ntp.org"}
 DEFAULTS_TEXT = (f"brightness {DEFAULT_SETTINGS['brightness']}, play {DEFAULT_SETTINGS['play']}, playlists "
-                 f"{','.join(DEFAULT_SETTINGS['playlists'])}, playlist {DEFAULT_SETTINGS['playlist']}, time_sync_hours "
+                 f"{','.join(DEFAULT_SETTINGS['playlists'])}, schedule {DEFAULT_SETTINGS['schedule']}, playlist "
+                 f"{DEFAULT_SETTINGS['playlist']}, time_sync_hours "
                  f"{DEFAULT_SETTINGS['time_sync_hours']}, ntp_server {DEFAULT_SETTINGS['ntp_server']} and the defaults "
                  "of the WiFi power, update and login settings; the WiFi network is forgotten and the token is made again")
 
@@ -1184,7 +1265,7 @@ TEXT_SETTINGS = {"wifi_power", "update_mode", "timezone", "animation_source"}
 FLAG_SETTINGS = {"update_firmware", "update_animations", "network_login"}
 NUMBER_SETTINGS = {"check_hours": (1, 168), "install_start": (0, 1439), "install_end": (0, 1439),
                    "time_sync_hours": (1, 168)}
-SETTING_NAMES = ("brightness", "play", "playlists", "playlist", "wifi_power", "update_mode", "update_firmware",
+SETTING_NAMES = ("brightness", "play", "playlists", "schedule", "playlist", "wifi_power", "update_mode", "update_firmware",
                  "update_animations", "check_hours", "install_start", "install_end", "timezone", "time_sync_hours",
                  "ntp_server", "animation_source", "network_login")
 MAX_USER_PLAYLISTS = 8
@@ -1205,13 +1286,14 @@ def parse_settings(pairs):
             if not re.fullmatch(r"[0-9]{1,3}", value) or int(value) > 255:
                 raise BoardError("brightness is a whole number from 0 to 255")
             changes[key] = int(value)
-        elif key == "playlist":
-            if not ID_PATTERN.match(value):
-                raise BoardError("playlist is a playlist ID: lowercase letters, digits, _ and -")
+        elif key in ("playlist", "schedule"):
+            if not ID_PATTERN.fullmatch(value):
+                raise BoardError(f"{key} is a {key} ID: lowercase letters, digits, _ and -")
             changes[key] = value
         elif key == "play":
-            if value not in ("auto", "playlists"):
-                raise BoardError("play is auto (the schedule) or playlists (the playlists setting)")
+            if value not in ("auto", "playlists", "schedule"):
+                raise BoardError("play is auto (what the release says), playlists (the playlists setting) or "
+                                 "schedule (the schedule setting)")
             changes[key] = value
         elif key == "playlists":
             ids = value.split(",")

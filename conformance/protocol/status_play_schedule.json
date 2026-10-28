@@ -1,5 +1,5 @@
 {
-  "description": "Automatic with a schedule and a local date plays the winning entry",
+  "description": "With no server choice, Automatic follows the schedule default: with a local date, the winning entry plays",
   "files": {
     "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
     "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
@@ -32,12 +32,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
           "reason": "schedule",
           "entry": 1,
           "playlists": [
             "christmas"
           ],
-          "playing": "christmas"
+          "playing": "christmas",
+          "server_choice": null
         },
         "update": {
           "state": "idle",

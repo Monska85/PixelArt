@@ -31,12 +31,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
           "reason": "fallback",
           "entry": 1,
           "playlists": [
             "default"
           ],
-          "playing": "default"
+          "playing": "default",
+          "server_choice": null
         },
         "update": {
           "state": "idle",

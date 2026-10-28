@@ -7,7 +7,7 @@ The release manifest lists firmware files, animations, playlists and schedules, 
 Three kinds of manifest use this format:
 
 - **The firmware release** publishes one with its firmware files, empty `animations` and `playlists` lists, and no `schedules`. Its `version` is the firmware version.
-- **The content release** publishes one with its animations, playlists and schedules and no `firmware`. Its `version` and its `content_version` are both the content version.
+- **The content release** publishes one with its animations, playlists and schedules, its `default` when the content has a [`play.yaml`](play-v1.md), and no `firmware`. Its `version` and its `content_version` are both the content version.
 - **The site** (GitHub Pages) serves the merge of the two, as [Assembling the site](#assembling-the-site) describes: `version` is the firmware version and `content_version` the content version.
 
 The JSON Schema in [`schema/manifest-1.schema.json`](../../schema/manifest-1.schema.json) is the source of truth for the structure.
@@ -47,7 +47,7 @@ Firmware file names carry the release version. GitHub Pages lets browsers and pr
 A Pages deployment replaces the whole site, so every deployment merges the archives of the latest firmware release, the latest content release and the latest web release (`tools/release.py assemble`):
 
 1. The firmware archive gives `firmware/` and, from its `manifest.json`, `version`, `released`, `source` and `firmware`.
-2. The content archive gives `animations/`, `playlists/`, `schedules/` and, from its `manifest.json`, the `animations`, `playlists` and `schedules` lists and its `version`, which becomes `content_version`.
+2. The content archive gives `animations/`, `playlists/`, `schedules/` and, from its `manifest.json`, the `animations`, `playlists` and `schedules` lists, its `default` when it has one, and its `version`, which becomes `content_version`.
 3. The web archive gives the web app.
 
 The site's `manifest.json` is written from these fields, with `format` `pixelart-manifest/1`. A path that two archives both hold fails the assembly and nothing is written. When there is no content release, the site's manifest is the firmware release's manifest as it is; a firmware release published before the content package carries its own `animations/` and `playlists/`, which are then kept. When there is a content release, those folders and lists of an older firmware archive are left out. When there is no firmware release, the site's manifest is the content release's manifest as it is, with no `firmware`. The assembled manifest must stay within the limits of [How a board reads it](#how-a-board-reads-it), or the assembly fails.
@@ -93,13 +93,14 @@ The site's `manifest.json` is written from these fields, with `format` `pixelart
   ],
   "schedules": [
     {
-      "id": "default",
+      "id": "seasons",
       "name": "Seasons",
-      "file": "schedules/default.json",
+      "file": "schedules/seasons.json",
       "size": 270,
       "sha256": "..."
     }
-  ]
+  ],
+  "default": { "schedule": "seasons" }
 }
 ```
 
@@ -116,10 +117,17 @@ The site's `manifest.json` is written from these fields, with `format` `pixelart
 | `animations`      | Every published animation.                                                                                                                                                                                                                                                                              |
 | `playlists`       | Every published playlist.                                                                                                                                                                                                                                                                               |
 | `schedules`       | Optional. Every published [schedule](schedule-v1.md). A reader takes a missing list as no schedule.                                                                                                                                                                                                     |
+| `default`         | Optional. What the release says Automatic plays: see [`default`](#default).                                                                                                                                                                                                                             |
 
 Every file entry has `file` (its path), `size` (bytes) and `sha256` (64 lowercase hexadecimal digits). A client checks both before it uses a downloaded file.
 
 Animation entries add `id`, `name` and `version`, read from the file. Playlist and schedule entries add `id`, and `name` when the file has one. A client compares `sha256` with the one the board reports in [`list`](../protocol/protocol-v1.md#list) to find which files changed.
+
+## `default`
+
+`default` is the release's choice for boards in Automatic: an object with exactly one key, either `schedule` (a schedule ID) or `playlists` (1 to 8 playlist IDs, no ID twice). The project writes it from [`content/play.yaml`](play-v1.md), and the release tool refuses a `default` that names a schedule or a playlist the release does not contain; a manifest the tool did not write may name files the board does not store, and the board then falls back as [How the board chooses what to play](playlist-v1.md#how-the-board-chooses-what-to-play) says. A manifest without `default` says that the release has no choice.
+
+A board that checks the manifest stores what `default` says as its server choice ([WiFi and updates](../board/wifi-and-updates-v1.md#server-choice)). A `default` that breaks these rules (not an object, no key or both keys, a bad ID, an empty list, more than 8 IDs, a duplicate, a value that is not text) counts as absent: the board still uses the manifest for its files.
 
 ## Firmware files
 
@@ -151,5 +159,7 @@ A board reads the manifest at its `animation_source` as [WiFi and updates](../bo
 New optional fields can be added within version 1, and clients ignore fields they do not know. Removing a field or changing its meaning needs `pixelart-manifest/2`.
 
 `source` and `content_version` were added after the first version of this format. They are optional and a reader that does not know them ignores them, as every reader ignores fields it does not know, so they do not change the format version. `firmware` was required in the first version and is optional now. Boards already read a manifest without it as one with no firmware.
+
+`default` was added with the choice of schedules by the server. It is optional, and the boards and web apps released before it ignore it, as they ignore every field they do not know.
 
 `schedules` was added with [schedules](schedule-v1.md). It is optional, and the boards and web apps released before it ignore it, as they ignore every field they do not know (checked on the firmware 1.0.0 with `content_version`): such a board installs the animations and playlists of the manifest and never a schedule, and keeps playing its `playlist` setting. The 200-entry limit counts schedules too: a board that knows schedules refuses (`bad_manifest`) a manifest with more than 200 animations, playlists and schedules in all, while an older board counts only the animations and playlists. The release's 20 KiB limit keeps every published manifest far below 200 entries. A web app released before this change does not check `firmware`, so on a site with a content release and no firmware release it would show the content version as the firmware version. This cannot happen on the project's site, which has a firmware release and always serves the newest web app with the content. A web app that knows this change says that no firmware release is published when the site's manifest has no firmware entry.

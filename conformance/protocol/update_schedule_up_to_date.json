@@ -103,12 +103,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
           "reason": "no_time",
           "entry": null,
           "playlists": [
             "default"
           ],
-          "playing": "default"
+          "playing": "default",
+          "server_choice": null
         },
         "update": {
           "state": "idle",

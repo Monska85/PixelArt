@@ -80,12 +80,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": null,
           "reason": "no_schedule",
           "entry": null,
           "playlists": [
             "default"
           ],
-          "playing": "default"
+          "playing": "default",
+          "server_choice": null
         },
         "update": {
           "state": "idle",

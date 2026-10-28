@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Monska85/PixelArt/schema/play-1.schema.json",
+  "title": "PixelArt play choice, format pixelart-play/1",
+  "description": "What the release says Automatic plays: one schedule or a list of playlists. That the schedule or the playlists exist in the content is checked by the tools, see docs/format/play-v1.md.",
+  "type": "object",
+  "required": ["format", "default"],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "pixelart-play/1"
+    },
+    "default": {
+      "$ref": "#/$defs/choice"
+    }
+  },
+  "$defs": {
+    "id": {
+      "description": "File ID: its file name without extension.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+    },
+    "choice": {
+      "description": "Exactly one of schedule or playlists.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["schedule"],
+          "additionalProperties": false,
+          "properties": {
+            "schedule": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["playlists"],
+          "additionalProperties": false,
+          "properties": {
+            "playlists": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/id"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

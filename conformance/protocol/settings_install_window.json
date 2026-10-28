@@ -15,6 +15,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -45,6 +46,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -75,6 +77,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -171,6 +174,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -201,6 +205,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -231,6 +236,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -327,6 +333,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,

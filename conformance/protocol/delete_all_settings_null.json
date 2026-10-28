@@ -34,6 +34,7 @@
           "playlists": [
             "christmas"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,

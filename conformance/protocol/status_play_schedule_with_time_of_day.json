@@ -33,12 +33,15 @@
         },
         "play": {
           "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
           "reason": "schedule",
           "entry": 0,
           "playlists": [
             "halloween"
           ],
-          "playing": "halloween"
+          "playing": "halloween",
+          "server_choice": null
         },
         "update": {
           "state": "idle",

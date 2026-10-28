@@ -29,6 +29,7 @@
             "christmas",
             "halloween"
           ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,

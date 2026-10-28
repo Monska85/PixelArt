@@ -40,6 +40,7 @@
           "playlists": [
             "default"
           ],
+          "schedule": "default",
           "wifi_power": "13",
           "update_mode": "automatic",
           "update_firmware": false,

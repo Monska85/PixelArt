@@ -1,5 +1,5 @@
 {
-  "description": "My playlists whose every playlist is missing plays every animation, never default",
+  "description": "My choice, Playlists whose every playlist is missing plays every animation, never default",
   "files": {
     "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
     "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
@@ -33,12 +33,15 @@
         },
         "play": {
           "mode": "playlists",
-          "reason": "user",
+          "source": "playlists",
+          "schedule": null,
+          "reason": "playlists",
           "entry": null,
           "playlists": [
             "ghost"
           ],
-          "playing": null
+          "playing": null,
+          "server_choice": null
         },
         "update": {
           "state": "idle",
