@@ -696,6 +696,14 @@ class BuildSiteTest(unittest.TestCase):
                 (data / kind / f"{name}.json").write_text(json.dumps({"name": name.title(), "version": 3}))
         return data
 
+    def test_an_empty_play_folder_left_by_a_rebuild_publishes_no_play_list(self):
+        data = self.data()
+        (data / "play").mkdir()
+        out = self.base / "content-site"
+        release.build_content_site(out, "1.4.0", data, False)
+        self.assertNotIn("play", json.loads((out / "manifest.json").read_text()))
+        self.assertFalse((out / "play").exists() and any((out / "play").iterdir()))
+
     def test_a_content_release_has_the_files_and_a_manifest_without_firmware(self):
         out = self.base / "content-site"
         release.build_content_site(out, "1.4.0", self.data(("star", "moon")), False)

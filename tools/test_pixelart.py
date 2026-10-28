@@ -1223,6 +1223,23 @@ class BuildPlayTest(unittest.TestCase):
                     self.assertEqual(files, sorted(self.CONTENT + ["play/default.json"]))
                     self.assertEqual(played, expected)
 
+    def test_a_rebuild_into_the_same_folder_drops_a_play_file_whose_source_is_gone_or_fails(self):
+        for second in (None, "format: pixelart-play/1\ndefault: {playlists: []}\n"):
+            with self.subTest(second=second), tempfile.TemporaryDirectory() as folder:
+                source, out = Path(folder) / "src", Path(folder) / "out"
+                (source / "schedules").mkdir(parents=True)
+                (source / "schedules" / "seasons.yaml").write_text(self.SCHEDULE)
+                (source / "play.yaml").write_text("format: pixelart-play/1\ndefault: {schedule: seasons}\n")
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(pixelart.build(source, out, False), 0)
+                    self.assertTrue((out / "play" / "default.json").exists())
+                    if second is None:
+                        (source / "play.yaml").unlink()
+                    else:
+                        (source / "play.yaml").write_text(second)
+                    pixelart.build(source, out, False)
+                self.assertFalse((out / "play" / "default.json").exists())
+
     def test_no_play_yaml_builds_no_play_file(self):
         code, err, files, played = self.build(None)
         self.assertEqual((code, err, files, played), (0, "", self.CONTENT, None))

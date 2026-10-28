@@ -465,7 +465,7 @@ def build_content_site(out, version, data, use_schema):
         "playlists": playlists,
         "schedules": schedules,
     }
-    # A content without a play.yaml has no data/play/ and no list
+    # A content without a play.yaml has no play file in data/play/ (make data removes an old one) and no list
     if play:
         manifest["play"] = play
     write_manifest(site, manifest, use_schema)

@@ -570,8 +570,11 @@ def validate_play(document, size=None, schedules=None, playlists=None):
 
 def build_play_file(source, out, built, validator):
     """Builds <source>/play.yaml as <out>/play/default.json. 1 when it fails, else 0 (also without the file) and
-    the number of files written."""
+    the number of files written. A play file left in <out> by an earlier build goes first, so that a play.yaml
+    that is gone or fails is never published from an old output."""
     path = source / PLAY_FILE
+    target = out / "play" / "default.json"
+    target.unlink(missing_ok=True)
     if not path.is_file():
         return 0, 0
     try:
@@ -592,7 +595,6 @@ def build_play_file(source, out, built, validator):
     print_diagnostics(str(path), diagnostics, sys.stderr)
     if diagnostics.has_errors():
         return 1, 0
-    target = out / "play" / "default.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(data)
     return 0, 1
