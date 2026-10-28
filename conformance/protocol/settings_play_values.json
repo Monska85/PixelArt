@@ -1,5 +1,5 @@
 {
-  "description": "play is auto or playlists, anything else is bad_request and changes nothing",
+  "description": "play is auto, playlists or schedule, anything else is bad_request and changes nothing",
   "steps": [
     {
       "send": "@PR 8cda0cc1 {\"seq\":1,\"cmd\":\"settings_set\",\"play\":\"Auto\"}"
@@ -24,7 +24,7 @@
       }
     },
     {
-      "send": "@PR 110bd033 {\"seq\":3,\"cmd\":\"settings_set\",\"play\":\"schedule\"}"
+      "send": "@PR 5e56d3e3 {\"seq\":3,\"cmd\":\"settings_set\",\"play\":\"Schedule\"}"
     },
     {
       "expect": {
