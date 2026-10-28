@@ -107,7 +107,7 @@ While it needs the time, the board asks the server of the `ntp_server` setting w
 
 A change that makes the time needed (a schedule stored, `play` set to `auto`, a window narrowed, the updates turned on) starts the requests at once when the board is connected, and a change that makes it not needed stops them. A change of `ntp_server` while the time is needed makes the board ask the new server at once. A change of `time_sync_hours` counts the next request from the last answer, so a request that is already due is sent at once.
 
-The `timezone` setting is a POSIX TZ string, for example `CET-1CEST,M3.5.0,M10.5.0/3`. The web app sets it from a time zone the user picks, the browser's own zone by default. The board applies it to the local time its install window sees and to the local date its schedule sees. `status` reports whether the time is known: after the first answer from the time server, and not before. When the time becomes known, and at each local midnight, the board chooses what to play again ([How the board chooses what to play](../format/playlist-v1.md#when-the-board-chooses-again)).
+The `timezone` setting is a POSIX TZ string, for example `CET-1CEST,M3.5.0,M10.5.0/3`. The web app sets it from a time zone the user picks, the browser's own zone by default. The board applies it to the local time its install window sees and to the local date its schedule sees. `status` reports whether the time is known: after the first answer from the time server, and not before. When the time becomes known, and at each local midnight, the board chooses what to play again ([How the board chooses what to play](../format/playlist-v1.md#when-the-board-chooses-again)). The network task, which applies the time zone, publishes the local date for the player about every 2 seconds while the board is connected and every 10 seconds otherwise, and when a download ends, so the player notices midnight up to that much later.
 
 ## Updates
 
@@ -224,6 +224,8 @@ While the boot is unsettled, which is while the record is unreadable, a rollback
 The last installation (`updated` or `rolled_back`, with its versions) stays in `status` until the next one. The bootloaders of the three boards are built with app rollback (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`) in Arduino-ESP32 3.3.12.
 
 Power lost during the trial boot also counts as a failure and rolls back. Rollback is always on; no setting turns it off.
+
+A board that goes back to a firmware from before schedules (1.1.0 or earlier) keeps what that firmware does not know. Its `delete_all` with `settings: true`, which `pixelart.py wipe --settings` sends, resets only the settings it knows: `/schedules/` and the stored `play`, `playlists`, `time_sync_hours` and `ntp_server` stay. Once the board runs a newer firmware again, they apply again: `play` and `playlists` no longer agree with the reset `playlist`, so the board derives them from it again, `time_sync_hours` and `ntp_server` keep their stored values, and a stored schedule drives Automatic. To clear them, run `delete_all` with `settings: true` again on the newer firmware.
 
 ### Install window
 

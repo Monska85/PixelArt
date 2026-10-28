@@ -159,6 +159,9 @@ struct Shared
   bool busy = false;
   pixelart_update::Status status;
   bool time_known = false;
+  // The local date, valid when `time_known`. Board only: the loop task reads it here because the network task
+  // owns TZ, and localtime_r() on the loop task would race its tzset().
+  pixelart::LocalDate date;
   bool schedule_needs_time = false; // the player plays a schedule
 };
 
@@ -186,6 +189,16 @@ pixelart_update::Config make_config(const settings::Values &v)
 }
 
 uint64_t now_ms() { return platform::now_us() / 1000; }
+
+// The local date where the clock is kept, false while the time is not known.
+bool clock_date(pixelart::LocalDate &date)
+{
+#ifdef PIXELART_SIM
+  return local_date(date);
+#else
+  return net_time::local_date(date);
+#endif
+}
 
 // One unit of the updater's work, with the requests and settings the loop task left for it. Returns
 // the milliseconds until the updater needs to run again.
@@ -221,14 +234,15 @@ uint64_t step()
   const uint64_t now = now_ms();
   updater->tick(now);
 
-  uint16_t minutes;
-  const bool time_known = host->local_minutes(minutes);
+  pixelart::LocalDate date;
+  const bool time_known = clock_date(date);
   const pixelart_update::Status status = updater->status();
   const bool busy = updater->busy();
   {
     Locked guard;
     shared.status = status;
     shared.time_known = time_known;
+    shared.date = date;
     shared.busy = busy || shared.check_requested || shared.install_requested || shared.firmware_requested;
   }
   return updater->wait_ms(now);
@@ -366,7 +380,14 @@ void set_schedule_needs_time(bool needed)
 }
 
 #ifndef PIXELART_SIM
-bool local_date(pixelart::LocalDate &date) { return net_time::local_date(date); }
+bool local_date(pixelart::LocalDate &date)
+{
+  Locked guard;
+  if (!shared.time_known)
+    return false;
+  date = shared.date;
+  return true;
+}
 #endif
 
 Snapshot snapshot()

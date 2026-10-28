@@ -322,6 +322,17 @@ bool date_moved(const Choice &choice)
   return known != choice.date_known || (known && today != choice.date);
 }
 
+// A moved date is an event: the board chooses again, and tries the skipped playlists again. The same list keeps
+// its position.
+void notice_date(const Choice &choice)
+{
+  if (choice.made && choice.dated && date_moved(choice))
+  {
+    choose_again = true;
+    skipped.clear();
+  }
+}
+
 // After `file` failed to load: true when an update holds the memory. Otherwise reports the problem once,
 // unless the file is missing, which is normal for a playlist or the schedule.
 bool load_failed_busy(const std::string &file, const std::vector<pixelart::Diagnostic> &diagnostics)
@@ -414,8 +425,7 @@ bool list_changed()
 {
   if (!in_pass)
     return false;
-  if (newest.dated && date_moved(newest))
-    choose_again = true;
+  notice_date(newest);
   // When an update holds the memory, the choice is tried again when the next animation ends.
   if (choose_again && !choose_without_waiting())
     return false;
@@ -507,8 +517,7 @@ size_t skipped_playlist_count() { return skipped.size(); }
 void refresh_choice()
 {
   // The time became known or local midnight passed: `status` reports the newest list at once.
-  if (newest.made && newest.dated && date_moved(newest))
-    choose_again = true;
+  notice_date(newest);
   if (!newest.made || choose_again)
     choose_without_waiting();
 }

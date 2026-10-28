@@ -69,7 +69,8 @@ Snapshot snapshot();
 void set_schedule_needs_time(bool needed);
 
 // The local date in the board's time zone, false while the time is not known. On the board it is known only
-// while the time is needed.
+// while the time is needed, and it is the date the network task published at its last step: steps run about every
+// 2 seconds while the board is connected and every 10 seconds otherwise, and again when a download ends.
 bool local_date(pixelart::LocalDate &date);
 
 // How a request for a check or an installation ends.

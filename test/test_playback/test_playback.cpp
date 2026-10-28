@@ -556,6 +556,28 @@ static void test_an_entry_whose_animations_fail_falls_back_in_the_same_pass()
   TEST_ASSERT_EQUAL_STRING("b", shown().c_str());
 }
 
+static void test_a_skipped_entry_playlist_plays_again_after_local_midnight()
+{
+  TempData data("playback");
+  write_abc(data, 1);
+  data.write("animations/bad.json", dot_animation("gren"));
+  data.write("playlists/broken.json", playlist_of({"bad"}));
+  data.write("schedules/default.json", schedule_of(R"(["p_b"])", R"({"month":1})", R"({"month":12})", R"(["broken"])"));
+  updates::sim_set_local_date({2027, 3, 3});
+  setup();
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("b", shown().c_str());
+  // bad is repaired without an event: broken stays skipped and the fallback goes on.
+  data.write("animations/bad.json", dot_animation("#0000ff"));
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("bb", shown().c_str());
+  // Midnight, another day of the same entry: the board notices it when b ends, and tries broken again.
+  updates::sim_set_local_date({2027, 3, 4});
+  play_from_storage();
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("bbbc", shown().c_str());
+}
+
 static void test_the_time_is_asked_for_while_a_schedule_plays()
 {
   TempData data("playback");
@@ -607,6 +629,7 @@ int main(int, char **)
   RUN_TEST(test_a_stored_playlist_starts_the_list_again);
   RUN_TEST(test_a_stored_or_deleted_schedule_keeps_the_position_of_the_same_list);
   RUN_TEST(test_an_entry_whose_animations_fail_falls_back_in_the_same_pass);
+  RUN_TEST(test_a_skipped_entry_playlist_plays_again_after_local_midnight);
   RUN_TEST(test_the_time_is_asked_for_while_a_schedule_plays);
   return UNITY_END();
 }
