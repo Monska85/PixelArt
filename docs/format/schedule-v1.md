@@ -18,7 +18,7 @@ The JSON Schema in [`schema/schedule-1.schema.json`](../../schema/schedule-1.sch
 ```yaml
 format: pixelart-schedule/1
 name: Seasons
-fallback: [default]
+fallback: [christmas]
 entries:
   - name: Halloween
     from: { month: 10, day: 1 }
@@ -30,7 +30,7 @@ entries:
     playlists: [christmas]
 ```
 
-From October 1 to November 2 the board plays the playlist `halloween`, from December 1 to January 6 the playlist `christmas`, and on every other day, or while it does not know the date, the playlist `default`.
+From October 1 to November 2 the board plays the playlist `halloween`, from December 1 to January 6 the playlist `christmas`, and on every other day, or while it does not know the date, the playlist `christmas` too: the schedule `seasons` of the published content.
 
 The simplest schedule has only a `fallback`, for example `fallback: [christmas, halloween]`: the board plays the two playlists in turn all year.
 
