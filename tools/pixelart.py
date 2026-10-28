@@ -1671,7 +1671,7 @@ def main():
     b = sub.add_parser("build", help="convert sources to the board's JSON files")
     b.add_argument("--source", type=Path, default=ROOT / "content",
                    help="folder with animations/, playlists/, schedules/ and play.yaml (default: content/)")
-    b.add_argument("--out", type=Path, default=ROOT / "data", help="output folder (default: data/)")
+    b.add_argument("--out", type=Path, default=ROOT / "data", help="output folder; its JSON files that no source produces are removed (default: data/)")
     b.add_argument("--schema", action="store_true", help="also check every file against the JSON Schemas")
     add_board_parser(sub)
     args = parser.parse_args()
