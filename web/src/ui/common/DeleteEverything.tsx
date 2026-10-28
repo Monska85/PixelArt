@@ -94,7 +94,7 @@ const WORDING = {
   keep: {
     what: "This cannot be undone. The firmware and the settings stay.",
     confirm: "",
-    progress: "Deleting every animation and playlist",
+    progress: "Deleting every animation, playlist and schedule",
     done: (removed: string) => (removed ? `Deleted ${removed}` : "The board had no files to delete"),
     doneDetail: undefined,
     again: "",
@@ -102,7 +102,7 @@ const WORDING = {
   reset: {
     what: `This cannot be undone. The firmware stays. ${RESET_TEXT}`,
     confirm: " and reset the settings",
-    progress: "Deleting every animation and playlist and resetting the settings",
+    progress: "Deleting every animation, playlist and schedule and resetting the settings",
     done: (removed: string) => (removed ? `Deleted ${removed} and reset the settings` : "Reset the settings"),
     doneDetail: RESET_DONE,
     again: " and resets the settings",
@@ -203,7 +203,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
       // With nothing to delete, only a settings reset is left to confirm.
       if (empty && (!presetReset || overWifi)) {
         toast({
-          title: "The board has no animations or playlists",
+          title: "The board has no animations, playlists or schedules",
           description: onFirmwareView
             ? "Check Also reset the settings to put the settings back to their defaults."
             : undefined,
@@ -240,7 +240,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
         onCancel={() => setCounts(null)}
         onConfirm={() => void run(true)}
       >
-        <p data-testid="delete-all-what">The board has no animations or playlists. {RESET_TEXT}</p>
+        <p data-testid="delete-all-what">The board has no animations, playlists or schedules. {RESET_TEXT}</p>
       </ConfirmDialog>
     );
   } else if (counts) {

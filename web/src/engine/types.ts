@@ -149,7 +149,7 @@ export interface PlaylistResult {
   diagnostics: Diagnostic[];
 }
 
-/** True if `id` is a valid animation or playlist ID (file name without extension). */
+/** True if `id` is a valid animation, playlist or schedule ID (file name without extension). */
 export function isValidId(id: string): boolean {
   return /^[a-z0-9][a-z0-9_-]{0,31}$/.test(id);
 }

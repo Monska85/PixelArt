@@ -60,7 +60,7 @@ void start()
   state = Sntp::Running;
 }
 
-// A new server is asked at once.
+// A new server is asked at once: stop() leaves SNTP Off, also from Resuming, so configure() starts it again.
 void apply_server(const std::string &server)
 {
   if (server == server_name)
@@ -70,13 +70,16 @@ void apply_server(const std::string &server)
 }
 
 // SNTP waits out the interval it was started with before it asks again. So after an answer a new interval
-// stops it, and it starts again when the new interval ends after the last answer. While it still waits for
-// its first answer, the new interval applies after that answer.
+// stops it, and it starts again when the new interval ends after the last answer, also when the interval
+// changes again while it waits. While it still waits for its first answer, the new interval applies after
+// that answer.
 void apply_interval(uint32_t interval)
 {
   if (interval == interval_ms)
     return;
   interval_ms = interval;
+  if (state == Sntp::Resuming)
+    resume_at = synced_at + interval_ms;
   if (state != Sntp::Running)
     return;
   if (synced)
@@ -116,9 +119,11 @@ void configure(bool needed, bool online, const std::string &timezone, const std:
   }
   apply_server(server);
   apply_interval(sync_hours * MS_PER_HOUR);
-  if (state == Sntp::Running || !online)
-    return;
-  if (state == Sntp::Resuming && (int32_t)(millis() - resume_at) < 0)
+  // Checked on every call, online or not, so a reached deadline is seen at the next call: left unchecked for
+  // about 24.8 days, the wrapping comparison would read it as still ahead.
+  if (state == Sntp::Resuming && (int32_t)(millis() - resume_at) >= 0)
+    state = Sntp::Off;
+  if (state != Sntp::Off || !online)
     return;
   start();
 }

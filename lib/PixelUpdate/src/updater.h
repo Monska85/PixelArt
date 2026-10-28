@@ -217,7 +217,7 @@ public:
   // still on its trial boot.
   bool request_firmware(bool force);
 
-  // Stops what installs animations and playlists, and forgets the files the last check found: a running
+  // Stops what installs animations, playlists and schedules, and forgets the files the last check found: a running
   // installation skips the files it has not stored and counts no failure, and one that was asked for does
   // not start. `last_result` stays as it was. The firmware is not touched.
   void cancel_install();

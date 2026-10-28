@@ -55,12 +55,12 @@ void play_from_storage();
 // Both make the player choose its list again when the current animation ends; only the first one also starts
 // the list from its first playlist when the new list is the same.
 
-// A playlist or a schedule was stored or deleted: the player chooses its list again and starts it from its
-// first playlist when the current animation ends.
+// A playlist was stored or deleted: the player chooses its list again and starts it from its first playlist
+// when the current animation ends.
 void request_choice_and_restart();
 
-// The play settings or the time zone changed: the player chooses its list again when the current animation
-// ends, and keeps its position when the list is the same.
+// The play settings, the time zone or a schedule changed: the player chooses its list again when the current
+// animation ends, and keeps its position when the list is the same.
 void request_choice();
 
 // Whether a new choice is requested and not yet applied. For tests.

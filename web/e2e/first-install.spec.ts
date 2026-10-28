@@ -24,7 +24,7 @@ function emptyBoard(simulator: Simulator): void {
   for (const path of files(simulator)) rmSync(path, { force: true });
 }
 
-test("installs the published animations and playlists over the port ESP Web Tools used", async ({
+test("installs the published animations, playlists and schedules over the port ESP Web Tools used", async ({
   page,
   simulator,
 }) => {
@@ -36,7 +36,9 @@ test("installs the published animations and playlists over the port ESP Web Tool
   await expect(page.getByText(/Keep the board connected until they are installed/)).toBeVisible();
 
   await closeInstallDialog(page, { state: "finished" });
-  await expect(page.getByTestId("activity")).toContainText("Installing the animations and playlists of release 0.2.0");
+  await expect(page.getByTestId("activity")).toContainText(
+    "Installing the animations, playlists and schedules of release 0.2.0",
+  );
   await expect(summary(page)).toContainText("Installed");
   for (const path of files(simulator)) expect(existsSync(path), path).toBe(true);
   await expect(page.getByTestId("connection-state")).toHaveText("Connected");
@@ -121,7 +123,9 @@ test.describe("a board that never answers", () => {
     await expect(page.getByRole("checkbox", { name: BOX })).toBeChecked();
     await closeInstallDialog(page, { state: "finished" });
     const alert = page.getByTestId("content-not-installed");
-    await expect(alert).toContainText("The animations and playlists were not installed", { timeout: 90_000 });
+    await expect(alert).toContainText("The animations, playlists and schedules were not installed", {
+      timeout: 90_000,
+    });
     await expect(alert).toContainText("no animations");
     await expect(alert.getByRole("button", { name: "Connect board" })).toBeVisible();
     await expect(alert.getByRole("link", { name: "Library view" })).toHaveAttribute("href", "#library");

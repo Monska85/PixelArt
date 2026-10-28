@@ -149,7 +149,7 @@ test("a board without files can still have its settings reset from the Reset car
 
   // Without the box there is nothing to do, and the toast says how to reset the settings.
   await card.getByRole("button", { name: "Delete everything" }).click();
-  await expect(toastWith(page, "The board has no animations or playlists")).toContainText(
+  await expect(toastWith(page, "The board has no animations, playlists or schedules")).toContainText(
     "Check Also reset the settings",
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -158,7 +158,7 @@ test("a board without files can still have its settings reset from the Reset car
   await card.getByRole("button", { name: "Delete everything" }).click();
   const dialog = page.getByRole("dialog", { name: "Reset the settings of this board?" });
   await expect(dialog.getByTestId("delete-all-what")).toHaveText(
-    "The board has no animations or playlists. Every setting goes back to its default (brightness 100, active playlist default, updates, transmit power, network login and the rest), the WiFi network is forgotten and a new token is made.",
+    "The board has no animations, playlists or schedules. Every setting goes back to its default (brightness 100, active playlist default, updates, transmit power, network login and the rest), the WiFi network is forgotten and a new token is made.",
   );
   await dialog.getByRole("button", { name: "Reset the settings" }).click();
   await expect(toastWith(page, /^Reset the settings/)).toBeVisible();
@@ -201,7 +201,7 @@ test("Delete everything is not offered without a board, and an empty board needs
     .click();
   await expect(toastWith(page, /^Deleted/)).toBeVisible();
   await page.getByRole("button", { name: "Delete everything" }).click();
-  await expect(toastWith(page, "The board has no animations or playlists")).toBeVisible();
+  await expect(toastWith(page, "The board has no animations, playlists or schedules")).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
@@ -262,7 +262,7 @@ test("the activity panel shows while Delete everything runs and no upload can st
     .getByRole("button", { name: /^Delete \d+ files$/ })
     .click();
   const activity = page.getByTestId("activity");
-  await expect(activity).toContainText("Deleting every animation and playlist");
+  await expect(activity).toContainText("Deleting every animation, playlist and schedule");
   await expect(activity.getByRole("button", { name: "Cancel" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Upload files" })).toBeDisabled();
   watch.release();
@@ -319,7 +319,7 @@ test("the activity panel says the settings are reset too while it runs", async (
     .getByRole("button", { name: /and reset the settings$/ })
     .click();
   await expect(page.getByTestId("activity")).toContainText(
-    "Deleting every animation and playlist and resetting the settings",
+    "Deleting every animation, playlist and schedule and resetting the settings",
   );
   watch.release();
   await expect(page.getByTestId("activity")).toHaveCount(0);

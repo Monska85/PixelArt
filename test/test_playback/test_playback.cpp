@@ -476,6 +476,27 @@ static void test_a_stored_playlist_starts_the_list_again()
   TEST_ASSERT_EQUAL_STRING("aaaabbcc", shown().c_str());
 }
 
+static void test_a_stored_or_deleted_schedule_keeps_the_position_of_the_same_list()
+{
+  TempData data("playback");
+  write_abc(data, 2);
+  data.write("schedules/other.json", schedule_of(R"(["p_c"])", R"({"month":1})", R"({"month":12})", R"(["p_c"])"));
+  setup();
+  sim::serial_input(request(1, R"("cmd":"settings_set","play":"playlists","playlists":["p_a","p_b","p_c"])"));
+  play_from_storage();
+  sim::reset();
+  // The schedule `default` is stored during a: My playlists ignore it, so the list stays and goes on with b.
+  const std::string uploaded = schedule_of(R"(["p_c"])", R"({"month":1})", R"({"month":12})", R"(["p_c"])");
+  sim::serial_input(put_begin(2, "schedule", "default", uploaded) + put_chunk(3, uploaded) +
+                    request(4, R"("cmd":"put_end")"));
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("aabbcc", shown().c_str());
+  // Another schedule is deleted during a: the same.
+  sim::serial_input(request(5, R"("cmd":"delete","kind":"schedule","id":"other")"));
+  play_from_storage();
+  TEST_ASSERT_EQUAL_STRING("aabbccaabbcc", shown().c_str());
+}
+
 static void test_an_entry_whose_animations_fail_falls_back_in_the_same_pass()
 {
   TempData data("playback");
@@ -536,6 +557,7 @@ int main(int, char **)
   RUN_TEST(test_local_midnight_switches_when_the_current_animation_ends);
   RUN_TEST(test_the_same_list_keeps_its_position);
   RUN_TEST(test_a_stored_playlist_starts_the_list_again);
+  RUN_TEST(test_a_stored_or_deleted_schedule_keeps_the_position_of_the_same_list);
   RUN_TEST(test_an_entry_whose_animations_fail_falls_back_in_the_same_pass);
   RUN_TEST(test_the_time_is_asked_for_while_a_schedule_plays);
   return UNITY_END();

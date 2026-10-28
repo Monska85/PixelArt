@@ -6,6 +6,7 @@
 import type { LocalDate, Schedule, ScheduleEnd, ScheduleEntry } from "../../engine";
 import { MAX_SCHEDULE_PLAYLISTS } from "../../engine";
 import type { PlayStatus } from "../../protocol";
+import { parseHours } from "./updates";
 
 const MONTHS = [
   "January",
@@ -74,8 +75,16 @@ export function describePlay(play: PlayStatus, schedule: Schedule | null): strin
   return play.playing === null ? `${text} None of them can play, so it plays every animation.` : text;
 }
 
-/** The ID rule of a time server: a host name or an IPv4 address (docs/protocol/protocol-v1.md#settings_get-settings_set). */
+/** The rule of a time server: a host name or an IPv4 address (docs/protocol/protocol-v1.md#settings_get-settings_set). */
 const NTP_SERVER = /^[A-Za-z0-9.-]{1,64}$/;
+
+export const MIN_SYNC_HOURS = 1;
+export const MAX_SYNC_HOURS = 168;
+
+/** The hours between time syncs as the board takes them: a whole number from 1 to 168. Null when the text is not one. */
+export function parseSyncHours(text: string): number | null {
+  return parseHours(text, MIN_SYNC_HOURS, MAX_SYNC_HOURS);
+}
 
 /** Why a time server cannot be sent, or null when it can. */
 export function ntpServerProblem(text: string): string | null {

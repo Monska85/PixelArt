@@ -115,211 +115,245 @@ std::vector<std::string> Schedule::names(const uint16_t *indexes, size_t count) 
   return out;
 }
 
-bool Schedule::load(const char *json, size_t length, std::vector<Diagnostic> &diagnostics)
+// The state of one load(): the schedule it fills and the errors it reports.
+struct Schedule::Loader
 {
-  *this = Schedule();
+  Schedule &schedule;
+  std::vector<Diagnostic> &diagnostics;
+  const size_t first_diagnostic;
   bool ok = true;
-  const size_t first_diagnostic = diagnostics.size();
+
   // Keeps at most MAX_DIAGNOSTICS entries, like the animation and playlist loaders.
-  auto error = [&](const char *code, const std::string &where, const std::string &message)
+  void error(const char *code, const std::string &where, const std::string &message)
   {
     if (diagnostics.size() - first_diagnostic < MAX_DIAGNOSTICS)
       diagnostics.push_back({Severity::Error, code, where, message});
     ok = false;
-  };
-  auto check_name = [&](JsonObjectConst object, const std::string &where)
-  {
-    if (!object["name"].is<JsonVariantConst>())
-      return;
-    const char *name = object["name"].as<const char *>();
-    if (!name || !*name || utf8_code_points(name) > MAX_NAME)
-      error("structure", where, "must be a text of 1 to 128 characters");
-  };
-  // A list of 1 to 8 playlist IDs, no ID twice, into `indexes`. False when it is not one.
-  auto read_playlists = [&](JsonVariantConst value, const std::string &where, uint16_t *indexes, uint8_t &count)
-  {
-    if (!value.is<JsonArrayConst>() || value.as<JsonArrayConst>().size() == 0)
-    {
-      error("structure", where, "must be a non-empty list of playlist IDs");
-      return false;
-    }
-    JsonArrayConst list = value.as<JsonArrayConst>();
-    if (list.size() > MAX_SCHEDULE_PLAYLISTS)
-    {
-      error("limit_exceeded", where, "more than " + std::to_string(MAX_SCHEDULE_PLAYLISTS) + " playlists");
-      return false;
-    }
-    count = 0;
-    size_t i = 0;
-    for (JsonVariantConst item : list)
-    {
-      const std::string at = where + "[" + std::to_string(i++) + "]";
-      const char *id = item.as<const char *>();
-      if (!item.is<const char *>() || !is_valid_id(id))
-      {
-        error("structure", at, "must be a playlist ID: lowercase letters, digits, _ and -");
-        return false;
-      }
-      const size_t index = std::find(ids_.begin(), ids_.end(), id) - ids_.begin();
-      if (std::find(indexes, indexes + count, index) != indexes + count)
-      {
-        error("structure", at, std::string("names \"") + id + "\" twice");
-        return false;
-      }
-      if (index == ids_.size())
-        ids_.push_back(id);
-      indexes[count++] = (uint16_t)index;
-    }
-    return true;
-  };
-  // An end with its parts. False when the end is refused; a part out of its values is reported and `valid` cleared.
-  auto read_end = [&](JsonVariantConst value, const std::string &where, ScheduleEnd &end, uint8_t &parts, bool &valid)
-  {
-    if (!value.is<JsonObjectConst>())
-    {
-      error("structure", where, "must be an object with year, month or day");
-      return false;
-    }
-    JsonObjectConst object = value.as<JsonObjectConst>();
-    bool structure_ok = true;
-    for (JsonPairConst kv : object)
-      if (!is_allowed_key(kv.key(), {"year", "month", "day"}))
-      {
-        error("structure", where + "." + kv.key().c_str(), std::string("unknown field \"") + kv.key().c_str() + "\"");
-        structure_ok = false;
-      }
-    parts = 0;
-    for (uint8_t part : {PART_YEAR, PART_MONTH, PART_DAY})
-    {
-      JsonVariantConst v = object[part_name(part)];
-      if (!v.is<JsonVariantConst>())
-        continue;
-      parts |= part;
-      const std::string at = where + "." + part_name(part);
-      if (!v.is<long long>())
-      {
-        error("structure", at, "must be an integer of at most 64 bits");
-        structure_ok = false;
-        continue;
-      }
-      const long long low = part == PART_YEAR ? MIN_SCHEDULE_YEAR : 1;
-      const long long high = part == PART_YEAR ? MAX_SCHEDULE_YEAR : part == PART_MONTH ? 12 : 31;
-      const long long number = v.as<long long>();
-      if (number < low || number > high)
-      {
-        error("invalid_date", at, "must be from " + std::to_string(low) + " to " + std::to_string(high));
-        valid = false;
-        continue;
-      }
-      if (part == PART_YEAR)
-        end.year = (uint16_t)number;
-      else if (part == PART_MONTH)
-        end.month = (uint8_t)number;
-      else
-        end.day = (uint8_t)number;
-    }
-    if (!structure_ok)
-      return false;
-    if (parts == 0)
-    {
-      error("structure", where, "must have a year, a month or a day");
-      return false;
-    }
-    if (parts == (PART_YEAR | PART_DAY))
-    {
-      error("structure", where, "a year and a day need a month");
-      return false;
-    }
-    return true;
-  };
+  }
 
+  void read(const char *json, size_t length);
+  void check_name(JsonObjectConst object, const std::string &where);
+  bool read_playlists(JsonVariantConst value, const std::string &where, uint16_t *indexes, uint8_t &count);
+  bool read_end(JsonVariantConst value, const std::string &where, ScheduleEnd &end, uint8_t &parts, bool &valid);
+  void read_entry(JsonVariantConst value, const std::string &where);
+  void check_dates(const Entry &entry, const std::string &where);
+};
+
+void Schedule::Loader::check_name(JsonObjectConst object, const std::string &where)
+{
+  if (!object["name"].is<JsonVariantConst>())
+    return;
+  const char *name = object["name"].as<const char *>();
+  if (!name || !*name || utf8_code_points(name) > MAX_NAME)
+    error("structure", where, "must be a text of 1 to 128 characters");
+}
+
+// A list of 1 to 8 playlist IDs, no ID twice, into `indexes`. False when it is not one.
+bool Schedule::Loader::read_playlists(JsonVariantConst value, const std::string &where, uint16_t *indexes,
+                                      uint8_t &count)
+{
+  if (!value.is<JsonArrayConst>() || value.as<JsonArrayConst>().size() == 0)
+  {
+    error("structure", where, "must be a non-empty list of playlist IDs");
+    return false;
+  }
+  JsonArrayConst list = value.as<JsonArrayConst>();
+  if (list.size() > MAX_SCHEDULE_PLAYLISTS)
+  {
+    error("limit_exceeded", where, "more than " + std::to_string(MAX_SCHEDULE_PLAYLISTS) + " playlists");
+    return false;
+  }
+  std::vector<std::string> &ids = schedule.ids_;
+  count = 0;
+  size_t i = 0;
+  for (JsonVariantConst item : list)
+  {
+    const std::string at = where + "[" + std::to_string(i++) + "]";
+    const char *id = item.as<const char *>();
+    if (!item.is<const char *>() || !is_valid_id(id))
+    {
+      error("structure", at, "must be a playlist ID: lowercase letters, digits, _ and -");
+      return false;
+    }
+    const size_t index = std::find(ids.begin(), ids.end(), id) - ids.begin();
+    if (std::find(indexes, indexes + count, index) != indexes + count)
+    {
+      error("structure", at, std::string("names \"") + id + "\" twice");
+      return false;
+    }
+    if (index == ids.size())
+      ids.push_back(id);
+    indexes[count++] = (uint16_t)index;
+  }
+  return true;
+}
+
+// An end with its parts. False when the end is refused; a part out of its values is reported and `valid` cleared.
+bool Schedule::Loader::read_end(JsonVariantConst value, const std::string &where, ScheduleEnd &end, uint8_t &parts,
+                                bool &valid)
+{
+  if (!value.is<JsonObjectConst>())
+  {
+    error("structure", where, "must be an object with year, month or day");
+    return false;
+  }
+  JsonObjectConst object = value.as<JsonObjectConst>();
+  bool structure_ok = true;
+  for (JsonPairConst kv : object)
+    if (!is_allowed_key(kv.key(), {"year", "month", "day"}))
+    {
+      error("structure", where + "." + kv.key().c_str(), std::string("unknown field \"") + kv.key().c_str() + "\"");
+      structure_ok = false;
+    }
+  parts = 0;
+  for (uint8_t part : {PART_YEAR, PART_MONTH, PART_DAY})
+  {
+    JsonVariantConst v = object[part_name(part)];
+    if (!v.is<JsonVariantConst>())
+      continue;
+    parts |= part;
+    const std::string at = where + "." + part_name(part);
+    if (!v.is<long long>())
+    {
+      error("structure", at, "must be an integer of at most 64 bits");
+      structure_ok = false;
+      continue;
+    }
+    const long long low = part == PART_YEAR ? MIN_SCHEDULE_YEAR : 1;
+    const long long high = part == PART_YEAR ? MAX_SCHEDULE_YEAR : part == PART_MONTH ? 12 : 31;
+    const long long number = v.as<long long>();
+    if (number < low || number > high)
+    {
+      error("invalid_date", at, "must be from " + std::to_string(low) + " to " + std::to_string(high));
+      valid = false;
+      continue;
+    }
+    if (part == PART_YEAR)
+      end.year = (uint16_t)number;
+    else if (part == PART_MONTH)
+      end.month = (uint8_t)number;
+    else
+      end.day = (uint8_t)number;
+  }
+  if (!structure_ok)
+    return false;
+  if (parts == 0)
+  {
+    error("structure", where, "must have a year, a month or a day");
+    return false;
+  }
+  if (parts == (PART_YEAR | PART_DAY))
+  {
+    error("structure", where, "a year and a day need a month");
+    return false;
+  }
+  return true;
+}
+
+// The rules on the ends of an entry whose parts are each in their values: each end is a date, and with a year
+// `from` is not after `to`.
+void Schedule::Loader::check_dates(const Entry &entry, const std::string &where)
+{
+  bool valid = true;
+  for (const ScheduleEnd *end : {&entry.from, &entry.to})
+  {
+    const char *side = end == &entry.from ? ".from" : ".to";
+    // {month, day} needs a date of some year, so February 29 counts in a leap year.
+    if ((entry.parts & MONTH_DAY) == MONTH_DAY &&
+        end->day > days_in_month(entry.parts & PART_YEAR ? end->year : 2000, end->month))
+    {
+      error("invalid_date", where + side, "is not a date");
+      valid = false;
+    }
+  }
+  if (valid && (entry.parts & PART_YEAR))
+  {
+    const long from = entry.from.year * 10000L + entry.from.month * 100 + entry.from.day;
+    const long to = entry.to.year * 10000L + entry.to.month * 100 + entry.to.day;
+    if (from > to)
+      error("invalid_date", where, "from is after to");
+  }
+}
+
+void Schedule::Loader::read_entry(JsonVariantConst value, const std::string &where)
+{
+  if (!value.is<JsonObjectConst>())
+  {
+    error("structure", where, "must be an object with from, to and playlists");
+    return;
+  }
+  JsonObjectConst object = value.as<JsonObjectConst>();
+  for (JsonPairConst kv : object)
+    if (!is_allowed_key(kv.key(), {"name", "from", "to", "playlists"}))
+      error("structure", where + "." + kv.key().c_str(), std::string("unknown field \"") + kv.key().c_str() + "\"");
+  check_name(object, where + ".name");
+  Entry entry;
+  read_playlists(object["playlists"], where + ".playlists", entry.playlists, entry.count);
+  uint8_t from_parts = 0, to_parts = 0;
+  bool valid = true;
+  const bool from_ok = read_end(object["from"], where + ".from", entry.from, from_parts, valid);
+  const bool to_ok = read_end(object["to"], where + ".to", entry.to, to_parts, valid);
+  if (!from_ok || !to_ok)
+    return;
+  if (from_parts != to_parts)
+  {
+    error("structure", where, "from and to must have the same parts");
+    return;
+  }
+  entry.parts = from_parts;
+  if (!valid)
+    return;
+  check_dates(entry, where);
+  schedule.entries_.push_back(entry);
+}
+
+void Schedule::Loader::read(const char *json, size_t length)
+{
   JsonDocument doc;
   const char *code = nullptr;
   std::string message;
   if (!parse_document(json, length, MAX_SCHEDULE_FILE_SIZE, MAX_JSON_DEPTH, doc, code, message))
   {
     error(code, "", message);
-    return false;
+    return;
   }
   JsonObjectConst root = doc.as<JsonObjectConst>();
   const char *format = root["format"].as<const char *>();
   if (!doc.is<JsonObjectConst>() || !format || std::string(format) != "pixelart-schedule/1")
   {
     error("format_unsupported", "format", std::string("unsupported format \"") + (format ? format : "") + "\"");
-    return false;
+    return;
   }
   for (JsonPairConst kv : root)
     if (!is_allowed_key(kv.key(), {"format", "name", "fallback", "entries"}))
       error("structure", kv.key().c_str(), std::string("unknown field \"") + kv.key().c_str() + "\"");
   check_name(root, "name");
-  read_playlists(root["fallback"], "fallback", fallback_, fallback_count_);
+  read_playlists(root["fallback"], "fallback", schedule.fallback_, schedule.fallback_count_);
 
-  if (root["entries"].is<JsonVariantConst>())
+  if (!root["entries"].is<JsonVariantConst>())
+    return;
+  JsonArrayConst entries = root["entries"].as<JsonArrayConst>();
+  if (!root["entries"].is<JsonArrayConst>())
+    error("structure", "entries", "must be a list");
+  else if (entries.size() > MAX_SCHEDULE_ENTRIES)
+    error("limit_exceeded", "entries", "more than " + std::to_string(MAX_SCHEDULE_ENTRIES) + " entries");
+  else
   {
-    JsonArrayConst entries = root["entries"].as<JsonArrayConst>();
-    if (!root["entries"].is<JsonArrayConst>())
-      error("structure", "entries", "must be a list");
-    else if (entries.size() > MAX_SCHEDULE_ENTRIES)
-      error("limit_exceeded", "entries", "more than " + std::to_string(MAX_SCHEDULE_ENTRIES) + " entries");
-    else
-    {
-      entries_.reserve(entries.size());
-      size_t i = 0;
-      for (JsonVariantConst value : entries)
-      {
-        const std::string where = "entries[" + std::to_string(i++) + "]";
-        if (!value.is<JsonObjectConst>())
-        {
-          error("structure", where, "must be an object with from, to and playlists");
-          continue;
-        }
-        JsonObjectConst object = value.as<JsonObjectConst>();
-        for (JsonPairConst kv : object)
-          if (!is_allowed_key(kv.key(), {"name", "from", "to", "playlists"}))
-            error("structure", where + "." + kv.key().c_str(),
-                  std::string("unknown field \"") + kv.key().c_str() + "\"");
-        check_name(object, where + ".name");
-        Entry entry;
-        read_playlists(object["playlists"], where + ".playlists", entry.playlists, entry.count);
-        uint8_t from_parts = 0, to_parts = 0;
-        bool valid = true;
-        const bool from_ok = read_end(object["from"], where + ".from", entry.from, from_parts, valid);
-        const bool to_ok = read_end(object["to"], where + ".to", entry.to, to_parts, valid);
-        if (!from_ok || !to_ok)
-          continue;
-        if (from_parts != to_parts)
-        {
-          error("structure", where, "from and to must have the same parts");
-          continue;
-        }
-        entry.parts = from_parts;
-        if (!valid)
-          continue;
-        for (const ScheduleEnd *end : {&entry.from, &entry.to})
-        {
-          const char *side = end == &entry.from ? ".from" : ".to";
-          // {month, day} needs a date of some year, so February 29 counts in a leap year.
-          if ((entry.parts & MONTH_DAY) == MONTH_DAY &&
-              end->day > days_in_month(entry.parts & PART_YEAR ? end->year : 2000, end->month))
-          {
-            error("invalid_date", where + side, "is not a date");
-            valid = false;
-          }
-        }
-        if (valid && (entry.parts & PART_YEAR))
-        {
-          const long from = entry.from.year * 10000L + entry.from.month * 100 + entry.from.day;
-          const long to = entry.to.year * 10000L + entry.to.month * 100 + entry.to.day;
-          if (from > to)
-            error("invalid_date", where, "from is after to");
-        }
-        entries_.push_back(entry);
-      }
-    }
+    schedule.entries_.reserve(entries.size());
+    size_t i = 0;
+    for (JsonVariantConst value : entries)
+      read_entry(value, "entries[" + std::to_string(i++) + "]");
   }
-  if (!ok)
+}
+
+bool Schedule::load(const char *json, size_t length, std::vector<Diagnostic> &diagnostics)
+{
+  *this = Schedule();
+  Loader loader{*this, diagnostics, diagnostics.size()};
+  loader.read(json, length);
+  if (!loader.ok)
     *this = Schedule();
-  return ok;
+  return loader.ok;
 }
 
 int Schedule::winner(const LocalDate &date) const

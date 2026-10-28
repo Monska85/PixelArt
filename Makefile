@@ -49,7 +49,7 @@ help: ## Show this help
 data: ## Build data/ (the board's files) from content/animations/, content/playlists/ and content/schedules/
 	$(PYTHON) tools/pixelart.py build
 
-validate: data sim-build ## Check every animation and playlist with the board's engine
+validate: data sim-build ## Check every animation, playlist and schedule with the board's engine
 	$(NICED) $(SIM) --validate
 
 build: ## Build the firmware for BOARD
@@ -58,11 +58,11 @@ build: ## Build the firmware for BOARD
 build-all: ## Build the firmware for every board
 	$(NICED) pio run -j $(JOBS) -e esp32c3 -e esp32 -e esp32s3
 
-upload: data ## Flash the firmware and the content (animations and playlists) of this working tree to BOARD
+upload: data ## Flash the firmware and the content (animations, playlists and schedules) of this working tree to BOARD
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t upload
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t uploadfs
 
-upload-firmware: ## Flash only the firmware, keeping the animations and playlists on the board
+upload-firmware: ## Flash only the firmware, keeping the animations, playlists and schedules on the board
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t upload
 
 upload-content: data ## Flash only the animations, playlists and schedules, keeping the firmware

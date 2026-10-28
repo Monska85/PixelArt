@@ -370,7 +370,7 @@ export const states = {
     await page.getByRole("button", { name: "More", exact: true }).click();
     await page.getByRole("menuitem", { name: "Delete everything" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Delete 9 files" }).click();
-    await expect(page.getByTestId("activity")).toContainText("Deleting every animation and playlist");
+    await expect(page.getByTestId("activity")).toContainText("Deleting every animation, playlist and schedule");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await check();
   },

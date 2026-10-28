@@ -20,18 +20,23 @@ export const UPDATE_MODES: ReadonlyArray<{ value: string; label: string; text: s
 ];
 
 export const ANIMATION_NOTE =
-  "The release wins: animations and playlists with the same name are replaced, and deleted ones come back. Turn this off to keep local changes.";
+  "The release wins: animations, playlists and schedules with the same name are replaced, and deleted ones come back. Turn this off to keep local changes.";
 
 export const MIN_CHECK_HOURS = 1;
 export const MAX_CHECK_HOURS = 168;
 export const MAX_ANIMATION_SOURCE = 512;
 const MINUTES_PER_DAY = 1440;
 
-/** The hours between checks as the board takes them: a whole number from 1 to 168. Null when the text is not one. */
-export function parseCheckHours(text: string): number | null {
+/** A whole number of hours from `min` to `max`, at most 999, as the board takes its hour settings. Null otherwise. */
+export function parseHours(text: string, min: number, max: number): number | null {
   if (!/^\d{1,3}$/.test(text.trim())) return null;
   const hours = Number(text.trim());
-  return hours >= MIN_CHECK_HOURS && hours <= MAX_CHECK_HOURS ? hours : null;
+  return hours >= min && hours <= max ? hours : null;
+}
+
+/** The hours between checks as the board takes them: a whole number from 1 to 168. Null when the text is not one. */
+export function parseCheckHours(text: string): number | null {
+  return parseHours(text, MIN_CHECK_HOURS, MAX_CHECK_HOURS);
 }
 
 /** An http or https URL with a host, at most 512 characters, as the board takes `animation_source`. */
@@ -108,7 +113,7 @@ const RESULT_TEXT: Record<string, string> = {
   http_error: "The server answered with an error",
   bad_manifest: "The manifest is too large, not valid, or incomplete",
   checksum_mismatch: "A downloaded file differs from the manifest",
-  invalid_file: "A downloaded file is not a valid animation or playlist",
+  invalid_file: "A downloaded file is not a valid animation, playlist or schedule",
   no_space: "Not enough free space for a file",
   out_of_memory: "Not enough free memory",
   storage_error: "The file system failed",
@@ -213,12 +218,12 @@ export function firmwareConfirmation(
   if (skipped)
     return {
       title: `Install firmware ${version} again?`,
-      text: `This version was installed before and did not start properly, so ${back}. The board installs it anyway, restarts, and goes back again if it fails again. Your animations, playlists and settings stay.`,
+      text: `This version was installed before and did not start properly, so ${back}. The board installs it anyway, restarts, and goes back again if it fails again. Your animations, playlists, schedules and settings stay.`,
       action: "Install anyway",
     };
   return {
     title: `Install firmware ${version}?`,
-    text: `The board downloads it, checks it and restarts. The animation stops and the matrix shows a progress bar while it installs. Your animations, playlists and settings stay. If the new firmware does not start properly, ${back}.`,
+    text: `The board downloads it, checks it and restarts. The animation stops and the matrix shows a progress bar while it installs. Your animations, playlists, schedules and settings stay. If the new firmware does not start properly, ${back}.`,
     action: "Install firmware",
   };
 }

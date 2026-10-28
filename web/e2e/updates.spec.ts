@@ -85,7 +85,9 @@ test.describe("with an update source", () => {
     await expect(updates.getByTestId("update-modes")).toContainText("Automatic: The board checks and installs");
     await expect(updates.getByRole("switch", { name: "Firmware updates" })).toBeChecked();
     await expect(updates.getByRole("switch", { name: "Animation updates" })).toBeChecked();
-    await expect(updates).toContainText("The release wins: animations and playlists with the same name are replaced");
+    await expect(updates).toContainText(
+      "The release wins: animations, playlists and schedules with the same name are replaced",
+    );
     await expect(updates.getByLabel("Check every (hours)")).toHaveValue("6");
     await expect(updates.getByLabel("From", { exact: true })).toHaveValue("00:00");
     await expect(updates.getByLabel("To", { exact: true })).toHaveValue("00:00");
@@ -112,12 +114,16 @@ test.describe("with an update source", () => {
     const updates = card(page);
     await updates.getByRole("button", { name: "Check now" }).click();
     await expect(updates.getByTestId("update-last-check")).toContainText("ago: Done");
-    await expect(updates.getByTestId("update-available")).toContainText("3 animation or playlist changes to install");
+    await expect(updates.getByTestId("update-available")).toContainText(
+      "3 animation, playlist or schedule changes to install",
+    );
     // Notify mode stores nothing by itself.
     expect(existsSync(stored(simulator, "animations", "one"))).toBe(false);
 
     await updates.getByRole("button", { name: "Install animations" }).click();
-    await expect(updates.getByTestId("update-available")).toContainText("animations and playlists are up to date");
+    await expect(updates.getByTestId("update-available")).toContainText(
+      "animations, playlists and schedules are up to date",
+    );
     expect(readFileSync(stored(simulator, "animations", "one"), "utf8")).toBe(ONE);
     expect(readFileSync(stored(simulator, "animations", "two"), "utf8")).toBe(TWO);
     expect(readFileSync(stored(simulator, "playlists", "mix"), "utf8")).toBe(PLAYLIST);
@@ -286,7 +292,9 @@ test.describe("with a download that fails", () => {
     await updates.getByRole("button", { name: "Install animations" }).click();
     await expect(updates.getByTestId("update-last-check")).toContainText("(network_error)");
     await expect(updates).toContainText("1 file in the last update");
-    await expect(updates.getByTestId("update-available")).toContainText("1 animation or playlist change to install");
+    await expect(updates.getByTestId("update-available")).toContainText(
+      "1 animation, playlist or schedule change to install",
+    );
     expect(existsSync(stored(simulator, "animations", "one"))).toBe(true);
     expect(existsSync(stored(simulator, "animations", "two"))).toBe(false);
   });

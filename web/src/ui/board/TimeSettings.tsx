@@ -7,9 +7,8 @@ import { Button } from "../components/button";
 import { Input } from "../components/input";
 import { Select } from "../components/select";
 import { TIME_SERVER_NOTE } from "../privacy";
-import { ntpServerProblem } from "./play";
+import { MAX_SYNC_HOURS, MIN_SYNC_HOURS, ntpServerProblem, parseSyncHours } from "./play";
 import { browserTimeZone, knownTimeZones, posixTimeZone, zoneOfSetting } from "./timezones";
-import { MAX_CHECK_HOURS, MIN_CHECK_HOURS, parseCheckHours } from "./updates";
 
 interface Props {
   /** The settings of a firmware that knows schedules: `time_sync_hours` and `ntp_server` are there. */
@@ -56,12 +55,12 @@ export function TimeSettings({ settings, disabled, change }: Props) {
   const hours = settings.time_sync_hours ?? DEFAULT_TIME_SYNC_HOURS;
   const hoursText = hoursDraft ?? String(hours);
   const hoursProblem =
-    hoursDraft !== null && parseCheckHours(hoursDraft) === null
-      ? `A whole number of hours from ${MIN_CHECK_HOURS} to ${MAX_CHECK_HOURS}.`
+    hoursDraft !== null && parseSyncHours(hoursDraft) === null
+      ? `A whole number of hours from ${MIN_SYNC_HOURS} to ${MAX_SYNC_HOURS}.`
       : null;
   function commitHours(): void {
     // The range of time_sync_hours is the one of check_hours.
-    const value = hoursDraft === null ? null : parseCheckHours(hoursDraft);
+    const value = hoursDraft === null ? null : parseSyncHours(hoursDraft);
     if (value === null) return;
     setHoursDraft(null);
     if (value !== hours) void send({ time_sync_hours: value }, "Changing the time sync interval");
@@ -106,7 +105,7 @@ export function TimeSettings({ settings, disabled, change }: Props) {
       </div>
       <Field
         label="Time sync every (hours)"
-        hint={`From ${MIN_CHECK_HOURS} to ${MAX_CHECK_HOURS}. The board asks for the time only while it needs it.`}
+        hint={`From ${MIN_SYNC_HOURS} to ${MAX_SYNC_HOURS}. The board asks for the time only while it needs it.`}
         error={hoursProblem}
       >
         {(control) => (

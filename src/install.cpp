@@ -107,9 +107,16 @@ bool commit(Kind kind, const std::string &path, const std::string &target)
 {
   if (!storage::rename(path, target))
     return false;
-  if (kind != Kind::Animation)
-    request_choice_and_restart();
+  file_changed(kind);
   return true;
+}
+
+void file_changed(Kind kind)
+{
+  if (kind == Kind::Playlist)
+    request_choice_and_restart();
+  else if (kind == Kind::Schedule)
+    request_choice();
 }
 
 } // namespace install

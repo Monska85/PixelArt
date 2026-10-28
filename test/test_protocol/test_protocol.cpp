@@ -28,6 +28,7 @@
 #include "protocol.h"
 #include "settings.h"
 #include "storage.h"
+#include "task_sync.h"
 #include "updates.h"
 #include "pixelart_test.h"
 
@@ -811,7 +812,70 @@ static void test_settings_set_says_so_when_the_playlist_cannot_be_put_back()
   TEST_ASSERT_TRUE_MESSAGE(json.find("partly changed") != std::string::npos, json.c_str());
   TEST_ASSERT_EQUAL(settings::DEFAULT_BRIGHTNESS, settings::brightness());
   TEST_ASSERT_EQUAL_STRING("christmas", settings::playlist().c_str());
+  // The play keys were put back, so they were never stored: a restart derives them from `playlist`.
+  TEST_ASSERT_EQUAL_STRING(settings::PLAY_PLAYLISTS, settings::current().play.c_str());
+  TEST_ASSERT_TRUE(settings::current().playlists == std::vector<std::string>{"christmas"});
+  TEST_ASSERT_FALSE(settings::current().play_stored);
   TEST_ASSERT_TRUE(choice_pending()); // playback follows the playlist that stayed set
+}
+
+// The current settings with My playlists of `playlists`, stored.
+static settings::Values my_playlists(std::vector<std::string> playlists)
+{
+  settings::Values v = settings::current();
+  v.play = settings::PLAY_PLAYLISTS;
+  v.playlists = std::move(playlists);
+  v.play_stored = true;
+  v.playlist = settings::reported_playlist(v.play, v.playlists);
+  return v;
+}
+
+static void test_a_play_key_that_cannot_be_put_back_leaves_what_a_restart_reads()
+{
+  sim::reset();
+  TempData data("protocol");
+  setup();
+  TEST_ASSERT_EQUAL(settings::Commit::Ok, settings::commit(my_playlists({"one", "two"})));
+
+  // Automatic with the same list and a new brightness: the brightness fails, and putting `play` back fails, so
+  // the keys hold playlist "one", play "auto" and playlists "one,two". A restart reads a `play` that does not
+  // agree with `playlist`, and derives My playlists of "one".
+  settings::Values next = settings::current();
+  next.play = settings::PLAY_AUTO;
+  next.playlist = settings::reported_playlist(next.play, next.playlists);
+  next.brightness = 7;
+  settings::fail_brightness_saves(true);
+  settings::fail_play_saves_after(1);
+  TEST_ASSERT_EQUAL(settings::Commit::PartlyChanged, settings::commit(next));
+  const settings::Values &v = settings::current();
+  TEST_ASSERT_EQUAL_STRING("one", v.playlist.c_str());
+  TEST_ASSERT_EQUAL_STRING(settings::PLAY_PLAYLISTS, v.play.c_str());
+  TEST_ASSERT_TRUE(v.playlists == std::vector<std::string>{"one"});
+  TEST_ASSERT_TRUE(v.play_stored);
+  TEST_ASSERT_EQUAL(settings::DEFAULT_BRIGHTNESS, v.brightness);
+}
+
+static void test_a_playlists_key_that_cannot_be_put_back_leaves_what_a_restart_reads()
+{
+  sim::reset();
+  TempData data("protocol");
+  setup();
+  TEST_ASSERT_EQUAL(settings::Commit::Ok, settings::commit(my_playlists({"one"})));
+
+  // A new list and a new brightness: the brightness fails, and putting `playlists` back fails, so the keys hold
+  // playlist "one", play "playlists" and playlists "two,one". A restart reads a list whose first playlist does
+  // not agree with `playlist`, and derives My playlists of "one".
+  settings::Values next = my_playlists({"two", "one"});
+  next.brightness = 7;
+  settings::fail_brightness_saves(true);
+  settings::fail_playlists_saves_after(1);
+  TEST_ASSERT_EQUAL(settings::Commit::PartlyChanged, settings::commit(next));
+  const settings::Values &v = settings::current();
+  TEST_ASSERT_EQUAL_STRING("one", v.playlist.c_str());
+  TEST_ASSERT_EQUAL_STRING(settings::PLAY_PLAYLISTS, v.play.c_str());
+  TEST_ASSERT_TRUE(v.playlists == std::vector<std::string>{"one"});
+  TEST_ASSERT_TRUE(v.play_stored);
+  TEST_ASSERT_EQUAL(settings::DEFAULT_BRIGHTNESS, v.brightness);
 }
 
 static void test_delete_all_keeps_the_settings_when_they_cannot_be_reset()
@@ -965,6 +1029,43 @@ static void test_status_reports_no_network_name_when_none_is_stored()
   const std::string json = status_with_ssid(false, "");
   TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"hostname\":\"\""));
   TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"ssid\":null"));
+}
+
+static JsonDocument status_play(Replies &replies, int seq)
+{
+  replies.send(request(seq, R"("cmd":"status")"));
+  JsonDocument doc;
+  TEST_ASSERT_FALSE(deserializeJson(doc, reply_json(replies.pop(), "status")));
+  return doc;
+}
+
+static void test_status_never_waits_for_the_memory_an_update_holds()
+{
+  sim::reset();
+  TempData data("protocol");
+  data.write("playlists/christmas.json",
+             R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[{"animation":"dot"}]})");
+  setup();
+  Replies replies;
+  TEST_ASSERT_EQUAL_STRING("default", status_play(replies, 1)["play"]["playlists"][0]);
+  replies.send(request(2, R"("cmd":"settings_set","play":"playlists","playlists":["christmas"])"));
+  replies.pop();
+  TEST_ASSERT_TRUE(choice_pending());
+
+  // A download holds the memory: status answers with the last choice and does not try to take the memory, which
+  // could wait up to 2 seconds on the board.
+  task_sync::sim_block_loop(true);
+  const unsigned attempts = task_sync::sim_loop_lock_attempts();
+  JsonDocument doc = status_play(replies, 3);
+  const unsigned attempts_after = task_sync::sim_loop_lock_attempts();
+  task_sync::sim_block_loop(false);
+  TEST_ASSERT_EQUAL(attempts, attempts_after);
+  TEST_ASSERT_EQUAL_STRING("auto", doc["play"]["mode"]);
+  TEST_ASSERT_EQUAL_STRING("default", doc["play"]["playlists"][0]);
+
+  doc = status_play(replies, 4);
+  TEST_ASSERT_EQUAL_STRING("playlists", doc["play"]["mode"]);
+  TEST_ASSERT_EQUAL_STRING("christmas", doc["play"]["playlists"][0]);
 }
 
 static void test_replies_are_whole_lines()
@@ -1322,6 +1423,8 @@ int main(int, char **)
   RUN_TEST(test_same_active_playlist_does_not_restart_playback);
   RUN_TEST(test_settings_set_is_all_or_nothing);
   RUN_TEST(test_settings_set_says_so_when_the_playlist_cannot_be_put_back);
+  RUN_TEST(test_a_play_key_that_cannot_be_put_back_leaves_what_a_restart_reads);
+  RUN_TEST(test_a_playlists_key_that_cannot_be_put_back_leaves_what_a_restart_reads);
   RUN_TEST(test_delete_all_keeps_the_settings_when_they_cannot_be_reset);
   RUN_TEST(test_delete_all_says_so_when_the_settings_are_partly_reset);
   RUN_TEST(test_wifi_forget_says_so_when_the_network_task_cannot_take_it);
@@ -1329,6 +1432,7 @@ int main(int, char **)
   RUN_TEST(test_info_reports_the_memory_probe);
   RUN_TEST(test_status_reports_the_stored_network_name_as_valid_json);
   RUN_TEST(test_status_reports_no_network_name_when_none_is_stored);
+  RUN_TEST(test_status_never_waits_for_the_memory_an_update_holds);
   RUN_TEST(test_replies_are_whole_lines);
   RUN_TEST(test_protocol_logs_do_not_stop_the_reader);
   RUN_TEST(test_path_traversal_ids_never_reach_storage);

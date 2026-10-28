@@ -36,7 +36,7 @@ namespace updates
 
 constexpr const char *FIRMWARE_MANIFEST = PIXELART_FIRMWARE_MANIFEST;
 constexpr bool FIRMWARE_ALLOW_HTTP = PIXELART_FIRMWARE_HTTP_ALLOWED;
-// A download goes to this file, outside the animation and playlist folders, until it is checked.
+// A download goes to this file, outside the animation, playlist and schedule folders, until it is checked.
 constexpr const char *TEMP_FILE = "/update.tmp";
 
 // What `status` reports about updates, copied under a lock so it is always consistent.
@@ -83,14 +83,14 @@ enum class Request
   FirmwareConfirming // the running firmware is on trial and cannot be replaced yet
 };
 
-// `update_check`, and `update_install` for animations and playlists and for the firmware (`force`
+// `update_check`, and `update_install` for animations, playlists and schedules and for the firmware (`force`
 // installs a version on the skip list). They return at once; the work goes on in the background.
 Request check();
 Request install_animations();
 Request install_firmware(bool force);
 
-// `delete_all` calls this: an installation of animations and playlists that is running or asked for stops. A
-// file being downloaded is discarded when it arrives, the files not yet stored are skipped, and the files
+// `delete_all` calls this: an installation of animations, playlists and schedules that is running or asked for
+// stops. A file being downloaded is discarded when it arrives, the files not yet stored are skipped, and the files
 // the last check found are forgotten (`update.files` is 0, `update.last_result` stays as it was). Nothing
 // changes when no such installation is running. A firmware installation is not touched.
 void cancel_install();

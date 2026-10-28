@@ -43,8 +43,11 @@ private:
 };
 
 #ifdef PIXELART_SIM
-// Test hook: while blocked, a loop-task HeapLock is not held, as after the 2 s timeout on the board.
+// Test hook: while blocked, the network task holds the lock, and a loop-task HeapLock is not held, as after
+// the 2 s timeout on the board.
 void sim_block_loop(bool blocked);
+// Test hook: how many loop-task HeapLocks were made since the program started.
+unsigned sim_loop_lock_attempts();
 #endif
 
 // Whether the network task holds the lock now, that is, a TLS connection is open. Any task may ask.

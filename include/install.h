@@ -65,8 +65,11 @@ constexpr size_t SIZE_ANY = (size_t)-1;
 Result check(Kind kind, const std::string &path, size_t expected_size, std::vector<pixelart::Diagnostic> &diagnostics,
              pixelart::Playlist *playlist = nullptr, pixelart::Schedule *schedule = nullptr);
 
-// Moves the checked file `path` to `target`. A playlist or a schedule also makes the player choose what to
-// play again. False when the file cannot be moved.
+// Moves the checked file `path` to `target`, then calls file_changed(). False when the file cannot be moved.
 bool commit(Kind kind, const std::string &path, const std::string &target);
+
+// A file of `kind` was stored or deleted: a playlist makes the player choose what to play again and start
+// its list from the first playlist, a schedule only choose again.
+void file_changed(Kind kind);
 
 } // namespace install

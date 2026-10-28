@@ -27,7 +27,19 @@ namespace
 bool brightness_saves_fail = false;
 bool token_saves_fail = false;
 std::string start_token;
-int playlist_saves_left = -1; // -1: every save works
+// Saves of `playlist`, `play` and `playlists` that still work. -1: every save works.
+int playlist_saves_left = -1;
+int play_saves_left = -1;
+int playlists_saves_left = -1;
+
+bool use_save(int &saves_left)
+{
+  if (saves_left == 0)
+    return false;
+  if (saves_left > 0)
+    saves_left--;
+  return true;
+}
 #endif
 
 Values values;
@@ -220,13 +232,12 @@ bool write(Field field, const Values &v)
     return false;
   if (field == Field::Token && token_saves_fail)
     return false;
-  if (field == Field::Playlist)
-  {
-    if (playlist_saves_left == 0)
-      return false;
-    if (playlist_saves_left > 0)
-      playlist_saves_left--;
-  }
+  if (field == Field::Playlist && !use_save(playlist_saves_left))
+    return false;
+  if (field == Field::Play && !use_save(play_saves_left))
+    return false;
+  if (field == Field::Playlists && !use_save(playlists_saves_left))
+    return false;
   (void)v;
   return true;
 #else
@@ -571,6 +582,8 @@ bool set_playlist(const std::string &id)
 #ifdef PIXELART_SIM
 void fail_brightness_saves(bool fail) { brightness_saves_fail = fail; }
 void fail_playlist_saves_after(int successes) { playlist_saves_left = successes; }
+void fail_play_saves_after(int successes) { play_saves_left = successes; }
+void fail_playlists_saves_after(int successes) { playlists_saves_left = successes; }
 void fail_token_saves(bool fail) { token_saves_fail = fail; }
 void sim_set_start_token(const std::string &token) { start_token = token; }
 #endif

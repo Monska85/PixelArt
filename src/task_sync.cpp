@@ -10,14 +10,20 @@ namespace task_sync
 namespace
 {
 bool loop_blocked = false;
-}
+unsigned loop_attempts = 0;
+} // namespace
 
 void sim_block_loop(bool blocked) { loop_blocked = blocked; }
+unsigned sim_loop_lock_attempts() { return loop_attempts; }
 
 void begin() {}
-HeapLock::HeapLock(Owner owner) : owner_(owner), held_(!(owner == Owner::Loop && loop_blocked)) {}
+HeapLock::HeapLock(Owner owner) : owner_(owner), held_(!(owner == Owner::Loop && loop_blocked))
+{
+  if (owner == Owner::Loop)
+    loop_attempts++;
+}
 HeapLock::~HeapLock() {}
-bool network_holds_lock() { return false; }
+bool network_holds_lock() { return loop_blocked; }
 void frame_shown() {}
 void wait_for_safe_write(uint32_t) {}
 

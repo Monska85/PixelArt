@@ -20,7 +20,7 @@ export interface Published {
 
 export interface Manifest {
   version: string;
-  /** The content release the animations and playlists come from; null for a manifest that has none (older releases). */
+  /** The content release the animations, playlists and schedules come from; null for a manifest that has none (older releases). */
   contentVersion: string | null;
   /** Whether the manifest lists firmware files: a content release alone has none, and its `version` is not a firmware's. */
   hasFirmware: boolean;
@@ -30,7 +30,7 @@ export interface Manifest {
   schedules: Published[];
 }
 
-/** The version the animations and playlists were released with: the content version, else the manifest's own. */
+/** The version the animations, playlists and schedules were released with: the content version, else the manifest's own. */
 export const contentVersionOf = (manifest: Manifest): string => manifest.contentVersion ?? manifest.version;
 
 /** The most a board stores per file (docs/protocol/protocol-v1.md); a larger published file cannot be installed. */

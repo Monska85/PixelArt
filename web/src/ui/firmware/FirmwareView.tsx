@@ -170,8 +170,8 @@ export function FirmwareView() {
               <AlertDescription>
                 It still has the flash layout of the firmware before WiFi, and Update firmware cannot move its stored
                 files to the current one. Use Install from scratch below and let it erase the board: that deletes the
-                animations, playlists and settings, and the app then installs the published animations and playlists.
-                Later updates keep them.
+                animations, playlists and settings, and the app then installs the published animations, playlists and
+                schedules. Later updates keep them.
               </AlertDescription>
             </Alert>
           )}
@@ -262,7 +262,7 @@ function ResetCard({
       <CardHeader>
         <CardTitle id="firmware-reset">Reset</CardTitle>
         <CardDescription>
-          Delete every animation and playlist stored on the board. The firmware stays. With the box checked,{" "}
+          Delete every animation, playlist and schedule stored on the board. The firmware stays. With the box checked,{" "}
           {RESET_TEXT.charAt(0).toLowerCase() + RESET_TEXT.slice(1)}
         </CardDescription>
       </CardHeader>

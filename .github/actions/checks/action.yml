@@ -23,7 +23,7 @@ runs:
       shell: bash
       run: python tools/pixelart.py build --schema
 
-    - name: Check animations and playlists with the board's engine
+    - name: Check animations, playlists and schedules with the board's engine
       shell: bash
       run: |
         pio run -e native

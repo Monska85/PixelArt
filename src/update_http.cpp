@@ -238,7 +238,7 @@ Error http_fetch_manifest(const std::string &url, bool allow_http, ByteBuffer &o
 namespace
 {
 
-// Where a download goes: a temporary file for animations and playlists, the inactive slot for a firmware.
+// Where a download goes: a temporary file for animations, playlists and schedules, the inactive slot for a firmware.
 class Sink
 {
 public:

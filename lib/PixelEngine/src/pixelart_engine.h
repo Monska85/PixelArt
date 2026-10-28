@@ -203,7 +203,7 @@ private:
   std::vector<PlaylistItem> items_;
 };
 
-// True if `id` is a valid animation or playlist ID (file name without extension).
+// True if `id` is a valid animation, playlist or schedule ID (file name without extension).
 bool is_valid_id(const char *id);
 
 // Limits from docs/format/schedule-v1.md#limits. MAX_SCHEDULE_PLAYLISTS also bounds the `playlists` setting.
@@ -267,6 +267,8 @@ private:
     uint8_t count = 0;
     uint16_t playlists[MAX_SCHEDULE_PLAYLISTS] = {};
   };
+
+  struct Loader; // the parsing of load(), in schedule.cpp
 
   std::vector<std::string> names(const uint16_t *indexes, size_t count) const;
 

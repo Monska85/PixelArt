@@ -335,10 +335,11 @@ function MyPlaylists({
     reorder.moveBy(id, by);
     // The button that moved the item keeps the focus, unless the item reached the top or the bottom: that button is
     // then disabled, and the other move button takes the focus.
-    const up = by === -1;
+    const same: RowButton = by === -1 ? "up" : "down";
+    const opposite: RowButton = by === -1 ? "down" : "up";
     const to = index + by;
     const reachedEdge = to === 0 || to === order.length - 1;
-    const role: RowButton = reachedEdge ? (up ? "down" : "up") : up ? "up" : "down";
+    const role = reachedEdge ? opposite : same;
     focus.focusLater(`${id}:${role}`);
   };
   const remove = (id: string, index: number): void => {

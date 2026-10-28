@@ -775,8 +775,7 @@ Status cmd_delete(JsonObjectConst request, JsonDocument &)
     return fail("not_found", "no such file");
   if (!storage::remove(path))
     return fail("storage_error", "the file cannot be removed");
-  if (kind != Kind::Animation)
-    request_choice_and_restart();
+  install::file_changed(kind);
   return {};
 }
 
@@ -884,8 +883,10 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   size_t schedules = 0, playlists = 0, animations = 0;
   bool done = remove_all_files(SCHEDULES_FOLDER, schedules) && remove_all_files(PLAYLISTS_FOLDER, playlists) &&
               remove_all_files(ANIMATIONS_FOLDER, animations);
-  if (schedules > 0 || playlists > 0)
-    request_choice_and_restart();
+  if (playlists > 0)
+    install::file_changed(Kind::Playlist);
+  else if (schedules > 0)
+    install::file_changed(Kind::Schedule);
   if (!done)
     return fail("storage_error", "a file cannot be removed");
   // The settings go back to their defaults only once every file is gone, with a new token.

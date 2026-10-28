@@ -54,7 +54,7 @@ bool leave_list = false;  // the list changed: play_from_storage() returns after
 // Where the player is in `applied`. A new list, or a request to restart it, starts again from reset().
 struct Place
 {
-  bool restart_list = false; // a playlist or a schedule was stored or deleted: the list starts again
+  bool restart_list = false; // a playlist was stored or deleted: the list starts again
   size_t index = 0;          // the playlist of `applied` the player is at, at most its size
   int current = -1;          // the playlist of `applied` that plays, -1 before one starts
   bool pass_played = false;  // an animation of the list played in this pass
@@ -403,8 +403,9 @@ bool list_changed()
     return false;
   if (newest.dated && date_moved(newest))
     choose_again = true;
-  if (choose_again && !make_choice())
-    return false; // an update holds the memory: tried again when the next animation ends
+  // While an update holds the memory, choosing would wait for it: tried again when the next animation ends.
+  if (choose_again && (task_sync::network_holds_lock() || !make_choice()))
+    return false;
   return place.restart_list || !same_list(newest, applied);
 }
 
@@ -492,8 +493,9 @@ size_t skipped_playlist_count() { return skipped.size(); }
 
 PlayStatus play_status()
 {
-  if (!newest.made || choose_again)
-    make_choice(); // while an update holds the memory, the last choice
+  // `status` never waits for the memory an update holds: it reports the last choice meanwhile.
+  if ((!newest.made || choose_again) && !task_sync::network_holds_lock())
+    make_choice();
   PlayStatus status;
   if (!newest.made)
   {

@@ -50,7 +50,9 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
       if (job.current) return;
       const mine: Job = {
         manifest: release,
-        stop: announceActivity(`Installing the animations and playlists of release ${contentVersionOf(release)}`),
+        stop: announceActivity(
+          `Installing the animations, playlists and schedules of release ${contentVersionOf(release)}`,
+        ),
       };
       job.current = mine;
       setPhase("connecting");
@@ -110,7 +112,7 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
     <>
       {phase === "failed" && (
         <ErrorAlert
-          title="The animations and playlists were not installed"
+          title="The animations, playlists and schedules were not installed"
           testId="content-not-installed"
           onDismiss={() => setPhase("idle")}
           actions={

@@ -32,7 +32,7 @@ as an HMAC and never printed. Commands reserved for USB (wifi, token, wipe
                                    a list takes IDs separated by commas: playlists=halloween,christmas
     status                         WiFi state, network name, address, signal, transmit power and update state
     update check                   check for updates now and wait for the result
-    update install animations      install the animations and playlists the last check found, and wait
+    update install animations      install the animations, playlists and schedules the last check found, and wait
     update install firmware [--force]  install the firmware the last check found, and wait for the restart;
                                    --force also installs a version a rollback put on the skip list
     wifi [--forget]                set up WiFi with Improv over USB (--port only), or forget the stored network
@@ -484,8 +484,8 @@ def find_schedule_tie(document):
 
     def masks_for(year, leap):
         def mask(i):
-            with_year = "year" in entries[i]["from"]
-            key = (i, year if with_year else None, leap)
+            entry_has_year = "year" in entries[i]["from"]
+            key = (i, year if entry_has_year else None, leap)
             if key not in cache:
                 cache[key] = _year_mask(entries[i], year, leap)
             return cache[key]
@@ -494,12 +494,12 @@ def find_schedule_tie(document):
     checks = [(year, ranked, True) for year in range(min(years), max(years) + 1)] if years else []
     # Any leap and any common year: without a year, an entry matches the same days in all of them
     checks += [(2028, undated, False), (2027, undated, False)]
-    for year, subset, with_year in checks:
+    for year, subset, dated_pass in checks:
         leap = is_leap(year)
         tie = _tie_in_year(subset, masks_for(year, leap))
         if tie is not None:
             day, first, second = tie
-            return _date_of(year if with_year else None, leap, day), first, second
+            return _date_of(year if dated_pass else None, leap, day), first, second
     return None
 
 
@@ -1544,7 +1544,7 @@ def add_board_parser(sub):
     update_commands.add_parser("check", help="check now")
     install = update_commands.add_parser("install", help="install what the last check found, ignoring the install window")
     install.add_argument("target", choices=("animations", "firmware"),
-                         help="animations: the animations and playlists; firmware: the firmware, which restarts the board")
+                         help="animations: the animations, playlists and schedules; firmware: the firmware, which restarts the board")
     install.add_argument("--force", action="store_true",
                          help="firmware only: also install the version a rollback put on the skip list")
     wifi = commands.add_parser("wifi", help="set up WiFi with Improv over USB, asking for the name and password")

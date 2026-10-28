@@ -142,6 +142,9 @@ void sim_set_start_token(const std::string &token);
 void fail_brightness_saves(bool fail);
 // Lets `successes` more changes of the playlist succeed, then fails every one. -1 restores normal saving.
 void fail_playlist_saves_after(int successes);
+// The same for the `play` and the `playlists` keys.
+void fail_play_saves_after(int successes);
+void fail_playlists_saves_after(int successes);
 // Makes every save of the token fail.
 void fail_token_saves(bool fail);
 #endif

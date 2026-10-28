@@ -311,7 +311,7 @@ export function UpdatesCard({ client, poll, settings, disabled, onSettings, onEr
         <div className="flex min-w-0 flex-col gap-1.5">
           <Field
             label="Animation source"
-            hint="The address of the manifest the animations and playlists come from."
+            hint="The address of the manifest the animations, playlists and schedules come from."
             error={sourceProblem}
           >
             {(control) => (
@@ -368,8 +368,8 @@ export function UpdatesCard({ client, poll, settings, disabled, onSettings, onEr
                   {describeFirmware(update)}
                   {"; "}
                   {update.files === 0
-                    ? "animations and playlists are up to date"
-                    : `${update.files} animation or playlist ${update.files === 1 ? "change" : "changes"} to install`}
+                    ? "animations, playlists and schedules are up to date"
+                    : `${update.files} animation, playlist or schedule ${update.files === 1 ? "change" : "changes"} to install`}
                 </Row>
                 {update.failedFiles > 0 && (
                   <Row label="Failed">

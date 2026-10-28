@@ -153,8 +153,8 @@ struct Shared
   bool install_requested = false;
   bool firmware_requested = false;
   bool firmware_force = false;
-  // delete_all stopped the installation of animations and playlists: the update task drops it, and the loop
-  // task discards a file that arrives meanwhile.
+  // delete_all stopped the installation of animations, playlists and schedules: the update task drops it, and
+  // the loop task discards a file that arrives meanwhile.
   bool cancel_install = false;
   bool busy = false;
   pixelart_update::Status status;

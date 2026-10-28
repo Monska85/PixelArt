@@ -32,6 +32,7 @@ import {
   editReason,
   listToSend,
   ntpServerProblem,
+  parseSyncHours,
   playlistList,
   removeReason,
 } from "../src/ui/board/play";
@@ -359,6 +360,12 @@ describe("the words of What to play and of the time settings", () => {
       expect(ntpServerProblem(ok), ok).toBeNull();
     for (const bad of ["", "x".repeat(65), "time server", "time_server", "ntp.example.org:123", "zé.org"])
       expect(ntpServerProblem(bad), bad).not.toBeNull();
+  });
+
+  it("take time sync hours from 1 to 168 as whole numbers", () => {
+    expect(parseSyncHours("1")).toBe(1);
+    expect(parseSyncHours(" 168 ")).toBe(168);
+    for (const bad of ["0", "169", "", "x", "1.5", "-1"]) expect(parseSyncHours(bad), bad).toBeNull();
   });
 
   it("send only stored playlists, never an empty list or more than 8", () => {
