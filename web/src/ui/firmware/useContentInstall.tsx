@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { setServerChoice, supportsSchedules } from "../../protocol";
+import { supportsPlayFile, supportsSchedules } from "../../protocol";
 import type { SerialPortLike } from "../../protocol/serial";
 import { contentVersionOf, type Manifest } from "../../release/manifest";
 import { Button } from "../components/button";
 import { ErrorAlert } from "../common/ErrorAlert";
 import { ErrorList, useErrorList } from "../common/ErrorList";
-import { toShownError } from "../errors";
 import { session, useSession, type ConnectionState } from "../session";
 import { useUploadQueue } from "../queue/useUploadQueue";
 import { announceActivity } from "../upload";
@@ -96,28 +95,20 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
     const items = [
       ...manifest.animations.map((entry) => ({ kind: "animation" as const, entry })),
       ...manifest.playlists.map((entry) => ({ kind: "playlist" as const, entry })),
-      // Only a firmware that knows schedules gets them: an older one answers invalid_kind.
+      // Only a firmware that knows schedules gets them, and only one that knows the play file gets it: an older one
+      // answers invalid_kind. The play file goes last, in the same queue: a refused or cancelled install sends none
+      // of it, so Automatic changes only once the file is stored.
       ...(supportsSchedules(client.info)
         ? manifest.schedules.map((entry) => ({ kind: "schedule" as const, entry }))
         : []),
+      ...(supportsPlayFile(client.info) ? manifest.play.map((entry) => ({ kind: "play" as const, entry })) : []),
     ];
-    void install(items, manifest)
-      .then(async () => {
-        // After the files. Only a board that knows schedules has the command; a manifest without `default` clears
-        // the board's choice, as an update check does.
-        if (!supportsSchedules(client.info)) return;
-        try {
-          await setServerChoice(client, manifest.default);
-        } catch (error) {
-          latest.current.report(toShownError("Setting what Automatic plays", error));
-        }
-      })
-      .finally(() => {
-        current.stop();
-        if (job.current !== current) return;
-        job.current = null;
-        setPhase("idle");
-      });
+    void install(items, manifest).finally(() => {
+      current.stop();
+      if (job.current !== current) return;
+      job.current = null;
+      setPhase("idle");
+    });
   }, [phase, state, client, install, latest]);
 
   const notice: ReactNode = (

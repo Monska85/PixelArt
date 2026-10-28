@@ -5,7 +5,7 @@
 // default) and, where a test adds it, e2e/files/summer.json (Beach days, June 1 to August 31, plays default; the
 // fallback is holiday).
 
-import { copyFileSync, existsSync } from "node:fs";
+import { copyFileSync, existsSync, writeFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import { setServerChoice } from "./board";
 import {
@@ -302,9 +302,25 @@ test.describe("what the site chose", () => {
     await setServerChoice(simulator, { schedule: "ghost" });
     await connectSimulator(page, simulator);
     await expect(automatic(page).getByTestId("server-choice")).toHaveText(
-      "The site chose the schedule ghost, which this board does not store, so it plays the schedule default.",
+      "The site chose the schedule ghost, which the board cannot follow, so it plays the schedule default.",
     );
     await expect(automatic(page).getByTestId("play-now")).toContainText("the board plays the fallback, default.");
+  });
+
+  test("a playlist the board stores but cannot play: the status decides, not the file list", async ({
+    page,
+    simulator,
+  }) => {
+    // The file is stored and valid, but the animation it names is not on the board.
+    writeFileSync(
+      stored(simulator, "playlists", "hollow"),
+      '{"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[{"animation":"not_stored"}]}',
+    );
+    await setServerChoice(simulator, { playlists: ["hollow"] });
+    await connectSimulator(page, simulator);
+    await expect(automatic(page).getByTestId("server-choice")).toHaveText(
+      "The site chose the playlist hollow, which the board cannot follow, so it plays the schedule default.",
+    );
   });
 
   test("My choice, Schedule: look, choose, switch, and each change sends only what changes", async ({

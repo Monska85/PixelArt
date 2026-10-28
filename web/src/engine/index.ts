@@ -2,6 +2,8 @@
 
 export { loadAnimation } from "./animation";
 export { loadPlaylist } from "./playlist";
+export { loadPlay } from "./play";
+export type { PlayResult } from "./play";
 export {
   NEXT_CHANGE_DAYS,
   DEFAULT_PLAYLIST_ID,
@@ -35,6 +37,7 @@ export {
   ANIMATION_JSON_DEPTH,
   PLAYLIST_JSON_DEPTH,
   SCHEDULE_JSON_DEPTH,
+  PLAY_JSON_DEPTH,
   JsonNumber,
   isArray,
   isObject,

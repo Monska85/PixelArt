@@ -37,11 +37,15 @@ export const MAX_SCHEDULE_PLAYLISTS = 8;
 export const MIN_SCHEDULE_YEAR = 2000;
 export const MAX_SCHEDULE_YEAR = 2999;
 
+// Limit of docs/format/play-v1.md.
+export const MAX_PLAY_FILE_SIZE = 1024;
+
 /** The largest file of each kind a board stores. */
 export const FILE_LIMITS = {
   animation: MAX_FILE_SIZE,
   playlist: MAX_PLAYLIST_FILE_SIZE,
   schedule: MAX_SCHEDULE_FILE_SIZE,
+  play: MAX_PLAY_FILE_SIZE,
 } as const;
 
 export type Severity = "error" | "warning";

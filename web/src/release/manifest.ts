@@ -2,14 +2,14 @@
 
 // The release manifest (docs/format/manifest-v1.md) as the web app reads it.
 
-import { FILE_LIMITS, isValidId, parseServerChoice, type ServerChoice } from "../engine";
+import { FILE_LIMITS, isValidId } from "../engine";
 import { isCount, isRecord } from "../protocol/guards";
 
 const MANIFEST_FORMAT = "pixelart-manifest/1";
 
-export type PublishedKind = "animation" | "playlist" | "schedule";
+export type PublishedKind = "animation" | "playlist" | "schedule" | "play";
 
-/** An animation, playlist or schedule of the release. Its address is derived from its ID, never taken from the manifest. */
+/** An animation, playlist, schedule or play file of the release. Its address is derived from its ID, never taken from the manifest. */
 export interface Published {
   id: string;
   name: string | null;
@@ -28,8 +28,8 @@ export interface Manifest {
   playlists: Published[];
   /** Empty for a manifest without `schedules` (older releases). */
   schedules: Published[];
-  /** What the release says Automatic plays (the manifest's `default`); null when it has none or it breaks its rules. */
-  default: ServerChoice | null;
+  /** The play file, the release's server choice: empty for a manifest without `play` (older releases). */
+  play: Published[];
 }
 
 /** The version the animations, playlists and schedules were released with: the content version, else the manifest's own. */
@@ -38,7 +38,12 @@ export const contentVersionOf = (manifest: Manifest): string => manifest.content
 /** The most a board stores per file (docs/protocol/protocol-v1.md); a larger published file cannot be installed. */
 export const MAX_FILE_BYTES: Record<PublishedKind, number> = FILE_LIMITS;
 
-const FOLDER: Record<PublishedKind, string> = { animation: "animations", playlist: "playlists", schedule: "schedules" };
+const FOLDER: Record<PublishedKind, string> = {
+  animation: "animations",
+  playlist: "playlists",
+  schedule: "schedules",
+  play: "play",
+};
 
 /** Relative to the page, as the manifest's own paths are relative to the manifest. */
 export const publishedPath = (kind: PublishedKind, id: string): string => `./${FOLDER[kind]}/${id}.json`;
@@ -85,7 +90,7 @@ export function parseManifest(text: string): Manifest | null {
     animations: parseEntries(document.animations, "animation"),
     playlists: parseEntries(document.playlists, "playlist"),
     schedules: parseEntries(document.schedules, "schedule"),
-    default: parseServerChoice(document.default),
+    play: parseEntries(document.play, "play"),
   };
 }
 

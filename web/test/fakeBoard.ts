@@ -3,7 +3,14 @@
 // A scripted board for the protocol client tests: an in-memory implementation
 // of the commands, with hooks to damage, drop or reorder what it says.
 
-import { choosePlaylists, loadSchedule, parseServerChoice, type PlayMode, type Schedule } from "../src/engine";
+import {
+  choosePlaylists,
+  loadPlay,
+  loadSchedule,
+  type PlayMode,
+  type Schedule,
+  type ServerChoice,
+} from "../src/engine";
 import { crc32Hex } from "../src/protocol/crc32";
 import { decodeLine, type Body } from "../src/protocol/framing";
 import { sha256Hex } from "../src/protocol/files";
@@ -17,7 +24,7 @@ export function replyLine(body: Body): Uint8Array {
 }
 
 type Fault = "drop" | "bad_frame" | "corrupt" | undefined;
-type Kind = "animation" | "playlist" | "schedule";
+type Kind = "animation" | "playlist" | "schedule" | "play";
 
 const ID = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 const NTP_SERVER = /^[A-Za-z0-9.-]{1,64}$/;
@@ -25,7 +32,12 @@ const NTP_SERVER = /^[A-Za-z0-9.-]{1,64}$/;
 export class FakeBoard implements Transport {
   onLine: ((line: Uint8Array) => void) | null = null;
   onClose: ((reason?: string) => void) | null = null;
-  files: Record<Kind, Map<string, Uint8Array>> = { animation: new Map(), playlist: new Map(), schedule: new Map() };
+  files: Record<Kind, Map<string, Uint8Array>> = {
+    animation: new Map(),
+    playlist: new Map(),
+    schedule: new Map(),
+    play: new Map(),
+  };
   settings = { brightness: 100, playlist: "default" };
   /**
    * A firmware that knows schedules: `info` reports them, the `schedule` kind works, the settings have `play`,
@@ -37,8 +49,11 @@ export class FakeBoard implements Transport {
   storedPlay: { play: PlayMode; playlists: string[] } | null = null;
   /** The `schedule` setting once a client set it; null reads `default`. */
   storedSchedule: string | null = null;
-  /** What the release says Automatic plays, as `server_choice_set` stored it. */
-  serverChoice: Body | null = null;
+  /**
+   * A firmware that knows the play file: `info` reports it and the `play` kind works. Only with `schedules` too. The
+   * server choice is the `default` of a valid `play/default.json`, as on the board.
+   */
+  playFiles = false;
   time = { time_sync_hours: 6, ntp_server: "pool.ntp.org" };
   /** The play state `status` reports; null derives one from the settings and the stored files. */
   statusPlay: Body | null = null;
@@ -176,6 +191,12 @@ export class FakeBoard implements Transport {
     return { seq, ok: true, settings: this.reported() };
   }
 
+  /** The `default` of the valid `play/default.json`, or null. */
+  get serverChoice(): ServerChoice | null {
+    const bytes = this.files.play.get("default");
+    return this.playFiles && bytes ? loadPlay(bytes).choice : null;
+  }
+
   /** A `status.play` that follows the settings and the stored files, with no time: what the engine chooses. */
   private playStatus(): Body {
     if (this.statusPlay) return this.statusPlay;
@@ -189,7 +210,7 @@ export class FakeBoard implements Transport {
       mode: play,
       playlists,
       schedule: this.storedSchedule ?? "default",
-      serverChoice: parseServerChoice(this.serverChoice),
+      serverChoice: this.serverChoice,
       schedules,
       date: null,
       playable: (id) => this.files.playlist.has(id),
@@ -207,6 +228,7 @@ export class FakeBoard implements Transport {
     if (forced) return { seq, ...forced };
     const kind = r.kind as Kind;
     if (kind === "schedule" && !this.schedules) return this.fail(seq, "invalid_kind");
+    if (kind === "play" && !this.playFiles) return this.fail(seq, "invalid_kind");
     switch (r.cmd) {
       case "info":
         return {
@@ -220,6 +242,7 @@ export class FakeBoard implements Transport {
             animation: ["pixelart/1"],
             playlist: ["pixelart-playlist/1"],
             ...(this.schedules && { schedule: ["pixelart-schedule/1"] }),
+            ...(this.playFiles && { play: ["pixelart-play/1"] }),
           },
           canvas: { width: 16, height: 16 },
           storage: { ...this.storage },
@@ -231,6 +254,7 @@ export class FakeBoard implements Transport {
             animation: 65536,
             playlist: 16384,
             ...(this.schedules && { schedule: 16384 }),
+            ...(this.playFiles && { play: 1024 }),
           },
         };
       case "list": {
@@ -289,11 +313,13 @@ export class FakeBoard implements Transport {
         return { seq, ok: true };
       case "delete_all": {
         const removed = {
+          ...(this.playFiles && { play: this.files.play.size }),
           ...(this.schedules && { schedules: this.files.schedule.size }),
           playlists: this.files.playlist.size,
           animations: this.files.animation.size,
         };
         this.upload = null;
+        this.files.play.clear();
         this.files.schedule.clear();
         this.files.playlist.clear();
         this.files.animation.clear();
@@ -301,7 +327,6 @@ export class FakeBoard implements Transport {
         this.settings = { brightness: 100, playlist: "default" };
         this.storedPlay = null;
         this.storedSchedule = null;
-        this.serverChoice = null;
         this.time = { time_sync_hours: 6, ntp_server: "pool.ntp.org" };
         return { seq, ok: true, ...removed, settings: this.reported() };
       }
@@ -311,13 +336,6 @@ export class FakeBoard implements Transport {
         return { seq, ok: true, settings: this.reported() };
       case "settings_set":
         return this.schedules ? this.setWithPlay(r) : this.setOld(r);
-      case "server_choice_set": {
-        if (!this.schedules) return this.fail(seq, "unknown_command");
-        const choice = r.choice === null ? null : parseServerChoice(r.choice);
-        if (r.choice !== null && choice === null) return this.fail(seq, "bad_request");
-        this.serverChoice = choice;
-        return { seq, ok: true, choice };
-      }
       case "status":
         if (!this.schedules) return this.fail(seq, "unknown_command");
         return { seq, ok: true, wifi: { state: "connected" }, time: { known: false }, play: this.playStatus() };

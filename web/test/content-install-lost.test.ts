@@ -20,7 +20,7 @@ const manifest: Manifest = {
   animations: [],
   playlists: [],
   schedules: [],
-  default: null,
+  play: [],
 };
 
 describe("a first-install job whose link drops after the port connected", () => {

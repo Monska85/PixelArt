@@ -20,8 +20,8 @@ import {
   getSettings,
   getStatus,
   listFiles,
-  setServerChoice,
   setSettings,
+  supportsPlayFile,
   supportsSchedules,
   uploadFile,
 } from "../src/protocol";
@@ -33,7 +33,7 @@ import {
   describeEnd,
   describePlay,
   describeScheduleDeletion,
-  describeServerChoice,
+  describeAutomatic,
   describeToday,
   editReason,
   listToSend,
@@ -59,9 +59,12 @@ const SCHEDULE = JSON.stringify({
 });
 const PLAYLIST = text('{"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},"items":[{"animation":"a"}]}');
 
-async function connected(schedules: boolean): Promise<{ board: FakeBoard; client: BoardClient }> {
+const PLAY = (choice: object) => text(JSON.stringify({ format: "pixelart-play/1", default: choice }));
+
+async function connected(schedules: boolean, playFiles = false): Promise<{ board: FakeBoard; client: BoardClient }> {
   const board = new FakeBoard();
   board.schedules = schedules;
+  board.playFiles = playFiles;
   for (const id of ["default", "halloween", "christmas"]) board.files.playlist.set(id, PLAYLIST);
   const client = new BoardClient(board, { firstSeq: 1 });
   await client.handshake();
@@ -183,19 +186,28 @@ describe("a board that knows schedules", () => {
     });
   });
 
-  it("sends and reads the server choice", async () => {
-    const { board, client } = await connected(true);
-    expect(await setServerChoice(client, { schedule: "seasons" })).toEqual({ schedule: "seasons" });
-    expect(board.requests.at(-1)).toMatchObject({ cmd: "server_choice_set", choice: { schedule: "seasons" } });
-    expect((await getStatus(client)).play?.serverChoice).toEqual({ schedule: "seasons" });
-    expect(await setServerChoice(client, { playlists: ["christmas", "halloween"] })).toEqual({
-      playlists: ["christmas", "halloween"],
-    });
-    expect(await setServerChoice(client, null)).toBeNull();
-    expect(board.requests.at(-1)).toMatchObject({ cmd: "server_choice_set", choice: null });
+  it("stores the play file like a schedule, and status.play reports its default as the server choice", async () => {
+    const { board, client } = await connected(true, true);
+    expect(client.info?.formats.play).toEqual(["pixelart-play/1"]);
+    expect(client.info?.limits.play).toBe(1024);
+    expect(supportsPlayFile(client.info)).toBe(true);
     expect((await getStatus(client)).play?.serverChoice).toBeNull();
+    await uploadFile(client, "play", "default", PLAY({ schedule: "seasons" }));
+    expect(board.requests.map((r) => r.cmd)).not.toContain("server_choice_set");
+    expect(await listFiles(client, "play")).toMatchObject([{ id: "default" }]);
+    expect((await getStatus(client)).play?.serverChoice).toEqual({ schedule: "seasons" });
+    await deleteFile(client, "play", "default");
+    expect((await getStatus(client)).play?.serverChoice).toBeNull();
+  });
+
+  it("does not offer the play file to a firmware older than it, which answers invalid_kind", async () => {
+    const { client } = await connected(true);
+    expect(client.info?.formats.play).toBeNull();
+    expect(client.info?.limits.play).toBe(1024);
+    expect(supportsPlayFile(client.info)).toBe(false);
+    await expect(listFiles(client, "play")).rejects.toMatchObject({ code: "invalid_kind" });
     const old = await connected(false);
-    await expect(setServerChoice(old.client, null)).rejects.toMatchObject({ code: "unknown_command" });
+    expect(supportsPlayFile(old.client.info)).toBe(false);
   });
 
   it("reads a server choice by the rules of the format, and anything else as none", () => {
@@ -295,9 +307,9 @@ describe("a board that knows schedules", () => {
   });
 
   it("derives status.play from the settings, the stored schedules and the server choice", async () => {
-    const { board, client } = await connected(true);
+    const { board, client } = await connected(true, true);
     board.files.schedule.set("seasons", text(SCHEDULE));
-    await setServerChoice(client, { schedule: "seasons" });
+    board.files.play.set("default", PLAY({ schedule: "seasons" }));
     expect((await getStatus(client)).play).toMatchObject({ source: "server", schedule: "seasons", reason: "no_time" });
     await setSettings(client, { play: "schedule", schedule: "seasons" });
     expect((await getStatus(client)).play).toMatchObject({ mode: "schedule", source: "schedule" });
@@ -311,18 +323,22 @@ describe("a board that knows schedules", () => {
     });
   });
 
-  it("counts the schedules delete_all removes, and the older firmware's reply has none", async () => {
-    const { board, client } = await connected(true);
+  it("counts the schedules and play files delete_all removes, and the older firmware's reply has none", async () => {
+    const { board, client } = await connected(true, true);
     board.files.schedule.set("default", text(SCHEDULE));
+    board.files.play.set("default", PLAY({ schedule: "default" }));
     await setSettings(client, { play: "playlists", playlists: ["halloween"] });
-    await setServerChoice(client, { schedule: "default" });
     expect(await deleteAll(client, { resetSettings: true })).toMatchObject({
+      play: 1,
       schedules: 1,
       settings: { play: "auto", playlists: ["default"], schedule: "default", playlist: "default", time_sync_hours: 6 },
     });
     expect((await getStatus(client)).play?.serverChoice).toBeNull();
     const old = await connected(false);
     expect((await deleteAll(old.client)).schedules).toBeNull();
+    expect((await deleteAll(old.client)).play).toBeNull();
+    const noPlay = await connected(true);
+    expect((await deleteAll(noPlay.client)).play).toBeNull();
   });
 });
 
@@ -340,20 +356,19 @@ describe("the manifest's schedules", () => {
     expect(parseManifest(manifest(undefined))?.schedules).toEqual([]);
   });
 
-  it("come with the choice the release makes for Automatic, when it follows the rules", () => {
-    const withDefault = (value: unknown) =>
-      parseManifest(JSON.stringify({ format: "pixelart-manifest/1", version: "1.0.0", default: value }))?.default;
-    expect(withDefault({ schedule: "seasons" })).toEqual({ schedule: "seasons" });
-    expect(withDefault({ playlists: ["a", "b"] })).toEqual({ playlists: ["a", "b"] });
-    expect(withDefault(undefined)).toBeNull();
-    for (const bad of [
-      {},
-      { schedule: "seasons", playlists: ["a"] },
-      { schedule: "Bad" },
-      { playlists: [] },
-      "seasons",
-    ])
-      expect(withDefault(bad), JSON.stringify(bad)).toBeNull();
+  it("come with the play file of the release, and an older manifest has none", () => {
+    const withPlay = (play: unknown) =>
+      parseManifest(JSON.stringify({ format: "pixelart-manifest/1", version: "1.0.0", play }))?.play;
+    expect(withPlay([{ id: "default", file: "play/default.json", size: 61, sha256: sha }])).toEqual([
+      { id: "default", name: null, version: null, size: 61, sha256: sha },
+    ]);
+    expect(withPlay(undefined)).toEqual([]);
+    // Another folder, or larger than the 1 KiB a board stores: not read.
+    expect(withPlay([{ id: "default", file: "schedules/default.json", size: 61, sha256: sha }])).toEqual([]);
+    expect(withPlay([{ id: "default", file: "play/default.json", size: 1025, sha256: sha }])).toEqual([]);
+    expect(
+      parseManifest(JSON.stringify({ format: "pixelart-manifest/1", version: "1.0.0", default: { schedule: "x" } })),
+    ).not.toHaveProperty("default");
   });
 
   it("leave out an entry in another folder or larger than a board stores", () => {
@@ -395,6 +410,24 @@ describe("the app's check of a picked file", () => {
       "Installed",
     );
     expect(report.toast.title).toBe("Installed 1 animation, 1 playlist and 1 schedule");
+    const withPlay = [...uploaded, { file: file("play", "default"), warnings: [] }];
+    expect(
+      summaryReport({ uploaded: withPlay, skipped: [], failed: null, notAttempted: [], cancelled: false }, "Installed")
+        .toast.title,
+    ).toBe("Installed 1 animation, 1 playlist, 1 schedule and 1 play file");
+    const alone = [{ file: file("play", "default"), warnings: [] }];
+    expect(
+      summaryReport({ uploaded: alone, skipped: [], failed: null, notAttempted: [], cancelled: false }, "Installed")
+        .toast.title,
+    ).toBe("Installed play file default");
+  });
+
+  it("checks a play file of the site, which the user cannot pick", () => {
+    expect(validateFile("play", PLAY({ schedule: "seasons" })).ok).toBe(true);
+    const bad = validateFile("play", PLAY({ schedule: "seasons", playlists: ["a"] }));
+    expect(bad.ok).toBe(false);
+    expect(bad.diagnostics[0]?.code).toBe("structure");
+    expect(detectKind(new Map([["format", "pixelart-play/1"]])).ok).toBe(false);
   });
 });
 
@@ -487,24 +520,79 @@ describe("the words of What to play and of the time settings", () => {
     );
   });
 
-  it("say what the site chose for Automatic, in the terms of My choice, and what the board plays when it cannot follow", () => {
+  describe("the Automatic explanation comes from status.play", () => {
     const stored = { schedules: names(["seasons", "Seasons"]), playlists: names(["a", "Alpha"], ["b", null]) };
-    expect(describeServerChoice({ schedule: "seasons" }, stored)).toBe("The site plays the schedule Seasons.");
-    expect(describeServerChoice({ playlists: ["a", "b"] }, stored)).toBe("The site plays the playlists Alpha and b.");
-    expect(describeServerChoice({ playlists: ["a"] }, stored)).toBe("The site plays the playlist Alpha.");
-    expect(describeServerChoice(null, stored)).toBe(
-      "The site has not chosen what to play, so the board plays the playlist default.",
-    );
-    expect(describeServerChoice({ schedule: "ghost" }, stored)).toBe(
-      "The site chose the schedule ghost, which this board does not store, so it plays the playlist default.",
-    );
-    expect(describeServerChoice({ playlists: ["x", "y"] }, stored)).toBe(
-      "The site chose the playlists x and y, which this board does not store, so it plays the playlist default.",
-    );
-    const withDefault = { ...stored, schedules: names(["default", "Seasons"]) };
-    expect(describeServerChoice(null, withDefault)).toBe(
-      "The site has not chosen what to play, so the board plays the schedule default.",
-    );
+
+    it("says the site's schedule is followed", () => {
+      const status = play({
+        source: "server",
+        schedule: "seasons",
+        playlists: ["christmas"],
+        serverChoice: { schedule: "seasons" },
+      });
+      expect(describeAutomatic(status, stored)).toBe("The site plays the schedule Seasons.");
+    });
+
+    it("says the site's playlists are followed", () => {
+      const status = (list: string[]) =>
+        play({
+          source: "server",
+          schedule: null,
+          reason: "playlists",
+          playlists: list,
+          serverChoice: { playlists: list },
+        });
+      expect(describeAutomatic(status(["a", "b"]), stored)).toBe("The site plays the playlists Alpha and b.");
+      expect(describeAutomatic(status(["a"]), stored)).toBe("The site plays the playlist Alpha.");
+    });
+
+    it("says the site's choice cannot be followed, and what the board plays instead", () => {
+      // The file of the schedule or of every playlist can be stored and still not play: only the status knows.
+      const ghost = play({
+        source: "fallback",
+        schedule: null,
+        reason: "no_schedule",
+        serverChoice: { schedule: "ghost" },
+      });
+      expect(describeAutomatic(ghost, stored)).toBe(
+        "The site chose the schedule ghost, which the board cannot follow, so it plays the playlist default.",
+      );
+      const seasons = play({ source: "fallback", serverChoice: { schedule: "seasons" } });
+      expect(describeAutomatic(seasons, stored)).toBe(
+        "The site chose the schedule Seasons, which the board cannot follow, so it plays the schedule default.",
+      );
+      const listed = play({
+        source: "fallback",
+        schedule: null,
+        reason: "no_schedule",
+        serverChoice: { playlists: ["x", "y"] },
+      });
+      expect(describeAutomatic(listed, stored)).toBe(
+        "The site chose the playlists x and y, which the board cannot follow, so it plays the playlist default.",
+      );
+    });
+
+    it("says the site has not chosen, and what the board plays", () => {
+      expect(describeAutomatic(play({}), stored)).toBe(
+        "The site has not chosen what to play, so the board plays the schedule default.",
+      );
+      expect(describeAutomatic(play({ schedule: null, reason: "no_schedule" }), stored)).toBe(
+        "The site has not chosen what to play, so the board plays the playlist default.",
+      );
+    });
+
+    it("names only the site's choice while My choice is in force", () => {
+      const mine = play({
+        mode: "playlists",
+        source: "playlists",
+        schedule: null,
+        serverChoice: { schedule: "seasons" },
+      });
+      expect(describeAutomatic(mine, stored)).toBe("The site chose the schedule Seasons for Automatic.");
+      expect(describeAutomatic({ ...mine, serverChoice: null }, stored)).toBe(
+        "The site has not chosen what to play, so Automatic plays the board's own rule: the schedule default, else the playlist default.",
+      );
+    });
   });
 
   it("find the schedule the Automatic card shows", () => {

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createHash } from "node:crypto";
 import type { Page } from "@playwright/test";
 import type { ServerChoice } from "../src/engine";
 import { decodeLine, encodeLine } from "../src/protocol/framing";
@@ -91,13 +92,14 @@ export async function watchBoard(
   };
 }
 
-/** What a firmware from before schedules leaves out of a reply (docs/protocol/protocol-v1.md#info). */
+/** What a firmware from before schedules leaves out of a reply (docs/protocol/protocol-v1.md#info), the play file too. */
 function withoutSchedules(reply: Record<string, unknown>): Record<string, unknown> {
   const out = { ...reply };
   for (const key of ["formats", "limits"] as const)
     if (typeof out[key] === "object" && out[key] !== null) {
       const part = { ...(out[key] as Record<string, unknown>) };
       delete part.schedule;
+      delete part.play;
       out[key] = part;
     }
   if (typeof out.settings === "object" && out.settings !== null) {
@@ -149,19 +151,48 @@ export async function firmwareBeforeSchedules(
 }
 
 /**
- * Stores what the release says Automatic plays on the simulator, as an update check or the USB install would, over a
- * connection of its own that ends before the page's starts.
+ * Stores what the release says Automatic plays on the simulator, as an update check or the USB install would: the
+ * play file `default`, or none for `null`. It goes through the protocol, over a connection of its own that ends
+ * before the page's starts, because the board chooses again only when a file is stored or deleted through it.
  */
 export async function setServerChoice(simulator: Simulator, choice: ServerChoice | null): Promise<void> {
   const socket = new WebSocket(simulator.address);
-  const answer = new Promise<Record<string, unknown> | null>((resolve, reject) => {
-    socket.onopen = () => socket.send(encodeLine({ seq: 1, cmd: "server_choice_set", choice }));
+  const replies: Array<(reply: Record<string, unknown> | null) => void> = [];
+  socket.onmessage = (event) => replies.shift()?.(decodeLine(new TextEncoder().encode(String(event.data))));
+  await new Promise<void>((resolve, reject) => {
+    socket.onopen = () => resolve();
     socket.onerror = () => reject(new Error("the simulator did not take the server choice"));
-    socket.onmessage = (event) => resolve(decodeLine(new TextEncoder().encode(String(event.data))));
   });
-  const closed = new Promise<void>((resolve) => (socket.onclose = () => resolve()));
-  const reply = await answer;
-  socket.close();
-  await closed;
-  if (reply?.ok !== true) throw new Error(`the simulator refused the server choice: ${JSON.stringify(reply)}`);
+  let seq = 0;
+  const ask = (request: Record<string, unknown>): Promise<Record<string, unknown> | null> =>
+    new Promise((resolve) => {
+      replies.push(resolve);
+      socket.send(encodeLine({ seq: ++seq, ...request }));
+    });
+  const need = (reply: Record<string, unknown> | null): void => {
+    if (reply?.ok !== true) throw new Error(`the simulator refused the server choice: ${JSON.stringify(reply)}`);
+  };
+  try {
+    if (choice === null) {
+      const reply = await ask({ cmd: "delete", kind: "play", id: "default" });
+      if (reply?.error !== "not_found") need(reply);
+    } else {
+      const bytes = Buffer.from(JSON.stringify({ format: "pixelart-play/1", default: choice }));
+      need(
+        await ask({
+          cmd: "put_begin",
+          kind: "play",
+          id: "default",
+          size: bytes.length,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        }),
+      );
+      need(await ask({ cmd: "put_chunk", offset: 0, data: bytes.toString("base64") }));
+      need(await ask({ cmd: "put_end" }));
+    }
+  } finally {
+    const closed = new Promise<void>((resolve) => (socket.onclose = () => resolve()));
+    socket.close();
+    await closed;
+  }
 }

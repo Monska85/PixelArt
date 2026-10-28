@@ -4,7 +4,8 @@ import { Download, FileJson, FileText, Pencil, Play, Plus, Trash2, Upload } from
 import { useState } from "react";
 import { loadAnimation } from "../../engine";
 import { session } from "../session";
-import { deleteFile, downloadFile, type BoardClient, type Entry, type Kind, type PlayStatus } from "../../protocol";
+import { deleteFile, downloadFile, type BoardClient, type Entry, type PlayStatus } from "../../protocol";
+import type { ListedKind } from "../fileLists";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
 import { IconButton } from "../components/icon-button";
@@ -24,7 +25,7 @@ import { describeScheduleDeletion } from "./play";
 
 interface Props {
   client: BoardClient;
-  kind: Kind;
+  kind: ListedKind;
   /** What the session knows of this list: only a known list can be empty. */
   list: BoardFileList;
   activePlaylist: string | null;
@@ -49,7 +50,11 @@ interface Props {
   missingContext?: MissingContext;
 }
 
-const LIST_LABEL: Record<Kind, string> = { animation: "Animations", playlist: "Playlists", schedule: "Schedules" };
+const LIST_LABEL: Record<ListedKind, string> = {
+  animation: "Animations",
+  playlist: "Playlists",
+  schedule: "Schedules",
+};
 
 /** One list of the Board view: its table, the actions of each row, and the empty state. */
 export function FilesList({

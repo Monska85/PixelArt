@@ -57,21 +57,34 @@ const named = (names: Names, id: string): string => names.get(id) || id;
 export const ownRule = (schedules: { has: (id: string) => boolean }): string =>
   schedules.has(DEFAULT_SCHEDULE_ID) ? `the schedule ${DEFAULT_SCHEDULE_ID}` : `the playlist ${DEFAULT_PLAYLIST_ID}`;
 
-/** What the site chose for Automatic, in the terms of My choice, and the board's own rule when it cannot follow it. */
-export function describeServerChoice(
-  choice: ServerChoice | null,
-  stored: { schedules: Names; playlists: Names },
-): string {
-  const own = ownRule(stored.schedules);
-  if (choice === null) return `The site has not chosen what to play, so the board plays ${own}.`;
-  if ("schedule" in choice)
-    return stored.schedules.has(choice.schedule)
-      ? `The site plays the schedule ${named(stored.schedules, choice.schedule)}.`
-      : `The site chose the schedule ${choice.schedule}, which this board does not store, so it plays ${own}.`;
-  const list = playlistList(choice.playlists.map((id) => named(stored.playlists, id)));
-  return choice.playlists.some((id) => stored.playlists.has(id))
-    ? `The site plays the ${choice.playlists.length === 1 ? "playlist" : "playlists"} ${list}.`
-    : `The site chose the ${choice.playlists.length === 1 ? "playlist" : "playlists"} ${list}, which this board does not store, so it plays ${own}.`;
+/** The site's choice in words: "the schedule Seasons", "the playlists Alpha and b". */
+function describeChoice(choice: ServerChoice, names: { schedules: Names; playlists: Names }): string {
+  if ("schedule" in choice) return `the schedule ${named(names.schedules, choice.schedule)}`;
+  const list = playlistList(choice.playlists.map((id) => named(names.playlists, id)));
+  return `the ${choice.playlists.length === 1 ? "playlist" : "playlists"} ${list}`;
+}
+
+/** What the board plays now, from its status: the schedule it plays from, else the list. */
+function describePlaying(play: PlayStatus): string {
+  if (play.schedule !== null) return `the schedule ${play.schedule}`;
+  return `the ${play.playlists.length === 1 ? "playlist" : "playlists"} ${playlistList(play.playlists)}`;
+}
+
+/**
+ * What the site chose for Automatic, in the terms of My choice, from `status.play` alone: the board decides what it
+ * can play, so `source` says whether it follows the site's choice (`server`) or its own rule (`fallback`). With
+ * another mode in force the status says nothing about Automatic, so the text names only the site's choice.
+ */
+export function describeAutomatic(play: PlayStatus, names: { schedules: Names; playlists: Names }): string {
+  const choice = play.serverChoice;
+  if (play.mode !== "auto") {
+    return choice === null
+      ? `The site has not chosen what to play, so Automatic plays the board's own rule: the schedule ${DEFAULT_SCHEDULE_ID}, else the playlist ${DEFAULT_PLAYLIST_ID}.`
+      : `The site chose ${describeChoice(choice, names)} for Automatic.`;
+  }
+  if (choice === null) return `The site has not chosen what to play, so the board plays ${describePlaying(play)}.`;
+  if (play.source === "server") return `The site plays ${describeChoice(choice, names)}.`;
+  return `The site chose ${describeChoice(choice, names)}, which the board cannot follow, so it plays ${describePlaying(play)}.`;
 }
 
 /**

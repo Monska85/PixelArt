@@ -6,7 +6,7 @@
 // through `RunDeps`, so a test can script all of them.
 
 import { loadAnimation, type Diagnostic } from "../engine";
-import { listFiles, supportsSchedules, type BoardClient } from "../protocol";
+import { listFiles, supportsPlayFile, supportsSchedules, type BoardClient } from "../protocol";
 import { downloadPublished } from "../release/library";
 import { loadManifest, type Manifest, type Published } from "../release/manifest";
 import {
@@ -76,7 +76,8 @@ async function readBoard(client: BoardClient): Promise<StoredFiles> {
   const playlist = await listFiles(client, "playlist");
   // A firmware older than schedules answers invalid_kind: it stores none.
   const schedule = supportsSchedules(client.info) ? await listFiles(client, "schedule") : [];
-  return { animation, playlist, schedule };
+  const play = supportsPlayFile(client.info) ? await listFiles(client, "play") : [];
+  return { animation, playlist, schedule, play };
 }
 
 /** The animations that a playlist names and nothing in the queue has, taken from the Library. */

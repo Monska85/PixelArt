@@ -11,6 +11,7 @@ import {
   choosePlaylists,
   effectiveBrightness,
   loadAnimation,
+  loadPlay,
   loadPlaylist,
   loadSchedule,
   scheduleWinner,
@@ -150,6 +151,26 @@ describe("schedules that must be rejected", () => {
   it.each(files.map((f) => [basename(f, ".json"), f]))("%s", (_name, file) => {
     const result = loadSchedule(readBytes(file as string));
     expect(result.schedule, "accepted").toBeNull();
+    expectRejection(json(expectedPath(file as string)), result.diagnostics);
+  });
+});
+
+describe("play files that must load", () => {
+  const files = caseFiles(`${SUITE}/play/valid`);
+  it("has cases", () => expect(files.length).toBeGreaterThan(0));
+  it.each(files.map((f) => [basename(f, ".json"), f]))("%s", (_name, file) => {
+    const result = loadPlay(readBytes(file as string));
+    expect(result.choice, `rejected:${describeAll(result.diagnostics)}`).not.toBeNull();
+    expect({ default: result.choice }).toEqual(json(expectedPath(file as string)));
+  });
+});
+
+describe("play files that must be rejected", () => {
+  const files = caseFiles(`${SUITE}/play/invalid`);
+  it("has cases", () => expect(files.length).toBeGreaterThan(0));
+  it.each(files.map((f) => [basename(f, ".json"), f]))("%s", (_name, file) => {
+    const result = loadPlay(readBytes(file as string));
+    expect(result.choice, "accepted").toBeNull();
     expectRejection(json(expectedPath(file as string)), result.diagnostics);
   });
 });

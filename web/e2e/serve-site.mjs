@@ -3,7 +3,8 @@
 // Serves what GitHub Pages would: the built app with a fixture release next to it.
 //
 // The release is made from the fixture board files of e2e/board-files/ (the animations, playlists and schedules named in
-// site/published.json, with their real sizes and SHA-256) and the ESP Web Tools manifests of site/firmware/.
+// site/published.json, with their real sizes and SHA-256), the play file of site/play/ (the site's choice: the board
+// files hold none, so a board starts without a server choice) and the ESP Web Tools manifests of site/firmware/.
 // PIXELART_DATA and PIXELART_PUBLISHED name other files (the screenshot suite has its own). Set NO_RELEASE=1 to serve
 // the app alone. A path that does not exist answers 404, as on Pages.
 
@@ -26,8 +27,8 @@ if (process.env.NO_RELEASE !== "1") {
   const published = JSON.parse(
     readFileSync(process.env.PIXELART_PUBLISHED ?? join(here, "site", "published.json"), "utf8"),
   );
-  const describe = (kind, id) => {
-    const bytes = readFileSync(join(data, kind, `${id}.json`));
+  const describe = (kind, id, base = data) => {
+    const bytes = readFileSync(join(base, kind, `${id}.json`));
     mkdirSync(join(root, kind), { recursive: true });
     writeFileSync(join(root, kind, `${id}.json`), bytes);
     const name = JSON.parse(bytes.toString("utf8")).name;
@@ -60,8 +61,8 @@ if (process.env.NO_RELEASE !== "1") {
     playlists: published.playlists.map((id) => describe("playlists", id)),
     // A release before schedules has no list: the fixture of such a site leaves the key out.
     ...(published.schedules ? { schedules: published.schedules.map((id) => describe("schedules", id)) } : {}),
-    // What the release says Automatic plays, as the manifest's `default`.
-    ...(published.default ? { default: published.default } : {}),
+    // The release's choice for Automatic is a play file, like the other files.
+    ...(published.play ? { play: published.play.map((id) => describe("play", id, join(here, "site"))) } : {}),
   };
   writeFileSync(join(root, "manifest.json"), JSON.stringify(manifest, null, 2));
   cpSync(join(here, "site", "firmware"), join(root, "firmware"), { recursive: true });

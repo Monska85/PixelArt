@@ -4,5 +4,5 @@
   "animations": ["snowflake", "star", "wreath"],
   "playlists": ["default"],
   "schedules": ["default"],
-  "default": { "schedule": "default" }
+  "play": ["default"]
 }

@@ -34,7 +34,7 @@ import {
   automaticSchedule,
   describeEnd,
   describePlay,
-  describeServerChoice,
+  describeAutomatic,
   describeToday,
   editReason,
   entryLabel,
@@ -48,7 +48,7 @@ import { browserTimeZone, localDateIn, zoneOfSetting } from "./timezones";
 import { useFocusAfter } from "./useFocusAfter";
 import { usePendingSend } from "./usePendingSend";
 import { useReorder } from "./useReorder";
-import { useScheduleSource, type ScheduleSource } from "./useScheduleSource";
+import { useScheduleSource, useSiteSchedule, type ScheduleSource } from "./useScheduleSource";
 
 export interface WhatToPlayProps {
   client: BoardClient;
@@ -291,20 +291,16 @@ function Automatic({
 }) {
   const choice = play?.serverChoice ?? null;
   const id = schedules === null ? null : automaticSchedule(choice, new Set(scheduleNames.keys()), play);
-  // A board that stores no schedule shows the one the site publishes: the schedule the site chose, else `default`.
-  const siteChoice = library.status === "ready" ? library.manifest.default : null;
-  const siteId =
-    schedules !== null && schedules.length === 0
-      ? siteChoice && "schedule" in siteChoice
-        ? siteChoice.schedule
-        : DEFAULT_SCHEDULE_ID
-      : null;
+  // A board that stores no schedule shows the one the site publishes: the schedule its play file names, else `default`.
+  const siteId = useSiteSchedule(library, schedules !== null && schedules.length === 0);
   const source = useScheduleSource(client, schedules, library, id, siteId);
 
   return (
     <div className="flex min-w-0 flex-col gap-2 text-sm sm:pl-7" data-testid="automatic">
-      {play !== null && schedules !== null && playlists !== null && (
-        <p data-testid="server-choice">{describeServerChoice(choice, { schedules: scheduleNames, playlists })}</p>
+      {play !== null && (
+        <p data-testid="server-choice">
+          {describeAutomatic(play, { schedules: scheduleNames, playlists: playlists ?? new Map() })}
+        </p>
       )}
       {schedules !== null && schedules.length === 0 && (
         <p className="text-muted-foreground" data-testid="no-schedule">

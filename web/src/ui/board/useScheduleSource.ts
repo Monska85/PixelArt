@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useState } from "react";
-import { loadSchedule, type Schedule } from "../../engine";
+import { DEFAULT_SCHEDULE_ID, loadPlay, loadSchedule, type Schedule } from "../../engine";
 import { downloadFile, type BoardClient, type Entry } from "../../protocol";
 import { downloadPublished } from "../../release/library";
 import type { Published } from "../../release/manifest";
@@ -102,4 +102,34 @@ export function useScheduleSource(
   if (key === null) return { status: "loading" };
   if (key === "none") return { status: "none" };
   return source.key === key ? source.value : { status: "loading" };
+}
+
+/**
+ * The ID of the schedule the site publishes for a board that stores none: the one its play file names, else `default`
+ * (the board's own rule). Null while `enabled` is false or the release or its play file is still being read.
+ */
+export function useSiteSchedule(library: ManifestState, enabled: boolean): string | null {
+  const entry = enabled && library.status === "ready" ? library.manifest.play.find((e) => e.id === "default") : null;
+  const [read, setRead] = useState<{ sha256: string; id: string } | null>(null);
+
+  useEffect(() => {
+    if (!entry) return;
+    let current = true;
+    void downloadPublished("play", entry)
+      .then((bytes) => loadPlay(bytes).choice)
+      .catch(() => null)
+      .then((choice) => {
+        if (current)
+          setRead({ sha256: entry.sha256, id: choice && "schedule" in choice ? choice.schedule : DEFAULT_SCHEDULE_ID });
+      });
+    return () => {
+      current = false;
+    };
+    // The file is read again only when its SHA-256 changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.sha256]);
+
+  if (!enabled || library.status === "loading") return null;
+  if (!entry) return DEFAULT_SCHEDULE_ID;
+  return read?.sha256 === entry.sha256 ? read.id : null;
 }

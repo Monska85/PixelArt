@@ -3,13 +3,7 @@
 // What the board stores: listing, download, upload, delete, settings
 // (docs/protocol/protocol-v1.md#commands) with the recovery of tools/pixelart.py.
 
-import {
-  DEFAULT_PLAYLIST_ID,
-  DEFAULT_SCHEDULE_ID,
-  parseServerChoice,
-  type PlayMode,
-  type ServerChoice,
-} from "../engine/schedule";
+import { DEFAULT_PLAYLIST_ID, DEFAULT_SCHEDULE_ID, type PlayMode } from "../engine/schedule";
 import { FILE_LIMITS } from "../engine/types";
 import {
   BoardError,
@@ -195,6 +189,8 @@ export async function deleteFile(client: BoardClient, kind: Kind, id: string): P
 }
 
 interface DeleteAllResult {
+  /** Null for a firmware older than the play file, which leaves the count out. */
+  play: number | null;
   /** Null for a firmware older than schedules, which leaves the count out. */
   schedules: number | null;
   playlists: number;
@@ -207,7 +203,7 @@ interface DeleteAllResult {
 const DELETE_ALL_TIMEOUT_MS = PUT_END_TIMEOUT_MS;
 
 /**
- * Removes every schedule, playlist and animation and, with `resetSettings`, then puts the settings back to their defaults. A
+ * Removes every play file, schedule, playlist and animation and, with `resetSettings`, then puts the settings back to their defaults. A
  * failure reply throws: `unknown_command` on a firmware without `delete_all`, `bad_request` on one that does not know
  * `settings` (nothing is removed then), `storage_error` when a file or the settings could not be changed.
  */
@@ -216,10 +212,12 @@ export async function deleteAll(client: BoardClient, { resetSettings = false } =
   if (
     !isCount(reply.playlists) ||
     !isCount(reply.animations) ||
-    (reply.schedules !== undefined && !isCount(reply.schedules))
+    (reply.schedules !== undefined && !isCount(reply.schedules)) ||
+    (reply.play !== undefined && !isCount(reply.play))
   )
     throw new BoardError("protocol", "the board sent invalid counts for delete_all");
   const removed = {
+    play: isCount(reply.play) ? reply.play : null,
     schedules: isCount(reply.schedules) ? reply.schedules : null,
     playlists: reply.playlists,
     animations: reply.animations,
@@ -264,15 +262,6 @@ export async function getSettings(client: BoardClient): Promise<Settings> {
 
 export async function setSettings(client: BoardClient, changes: SettingsChanges): Promise<Settings> {
   return parseSettings(await client.command("settings_set", changes));
-}
-
-/**
- * `server_choice_set`: stores what the release says Automatic plays, or none for `null`. For a board that gets its
- * content over USB, where no update check reads a manifest. Returns the choice the board stored.
- */
-export async function setServerChoice(client: BoardClient, choice: ServerChoice | null): Promise<ServerChoice | null> {
-  const reply = await client.command("server_choice_set", { choice });
-  return parseServerChoice(reply.choice);
 }
 
 /** `token_regenerate`, over USB only: a new token replaces the old one, and the board closes its WiFi client. */

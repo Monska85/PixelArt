@@ -9,6 +9,7 @@ import {
   isObject,
   loadAnimation,
   loadPlaylist,
+  loadPlay,
   loadSchedule,
   parseStrictJson,
   type Diagnostic,
@@ -114,6 +115,10 @@ export function validateFile(kind: Kind, bytes: Uint8Array): { ok: boolean; diag
   if (kind === "playlist") {
     const { items, diagnostics } = loadPlaylist(bytes);
     return { ok: items !== null, diagnostics };
+  }
+  if (kind === "play") {
+    const { choice, diagnostics } = loadPlay(bytes);
+    return { ok: choice !== null, diagnostics };
   }
   const { schedule, diagnostics } = loadSchedule(bytes);
   return { ok: schedule !== null, diagnostics };

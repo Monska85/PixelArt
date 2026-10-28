@@ -129,6 +129,7 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
     animation: manifest.animations,
     playlist: manifest.playlists,
     schedule: manifest.schedules,
+    play: manifest.play,
   };
   const everything = (kinds: PublishedKind[]): Array<{ kind: PublishedKind; entry: Published }> =>
     kinds.flatMap((kind) => published[kind].map((entry) => ({ kind, entry })));

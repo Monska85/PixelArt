@@ -34,10 +34,16 @@ const entry = (id: string, size: number, hash: number | null): Entry => ({
   version: null,
 });
 
-const board = (animation: Entry[] = [], playlist: Entry[] = [], schedule: Entry[] = []): StoredFiles => ({
+const board = (
+  animation: Entry[] = [],
+  playlist: Entry[] = [],
+  schedule: Entry[] = [],
+  play: Entry[] = [],
+): StoredFiles => ({
   animation,
   playlist,
   schedule,
+  play,
 });
 
 const playlist = (...items: Array<string | [string, boolean]>): Uint8Array =>
@@ -59,7 +65,7 @@ const manifest = (...ids: string[]): Manifest => ({
   animations: ids.map(published),
   playlists: [],
   schedules: [],
-  default: null,
+  play: [],
 });
 
 describe("planning against the board", () => {
@@ -120,6 +126,15 @@ describe("the order files are sent in", () => {
       file("animation", "a1"),
     ].map((f) => ({ file: f }));
     expect(sendOrder(entries).map((e) => e.file.id)).toEqual(["a1", "p1", "default", "other"]);
+  });
+
+  it("sends the play file last, so it finds its schedule or playlists, and skips it when the board has it", () => {
+    const entries = [file("play", "default"), file("schedule", "s1"), file("animation", "a1")].map((f) => ({
+      file: f,
+    }));
+    expect(sendOrder(entries).map((e) => e.file.id)).toEqual(["a1", "s1", "default"]);
+    const plan = planAgainstBoard([file("play", "default")], board([], [], [], [entry("default", 100, 1)]));
+    expect(plan.map((e) => e.status)).toEqual(["identical"]);
   });
 });
 
