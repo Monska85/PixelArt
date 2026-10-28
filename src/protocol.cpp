@@ -387,13 +387,16 @@ void warn_unknown_animations(const pixelart::Playlist &playlist, std::vector<pix
   }
 }
 
-// Adds an `unknown_playlist` warning for each place of a schedule that names a playlist that is not stored.
+// Adds an `unknown_playlist` warning for each place of a schedule that names a playlist that is not stored, up to
+// the MAX_DIAGNOSTICS a file has: a schedule can name hundreds of places, and a warning for each would not fit in
+// the memory. The stored playlists are listed once instead of looking each place up in the storage.
 void warn_unknown_playlists(const pixelart::Schedule &schedule, std::vector<pixelart::Diagnostic> &diagnostics)
 {
+  const std::vector<std::string> stored = stored_playlists();
   auto check = [&](const std::vector<std::string> &ids, const std::string &where)
   {
-    for (size_t i = 0; i < ids.size(); i++)
-      if (!storage::exists(playlist_file(ids[i])))
+    for (size_t i = 0; i < ids.size() && diagnostics.size() < pixelart::MAX_DIAGNOSTICS; i++)
+      if (std::find(stored.begin(), stored.end(), ids[i]) == stored.end())
         diagnostics.push_back({pixelart::Severity::Warning, "unknown_playlist", where + "[" + std::to_string(i) + "]",
                                "\"" + ids[i] + "\" is not stored"});
   };
