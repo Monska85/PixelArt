@@ -125,7 +125,7 @@ export function posixTimeZone(iana: string): string | null {
   return Object.prototype.hasOwnProperty.call(ZONES, iana) ? (ZONES[iana] as string) : null;
 }
 
-/** The zones the table knows, for tests. */
+/** The IANA zones the table knows. */
 export const knownTimeZones = (): string[] => Object.keys(ZONES);
 
 /** The browser's IANA time zone, or null when it does not say. */

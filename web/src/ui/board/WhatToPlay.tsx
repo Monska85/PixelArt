@@ -1,7 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2, TriangleAlert } from "lucide-react";
-import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { nextScheduleChange, scheduleWinner, type PlayMode, type Schedule } from "../../engine";
 import type { BoardClient, Entry, PlayStatus, Settings, SettingsChanges } from "../../protocol";
 import { Field } from "../common/Field";
@@ -18,6 +28,7 @@ import {
   addReason,
   describeEnd,
   describePlay,
+  describeToday,
   editReason,
   entryLabel,
   formatDate,
@@ -150,10 +161,7 @@ function Automatic({
 
   let now: string | null = null;
   if (play) now = describePlay(play, onBoard);
-  else if (onBoard) {
-    const list = todayEntry >= 0 ? onBoard.entries[todayEntry]!.playlists : onBoard.fallback;
-    now = `${todayEntry >= 0 ? entryLabel(onBoard.entries[todayEntry], todayEntry) : "The fallback"} plays today: ${playlistList(list)}.`;
-  }
+  else if (onBoard) now = describeToday(onBoard, todayEntry);
   // The status polls render this often: the next change is worked out again only for a new schedule or day.
   const { year, month, day } = today;
   const next = useMemo(
@@ -343,7 +351,6 @@ function MyPlaylists({
   };
 
   const cannotEdit = editReason(order, storedIfKnown);
-  const cannotRemove = (id: string): string => removeReason(order, id, storedIfKnown);
   const cannotAdd = addReason(order, storedIfKnown);
 
   return (
@@ -361,122 +368,208 @@ function MyPlaylists({
         aria-label="My playlists, in the order they play"
         className={cn("flex flex-col gap-2", reorder.moving !== null && "select-none")}
       >
-        {order.map((id, index) => {
-          const absent = known && !stored.has(id);
-          const reason = busy ? "" : cannotEdit;
-          const label = `${id}, playlist ${index + 1}`;
-          return (
-            <li
-              key={id}
-              data-testid={`my-playlist-${index + 1}`}
-              className={cn(
-                "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-card p-2",
-                reorder.moving === id && "relative z-10 border-primary shadow-md ring-2 ring-primary",
-              )}
-            >
-              {/* A pointer drags the handle; the keyboard moves items with the Up and Down buttons. */}
-              <span
-                aria-hidden="true"
-                title="Drag to reorder"
-                data-testid={`my-playlist-handle-${index + 1}`}
-                className={cn(
-                  "flex size-8 shrink-0 touch-none items-center justify-center rounded-md text-muted-foreground",
-                  busy || reason
-                    ? "cursor-not-allowed opacity-50"
-                    : "cursor-grab hover:bg-accent active:cursor-grabbing",
-                )}
-                {...(busy || reason ? {} : reorder.handleProps(id))}
-              >
-                <GripVertical className="size-4" />
-              </span>
-              <span className="w-5 text-sm tabular-nums text-muted-foreground" aria-hidden="true">
-                {index + 1}
-              </span>
-              <span className="min-w-0 flex-1 basis-32 break-words text-sm">{name(id)}</span>
-              {absent && (
-                <Badge variant="warning" data-testid={`my-playlist-missing-${id}`}>
-                  <TriangleAlert aria-hidden="true" />
-                  Not stored
-                </Badge>
-              )}
-              <div className="ml-auto flex items-center gap-1">
-                <IconButton
-                  label={`Up ${label}`}
-                  tooltip={reason || "Move up"}
-                  icon={ArrowUp}
-                  disabled={busy || index === 0 || reason !== ""}
-                  ref={button(id, "up")}
-                  onClick={() => moveWithButton(id, index, -1)}
-                />
-                <IconButton
-                  label={`Down ${label}`}
-                  tooltip={reason || "Move down"}
-                  icon={ArrowDown}
-                  disabled={busy || index === order.length - 1 || reason !== ""}
-                  ref={button(id, "down")}
-                  onClick={() => moveWithButton(id, index, 1)}
-                />
-                <IconButton
-                  label={`Remove ${label}`}
-                  tooltip={cannotRemove(id) || "Remove"}
-                  icon={Trash2}
-                  className="text-destructive"
-                  disabled={busy || cannotRemove(id) !== ""}
-                  ref={button(id, "remove")}
-                  onClick={() => remove(id, index)}
-                />
-              </div>
-            </li>
-          );
-        })}
+        {order.map((id, index) => (
+          <PlaylistRow
+            key={id}
+            id={id}
+            index={index}
+            count={order.length}
+            name={name(id)}
+            absent={known && !stored.has(id)}
+            busy={busy}
+            cannotEdit={cannotEdit}
+            cannotRemove={removeReason(order, id, storedIfKnown)}
+            moving={reorder.moving === id}
+            handle={reorder.handleProps(id)}
+            button={(role) => button(id, role)}
+            onMove={(by) => moveWithButton(id, index, by)}
+            onRemove={() => remove(id, index)}
+          />
+        ))}
       </ol>
-      {missing.length > 0 && (
-        <Alert variant="warning" data-testid="my-playlists-missing">
-          <AlertDescription className="text-foreground">
-            {missing.length === 1 ? "The playlist " : "The playlists "}
-            {missing.map((id, i) => (
-              <span key={id}>
-                {i > 0 && (i === missing.length - 1 ? " and " : ", ")}
-                <code>{id}</code>
-              </span>
-            ))}{" "}
-            {missing.length === 1 ? "is" : "are"} not stored, so the board skips {missing.length === 1 ? "it" : "them"}.
-            A change to the list leaves out what the board does not store.
-          </AlertDescription>
-        </Alert>
+      {missing.length > 0 && <MissingAlert missing={missing} />}
+      <AddPlaylist
+        unused={unused}
+        pick={pick}
+        name={name}
+        busy={busy}
+        cannotAdd={cannotAdd}
+        onPick={setAdding}
+        onAdd={() => {
+          setAnnouncement(`${pick} added.`);
+          void apply([...order, pick], `Adding ${pick} to your playlists`);
+        }}
+      />
+    </div>
+  );
+}
+
+/** One playlist of My playlists, with its drag handle and its Up, Down and Remove buttons. */
+function PlaylistRow({
+  id,
+  index,
+  count,
+  name,
+  absent,
+  busy,
+  cannotEdit,
+  cannotRemove,
+  moving,
+  handle,
+  button,
+  onMove,
+  onRemove,
+}: {
+  id: string;
+  index: number;
+  /** How many playlists the list holds. */
+  count: number;
+  name: string;
+  /** True when the board does not store the playlist. */
+  absent: boolean;
+  busy: boolean;
+  /** Why the list cannot be reordered, or "". */
+  cannotEdit: string;
+  /** Why this playlist cannot be removed, or "". */
+  cannotRemove: string;
+  moving: boolean;
+  /** The props of the drag handle. */
+  handle: HTMLAttributes<HTMLElement>;
+  button: (role: RowButton) => Ref<HTMLButtonElement>;
+  onMove: (by: -1 | 1) => void;
+  onRemove: () => void;
+}) {
+  // While the board answers, the buttons are disabled without a reason to show.
+  const reason = busy ? "" : cannotEdit;
+  const locked = busy || reason !== "";
+  const label = `${id}, playlist ${index + 1}`;
+  return (
+    <li
+      data-testid={`my-playlist-${index + 1}`}
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-card p-2",
+        moving && "relative z-10 border-primary shadow-md ring-2 ring-primary",
       )}
-      <div className="flex flex-wrap items-end gap-2">
-        <Field label="Add a playlist" className="min-w-48 flex-1">
-          {(control) => (
-            <Select
-              {...control}
-              value={pick}
-              disabled={busy || cannotAdd !== ""}
-              onChange={(e) => setAdding(e.target.value)}
-            >
-              {unused.length === 0 && <option value="">No other stored playlist</option>}
-              {unused.map((id) => (
-                <option key={id} value={id}>
-                  {name(id)}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-        <ReasonTooltip reason={busy ? "" : cannotAdd} focusable={!busy && cannotAdd !== ""}>
-          <Button
-            variant="outline"
-            disabled={busy || cannotAdd !== "" || pick === ""}
-            onClick={() => {
-              setAnnouncement(`${pick} added.`);
-              void apply([...order, pick], `Adding ${pick} to your playlists`);
-            }}
-          >
-            <Plus aria-hidden="true" />
-            Add
-          </Button>
-        </ReasonTooltip>
+    >
+      {/* A pointer drags the handle; the keyboard moves items with the Up and Down buttons. */}
+      <span
+        aria-hidden="true"
+        title="Drag to reorder"
+        data-testid={`my-playlist-handle-${index + 1}`}
+        className={cn(
+          "flex size-8 shrink-0 touch-none items-center justify-center rounded-md text-muted-foreground",
+          locked ? "cursor-not-allowed opacity-50" : "cursor-grab hover:bg-accent active:cursor-grabbing",
+        )}
+        {...(locked ? {} : handle)}
+      >
+        <GripVertical className="size-4" />
+      </span>
+      <span className="w-5 text-sm tabular-nums text-muted-foreground" aria-hidden="true">
+        {index + 1}
+      </span>
+      <span className="min-w-0 flex-1 basis-32 break-words text-sm">{name}</span>
+      {absent && (
+        <Badge variant="warning" data-testid={`my-playlist-missing-${id}`}>
+          <TriangleAlert aria-hidden="true" />
+          Not stored
+        </Badge>
+      )}
+      <div className="ml-auto flex items-center gap-1">
+        <IconButton
+          label={`Up ${label}`}
+          tooltip={reason || "Move up"}
+          icon={ArrowUp}
+          disabled={locked || index === 0}
+          ref={button("up")}
+          onClick={() => onMove(-1)}
+        />
+        <IconButton
+          label={`Down ${label}`}
+          tooltip={reason || "Move down"}
+          icon={ArrowDown}
+          disabled={locked || index === count - 1}
+          ref={button("down")}
+          onClick={() => onMove(1)}
+        />
+        <IconButton
+          label={`Remove ${label}`}
+          tooltip={cannotRemove || "Remove"}
+          icon={Trash2}
+          className="text-destructive"
+          disabled={busy || cannotRemove !== ""}
+          ref={button("remove")}
+          onClick={onRemove}
+        />
       </div>
+    </li>
+  );
+}
+
+/** The playlists of the list that the board does not store. */
+function MissingAlert({ missing }: { missing: string[] }) {
+  const one = missing.length === 1;
+  return (
+    <Alert variant="warning" data-testid="my-playlists-missing">
+      <AlertDescription className="text-foreground">
+        {one ? "The playlist " : "The playlists "}
+        {missing.map((id, i) => (
+          <span key={id}>
+            {i > 0 && (i === missing.length - 1 ? " and " : ", ")}
+            <code>{id}</code>
+          </span>
+        ))}{" "}
+        {one ? "is" : "are"} not stored, so the board skips {one ? "it" : "them"}. A change to the list leaves out what
+        the board does not store.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/** The stored playlists that are not in the list, to add one. */
+function AddPlaylist({
+  unused,
+  pick,
+  name,
+  busy,
+  cannotAdd,
+  onPick,
+  onAdd,
+}: {
+  unused: string[];
+  /** The playlist chosen to add, or "" when there is none. */
+  pick: string;
+  name: (id: string) => string;
+  busy: boolean;
+  /** Why no playlist can be added, or "". */
+  cannotAdd: string;
+  onPick: (id: string) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <Field label="Add a playlist" className="min-w-48 flex-1">
+        {(control) => (
+          <Select
+            {...control}
+            value={pick}
+            disabled={busy || cannotAdd !== ""}
+            onChange={(e) => onPick(e.target.value)}
+          >
+            {unused.length === 0 && <option value="">No other stored playlist</option>}
+            {unused.map((id) => (
+              <option key={id} value={id}>
+                {name(id)}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      <ReasonTooltip reason={busy ? "" : cannotAdd} focusable={!busy && cannotAdd !== ""}>
+        <Button variant="outline" disabled={busy || cannotAdd !== "" || pick === ""} onClick={onAdd}>
+          <Plus aria-hidden="true" />
+          Add
+        </Button>
+      </ReasonTooltip>
     </div>
   );
 }

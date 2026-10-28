@@ -6,7 +6,7 @@
 import type { LocalDate, Schedule, ScheduleEnd, ScheduleEntry } from "../../engine";
 import { MAX_SCHEDULE_PLAYLISTS } from "../../engine";
 import type { PlayStatus } from "../../protocol";
-import { parseHours } from "./updates";
+import { parseHours } from "./hours";
 
 const MONTHS = [
   "January",
@@ -73,6 +73,16 @@ export function describePlay(play: PlayStatus, schedule: Schedule | null): strin
       text = `The board plays ${list}.`;
   }
   return play.playing === null ? `${text} None of them can play, so it plays every animation.` : text;
+}
+
+/**
+ * What plays today by the stored schedule, for when the board does not say: `todayEntry` is the entry that wins
+ * today, or -1 for the fallback.
+ */
+export function describeToday(schedule: Schedule, todayEntry: number): string {
+  const entry = todayEntry >= 0 ? schedule.entries[todayEntry] : undefined;
+  const who = entry ? entryLabel(entry, todayEntry) : "The fallback";
+  return `${who} plays today: ${playlistList(entry ? entry.playlists : schedule.fallback)}.`;
 }
 
 /** The rule of a time server: a host name or an IPv4 address (docs/protocol/protocol-v1.md#settings_get-settings_set). */

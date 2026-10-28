@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "task_sync.h"
+
 // Folders of the animation, playlist and schedule files on the board.
 constexpr const char *ANIMATIONS_FOLDER = "/animations";
 constexpr const char *PLAYLISTS_FOLDER = "/playlists";
@@ -32,13 +34,16 @@ std::vector<std::string> stored_schedules();
 
 // Read and validate a stored file with the engine. On failure, `diagnostics`
 // says why: the engine's codes, or `missing_file`, `limit_exceeded` (file too
-// large), `out_of_memory` and `unreadable` when the file cannot be read.
+// large), `out_of_memory` and `unreadable` when the file cannot be read. `wait` says how long the
+// loop task waits for the memory an update holds.
 bool load_stored_animation(const std::string &id, pixelart::Animation &animation,
                            std::vector<pixelart::Diagnostic> &diagnostics);
 bool load_stored_playlist(const std::string &name, pixelart::Playlist &playlist,
-                          std::vector<pixelart::Diagnostic> &diagnostics);
+                          std::vector<pixelart::Diagnostic> &diagnostics,
+                          task_sync::Wait wait = task_sync::Wait::Limited);
 bool load_stored_schedule(const std::string &id, pixelart::Schedule &schedule,
-                          std::vector<pixelart::Diagnostic> &diagnostics);
+                          std::vector<pixelart::Diagnostic> &diagnostics,
+                          task_sync::Wait wait = task_sync::Wait::Limited);
 
 // Loads /animations/<id>.json and plays it `times` times. Returns false, and
 // reports the reason on the serial port once, if the file is missing or invalid.
@@ -71,9 +76,12 @@ bool choice_pending();
 // How many playlists the player skips until the next event. For tests.
 size_t skipped_playlist_count();
 
-// What `status` reports in `play`: the newest list, and the playlist playing or the next one to start. While an
-// update connection holds the memory, the last choice made. Before the first choice, the list the setting asks
-// for (`default` for Automatic) and nothing playing.
+// Chooses the list again when a choice is requested or the local date moved, as `status` calls it before
+// play_status(). It never waits for the memory an update holds: the last choice stays until the next call.
+void refresh_choice();
+
+// What `status` reports in `play`: the newest choice, and the playlist playing or the next one to start. Before
+// the first choice, the list the setting asks for (`default` for Automatic) and nothing playing. Reads only.
 struct PlayStatus
 {
   bool automatic = true;

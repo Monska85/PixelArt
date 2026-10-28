@@ -4,6 +4,7 @@
 // (docs/web/web-app-v1.md#updates, docs/board/wifi-and-updates-v1.md#updates).
 
 import type { UpdateStatus } from "../../protocol";
+import { parseHours } from "./hours";
 
 export const UPDATE_MODES: ReadonlyArray<{ value: string; label: string; text: string }> = [
   { value: "off", label: "Off", text: "The board never checks. Updates come over USB only." },
@@ -26,13 +27,6 @@ export const MIN_CHECK_HOURS = 1;
 export const MAX_CHECK_HOURS = 168;
 export const MAX_ANIMATION_SOURCE = 512;
 const MINUTES_PER_DAY = 1440;
-
-/** A whole number of hours from `min` to `max`, at most 999, as the board takes its hour settings. Null otherwise. */
-export function parseHours(text: string, min: number, max: number): number | null {
-  if (!/^\d{1,3}$/.test(text.trim())) return null;
-  const hours = Number(text.trim());
-  return hours >= min && hours <= max ? hours : null;
-}
 
 /** The hours between checks as the board takes them: a whole number from 1 to 168. Null when the text is not one. */
 export function parseCheckHours(text: string): number | null {

@@ -11,6 +11,7 @@ namespace
 {
 bool loop_blocked = false;
 unsigned loop_attempts = 0;
+unsigned loop_waiting_attempts = 0;
 unsigned frames_until_block = 0; // 0: no block waits for a frame
 } // namespace
 
@@ -21,12 +22,16 @@ void sim_block_loop(bool blocked)
 }
 void sim_block_loop_after_frames(unsigned frames) { frames_until_block = frames; }
 unsigned sim_loop_lock_attempts() { return loop_attempts; }
+unsigned sim_loop_waiting_lock_attempts() { return loop_waiting_attempts; }
 
 void begin() {}
-HeapLock::HeapLock(Owner owner) : owner_(owner), held_(!(owner == Owner::Loop && loop_blocked))
+HeapLock::HeapLock(Owner owner, Wait wait) : owner_(owner), held_(!(owner == Owner::Loop && loop_blocked))
 {
-  if (owner == Owner::Loop)
-    loop_attempts++;
+  if (owner != Owner::Loop)
+    return;
+  loop_attempts++;
+  if (wait == Wait::Limited)
+    loop_waiting_attempts++;
 }
 HeapLock::~HeapLock() {}
 bool network_holds_lock() { return loop_blocked; }
@@ -62,8 +67,13 @@ std::atomic<bool> network_holding{false};
 
 void begin() { lock_handle = xSemaphoreCreateMutexStatic(&lock_storage); }
 
-HeapLock::HeapLock(Owner owner) : owner_(owner)
+HeapLock::HeapLock(Owner owner, Wait wait) : owner_(owner)
 {
+  if (owner_ == Owner::Loop && wait == Wait::None)
+  {
+    held_ = xSemaphoreTake(lock_handle, 0) == pdTRUE;
+    return;
+  }
   if (owner_ == Owner::Loop)
   {
     loop_waiting = true;

@@ -1105,7 +1105,12 @@ static void test_status_never_waits_for_the_memory_an_update_holds()
   TEST_ASSERT_EQUAL_STRING("auto", doc["play"]["mode"]);
   TEST_ASSERT_EQUAL_STRING("default", doc["play"]["playlists"][0]);
 
+  // The memory is free: status chooses, with reads that never wait for the memory, as an update could take it
+  // right after status checked.
+  const unsigned waiting = task_sync::sim_loop_waiting_lock_attempts();
   doc = status_play(replies, 4);
+  TEST_ASSERT_GREATER_THAN(attempts_after, task_sync::sim_loop_lock_attempts());
+  TEST_ASSERT_EQUAL(waiting, task_sync::sim_loop_waiting_lock_attempts());
   TEST_ASSERT_EQUAL_STRING("playlists", doc["play"]["mode"]);
   TEST_ASSERT_EQUAL_STRING("christmas", doc["play"]["playlists"][0]);
 }

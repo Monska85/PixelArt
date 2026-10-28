@@ -45,16 +45,16 @@ constexpr uint16_t MINUTES_PER_DAY = 1440;
 struct Values
 {
   uint8_t brightness = DEFAULT_BRIGHTNESS;
-  // The playlist an older client and an older firmware see: `default` while `play` is `auto`, else the first of
-  // `playlists`. Stored under the key older firmware reads, so a rolled back firmware plays the same.
+  // `playlist`, `play` and `playlists` always keep playlist == reported_playlist(play, playlists). `playlist` is the
+  // one an older client and an older firmware see, stored under the key older firmware reads, so a rolled back
+  // firmware plays the same. A commit() whose rollback cannot put back the `play` or `playlists` key sets the three
+  // to what begin() reads back after a restart.
   std::string playlist = DEFAULT_PLAYLIST;
   std::string play = PLAY_AUTO; // `auto` or `playlists`
   std::vector<std::string> playlists = {DEFAULT_PLAYLIST};
-  // Whether `play` and `playlists` are stored and agree with `playlist`. Until they are, both are derived from
-  // `playlist` (derive_play()), so an upgraded board plays as before without any write, and the next change of
-  // either one writes both keys. `play` and `playlists` are stored together and always agree with `playlist`
-  // (reported_playlist()): a commit that cannot put one of their keys back sets the three to what begin() reads
-  // back after a restart.
+  // True when the `play` and `playlists` keys exist in storage, hold valid values and agree with `playlist`: `play`
+  // and `playlists` are then the stored values. False means derive_play() supplies them from `playlist`, so an
+  // upgraded board plays as before without any write; the next change of either one writes both keys.
   bool play_stored = false;
   std::string wifi_power = DEFAULT_WIFI_POWER;
   std::string update_mode = DEFAULT_UPDATE_MODE;

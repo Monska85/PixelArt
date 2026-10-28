@@ -369,7 +369,9 @@ export function scheduleWinner(schedule: Schedule, date: LocalDate): number {
 }
 
 export type PlayMode = "auto" | "playlists";
-export type PlayReason = "user" | "schedule" | "fallback" | "no_time" | "no_schedule";
+/** Why the board plays what it plays, as `status.play.reason` names it. */
+export const PLAY_REASONS = ["user", "schedule", "fallback", "no_time", "no_schedule"] as const;
+export type PlayReason = (typeof PLAY_REASONS)[number];
 
 export interface PlayChoice {
   reason: PlayReason;

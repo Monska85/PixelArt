@@ -1106,6 +1106,7 @@ Status cmd_status(JsonObjectConst request, JsonDocument &reply)
     wifi["ssid"] = nullptr;
   const updates::Snapshot u = updates::snapshot();
   reply["time"]["known"] = u.time_known;
+  refresh_choice();
   const PlayStatus p = play_status();
   JsonObject play = reply["play"].to<JsonObject>();
   play["mode"] = p.automatic ? settings::PLAY_AUTO : settings::PLAY_PLAYLISTS;

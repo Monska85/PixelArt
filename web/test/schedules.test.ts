@@ -29,6 +29,7 @@ import {
   addReason,
   describeEnd,
   describePlay,
+  describeToday,
   editReason,
   listToSend,
   ntpServerProblem,
@@ -343,6 +344,20 @@ describe("the words of What to play and of the time settings", () => {
     expect(describePlay(play({ reason: "no_schedule" }), null)).toBe(
       "The board stores no valid schedule default: it plays the playlist default.",
     );
+  });
+
+  it("say what plays today by the stored schedule", () => {
+    expect(describeToday(seasons, 1)).toBe("Christmas plays today: christmas.");
+    expect(describeToday(seasons, -1)).toBe("The fallback plays today: default.");
+    const unnamed = loaded(
+      JSON.stringify({
+        format: "pixelart-schedule/1",
+        fallback: ["a", "b"],
+        entries: [{ from: { month: 6 }, to: { month: 6 }, playlists: ["c", "d", "e"] }],
+      }),
+    );
+    expect(describeToday(unnamed, 0)).toBe("entry 1 plays today: c, d and e.");
+    expect(describeToday(unnamed, -1)).toBe("The fallback plays today: a and b.");
   });
 
   it("write the ends of every part set", () => {

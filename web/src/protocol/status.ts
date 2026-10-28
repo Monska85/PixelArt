@@ -2,7 +2,7 @@
 
 // `status`: the board's WiFi, time, play and update state (docs/protocol/protocol-v1.md#status).
 
-import type { PlayMode, PlayReason } from "../engine/schedule";
+import { PLAY_REASONS, type PlayMode, type PlayReason } from "../engine/schedule";
 import type { BoardClient } from "./client";
 import type { Body } from "./framing";
 import { isRecord } from "./guards";
@@ -64,7 +64,8 @@ export interface UpdateStatus {
   lastInstall: { result: string; from: string; to: string } | null;
 }
 
-const PLAY_REASONS: readonly string[] = ["user", "schedule", "fallback", "no_time", "no_schedule"];
+const isPlayReason = (value: unknown): value is PlayReason =>
+  typeof value === "string" && (PLAY_REASONS as readonly string[]).includes(value);
 
 /** What the board plays and why (`status.play`), on a firmware that knows schedules. */
 export interface PlayStatus {
@@ -141,11 +142,11 @@ function parsePlay(value: unknown): PlayStatus | null {
   if (!isRecord(value)) return null;
   const { mode, reason, entry, playlists, playing } = value;
   if (mode !== "auto" && mode !== "playlists") return null;
-  if (typeof reason !== "string" || !PLAY_REASONS.includes(reason)) return null;
+  if (!isPlayReason(reason)) return null;
   if (!Array.isArray(playlists) || !playlists.every((id) => typeof id === "string")) return null;
   return {
     mode,
-    reason: reason as PlayReason,
+    reason,
     entry: typeof entry === "number" && Number.isSafeInteger(entry) && entry >= 0 ? entry : null,
     playlists: playlists as string[],
     playing: text(playing),

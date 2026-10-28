@@ -291,9 +291,9 @@ bool load_stored_animation(const std::string &id, pixelart::Animation &animation
 }
 
 bool load_stored_playlist(const std::string &name, pixelart::Playlist &playlist,
-                          std::vector<pixelart::Diagnostic> &diagnostics)
+                          std::vector<pixelart::Diagnostic> &diagnostics, task_sync::Wait wait)
 {
-  task_sync::HeapLock lock(task_sync::Owner::Loop);
+  task_sync::HeapLock lock(task_sync::Owner::Loop, wait);
   if (!lock.held())
   {
     diagnostics.push_back({pixelart::Severity::Error, BUSY_CODE, "", "an update holds the memory"});
@@ -323,10 +323,10 @@ bool date_moved(const Choice &choice)
 }
 
 // Loads /schedules/default.json. False when there is no valid one, and `busy` when an update holds the memory.
-bool load_played_schedule(pixelart::Schedule &schedule, bool &busy)
+bool load_played_schedule(pixelart::Schedule &schedule, bool &busy, task_sync::Wait wait)
 {
   std::vector<pixelart::Diagnostic> diagnostics;
-  if (load_stored_schedule(PLAYED_SCHEDULE, schedule, diagnostics))
+  if (load_stored_schedule(PLAYED_SCHEDULE, schedule, diagnostics, wait))
     return true;
   if (is_busy(diagnostics))
     busy = true;
@@ -336,11 +336,11 @@ bool load_played_schedule(pixelart::Schedule &schedule, bool &busy)
 }
 
 // Whether a playlist is valid and has an item whose animation is stored. `busy` when an update holds the memory.
-bool playlist_playable(const std::string &id, bool &busy)
+bool playlist_playable(const std::string &id, bool &busy, task_sync::Wait wait)
 {
   pixelart::Playlist playlist;
   std::vector<pixelart::Diagnostic> diagnostics;
-  if (!load_stored_playlist(id, playlist, diagnostics))
+  if (!load_stored_playlist(id, playlist, diagnostics, wait))
   {
     if (is_busy(diagnostics))
       busy = true;
@@ -355,8 +355,8 @@ bool playlist_playable(const std::string &id, bool &busy)
 }
 
 // Chooses what to play into `newest`. False, with `newest` unchanged, when an update holds the memory: the
-// files are read again at the next try.
-bool make_choice()
+// files are read again at the next try. `wait` says how long each file read waits for that memory.
+bool make_choice(task_sync::Wait wait = task_sync::Wait::Limited)
 {
   const settings::Values &values = settings::current();
   Choice choice;
@@ -364,7 +364,7 @@ bool make_choice()
   choice.automatic = values.play == settings::PLAY_AUTO;
   bool busy = false;
   pixelart::Schedule schedule;
-  const bool scheduled = choice.automatic && load_played_schedule(schedule, busy);
+  const bool scheduled = choice.automatic && load_played_schedule(schedule, busy, wait);
   if (busy)
     return false;
   if (scheduled)
@@ -380,7 +380,7 @@ bool make_choice()
       if (known.first == id)
         return known.second;
     const bool ok =
-        !busy && std::find(skipped.begin(), skipped.end(), id) == skipped.end() && playlist_playable(id, busy);
+        !busy && std::find(skipped.begin(), skipped.end(), id) == skipped.end() && playlist_playable(id, busy, wait);
     seen.emplace_back(id, ok);
     return ok;
   };
@@ -403,8 +403,9 @@ bool list_changed()
     return false;
   if (newest.dated && date_moved(newest))
     choose_again = true;
-  // While an update holds the memory, choosing would wait for it: tried again when the next animation ends.
-  if (choose_again && (task_sync::network_holds_lock() || !make_choice()))
+  // Choosing never waits for the memory an update holds: it is tried again when the next animation ends. The
+  // check skips the reads at once; the zero wait covers an update that takes the memory right after it.
+  if (choose_again && (task_sync::network_holds_lock() || !make_choice(task_sync::Wait::None)))
     return false;
   return place.restart_list || !same_list(newest, applied);
 }
@@ -426,9 +427,9 @@ void play_every_animation()
 } // namespace
 
 bool load_stored_schedule(const std::string &id, pixelart::Schedule &schedule,
-                          std::vector<pixelart::Diagnostic> &diagnostics)
+                          std::vector<pixelart::Diagnostic> &diagnostics, task_sync::Wait wait)
 {
-  task_sync::HeapLock lock(task_sync::Owner::Loop);
+  task_sync::HeapLock lock(task_sync::Owner::Loop, wait);
   if (!lock.held())
   {
     diagnostics.push_back({pixelart::Severity::Error, BUSY_CODE, "", "an update holds the memory"});
@@ -491,14 +492,18 @@ bool choice_pending() { return choose_again || place.restart_list || (applied.ma
 
 size_t skipped_playlist_count() { return skipped.size(); }
 
-PlayStatus play_status()
+void refresh_choice()
 {
   // The time became known or local midnight passed: `status` reports the newest list at once.
   if (newest.made && newest.dated && date_moved(newest))
     choose_again = true;
-  // `status` never waits for the memory an update holds: it reports the last choice meanwhile.
+  // The check skips the reads at once; the zero wait covers an update that takes the memory right after it.
   if ((!newest.made || choose_again) && !task_sync::network_holds_lock())
-    make_choice();
+    make_choice(task_sync::Wait::None);
+}
+
+PlayStatus play_status()
+{
   PlayStatus status;
   if (!newest.made)
   {
