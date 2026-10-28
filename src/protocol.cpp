@@ -126,9 +126,11 @@ const char *kind_name(Kind kind)
   case Kind::Playlist:
     return "playlist";
   case Kind::Schedule:
+    return "schedule";
+  case Kind::Play:
     break;
   }
-  return "schedule";
+  return "play";
 }
 
 // Every byte that is not part of a well-formed UTF-8 sequence becomes U+FFFD,
@@ -274,8 +276,10 @@ Status get_kind(JsonObjectConst request, Kind &kind)
     kind = Kind::Playlist;
   else if (text == "schedule")
     kind = Kind::Schedule;
+  else if (text == "play")
+    kind = Kind::Play;
   else
-    return fail("invalid_kind", "kind must be \"animation\", \"playlist\" or \"schedule\"");
+    return fail("invalid_kind", "kind must be \"animation\", \"playlist\", \"schedule\" or \"play\"");
   return {};
 }
 
@@ -406,6 +410,20 @@ void warn_unknown_playlists(const pixelart::Schedule &schedule, std::vector<pixe
     check(schedule.playlists(e), "entries[" + std::to_string(e) + "].playlists");
 }
 
+// Adds an `unknown_schedule` or `unknown_playlist` warning for the schedule or each playlist of a play file that is
+// not stored. A play file names at most MAX_SCHEDULE_PLAYLISTS places.
+void warn_unknown_play_targets(const pixelart::ServerChoice &choice, std::vector<pixelart::Diagnostic> &diagnostics)
+{
+  if (!choice.schedule.empty() && !storage::exists(schedule_file(choice.schedule)))
+    diagnostics.push_back({pixelart::Severity::Warning, "unknown_schedule", "default.schedule",
+                           "\"" + choice.schedule + "\" is not stored"});
+  for (size_t i = 0; i < choice.playlists.size(); i++)
+    if (!storage::exists(playlist_file(choice.playlists[i])))
+      diagnostics.push_back({pixelart::Severity::Warning, "unknown_playlist",
+                             "default.playlists[" + std::to_string(i) + "]",
+                             "\"" + choice.playlists[i] + "\" is not stored"});
+}
+
 // ---- Commands ----
 
 Status cmd_info(JsonObjectConst request, JsonDocument &reply)
@@ -420,6 +438,7 @@ Status cmd_info(JsonObjectConst request, JsonDocument &reply)
   reply["formats"]["animation"].add("pixelart/1");
   reply["formats"]["playlist"].add("pixelart-playlist/1");
   reply["formats"]["schedule"].add("pixelart-schedule/1");
+  reply["formats"]["play"].add("pixelart-play/1");
   reply["canvas"]["width"] = pixelart::CANVAS_WIDTH;
   reply["canvas"]["height"] = pixelart::CANVAS_HEIGHT;
   reply["storage"]["total"] = storage::total_bytes();
@@ -432,6 +451,7 @@ Status cmd_info(JsonObjectConst request, JsonDocument &reply)
   reply["limits"]["animation"] = pixelart::MAX_FILE_SIZE;
   reply["limits"]["playlist"] = pixelart::MAX_PLAYLIST_FILE_SIZE;
   reply["limits"]["schedule"] = pixelart::MAX_SCHEDULE_FILE_SIZE;
+  reply["limits"]["play"] = pixelart::MAX_PLAY_FILE_SIZE;
   return {};
 }
 
@@ -698,6 +718,8 @@ Status validate_temp_file(Kind kind, size_t size, JsonDocument &reply, std::vect
       warn_unknown_animations(parsed.playlist, diagnostics);
     else if (kind == Kind::Schedule)
       warn_unknown_playlists(parsed.schedule, diagnostics);
+    else if (kind == Kind::Play)
+      warn_unknown_play_targets(parsed.play, diagnostics);
     return {};
   case install::Result::OutOfMemory:
     return fail("out_of_memory", OUT_OF_MEMORY_MESSAGE);
@@ -869,13 +891,15 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
     return fail("busy", "the board could not take the request now; nothing was changed, repeat the command");
   cancel_upload();
   updates::cancel_install(); // before the files go, so an installation does not store them again
-  size_t schedules = 0, playlists = 0, animations = 0;
-  bool done = remove_all_files(SCHEDULES_FOLDER, schedules) && remove_all_files(PLAYLISTS_FOLDER, playlists) &&
-              remove_all_files(ANIMATIONS_FOLDER, animations);
+  size_t play = 0, schedules = 0, playlists = 0, animations = 0;
+  bool done = remove_all_files(PLAY_FOLDER, play) && remove_all_files(SCHEDULES_FOLDER, schedules) &&
+              remove_all_files(PLAYLISTS_FOLDER, playlists) && remove_all_files(ANIMATIONS_FOLDER, animations);
   if (playlists > 0)
     install::file_changed(Kind::Playlist);
   else if (schedules > 0)
     install::file_changed(Kind::Schedule);
+  else if (play > 0)
+    install::file_changed(Kind::Play);
   if (!done)
     return fail("storage_error", "a file cannot be removed");
   // The settings go back to their defaults only once every file is gone, with a new token.
@@ -883,13 +907,12 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   {
     if (const char *failure = save_settings(settings::defaults_with_new_token()))
       return fail("storage_error", std::string("the files are removed but ") + failure);
-    if (!settings::set_server_choice(pixelart::ServerChoice()))
-      return fail("storage_error",
-                  "the files are removed and the settings reset but the server choice cannot be forgotten");
+    request_choice();
     request_choice();
     close_wifi_client(); // the old token is gone
     add_settings(reply);
   }
+  reply["play"] = play;
   reply["schedules"] = schedules;
   reply["playlists"] = playlists;
   reply["animations"] = animations;
@@ -1132,22 +1155,6 @@ template <typename Field> void set_server_choice_field(Field field, const pixela
   }
 }
 
-Status cmd_server_choice_set(JsonObjectConst request, JsonDocument &reply)
-{
-  if (Status s = allow_only(request, {"choice"}); s.code)
-    return s;
-  JsonVariantConst value = request["choice"];
-  pixelart::ServerChoice choice; // null is none
-  if (value.isUnbound() || (!value.isNull() && !pixelart::read_server_choice(value, choice)))
-    return fail("bad_request", "choice must be null, {\"schedule\": ID} or {\"playlists\": [1 to " +
-                                   std::to_string(pixelart::MAX_SCHEDULE_PLAYLISTS) + " IDs, no ID twice]}");
-  if (!settings::set_server_choice(choice))
-    return fail("storage_error", "the server choice cannot be saved");
-  request_choice(); // the player chooses again when the choice changed
-  set_server_choice_field(reply["choice"], choice);
-  return {};
-}
-
 Status cmd_status(JsonObjectConst request, JsonDocument &reply)
 {
   if (Status s = allow_only(request, {}); s.code)
@@ -1350,7 +1357,6 @@ const Command COMMANDS[] = {
     {"delete_all", cmd_delete_all},
     {"settings_get", cmd_settings_get},
     {"settings_set", cmd_settings_set},
-    {"server_choice_set", cmd_server_choice_set},
     {"status", cmd_status},
     {"update_check", cmd_update_check},
     {"update_install", cmd_update_install},

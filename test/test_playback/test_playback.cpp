@@ -395,11 +395,12 @@ static void test_a_new_choice_when_an_animation_ends_never_waits_for_the_memory(
 
   // During a, a setting asks for a new choice. When a ends the board chooses with reads that never wait for the
   // memory, as an update could take it right after the board checked: p_a and a wait, the new choice does not.
+  // The new choice reads the play file and p_a, then a plays.
   sim::serial_input(request(2, R"("cmd":"settings_set","timezone":"CET-1")"));
   const unsigned attempts = task_sync::sim_loop_lock_attempts();
   const unsigned waiting = task_sync::sim_loop_waiting_lock_attempts();
   play_from_storage();
-  TEST_ASSERT_EQUAL(3, task_sync::sim_loop_lock_attempts() - attempts);
+  TEST_ASSERT_EQUAL(4, task_sync::sim_loop_lock_attempts() - attempts);
   TEST_ASSERT_EQUAL(2, task_sync::sim_loop_waiting_lock_attempts() - waiting);
   TEST_ASSERT_FALSE(choice_pending());
   TEST_ASSERT_EQUAL_STRING("aa", shown().c_str());

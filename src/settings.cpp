@@ -13,8 +13,6 @@
 
 #ifndef PIXELART_SIM
 #include <Preferences.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
 #endif
 
 namespace settings
@@ -34,7 +32,6 @@ int playlist_saves_left = -1;
 int play_saves_left = -1;
 int playlists_saves_left = -1;
 int schedule_saves_left = -1;
-bool server_choice_saves_fail = false;
 // The `playlist`, `play` and `playlists` keys, kept once sim_store_play_keys() was called. An empty text is a
 // missing key.
 bool play_keys_kept = false;
@@ -54,29 +51,6 @@ bool use_save(int &saves_left)
 #endif
 
 Values values;
-
-// The server choice and its generation. The update task stores it as the loop task reads it, so `ChoiceLock` guards
-// both on the board.
-pixelart::ServerChoice stored_server_choice;
-uint32_t choice_generation = 0;
-
-#ifndef PIXELART_SIM
-SemaphoreHandle_t choice_mutex = nullptr;
-StaticSemaphore_t choice_mutex_storage;
-
-struct ChoiceLock
-{
-  ChoiceLock() { xSemaphoreTake(choice_mutex, portMAX_DELAY); }
-  ~ChoiceLock() { xSemaphoreGive(choice_mutex); }
-  ChoiceLock(const ChoiceLock &) = delete;
-  ChoiceLock &operator=(const ChoiceLock &) = delete;
-};
-#else
-struct ChoiceLock
-{
-  ChoiceLock() {}
-};
-#endif
 
 // The order the settings are saved in, and put back in reverse. `playlist` goes first: it is what an older
 // firmware reads.
@@ -153,8 +127,6 @@ bool differs(Field field, const Values &a, const Values &b)
 #ifndef PIXELART_SIM
 const char *NAMESPACE = "pixelart";
 const char *KEY_SCHEMA = "schema";
-// Outside Field: the server choice is not a setting, and a reset of the settings handles it on its own.
-const char *KEY_SERVER_CHOICE = "server_choice";
 constexpr uint8_t SCHEMA = 1;
 
 // NVS keys are at most 15 characters.
@@ -264,25 +236,6 @@ bool split_playlists(const std::string &text, std::vector<std::string> &out)
     start = comma + 1;
   }
 }
-
-#ifndef PIXELART_SIM
-// The server choice as the text stored under its key: `s:<id>` or `p:<id>,<id>...`. IDs never hold `:` or `,`.
-std::string choice_text(const pixelart::ServerChoice &choice)
-{
-  return choice.schedule.empty() ? "p:" + join_playlists(choice.playlists) : "s:" + choice.schedule;
-}
-
-// The choice of a stored text, none when it is not one.
-pixelart::ServerChoice choice_from_text(const std::string &text)
-{
-  pixelart::ServerChoice choice;
-  if (text.compare(0, 2, "s:") == 0 && valid_playlist_id(text.substr(2)))
-    choice.schedule = text.substr(2);
-  else if (text.compare(0, 2, "p:") == 0 && !split_playlists(text.substr(2), choice.playlists))
-    choice.playlists.clear();
-  return choice;
-}
-#endif
 
 // Saves one field of `v`. Returns false when it cannot be saved.
 bool write(Field field, const Values &v)
@@ -548,23 +501,10 @@ void load_play(Values &v, const std::string &play, const std::string &playlists_
   }
 }
 
-#ifndef PIXELART_SIM
-void load_server_choice()
-{
-  stored_server_choice = pixelart::ServerChoice();
-  if (prefs.isKey(KEY_SERVER_CHOICE))
-    stored_server_choice = choice_from_text(prefs.getString(KEY_SERVER_CHOICE, "").c_str());
-}
-#endif
-
 } // namespace
 
 void begin()
 {
-#ifndef PIXELART_SIM
-  if (!choice_mutex)
-    choice_mutex = xSemaphoreCreateMutexStatic(&choice_mutex_storage);
-#endif
   values = Values();
 #ifndef PIXELART_SIM
   if (prefs.begin(NAMESPACE, false))
@@ -589,7 +529,6 @@ void begin()
     // No write here: a board upgraded from a firmware without `play` derives it from `playlist`.
     load_play(values, stored_text(Field::Play, "", valid_play), stored_text(Field::Playlists, "", valid_any));
     values.schedule = stored_text(Field::Schedule, DEFAULT_SCHEDULE, valid_schedule_id);
-    load_server_choice();
   }
 #endif
 #ifdef PIXELART_SIM
@@ -667,40 +606,6 @@ Commit commit(const Values &next)
   return Commit::Ok;
 }
 
-pixelart::ServerChoice server_choice(uint32_t *generation)
-{
-  ChoiceLock lock;
-  if (generation)
-    *generation = choice_generation;
-  return stored_server_choice;
-}
-
-uint32_t server_choice_generation()
-{
-  ChoiceLock lock;
-  return choice_generation;
-}
-
-bool set_server_choice(const pixelart::ServerChoice &choice)
-{
-  ChoiceLock lock;
-  if (choice == stored_server_choice)
-    return true;
-#ifdef PIXELART_SIM
-  if (server_choice_saves_fail)
-    return false;
-#else
-  const std::string text = choice_text(choice);
-  const bool stored = choice.is_none() ? (!prefs.isKey(KEY_SERVER_CHOICE) || prefs.remove(KEY_SERVER_CHOICE))
-                                       : prefs.putString(KEY_SERVER_CHOICE, text.c_str()) == text.size();
-  if (!stored)
-    return false;
-#endif
-  stored_server_choice = choice;
-  choice_generation++;
-  return true;
-}
-
 bool set_brightness(uint8_t value)
 {
   Values next = values;
@@ -722,8 +627,6 @@ void fail_playlist_saves_after(int successes) { playlist_saves_left = successes;
 void fail_play_saves_after(int successes) { play_saves_left = successes; }
 void fail_playlists_saves_after(int successes) { playlists_saves_left = successes; }
 void fail_schedule_saves_after(int successes) { schedule_saves_left = successes; }
-void fail_server_choice_saves(bool fail) { server_choice_saves_fail = fail; }
-void sim_forget_server_choice() { stored_server_choice = pixelart::ServerChoice(); }
 void fail_token_saves(bool fail) { token_saves_fail = fail; }
 void sim_set_start_token(const std::string &token) { start_token = token; }
 void sim_store_play_keys(const std::string &playlist, const std::string &play, const std::string &playlists,

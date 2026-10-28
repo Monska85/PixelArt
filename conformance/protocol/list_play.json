@@ -40,6 +40,7 @@
         "entries": [
           {
             "id": "seasons",
+            "name": "Seasons",
             "size": 285,
             "sha256": "6cc16775019c0be9f62dd35f2919dc51e39e5afcafad2cf29292ba6c8e6ee2b0"
           }

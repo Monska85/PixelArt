@@ -2,6 +2,8 @@
 
 #include "install.h"
 
+#include <server_choice.h>
+
 #include "app.h"
 #include "platform.h"
 #include "storage.h"
@@ -36,9 +38,11 @@ size_t size_limit(Kind kind)
   case Kind::Playlist:
     return pixelart::MAX_PLAYLIST_FILE_SIZE;
   case Kind::Schedule:
+    return pixelart::MAX_SCHEDULE_FILE_SIZE;
+  case Kind::Play:
     break;
   }
-  return pixelart::MAX_SCHEDULE_FILE_SIZE;
+  return pixelart::MAX_PLAY_FILE_SIZE;
 }
 
 std::string file_path(Kind kind, const std::string &id)
@@ -50,9 +54,11 @@ std::string file_path(Kind kind, const std::string &id)
   case Kind::Playlist:
     return playlist_file(id);
   case Kind::Schedule:
+    return schedule_file(id);
+  case Kind::Play:
     break;
   }
-  return schedule_file(id);
+  return play_file(id);
 }
 
 std::vector<std::string> stored_ids(Kind kind)
@@ -64,9 +70,11 @@ std::vector<std::string> stored_ids(Kind kind)
   case Kind::Playlist:
     return stored_playlists();
   case Kind::Schedule:
+    return stored_schedules();
+  case Kind::Play:
     break;
   }
-  return stored_schedules();
+  return stored_play_files();
 }
 
 bool memory_fits(size_t size)
@@ -110,11 +118,17 @@ Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagno
     pixelart::Playlist &target = parsed ? parsed->playlist : local;
     valid = target.load(buffer.data.get(), buffer.size, diagnostics);
   }
-  else
+  else if (kind == Kind::Schedule)
   {
     pixelart::Schedule local;
     pixelart::Schedule &target = parsed ? parsed->schedule : local;
     valid = target.load(buffer.data.get(), buffer.size, diagnostics);
+  }
+  else
+  {
+    pixelart::ServerChoice local;
+    pixelart::ServerChoice &target = parsed ? parsed->play : local;
+    valid = pixelart::load_play_file(buffer.data.get(), buffer.size, target, diagnostics);
   }
   return valid ? Result::Ok : Result::Invalid;
 }
@@ -142,7 +156,7 @@ void file_changed(Kind kind)
 {
   if (kind == Kind::Playlist)
     request_choice_and_restart();
-  else if (kind == Kind::Schedule)
+  else if (kind == Kind::Schedule || kind == Kind::Play)
     request_choice();
 }
 

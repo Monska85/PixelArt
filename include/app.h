@@ -2,7 +2,7 @@
 
 // Plays the animations stored on the board, following the rules of
 // docs/format/playlist-v1.md#how-the-board-chooses-what-to-play: the list of playlists comes from the
-// play settings, the server choice and the schedules, and changes when the current animation ends.
+// play settings, the server choice (the play file) and the schedules, and changes when the current animation ends.
 
 #pragma once
 
@@ -15,21 +15,26 @@
 #include "settings.h"
 #include "task_sync.h"
 
-// Folders of the animation, playlist and schedule files on the board.
+// Folders of the animation, playlist, schedule and play files on the board.
 constexpr const char *ANIMATIONS_FOLDER = "/animations";
 constexpr const char *PLAYLISTS_FOLDER = "/playlists";
 constexpr const char *SCHEDULES_FOLDER = "/schedules";
+constexpr const char *PLAY_FOLDER = "/play";
+// The only play file the board uses: its `default` is the server choice.
+constexpr const char *SERVER_CHOICE_PLAY_FILE = "default";
 
-// Path of an animation, playlist or schedule file on the board, from its ID or name.
+// Path of an animation, playlist, schedule or play file on the board, from its ID or name.
 std::string animation_file(const std::string &id);
 std::string playlist_file(const std::string &name);
 std::string schedule_file(const std::string &id);
+std::string play_file(const std::string &id);
 
 // IDs of the animation files in /animations, and names of the playlists in
-// /playlists and of the schedules in /schedules, sorted.
+// /playlists, of the schedules in /schedules and of the play files in /play, sorted.
 std::vector<std::string> stored_animations();
 std::vector<std::string> stored_playlists();
 std::vector<std::string> stored_schedules();
+std::vector<std::string> stored_play_files();
 
 // Read and validate a stored file with the engine. On failure, `diagnostics`
 // says why: the engine's codes, or `missing_file`, `limit_exceeded` (file too
@@ -44,6 +49,14 @@ bool load_stored_playlist(const std::string &name, pixelart::Playlist &playlist,
 bool load_stored_schedule(const std::string &id, pixelart::Schedule &schedule,
                           std::vector<pixelart::Diagnostic> &diagnostics,
                           task_sync::Wait wait = task_sync::Wait::Limited);
+
+// The same for a play file: `choice` is its `default`.
+bool load_stored_play(const std::string &id, pixelart::ServerChoice &choice,
+                      std::vector<pixelart::Diagnostic> &diagnostics, task_sync::Wait wait = task_sync::Wait::Limited);
+
+// The server choice: the `default` of /play/default.json, none when that file is missing or not valid. Reads the
+// file each time. `busy` is set, and the result is none, when an update holds the memory.
+pixelart::ServerChoice load_server_choice(bool &busy, task_sync::Wait wait = task_sync::Wait::Limited);
 
 // Loads /animations/<id>.json and plays it `times` times. Returns false, and
 // reports the reason on the serial port once, if the file is missing or invalid.
@@ -66,7 +79,7 @@ void play_from_storage();
 // when the current animation ends.
 void request_choice_and_restart();
 
-// The play settings, the server choice, the time zone or a schedule changed: the player chooses its list again when the
+// The play settings, the play file, the time zone or a schedule changed: the player chooses its list again when the
 // current animation ends, and keeps its position when the list is the same.
 void request_choice();
 
@@ -91,6 +104,6 @@ struct PlayStatus
   int entry = -1;
   std::vector<std::string> playlists;
   std::string playing;                  // empty: every animation plays, or the "no animations" image
-  pixelart::ServerChoice server_choice; // the stored one, whatever the list was chosen from
+  pixelart::ServerChoice server_choice; // the one of the play file, whatever the list was chosen from
 };
 PlayStatus play_status();

@@ -361,11 +361,7 @@ void Updater::run_check(uint64_t now)
   Error error = Error::None;
   Manifest animations;
   if (config_.animations)
-  {
     error = read_manifest(config_.animation_source, true, animations);
-    if (error == Error::None)
-      host_.store_server_choice(animations.server_choice);
-  }
   if (error == Error::None && config_.animations)
     error = check_animations(animations);
   if (read_firmware && shared_manifest)

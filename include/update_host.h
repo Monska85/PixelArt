@@ -12,7 +12,6 @@
 #include "app.h"
 #include "firmware.h"
 #include "platform.h"
-#include "settings.h"
 #include "storage.h"
 #include "updates.h"
 
@@ -29,9 +28,11 @@ inline install::Kind install_kind(pixelart_update::Kind kind)
   case pixelart_update::Kind::Playlist:
     return install::Kind::Playlist;
   case pixelart_update::Kind::Schedule:
+    return install::Kind::Schedule;
+  case pixelart_update::Kind::Play:
     break;
   }
-  return install::Kind::Schedule;
+  return install::Kind::Play;
 }
 
 class StorageHost : public pixelart_update::Host
@@ -54,9 +55,6 @@ public:
     bytes = total - used;
     return true;
   }
-
-  // A choice that cannot be saved leaves the old one: the next check stores it again.
-  void store_server_choice(const pixelart::ServerChoice &choice) override { settings::set_server_choice(choice); }
 
   void discard_download() override { storage::remove(TEMP_FILE); }
 

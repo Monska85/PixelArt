@@ -4,7 +4,6 @@
 
 #include <ArduinoJson.h>
 #include <pixelart_engine.h>
-#include <server_choice.h>
 #include <strict_json.h>
 
 #include <algorithm>
@@ -45,14 +44,13 @@ void make_filter(JsonDocument &filter)
 {
   filter["format"] = true;
   filter["version"] = true;
-  for (const char *list : {"animations", "playlists", "schedules"})
+  for (const char *list : {"animations", "playlists", "schedules", "play"})
   {
     filter[list][0]["id"] = true;
     filter[list][0]["file"] = true;
     filter[list][0]["size"] = true;
     filter[list][0]["sha256"] = true;
   }
-  filter["default"] = true; // whole, so an object with another key is seen as invalid
   filter["firmware"][0]["board"] = true;
   filter["firmware"][0]["part"] = true;
   filter["firmware"][0]["file"] = true;
@@ -193,9 +191,11 @@ size_t size_limit(Kind kind)
   case Kind::Playlist:
     return pixelart::MAX_PLAYLIST_FILE_SIZE;
   case Kind::Schedule:
+    return pixelart::MAX_SCHEDULE_FILE_SIZE;
+  case Kind::Play:
     break;
   }
-  return pixelart::MAX_SCHEDULE_FILE_SIZE;
+  return pixelart::MAX_PLAY_FILE_SIZE;
 }
 
 bool is_safe_relative_path(const std::string &path)
@@ -252,14 +252,15 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
     return fail(reason, "the manifest is not an object");
   if (!doc["format"].is<const char *>() || strcmp(doc["format"].as<const char *>(), MANIFEST_FORMAT) != 0)
     return fail(reason, std::string("the format is not ") + MANIFEST_FORMAT);
-  const size_t files = array_size(doc["animations"]) + array_size(doc["playlists"]) + array_size(doc["schedules"]);
+  const size_t files = array_size(doc["animations"]) + array_size(doc["playlists"]) + array_size(doc["schedules"]) +
+                       array_size(doc["play"]);
   if (files > MAX_MANIFEST_FILES)
     return fail(reason, "the manifest lists too many files");
 
   // Everything the manifest is copied into, asked for at once: the version (and the copies its check
   // makes), the lists of files and the `app` entries of the firmware.
   size_t total = 4 * string_cost(text_length(doc["version"])), block = 0;
-  for (const char *name : {"animations", "playlists", "schedules"})
+  for (const char *name : {"animations", "playlists", "schedules", "play"})
   {
     size_t list_total, list_block;
     list_cost(doc[name], list_total, list_block);
@@ -286,8 +287,8 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
     return false;
   if (doc["schedules"].is<JsonArrayConst>() && !read_list(doc["schedules"], "schedules", manifest.schedules, reason))
     return false;
-
-  pixelart::read_server_choice(doc["default"], manifest.server_choice); // none when absent or invalid
+  if (doc["play"].is<JsonArrayConst>() && !read_list(doc["play"], "play", manifest.play, reason))
+    return false;
 
   if (doc["firmware"].is<JsonArrayConst>()) // the filter drops a firmware that is not a list
   {
@@ -381,13 +382,14 @@ namespace
 template <typename ManifestType> std::vector<PlanItem> plan_entries(ManifestType &manifest, const StoredDigest &stored)
 {
   std::vector<PlanItem> plan;
-  plan.reserve(manifest.animations.size() + manifest.playlists.size() +
-               manifest.schedules.size()); // one block, never regrown
-  // A playlist finds its animations, and a schedule its playlists.
-  for (Kind kind : {Kind::Animation, Kind::Playlist, Kind::Schedule})
+  plan.reserve(manifest.animations.size() + manifest.playlists.size() + manifest.schedules.size() +
+               manifest.play.size()); // one block, never regrown
+  // A playlist finds its animations, a schedule its playlists, and a play file its schedule or playlists.
+  for (Kind kind : {Kind::Animation, Kind::Playlist, Kind::Schedule, Kind::Play})
     for (auto &entry : kind == Kind::Animation  ? manifest.animations
                        : kind == Kind::Playlist ? manifest.playlists
-                                                : manifest.schedules)
+                       : kind == Kind::Schedule ? manifest.schedules
+                                                : manifest.play)
     {
       std::string have;
       const bool is_stored = stored(kind, entry.id, have);
@@ -428,7 +430,8 @@ std::vector<PlanItem> plan_sync(Manifest &manifest, const StoredDigest &stored)
 
 size_t plan_block(const Manifest &manifest)
 {
-  return (manifest.animations.size() + manifest.playlists.size() + manifest.schedules.size()) * sizeof(PlanItem);
+  return (manifest.animations.size() + manifest.playlists.size() + manifest.schedules.size() + manifest.play.size()) *
+         sizeof(PlanItem);
 }
 
 const FirmwareEntry *find_firmware(const Manifest &manifest, const std::string &board)

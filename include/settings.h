@@ -101,15 +101,6 @@ bool valid_ntp_server(const std::string &value);
 bool valid_animation_source(const std::string &value);
 bool valid_token(const std::string &value);
 
-// The server choice (docs/board/wifi-and-updates-v1.md#server-choice): what the release says Automatic plays. It is
-// not a setting: it lives under its own key, outside Values and settings_get, and the update task stores it too,
-// so these calls are safe from both tasks. A missing or unreadable value is none.
-// The generation grows each time the choice changes, so the player notices a change another task made.
-pixelart::ServerChoice server_choice(uint32_t *generation = nullptr);
-uint32_t server_choice_generation();
-// Stores the choice (none removes it). False, with the old choice kept, when it cannot be stored.
-bool set_server_choice(const pixelart::ServerChoice &choice);
-
 // Loads the stored settings. A missing or unusable value takes its default;
 // the simulator starts from the defaults, except for the keys of
 // sim_store_play_keys(). The first start makes the token with the hardware
@@ -164,10 +155,6 @@ void fail_playlist_saves_after(int successes);
 void fail_play_saves_after(int successes);
 void fail_playlists_saves_after(int successes);
 void fail_schedule_saves_after(int successes);
-// Makes every save of the server choice fail.
-void fail_server_choice_saves(bool fail);
-// Forgets the server choice the simulator keeps for the run.
-void sim_forget_server_choice();
 // Makes every save of the token fail.
 void fail_token_saves(bool fail);
 // Keeps the `playlist`, `play`, `playlists` and `schedule` keys as the board stores them, starting from these

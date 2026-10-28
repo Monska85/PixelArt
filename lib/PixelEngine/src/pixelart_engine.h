@@ -212,6 +212,8 @@ constexpr size_t MAX_SCHEDULE_ENTRIES = 64;
 constexpr size_t MAX_SCHEDULE_PLAYLISTS = 8;
 constexpr int MIN_SCHEDULE_YEAR = 2000;
 constexpr int MAX_SCHEDULE_YEAR = 2999;
+// Limit from docs/format/play-v1.md#limits. The playlists of a play file are bounded by MAX_SCHEDULE_PLAYLISTS.
+constexpr size_t MAX_PLAY_FILE_SIZE = 1024;
 
 // A local date of the Gregorian calendar.
 struct LocalDate
@@ -283,8 +285,8 @@ constexpr const char *DEFAULT_PLAYLIST_ID = "default";
 // The schedule the board's own rule uses when nothing else chooses one.
 constexpr const char *DEFAULT_SCHEDULE_ID = "default";
 
-// What the release says Automatic plays (docs/board/wifi-and-updates-v1.md#server-choice): a schedule, or 1 to
-// MAX_SCHEDULE_PLAYLISTS playlists, or nothing. The IDs are valid and a list holds none twice.
+// What the release says Automatic plays (docs/format/play-v1.md): a schedule, or 1 to MAX_SCHEDULE_PLAYLISTS
+// playlists, or nothing. The IDs are valid and a list holds none twice.
 struct ServerChoice
 {
   std::string schedule;               // the schedule it names, empty when it names playlists or nothing

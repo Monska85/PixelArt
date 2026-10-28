@@ -36,12 +36,12 @@ void print(const std::string &file, bool loaded, const std::vector<pixelart::Dia
   }
 }
 
-// Checks every animation, playlist and schedule in the data folder with the same code
+// Checks every animation, playlist, schedule and play file in the data folder with the same code
 // the board uses to load them. Returns the process exit status.
 int validate()
 {
   int errors = 0, files = 0;
-  std::set<std::string> valid_ids, valid_playlists;
+  std::set<std::string> valid_ids, valid_playlists, valid_schedules;
   for (const std::string &id : stored_animations())
   {
     pixelart::Animation animation;
@@ -72,6 +72,8 @@ int validate()
     pixelart::Schedule schedule;
     std::vector<pixelart::Diagnostic> diagnostics;
     bool loaded = load_stored_schedule(id, schedule, diagnostics);
+    if (loaded)
+      valid_schedules.insert(id);
     auto warn = [&](const std::vector<std::string> &ids, const std::string &where)
     {
       for (size_t i = 0; i < ids.size(); i++)
@@ -86,6 +88,22 @@ int validate()
         warn(schedule.playlists(e), "entries[" + std::to_string(e) + "].playlists");
     }
     print(schedule_file(id), loaded, diagnostics, errors);
+    files++;
+  }
+  for (const std::string &id : stored_play_files())
+  {
+    pixelart::ServerChoice choice;
+    std::vector<pixelart::Diagnostic> diagnostics;
+    const bool loaded = load_stored_play(id, choice, diagnostics);
+    if (loaded && !choice.schedule.empty() && !valid_schedules.count(choice.schedule))
+      diagnostics.push_back({pixelart::Severity::Warning, "unknown_schedule", "default.schedule",
+                             "\"" + choice.schedule + "\" is missing or invalid"});
+    for (size_t i = 0; loaded && i < choice.playlists.size(); i++)
+      if (!valid_playlists.count(choice.playlists[i]))
+        diagnostics.push_back({pixelart::Severity::Warning, "unknown_playlist",
+                               "default.playlists[" + std::to_string(i) + "]",
+                               "\"" + choice.playlists[i] + "\" is missing or invalid"});
+    print(play_file(id), loaded, diagnostics, errors);
     files++;
   }
   printf("%d files checked in %s, %d rejected\n", files, sim::data_dir().c_str(), errors);

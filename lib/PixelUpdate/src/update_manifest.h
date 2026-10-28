@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <pixelart_engine.h>
-
 #include <cstddef>
 #include <functional>
 #include <string>
@@ -19,7 +17,7 @@ namespace pixelart_update
 
 constexpr size_t MAX_MANIFEST_SIZE = 64 * 1024;
 constexpr size_t MAX_FILE_PATH = 160;
-// Animations, playlists and schedules a manifest may list. The data partition holds fewer files than this.
+// Animations, playlists, schedules and play files a manifest may list. The data partition holds fewer files than this.
 constexpr size_t MAX_MANIFEST_FILES = 200;
 constexpr const char *MANIFEST_FORMAT = "pixelart-manifest/1";
 
@@ -27,13 +25,14 @@ enum class Kind
 {
   Animation,
   Playlist,
-  Schedule
+  Schedule,
+  Play
 };
 
 // The largest file of a kind, as the protocol limits it.
 size_t size_limit(Kind kind);
 
-// One animation, playlist or schedule the manifest lists.
+// One animation, playlist, schedule or play file the manifest lists.
 struct FileEntry
 {
   std::string id;
@@ -56,22 +55,20 @@ struct Manifest
   std::string version;
   std::vector<FileEntry> animations;
   std::vector<FileEntry> playlists;
-  std::vector<FileEntry> schedules;     // optional in the manifest: empty when it has none
-  std::vector<FirmwareEntry> firmware;  // entries with part `app`
-  pixelart::ServerChoice server_choice; // the `default`: none when it is absent or breaks its rules
+  std::vector<FileEntry> schedules;    // optional in the manifest: empty when it has none
+  std::vector<FileEntry> play;         // optional in the manifest: empty when it has none
+  std::vector<FirmwareEntry> firmware; // entries with part `app`
 };
 
 // Reads a manifest. On failure, returns false and `reason` says why (short plain text, for logs).
 // Refused: more than MAX_MANIFEST_SIZE bytes, text that is not strict JSON, a `format` other than
 // MANIFEST_FORMAT, a missing or mistyped `version` (not a Semantic Version), `animations` or
-// `playlists`, more than MAX_MANIFEST_FILES animations, playlists and schedules in all, an entry without a valid
-// `id`, `file`,
-// `size` of at least 1 or `sha256`, an ID listed twice in one kind, and a file path that is_safe_relative_path()
-// refuses. A `schedules` list is optional and counts as absent when it is not a list; its entries are read as those
-// of `playlists`. A `default` is read by pixelart::read_server_choice() and counts as absent when it breaks its rules.
-// A `firmware` list is optional and counts as absent when it is not a list; its entries need `board`
-// and `part`, and an `app` entry the file fields as well. Other fields are ignored. A size over the limit of its kind
-// is not refused here: that file fails on its own when it is installed.
+// `playlists`, more than MAX_MANIFEST_FILES animations, playlists, schedules and play files in all, an entry
+// without a valid `id`, `file`, `size` of at least 1 or `sha256`, an ID listed twice in one kind, and a file path that
+// is_safe_relative_path() refuses. A `schedules` and a `play` list are optional and count as absent when they are not
+// lists; their entries are read as those of `playlists`. A `firmware` list is optional and counts as absent when it is
+// not a list; its entries need `board` and `part`, and an `app` entry the file fields as well. Other fields are
+// ignored. A size over the limit of its kind is not refused here: that file fails on its own when it is installed.
 bool parse_manifest(const char *json, size_t length, Manifest &out, std::string &reason);
 
 // The memory a manifest may take while it is read. A board has little heap, and an allocation that
@@ -134,14 +131,15 @@ struct PlanItem
 // Finds the SHA-256 of a stored file: true and the digest when the file is stored, false when not.
 using StoredDigest = std::function<bool(Kind kind, const std::string &id, std::string &sha256)>;
 
-// The sync plan, server wins: every animation of the manifest, then every playlist, then every schedule that is
-// not stored (add) or is stored with another SHA-256 (replace). A stored file with the same SHA-256 and
-// every stored file the manifest does not list are left out.
+// The sync plan, server wins: every animation of the manifest, then every playlist, then every schedule, then every
+// play file that is not stored (add) or is stored with another SHA-256 (replace). A stored file with the same SHA-256
+// and every stored file the manifest does not list are left out.
 std::vector<PlanItem> plan_sync(const Manifest &manifest, const StoredDigest &stored);
 // The same, moving the strings of the planned entries out of the manifest's lists of files instead of
 // copying them, so the plan takes no more memory than its own vector. The version and the firmware stay.
 std::vector<PlanItem> plan_sync(Manifest &manifest, const StoredDigest &stored);
-// The size of the one block a plan of `manifest` takes at most: every animation, playlist and schedule planned.
+// The size of the one block a plan of `manifest` takes at most: every animation, playlist, schedule and play file
+// planned.
 size_t plan_block(const Manifest &manifest);
 
 // The `app` entry of `board`, or nullptr.

@@ -969,37 +969,31 @@ static void test_a_schedule_that_cannot_be_saved_changes_nothing_and_a_saved_one
   TEST_ASSERT_EQUAL_STRING(settings::PLAY_AUTO, settings::current().play.c_str());
 }
 
-static void test_the_server_choice_survives_a_restart_and_changes_only_when_it_is_stored()
+static void test_the_server_choice_is_the_default_of_the_play_file_read_each_time()
 {
   sim::reset();
   TempData data("protocol");
   setup();
-  uint32_t generation = 0;
-  TEST_ASSERT_TRUE(settings::server_choice(&generation).is_none());
-  const uint32_t start = generation;
+  bool busy = false;
+  TEST_ASSERT_TRUE(load_server_choice(busy).is_none()); // no file, no choice
 
-  pixelart::ServerChoice schedule;
-  schedule.schedule = "seasons";
-  TEST_ASSERT_TRUE(settings::set_server_choice(schedule));
-  TEST_ASSERT_TRUE(settings::server_choice(&generation) == schedule);
-  TEST_ASSERT_EQUAL_UINT32(start + 1, generation);
-  TEST_ASSERT_TRUE(settings::set_server_choice(schedule)); // the same choice is not a change
-  TEST_ASSERT_EQUAL_UINT32(start + 1, settings::server_choice_generation());
+  data.write("play/default.json", R"({"format":"pixelart-play/1","default":{"schedule":"seasons"}})");
+  pixelart::ServerChoice choice = load_server_choice(busy);
+  TEST_ASSERT_EQUAL_STRING("seasons", choice.schedule.c_str());
+  TEST_ASSERT_TRUE(choice.playlists.empty());
 
-  setup(); // a restart does not forget it, as the board's storage does not
-  TEST_ASSERT_TRUE(settings::server_choice() == schedule);
+  data.write("play/default.json", R"({"format":"pixelart-play/1","default":{"playlists":["a","b"]}})");
+  choice = load_server_choice(busy);
+  TEST_ASSERT_TRUE(choice.schedule.empty());
+  TEST_ASSERT_TRUE((choice.playlists == std::vector<std::string>{"a", "b"}));
 
-  pixelart::ServerChoice list;
-  list.playlists = {"a", "b"};
-  settings::fail_server_choice_saves(true);
-  TEST_ASSERT_FALSE(settings::set_server_choice(list));
-  TEST_ASSERT_TRUE(settings::server_choice(&generation) == schedule); // nothing changed
-  TEST_ASSERT_EQUAL_UINT32(start + 1, generation);
-  settings::fail_server_choice_saves(false);
-  TEST_ASSERT_TRUE(settings::set_server_choice(list));
-  TEST_ASSERT_TRUE(settings::set_server_choice(pixelart::ServerChoice()));
-  TEST_ASSERT_TRUE(settings::server_choice(&generation).is_none());
-  TEST_ASSERT_EQUAL_UINT32(start + 3, generation);
+  // An invalid file is no choice, and so is a valid file under another ID.
+  data.write("play/default.json", R"({"format":"pixelart-play/1","default":{"schedule":"Bad"}})");
+  TEST_ASSERT_TRUE(load_server_choice(busy).is_none());
+  std::remove((data.root / "play/default.json").string().c_str());
+  data.write("play/other.json", R"({"format":"pixelart-play/1","default":{"schedule":"seasons"}})");
+  TEST_ASSERT_TRUE(load_server_choice(busy).is_none());
+  TEST_ASSERT_FALSE(busy);
 }
 
 static void test_delete_all_keeps_the_settings_when_they_cannot_be_reset()
@@ -1622,7 +1616,7 @@ int main(int, char **)
   RUN_TEST(test_a_restart_keeps_a_change_made_while_the_stored_playlists_are_unusable);
   RUN_TEST(test_a_schedule_is_read_back_after_a_restart_and_a_missing_or_unusable_one_is_default);
   RUN_TEST(test_a_schedule_that_cannot_be_saved_changes_nothing_and_a_saved_one_is_kept);
-  RUN_TEST(test_the_server_choice_survives_a_restart_and_changes_only_when_it_is_stored);
+  RUN_TEST(test_the_server_choice_is_the_default_of_the_play_file_read_each_time);
   RUN_TEST(test_delete_all_keeps_the_settings_when_they_cannot_be_reset);
   RUN_TEST(test_delete_all_says_so_when_the_settings_are_partly_reset);
   RUN_TEST(test_wifi_forget_says_so_when_the_network_task_cannot_take_it);

@@ -306,6 +306,52 @@ static void test_schedule_invalid_cases()
   }
 }
 
+static void test_play_valid_cases()
+{
+  std::vector<fs::path> files = cases("play/valid");
+  TEST_ASSERT_TRUE_MESSAGE(!files.empty(), "no valid play cases found");
+  for (const fs::path &file : files)
+  {
+    std::string name = file.stem().string();
+    std::string json = read_file(file);
+    std::vector<pixelart::Diagnostic> diagnostics;
+    pixelart::ServerChoice choice;
+    TEST_ASSERT_TRUE_MESSAGE(pixelart::load_play_file(json.data(), json.size(), choice, diagnostics),
+                             (name + ": rejected:" + describe(diagnostics)).c_str());
+    TEST_ASSERT_TRUE_MESSAGE(diagnostics.empty(), (name + ": reported:" + describe(diagnostics)).c_str());
+
+    JsonDocument expected;
+    std::string expected_json = read_file(expected_path(file));
+    TEST_ASSERT_FALSE_MESSAGE(deserializeJson(expected, expected_json), (name + ": bad expected file").c_str());
+    JsonVariantConst want = expected["default"];
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(want["schedule"].isNull() ? "" : want["schedule"].as<const char *>(),
+                                     choice.schedule.c_str(), (name + ": schedule").c_str());
+    TEST_ASSERT_TRUE_MESSAGE(text_list(want["playlists"]) == choice.playlists, (name + ": playlists").c_str());
+    TEST_ASSERT_FALSE_MESSAGE(choice.is_none(), (name + ": no server choice").c_str());
+  }
+}
+
+static void test_play_invalid_cases()
+{
+  std::vector<fs::path> files = cases("play/invalid");
+  TEST_ASSERT_TRUE_MESSAGE(!files.empty(), "no invalid play cases found");
+  for (const fs::path &file : files)
+  {
+    std::string name = file.stem().string();
+    std::string json = read_file(file);
+    JsonDocument expected;
+    std::string expected_json = read_file(expected_path(file));
+    TEST_ASSERT_FALSE_MESSAGE(deserializeJson(expected, expected_json), (name + ": bad expected file").c_str());
+
+    std::vector<pixelart::Diagnostic> diagnostics;
+    pixelart::ServerChoice choice;
+    TEST_ASSERT_FALSE_MESSAGE(pixelart::load_play_file(json.data(), json.size(), choice, diagnostics),
+                              (name + ": accepted").c_str());
+    TEST_ASSERT_TRUE_MESSAGE(choice.is_none(), (name + ": rejected but kept its content").c_str());
+    check_rejection(name, expected, diagnostics);
+  }
+}
+
 static void test_schedule_winner_rows()
 {
   JsonDocument rows;
@@ -417,6 +463,8 @@ int main(int, char **)
   RUN_TEST(test_playlist_invalid_cases);
   RUN_TEST(test_schedule_valid_cases);
   RUN_TEST(test_schedule_invalid_cases);
+  RUN_TEST(test_play_valid_cases);
+  RUN_TEST(test_play_invalid_cases);
   RUN_TEST(test_schedule_winner_rows);
   RUN_TEST(test_schedule_resolver_rows);
   return UNITY_END();

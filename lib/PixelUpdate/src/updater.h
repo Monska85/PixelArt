@@ -111,9 +111,6 @@ public:
   virtual void discard_download() = 0;
   // SHA-256 of a stored file, false when the file is not stored.
   virtual bool stored_digest(Kind kind, const std::string &id, std::string &sha256) = 0;
-  // Stores what the manifest of a check says Automatic plays (none when it has no `default`), before any installation.
-  // A host that cannot store it keeps the old choice.
-  virtual void store_server_choice(const pixelart::ServerChoice &) {}
   // Free bytes of the file system, false when they cannot be read.
   virtual bool free_space(size_t &bytes) = 0;
   // The local time as minutes after midnight, false when the time is not known.
@@ -194,7 +191,7 @@ struct Status
   bool has_result = false;
   Error result = Error::None; // of the last check or installation
   uint16_t failed_files = 0;  // in the last animation update
-  uint16_t files = 0;         // animations, playlists and schedules still to add or replace
+  uint16_t files = 0;         // animations, playlists, schedules and play files still to add or replace
   // The firmware the last check found, newer than the running one and in the manifest for this board; empty when
   // none. A version on the skip list is reported too, with `firmware_skipped`, so a client can ask for it by force.
   std::string firmware;
@@ -220,9 +217,9 @@ public:
   // still on its trial boot.
   bool request_firmware(bool force);
 
-  // Stops what installs animations, playlists and schedules, and forgets the files the last check found: a running
-  // installation skips the files it has not stored and counts no failure, and one that was asked for does
-  // not start. `last_result` stays as it was. The firmware is not touched.
+  // Stops what installs animations, playlists, schedules and play files, and forgets the files the last check found: a
+  // running installation skips the files it has not stored and counts no failure, and one that was asked for does not
+  // start. `last_result` stays as it was. The firmware is not touched.
   void cancel_install();
 
   // Does one unit of work, if there is one.

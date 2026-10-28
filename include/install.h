@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Checks a received animation, playlist or schedule file with the engine, for everything that stores a file
+// Checks a received animation, playlist, schedule or play file with the engine, for everything that stores a file
 // from outside: an upload (`put_end`) and a download of the update task. Runs on the loop task.
 
 #pragma once
@@ -18,7 +18,8 @@ enum class Kind
 {
   Animation,
   Playlist,
-  Schedule
+  Schedule,
+  Play
 };
 
 // The largest file of a kind.
@@ -64,10 +65,11 @@ struct Parsed
 {
   pixelart::Playlist playlist;
   pixelart::Schedule schedule;
+  pixelart::ServerChoice play; // the `default` of a play file
 };
 
 // Reads `path` (at most the limit of `kind`) and loads it with the engine, which also fills
-// `diagnostics` with warnings. A valid playlist or schedule is left in `parsed` when it is given. Takes
+// `diagnostics` with warnings. A valid playlist, schedule or play file is left in `parsed` when it is given. Takes
 // the lock for large allocations while the file is in memory.
 Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagnostic> &diagnostics,
                 Parsed *parsed = nullptr);
@@ -82,7 +84,7 @@ Result check(Kind kind, const std::string &path, size_t expected_size, std::vect
 bool commit(Kind kind, const std::string &path, const std::string &target);
 
 // A file of `kind` was stored or deleted: a playlist makes the player choose what to play again and start
-// its list from the first playlist, a schedule only choose again.
+// its list from the first playlist, a schedule or a play file only choose again.
 void file_changed(Kind kind);
 
 } // namespace install
