@@ -6,7 +6,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { describe, expect, it } from "vitest";
-import { Player, effectiveBrightness, loadAnimation, loadPlaylist, type Diagnostic } from "../src/engine";
+import {
+  Player,
+  choosePlaylists,
+  effectiveBrightness,
+  loadAnimation,
+  loadPlaylist,
+  loadSchedule,
+  scheduleWinner,
+  type Diagnostic,
+  type LocalDate,
+  type PlayMode,
+  type Schedule,
+} from "../src/engine";
 import { REPO, caseFiles, expectedPath, readBytes } from "./helpers";
 
 const SUITE = `${REPO}conformance`;
@@ -114,5 +126,81 @@ describe("brightness rule", () => {
     : [];
   it.each(rows.map((r) => [`board ${r.board}, ${r.percent} percent`, r] as const))("%s", (_name, row) => {
     expect(effectiveBrightness(row.board, row.percent)).toBe(row.expected);
+  });
+});
+
+describe("schedules that must load", () => {
+  const files = caseFiles(`${SUITE}/schedule/valid`);
+  it("has cases", () => expect(files.length).toBeGreaterThan(0));
+  it.each(files.map((f) => [basename(f, ".json"), f]))("%s", (_name, file) => {
+    const result = loadSchedule(readBytes(file as string));
+    expect(result.schedule, `rejected:${describeAll(result.diagnostics)}`).not.toBeNull();
+    const { fallback, entries } = result.schedule!;
+    // The expected file leaves out the names: fallback and the entries in file order.
+    expect({ fallback, entries: entries.map(({ from, to, playlists }) => ({ from, to, playlists })) }).toEqual(
+      json(expectedPath(file as string)),
+    );
+  });
+});
+
+describe("schedules that must be rejected", () => {
+  const files = caseFiles(`${SUITE}/schedule/invalid`);
+  it("has cases", () => expect(files.length).toBeGreaterThan(0));
+  it.each(files.map((f) => [basename(f, ".json"), f]))("%s", (_name, file) => {
+    const result = loadSchedule(readBytes(file as string));
+    expect(result.schedule, "accepted").toBeNull();
+    expectRejection(json(expectedPath(file as string)), result.diagnostics);
+  });
+});
+
+/** The schedules of a row file, loaded by the app's own loader from their JSON text. */
+function rowSchedules(documents: Record<string, unknown>): Map<string, Schedule> {
+  const out = new Map<string, Schedule>();
+  for (const [key, document] of Object.entries(documents)) {
+    const result = loadSchedule(new TextEncoder().encode(JSON.stringify(document)));
+    expect(result.schedule, `schedule ${key} rejected:${describeAll(result.diagnostics)}`).not.toBeNull();
+    out.set(key, result.schedule!);
+  }
+  return out;
+}
+
+const localDate = (text: string): LocalDate => {
+  const [year, month, day] = text.split("-").map(Number) as [number, number, number];
+  return { year, month, day };
+};
+
+describe("schedule winner rules", () => {
+  const file = json(`${SUITE}/schedule/winner.json`);
+  const schedules = rowSchedules(file.schedules);
+  const rows: { schedule: string; date: string; entry: number | null }[] = file.rows;
+  it("has rows", () => expect(rows.length).toBeGreaterThan(0));
+  it.each(rows.map((r) => [`${r.schedule} on ${r.date}`, r] as const))("%s", (_name, row) => {
+    const winner = scheduleWinner(schedules.get(row.schedule)!, localDate(row.date));
+    expect(winner === -1 ? null : winner).toBe(row.entry);
+  });
+});
+
+describe("how the board chooses what to play", () => {
+  const file = json(`${SUITE}/schedule/resolver.json`);
+  const schedules = rowSchedules(file.schedules);
+  const rows: {
+    name: string;
+    play: PlayMode;
+    playlists: string[];
+    schedule: string | null;
+    date: string | null;
+    playable: string[];
+    expected: { reason: string; entry: number | null; playlists: string[]; playing: string | null };
+  }[] = file.rows;
+  it("has rows", () => expect(rows.length).toBeGreaterThan(0));
+  it.each(rows.map((r) => [r.name, r] as const))("%s", (_name, row) => {
+    const choice = choosePlaylists(
+      row.play,
+      row.playlists,
+      row.schedule === null ? null : schedules.get(row.schedule)!,
+      row.date === null ? null : localDate(row.date),
+      (id) => row.playable.includes(id),
+    );
+    expect(choice).toEqual(row.expected);
   });
 });

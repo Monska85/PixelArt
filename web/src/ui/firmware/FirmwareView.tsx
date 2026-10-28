@@ -66,7 +66,8 @@ export function FirmwareView() {
   const release = manifest.status === "ready" && manifest.manifest.hasFirmware ? manifest.manifest : null;
   const installer = useInstaller(release !== null && serial);
   const published =
-    manifest.status === "ready" && manifest.manifest.animations.length + manifest.manifest.playlists.length > 0;
+    manifest.status === "ready" &&
+    manifest.manifest.animations.length + manifest.manifest.playlists.length + manifest.manifest.schedules.length > 0;
   const [thenInstall, setThenInstall] = useState(true);
   const content = useContentInstall(manifest.status === "ready" ? manifest.manifest : null, thenInstall && published);
 
@@ -209,7 +210,9 @@ export function FirmwareView() {
             />
             <div className="flex flex-col gap-1">
               <Label htmlFor="then-install-content" className="leading-normal text-foreground">
-                Then install the animations and playlists
+                {manifest.status === "ready" && manifest.manifest.schedules.length > 0
+                  ? "Then install the animations, playlists and schedules"
+                  : "Then install the animations and playlists"}
               </Label>
               <p className="text-sm text-muted-foreground">
                 {published

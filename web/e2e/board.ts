@@ -89,3 +89,60 @@ export async function watchBoard(
     },
   };
 }
+
+/** What a firmware from before schedules leaves out of a reply (docs/protocol/protocol-v1.md#info). */
+function withoutSchedules(reply: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...reply };
+  for (const key of ["formats", "limits"] as const)
+    if (typeof out[key] === "object" && out[key] !== null) {
+      const part = { ...(out[key] as Record<string, unknown>) };
+      delete part.schedule;
+      out[key] = part;
+    }
+  if (typeof out.settings === "object" && out.settings !== null) {
+    const settings = { ...(out.settings as Record<string, unknown>) };
+    for (const key of ["play", "playlists", "time_sync_hours", "ntp_server"]) delete settings[key];
+    out.settings = settings;
+  }
+  delete out.play;
+  delete out.schedules;
+  return out;
+}
+
+/**
+ * Makes the simulator look like a firmware from before schedules: its replies lose `formats.schedule`, the new
+ * settings, `status.play` and the schedule count of `delete_all`. The simulator still takes the requests of such an
+ * app, as every firmware since does. The requests and the (changed) replies are kept, by command, in order.
+ */
+export async function firmwareBeforeSchedules(
+  page: Page,
+  simulator: Simulator,
+): Promise<{ requests: Array<Record<string, unknown>>; replies: (cmd: string) => Array<Record<string, unknown>> }> {
+  const port = new URL(simulator.address).port;
+  const requests: Array<Record<string, unknown>> = [];
+  const replies: Array<{ cmd: string; reply: Record<string, unknown> }> = [];
+  await page.routeWebSocket(
+    (url) => url.port === port,
+    (socket) => {
+      const server = socket.connectToServer();
+      const commands = new Map<number, string>();
+      socket.onMessage((message) => {
+        const request = decodeLine(new TextEncoder().encode(String(message)));
+        if (request && typeof request.seq === "number" && typeof request.cmd === "string") {
+          commands.set(request.seq, request.cmd);
+          requests.push(request);
+        }
+        server.send(message);
+      });
+      server.onMessage((message) => {
+        const reply = decodeLine(new TextEncoder().encode(String(message)));
+        if (!reply) return socket.send(String(message));
+        const changed = withoutSchedules(reply);
+        const cmd = typeof reply.seq === "number" ? commands.get(reply.seq) : undefined;
+        if (cmd) replies.push({ cmd, reply: changed });
+        socket.send(encodeLine(changed));
+      });
+    },
+  );
+  return { requests, replies: (cmd) => replies.filter((r) => r.cmd === cmd).map((r) => r.reply) };
+}

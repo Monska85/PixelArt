@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// `status`: the board's WiFi and update state (docs/protocol/protocol-v1.md#status).
+// `status`: the board's WiFi, time, play and update state (docs/protocol/protocol-v1.md#status).
 
+import type { PlayMode, PlayReason } from "../engine/schedule";
 import type { BoardClient } from "./client";
 import type { Body } from "./framing";
 import { isRecord } from "./guards";
@@ -58,15 +59,31 @@ export interface UpdateStatus {
   failedFiles: number;
   /** The firmware version available, or null. */
   firmware: string | null;
-  /** How many animations and playlists would be added or replaced. */
+  /** How many animations, playlists and schedules would be added or replaced. */
   files: number;
   lastInstall: { result: string; from: string; to: string } | null;
+}
+
+const PLAY_REASONS: readonly string[] = ["user", "schedule", "fallback", "no_time", "no_schedule"];
+
+/** What the board plays and why (`status.play`), on a firmware that knows schedules. */
+export interface PlayStatus {
+  mode: PlayMode;
+  reason: PlayReason;
+  /** The winning entry's 0-based index in the schedule, or null. */
+  entry: number | null;
+  /** The list the board plays. */
+  playlists: string[];
+  /** The playlist now playing or the next to start, or null when the board plays every animation. */
+  playing: string | null;
 }
 
 export interface BoardStatus {
   wifi: WifiStatus;
   /** Whether the board knows the time. */
   timeKnown: boolean;
+  /** Null for a firmware older than schedules, or a `play` this app cannot read. */
+  play: PlayStatus | null;
   update: UpdateStatus;
 }
 
@@ -120,10 +137,26 @@ function parseUpdate(value: unknown): UpdateStatus {
   };
 }
 
+function parsePlay(value: unknown): PlayStatus | null {
+  if (!isRecord(value)) return null;
+  const { mode, reason, entry, playlists, playing } = value;
+  if (mode !== "auto" && mode !== "playlists") return null;
+  if (typeof reason !== "string" || !PLAY_REASONS.includes(reason)) return null;
+  if (!Array.isArray(playlists) || !playlists.every((id) => typeof id === "string")) return null;
+  return {
+    mode,
+    reason: reason as PlayReason,
+    entry: typeof entry === "number" && Number.isSafeInteger(entry) && entry >= 0 ? entry : null,
+    playlists: playlists as string[],
+    playing: text(playing),
+  };
+}
+
 export function parseStatus(reply: Body): BoardStatus {
   return {
     wifi: parseWifi(reply.wifi),
     timeKnown: isRecord(reply.time) && reply.time.known === true,
+    play: parsePlay(reply.play),
     update: parseUpdate(reply.update),
   };
 }

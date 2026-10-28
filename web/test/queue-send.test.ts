@@ -87,7 +87,11 @@ describe("sending a queue", () => {
     const bad = text(String.raw`{"format":"pixelart/1","name":"INVALID"}`);
     const first = [await entry("animation", "a", animation("A")), await entry("animation", "bad", bad)];
     await sendQueue(client, first, []);
-    const stored = { animation: await listFiles(client, "animation"), playlist: await listFiles(client, "playlist") };
+    const stored = {
+      animation: await listFiles(client, "animation"),
+      playlist: await listFiles(client, "playlist"),
+      schedule: [],
+    };
     expect(
       planAgainstBoard(
         first.map((e) => e.file),
@@ -115,7 +119,7 @@ describe("delete_all", () => {
     board.files.animation.set("a", animation("A"));
     board.files.animation.set("b", animation("B"));
     board.files.playlist.set("p", playlist);
-    expect(await deleteAll(client)).toEqual({ playlists: 1, animations: 2 });
+    expect(await deleteAll(client)).toEqual({ schedules: null, playlists: 1, animations: 2 });
     expect(board.files.animation.size + board.files.playlist.size).toBe(0);
     expect(board.requests.at(-1)).toMatchObject({ cmd: "delete_all" });
     expect(Object.keys(board.requests.at(-1) ?? {}).sort()).toEqual(["cmd", "seq"]);
@@ -125,6 +129,7 @@ describe("delete_all", () => {
     board.files.playlist.set("p", playlist);
     board.settings = { brightness: 7, playlist: "p" };
     expect(await deleteAll(client, { resetSettings: true })).toEqual({
+      schedules: null,
       playlists: 1,
       animations: 0,
       settings: { brightness: 100, playlist: "default" },
@@ -150,7 +155,7 @@ describe("delete_all", () => {
     await vi.advanceTimersByTimeAsync(4999);
     expect(lines).toBe(1);
     await vi.advanceTimersByTimeAsync(1);
-    expect(await result).toEqual({ playlists: 0, animations: 1 });
+    expect(await result).toEqual({ schedules: null, playlists: 0, animations: 1 });
     expect(lines).toBe(1);
   });
 
@@ -161,7 +166,7 @@ describe("delete_all", () => {
     await vi.advanceTimersByTimeAsync(9999);
     expect(board.requests.filter((r) => r.cmd === "delete_all")).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1);
-    expect(await result).toEqual({ playlists: 0, animations: 0 });
+    expect(await result).toEqual({ schedules: null, playlists: 0, animations: 0 });
     const sent = board.requests.filter((r) => r.cmd === "delete_all");
     expect(sent).toHaveLength(2);
     expect(sent[1]?.seq).toBe(sent[0]?.seq);

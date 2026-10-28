@@ -173,7 +173,8 @@ test("a manifest with an empty firmware list says the same", async ({ page }) =>
 
 test("the box to install the animations and playlists is checked each time the view opens", async ({ page }) => {
   await page.goto("/#firmware");
-  const box = page.getByRole("checkbox", { name: "Then install the animations and playlists" });
+  // The release of the fixture site publishes a schedule too.
+  const box = page.getByRole("checkbox", { name: "Then install the animations, playlists and schedules" });
   await expect(box).toBeChecked();
   await expect(page.getByText(/Keep the board connected until they are installed/)).toBeVisible();
   await box.uncheck();

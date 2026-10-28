@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { firmwareBeforeSchedules } from "./board";
 import { connectSimulator, expect, stored, test, watchReplies, watchRequests, type Simulator } from "./fixtures";
 
 const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
@@ -224,13 +225,14 @@ test.describe("in the time zone of Rome", () => {
   test.use({ updateSource: site(), timezoneId: "Europe/Rome" });
 
   test("the install window is sent with the POSIX rule of the browser's time zone", async ({ page, simulator }) => {
-    const replies = watchReplies(page, "settings_set");
+    // A firmware from before schedules: the Updates card sends the zone. One that knows them has a Time zone field.
+    const board = await firmwareBeforeSchedules(page, simulator);
     await connectInNotifyMode(page, simulator);
     const updates = card(page);
     await expect(updates.getByTestId("time-zone")).toContainText("Time zone: Europe/Rome. The board uses UTC0");
     await updates.getByLabel("From", { exact: true }).fill("22:00");
     await expect(updates.getByLabel("From", { exact: true })).toHaveValue("22:00");
-    expect(replies.replies.at(-1)).toMatchObject({
+    expect(board.replies("settings_set").at(-1)).toMatchObject({
       ok: true,
       settings: { install_start: 1320, install_end: 0, timezone: "CET-1CEST,M3.5.0,M10.5.0/3" },
     });
@@ -238,11 +240,24 @@ test.describe("in the time zone of Rome", () => {
     await expect(updates.getByTestId("time-zone")).toContainText("the one of this browser");
     await updates.getByLabel("To", { exact: true }).fill("06:00");
     await expect(updates.getByLabel("To", { exact: true })).toHaveValue("06:00");
-    expect(replies.replies.at(-1)).toMatchObject({ settings: { install_start: 1320, install_end: 360 } });
+    expect(board.replies("settings_set").at(-1)).toMatchObject({ settings: { install_start: 1320, install_end: 360 } });
     await expect(updates.getByTestId("install-window")).toContainText("22:00 to 06:00 (over midnight)");
     // Equal times are the whole day again.
     await updates.getByLabel("To", { exact: true }).fill("22:00");
     await expect(updates.getByTestId("install-window")).toContainText("whole day");
+  });
+
+  test("on a firmware that knows schedules the window sends no time zone: Settings has the field", async ({
+    page,
+    simulator,
+  }) => {
+    const replies = watchReplies(page, "settings_set");
+    await connectInNotifyMode(page, simulator);
+    const updates = card(page);
+    await expect(updates.getByTestId("time-zone")).toHaveText("Time zone: UTC, set under Time in the Settings card.");
+    await updates.getByLabel("From", { exact: true }).fill("22:00");
+    await expect(updates.getByLabel("From", { exact: true })).toHaveValue("22:00");
+    expect(replies.replies.at(-1)).toMatchObject({ ok: true, settings: { install_start: 1320, timezone: "UTC0" } });
   });
 });
 
@@ -250,13 +265,13 @@ test.describe("in a time zone the table does not have", () => {
   test.use({ updateSource: site(), timezoneId: "Pacific/Chatham" });
 
   test("the window keeps the board's time zone and the card says so", async ({ page, simulator }) => {
-    const replies = watchReplies(page, "settings_set");
+    const board = await firmwareBeforeSchedules(page, simulator);
     await connectInNotifyMode(page, simulator);
     const updates = card(page);
     await expect(updates.getByTestId("time-zone")).toContainText("does not know the rules of your time zone");
     await updates.getByLabel("From", { exact: true }).fill("01:00");
     await expect(updates.getByLabel("From", { exact: true })).toHaveValue("01:00");
-    expect(replies.replies.at(-1)).toMatchObject({ settings: { install_start: 60, timezone: "UTC0" } });
+    expect(board.replies("settings_set").at(-1)).toMatchObject({ settings: { install_start: 60, timezone: "UTC0" } });
   });
 });
 

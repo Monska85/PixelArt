@@ -9,6 +9,16 @@ import { connectScripted, scriptedBoard } from "./scripted";
 
 const count = (dir: string, kind: string): number => readdirSync(join(dir, kind)).length;
 
+/** "12 animations, 2 playlists and 1 schedule", as the dialog and the toast name the files. */
+function what(animations: number, playlists: number, schedules: number): string {
+  const parts = [
+    `${animations} animation${animations === 1 ? "" : "s"}`,
+    `${playlists} playlist${playlists === 1 ? "" : "s"}`,
+    `${schedules} schedule${schedules === 1 ? "" : "s"}`,
+  ];
+  return `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+}
+
 /** Opens Delete everything from the Board view's More menu. */
 async function openDeleteEverything(page: Page): Promise<void> {
   await page.getByRole("button", { name: "More", exact: true }).click();
@@ -24,14 +34,15 @@ test("Delete everything in the Board view names the counts, removes every file a
   await connectSimulator(page, simulator);
   const animations = count(simulator.dataDir, "animations");
   const playlists = count(simulator.dataDir, "playlists");
-  const total = animations + playlists;
+  const schedules = count(simulator.dataDir, "schedules");
+  const total = animations + playlists + schedules;
   await page.getByRole("slider", { name: "Brightness" }).focus();
   await page.getByRole("slider", { name: "Brightness" }).press("PageDown");
   const brightness = await page.getByTestId("brightness-value").innerText();
 
   await openDeleteEverything(page);
   const dialog = page.getByRole("dialog", {
-    name: `Delete all ${animations} animations and ${playlists} playlist${playlists === 1 ? "" : "s"} from this board?`,
+    name: `Delete all ${what(animations, playlists, schedules)} from this board?`,
   });
   await expect(dialog).toContainText("This cannot be undone. The firmware and the settings stay.");
   await expect(resetBox(dialog)).not.toBeChecked();
@@ -51,11 +62,12 @@ test("Delete everything in the Board view names the counts, removes every file a
     .getByRole("dialog")
     .getByRole("button", { name: `Delete ${total} files` })
     .click();
-  await expect(toastWith(page, `Deleted ${animations} animations and ${playlists} playlist`)).toBeVisible();
+  await expect(toastWith(page, `Deleted ${what(animations, playlists, schedules)}`)).toBeVisible();
   await showFiles(page);
   await expect(page.getByText("No animations on this board")).toBeVisible();
   expect(count(simulator.dataDir, "animations")).toBe(0);
   expect(count(simulator.dataDir, "playlists")).toBe(0);
+  expect(count(simulator.dataDir, "schedules")).toBe(0);
   // The settings stay.
   await expect(page.getByTestId("brightness-value")).toHaveText(brightness);
 });
@@ -67,13 +79,14 @@ test("Delete everything can also reset the settings: brightness 100 and playlist
   copyFileSync(stored(simulator, "playlists", "default"), stored(simulator, "playlists", "mine"));
   const replies = watchReplies(page, "delete_all");
   await connectSimulator(page, simulator);
-  await page.getByLabel("Active playlist").selectOption("mine");
-  await expect(page.getByLabel("Active playlist")).toHaveValue("mine");
+  await page.getByRole("radio", { name: "My playlists" }).check();
+  await expect(page.getByRole("radio", { name: "My playlists" })).toBeChecked();
   await page.getByRole("slider", { name: "Brightness" }).focus();
   await page.getByRole("slider", { name: "Brightness" }).press("PageDown");
   await expect(page.getByTestId("brightness-value")).not.toHaveText("100");
   const playlists = count(simulator.dataDir, "playlists");
-  const total = count(simulator.dataDir, "animations") + playlists;
+  const schedules = count(simulator.dataDir, "schedules");
+  const total = count(simulator.dataDir, "animations") + playlists + schedules;
 
   await openDeleteEverything(page);
   const dialog = page.getByRole("dialog");
@@ -84,12 +97,20 @@ test("Delete everything can also reset the settings: brightness 100 and playlist
   );
   await dialog.getByRole("button", { name: `Delete ${total} files and reset the settings` }).click();
   await expect(
-    toastWith(page, new RegExp(`^Deleted \\d+ animations and ${playlists} playlists and reset the settings`)),
+    toastWith(
+      page,
+      new RegExp(`^Deleted \\d+ animations, ${playlists} playlists and 1 schedule and reset the settings`),
+    ),
   ).toContainText("Every setting is back to its default, the WiFi network is forgotten and a new token is made.");
   expect(count(simulator.dataDir, "animations")).toBe(0);
   expect(count(simulator.dataDir, "playlists")).toBe(0);
-  expect(replies.replies[0]).toMatchObject({ ok: true, settings: { brightness: 100, playlist: "default" } });
+  expect(replies.replies[0]).toMatchObject({
+    ok: true,
+    schedules,
+    settings: { brightness: 100, playlist: "default", play: "auto", playlists: ["default"] },
+  });
   await expect(page.getByTestId("brightness-value")).toHaveText("100");
+  await expect(page.getByRole("radio", { name: "Automatic" })).toBeChecked();
 });
 
 test("the Reset card has its own Also reset the settings box, which the dialog starts from", async ({
@@ -119,7 +140,7 @@ test("the Reset card has its own Also reset the settings box, which the dialog s
 });
 
 test("a board without files can still have its settings reset from the Reset card", async ({ page, simulator }) => {
-  for (const kind of ["animations", "playlists"])
+  for (const kind of ["animations", "playlists", "schedules"])
     for (const name of readdirSync(join(simulator.dataDir, kind))) rmSync(join(simulator.dataDir, kind, name));
   const replies = watchReplies(page, "delete_all");
   await connectSimulator(page, simulator);
@@ -146,7 +167,10 @@ test("a board without files can still have its settings reset from the Reset car
 
 test("Delete everything in the Firmware view uses the same dialog", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  const total = count(simulator.dataDir, "animations") + count(simulator.dataDir, "playlists");
+  const total =
+    count(simulator.dataDir, "animations") +
+    count(simulator.dataDir, "playlists") +
+    count(simulator.dataDir, "schedules");
   await page.getByRole("link", { name: "Firmware" }).click();
   await expect(page.getByRole("heading", { name: "Reset" })).toBeVisible();
   await page.getByRole("button", { name: "Delete everything" }).click();

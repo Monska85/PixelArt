@@ -1,26 +1,46 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useRef, useState, type ReactNode } from "react";
-import { setSettings, type BoardClient, type Settings, type SettingsChanges } from "../../protocol";
+import { Suspense, lazy, useRef, useState, type ReactNode } from "react";
+import {
+  setSettings,
+  supportsSchedules,
+  type BoardClient,
+  type Entry,
+  type PlayStatus,
+  type Settings,
+  type SettingsChanges,
+} from "../../protocol";
 import { Alert, AlertDescription } from "../components/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/card";
 import { Select } from "../components/select";
 import { Slider } from "../components/slider";
 import { Field } from "../common/Field";
 import { ListUnreadable } from "../common/ListUnreadable";
+import { LoadingNote } from "../common/LoadingNote";
 import { toShownError, type ShownError } from "../errors";
 import { ActiveMissingNote, type MissingContext } from "./MissingAnimations";
+
+// What to play and the time settings of a firmware that knows schedules, loaded when such a board connects.
+const PlaySettings = lazy(() => import("./PlaySettings").then((m) => ({ default: m.PlaySettings })));
 
 interface Props {
   client: BoardClient;
   settings: Settings;
   /** The stored playlists by ID with their names, or null while they are not known: the active one is then not called missing. */
   playlists: ReadonlyMap<string, string | null> | null;
+  /** The stored schedules, or null while they are not known. */
+  schedules: Entry[] | null;
+  /** `status.play`, or null while it is not known or on a firmware without it. */
+  play: PlayStatus | null;
+  /** The playlist the board plays: `playlist` on a firmware older than schedules, else `status.play.playing`. */
+  active: string | null;
   /** The animations the active playlist names that the board lacks; empty when none or not known. */
   missing: string[];
   missingContext: MissingContext;
   disabled: boolean;
   onSettings: (settings: Settings) => void;
+  /** A change of what to play or of the time zone: the board chooses again, and the status says what. */
+  onPlayChanged: () => void;
   onError: (error: ShownError) => void;
 }
 
@@ -28,10 +48,14 @@ export function SettingsPanel({
   client,
   settings,
   playlists,
+  schedules,
+  play,
+  active,
   missing,
   missingContext,
   disabled,
   onSettings,
+  onPlayChanged,
   onError,
 }: Props) {
   // The slider shows what the user is dragging; the view shows what the board answered.
@@ -45,11 +69,14 @@ export function SettingsPanel({
   const queued = useRef<number | null>(null);
   const value = dragging ?? settings.brightness;
   const stored = playlists === null || playlists.has(settings.playlist);
+  // A firmware that knows schedules has "What to play"; an older one keeps the Active playlist menu.
+  const knowsSchedules = supportsSchedules(client.info) && settings.play !== undefined;
 
   async function change(changes: SettingsChanges, context: string): Promise<void> {
     sending.current = true;
     try {
       onSettings(await setSettings(client, changes));
+      if ("play" in changes || "playlists" in changes || "timezone" in changes) onPlayChanged();
     } catch (error) {
       onError(toShownError(context, error));
     }
@@ -107,36 +134,70 @@ export function SettingsPanel({
           From 0 to 255. An animation can lower this with its own brightness, never raise it.
         </p>
       </div>
-      <Field label="Active playlist">
-        {(control) => (
-          <Select
-            {...control}
-            value={settings.playlist}
+      {knowsSchedules ? (
+        <Suspense fallback={<LoadingNote>Reading what the board plays...</LoadingNote>}>
+          <PlaySettings
+            client={client}
+            settings={settings}
+            playlists={playlists}
+            schedules={schedules}
+            play={play}
             disabled={disabled}
-            onChange={(e) => void change({ playlist: e.target.value }, "Changing the active playlist")}
-          >
-            {playlists === null && <option value={settings.playlist}>{settings.playlist}</option>}
-            {!stored && <option value={settings.playlist}>{settings.playlist} (missing)</option>}
-            {[...(playlists ?? [])].map(([id, name]) => (
-              <option key={id} value={id}>
-                {id}
-                {name ? `: ${name}` : ""}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
-      {!stored && (
+            change={change}
+          />
+        </Suspense>
+      ) : (
+        <ActivePlaylist
+          settings={settings}
+          playlists={playlists}
+          stored={stored}
+          disabled={disabled}
+          onChange={(playlist) => void change({ playlist }, "Changing the active playlist")}
+        />
+      )}
+      {!knowsSchedules && !stored && (
         <Alert variant="warning">
           <AlertDescription className="text-foreground">
             The playlist <code>{settings.playlist}</code> is not stored, so the board plays every animation.
           </AlertDescription>
         </Alert>
       )}
-      {stored && missing.length > 0 && (
-        <ActiveMissingNote playlist={settings.playlist} missing={missing} context={missingContext} />
+      {active !== null && (knowsSchedules || stored) && missing.length > 0 && (
+        <ActiveMissingNote playlist={active} missing={missing} context={missingContext} />
       )}
     </SettingsCard>
+  );
+}
+
+/** The menu of a firmware older than schedules: the one playlist the board plays. */
+function ActivePlaylist({
+  settings,
+  playlists,
+  stored,
+  disabled,
+  onChange,
+}: {
+  settings: Settings;
+  playlists: ReadonlyMap<string, string | null> | null;
+  stored: boolean;
+  disabled: boolean;
+  onChange: (playlist: string) => void;
+}) {
+  return (
+    <Field label="Active playlist">
+      {(control) => (
+        <Select {...control} value={settings.playlist} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+          {playlists === null && <option value={settings.playlist}>{settings.playlist}</option>}
+          {!stored && <option value={settings.playlist}>{settings.playlist} (missing)</option>}
+          {[...(playlists ?? [])].map(([id, name]) => (
+            <option key={id} value={id}>
+              {id}
+              {name ? `: ${name}` : ""}
+            </option>
+          ))}
+        </Select>
+      )}
+    </Field>
   );
 }
 

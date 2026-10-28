@@ -2,7 +2,7 @@
 
 import { FolderUp, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { downloadFile, isUpdateRunning, sha256Hex, type BoardClient } from "../../protocol";
+import { downloadFile, isUpdateRunning, sha256Hex, supportsSchedules, type BoardClient } from "../../protocol";
 import { BlockedNote } from "../common/BlockedNote";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useDeleteEverything } from "../common/DeleteEverything";
@@ -80,6 +80,8 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   const { data, reload, settingsUnreadable, setSettings } = useBoardData(client, restarts, report);
   const animations = entriesOf(data.animations);
   const playlists = entriesOf(data.playlists);
+  const schedules = entriesOf(data.schedules);
+  const knowsSchedules = supportsSchedules(info);
   const animationIds = animations && new Set(animations.map((a) => a.id));
   const playlistNames = playlists && new Map(playlists.map((p) => [p.id, p.name]));
 
@@ -87,6 +89,8 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   const changed = (): void => {
     reload();
     void session.refreshInfo();
+    // A stored or deleted playlist or schedule makes the board choose again: the status says what.
+    statusPoll.refresh();
   };
   const refresh = (): void => {
     void session.refreshFiles(KINDS);
@@ -120,6 +124,9 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
     // `refresh` is made again on every render and only reads the session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateRunning]);
+  // On a firmware that knows schedules, the active playlist is the one the board says it plays.
+  const play = statusPoll.status?.play ?? null;
+  const active = knowsSchedules ? (play?.playing ?? null) : (data.settings?.playlist ?? null);
   const library = useManifest();
   const named = usePlaylistAnimations(client, playlists, uploadRunning);
   const missing = missingByPlaylist(named, animationIds);
@@ -166,7 +173,9 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
 
   const listProps = {
     client,
-    activePlaylist: data.settings?.playlist ?? null,
+    activePlaylist: active,
+    knowsSchedules,
+    automatic: knowsSchedules && data.settings?.play === "auto",
     disabled: lost,
     onChanged: changed,
     onError: report,
@@ -287,18 +296,35 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
                 />
               ),
             }}
+            schedules={
+              knowsSchedules
+                ? {
+                    count: schedules?.length ?? null,
+                    content: <FilesList {...listProps} kind="schedule" list={data.schedules} />,
+                  }
+                : undefined
+            }
           />
         </FilesCard>
-        <StorageCard storage={info?.storage ?? null} animations={animations} playlists={playlists} />
+        <StorageCard
+          storage={info?.storage ?? null}
+          animations={animations}
+          playlists={playlists}
+          schedules={knowsSchedules ? schedules : undefined}
+        />
         {data.settings && (
           <SettingsPanel
             client={client}
             settings={data.settings}
             playlists={playlistNames}
-            missing={missing.get(data.settings.playlist) ?? []}
+            schedules={schedules}
+            play={play}
+            active={active}
+            missing={active === null ? [] : (missing.get(active) ?? [])}
             missingContext={missingContext}
             disabled={lost}
             onSettings={setSettings}
+            onPlayChanged={statusPoll.refresh}
             onError={report}
           />
         )}

@@ -40,6 +40,7 @@ describe("status", () => {
         ssid: "Example Home WiFi",
       },
       timeKnown: true,
+      play: null,
       update: {
         state: "idle",
         progress: 0,
@@ -68,6 +69,7 @@ describe("status", () => {
         ssid: null,
       },
       timeKnown: false,
+      play: null,
       update: expect.objectContaining({ state: "idle", files: 0 }),
     });
   });

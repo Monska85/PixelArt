@@ -13,7 +13,8 @@ const REPOSITORY_LABEL = REPOSITORY.replace(/^https:\/\//, "");
 const APP_VERSION: string = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 const IS_RELEASE = /^\d+\.\d+\.\d+$/.test(APP_VERSION) && APP_VERSION !== "0.0.0";
 
-const FOOTER = "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board.";
+const FOOTER =
+  "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board. The board itself contacts only its update source and its time server.";
 
 test("every view ends with the privacy line, a link to the Privacy view and a link to the source", async ({ page }) => {
   for (const view of ["board", "library", "firmware", "editor"]) {
@@ -67,6 +68,13 @@ test("the footer link opens the Privacy view, which is not in the navigation", a
   await expect(view).toContainText("web/src");
   await expect(view).toContainText("your IP address");
   await expect(view).toContainText("pool.ntp.org");
+  // The time server is asked only while the board needs the time: a schedule, or a narrow install window.
+  await expect(view.getByRole("region", { name: "What your board contacts" })).toContainText(
+    "only while it needs the time: when Automatic plays a schedule, or when the install window is narrower than the whole day",
+  );
+  await expect(page.getByTestId("footer-text")).toHaveText(
+    "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board. The board itself contacts only its update source and its time server.",
+  );
   await expect(view.getByTestId("privacy-limits")).toContainText("plain ws: WebSocket, not encrypted");
   await expect(view.getByTestId("privacy-limits")).toContainText("plain text");
   await expect(view.getByTestId("privacy-limits")).toContainText("as written (clear text)");

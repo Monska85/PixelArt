@@ -27,10 +27,22 @@ export const NAME_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 export const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 export const MAX_PLAYLIST_FILE_SIZE = 16 * 1024;
-/** The largest file of each kind a board stores. */
-export const FILE_LIMITS = { animation: MAX_FILE_SIZE, playlist: MAX_PLAYLIST_FILE_SIZE } as const;
 export const MAX_PLAYLIST_ITEMS = 256;
 export const MAX_PLAYLIST_REPEAT = 1000;
+
+// Limits of docs/format/schedule-v1.md. MAX_SCHEDULE_PLAYLISTS also bounds the `playlists` setting.
+export const MAX_SCHEDULE_FILE_SIZE = 16 * 1024;
+export const MAX_SCHEDULE_ENTRIES = 64;
+export const MAX_SCHEDULE_PLAYLISTS = 8;
+export const MIN_SCHEDULE_YEAR = 2000;
+export const MAX_SCHEDULE_YEAR = 2999;
+
+/** The largest file of each kind a board stores. */
+export const FILE_LIMITS = {
+  animation: MAX_FILE_SIZE,
+  playlist: MAX_PLAYLIST_FILE_SIZE,
+  schedule: MAX_SCHEDULE_FILE_SIZE,
+} as const;
 
 export type Severity = "error" | "warning";
 

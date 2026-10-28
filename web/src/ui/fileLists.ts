@@ -18,16 +18,22 @@ export type BoardFileList =
 export interface FileLists {
   animation: BoardFileList;
   playlist: BoardFileList;
+  /** Known and empty on a board that knows no schedules: it stores none. */
+  schedule: BoardFileList;
 }
 
-export const KINDS: Kind[] = ["animation", "playlist"];
+export const KINDS: Kind[] = ["animation", "playlist", "schedule"];
 
-export const NO_LISTS: FileLists = { animation: { status: "loading" }, playlist: { status: "loading" } };
+export const NO_LISTS: FileLists = {
+  animation: { status: "loading" },
+  playlist: { status: "loading" },
+  schedule: { status: "loading" },
+};
 
 export class FileListReader {
   private lists: FileLists = NO_LISTS;
   /** Counts the reads of each kind: a read that is not the latest one never replaces a newer result. */
-  private sequence: Record<Kind, number> = { animation: 0, playlist: 0 };
+  private sequence: Record<Kind, number> = { animation: 0, playlist: 0, schedule: 0 };
 
   constructor(
     private readonly read: (kind: Kind) => Promise<Entry[]>,

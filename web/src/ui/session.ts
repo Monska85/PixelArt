@@ -13,6 +13,7 @@ import {
   getStatus,
   isToken,
   listFiles,
+  supportsSchedules,
   type BoardInfo,
   type Kind,
   type Login,
@@ -104,6 +105,8 @@ class Session {
     (kind) => {
       const client = this.snapshot.client;
       if (!client) throw new Error("No board is connected.");
+      // A firmware older than schedules answers invalid_kind: it stores none, and is not asked.
+      if (kind === "schedule" && !supportsSchedules(client.info)) return Promise.resolve([]);
       return listFiles(client, kind);
     },
     (files) => this.set({ files }),

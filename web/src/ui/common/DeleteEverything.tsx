@@ -4,7 +4,14 @@ import { Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { KINDS } from "../fileLists";
 import { session, useSession } from "../session";
-import { BoardError, DEFAULT_SETTINGS, deleteAll, listFiles, type BoardClient } from "../../protocol";
+import {
+  BoardError,
+  DEFAULT_SETTINGS,
+  deleteAll,
+  listFiles,
+  supportsSchedules,
+  type BoardClient,
+} from "../../protocol";
 import { Button } from "../components/button";
 import { Checkbox } from "../components/checkbox";
 import { Label } from "../components/label";
@@ -21,6 +28,8 @@ import { plural } from "../format";
 interface Counts {
   animations: number;
   playlists: number;
+  /** 0 on a board that knows no schedules. */
+  schedules: number;
   /** The IDs of the stored animations, to tell whether the editor's only copy is among them. */
   animationIds: string[];
 }
@@ -102,10 +111,14 @@ const WORDING = {
 
 const wording = (reset: boolean) => WORDING[reset ? "reset" : "keep"];
 
-/** "30 animations and 1 playlist", with the kinds that have none left out. */
-function describe(animations: number, playlists: number): string {
-  const parts = [animations > 0 && plural(animations, "animation"), playlists > 0 && plural(playlists, "playlist")];
-  return parts.filter(Boolean).join(" and ");
+/** "30 animations and 1 playlist", "30 animations, 1 playlist and 1 schedule", with the kinds that have none left out. */
+function describe(animations: number, playlists: number, schedules = 0): string {
+  const parts = [
+    animations > 0 && plural(animations, "animation"),
+    playlists > 0 && plural(playlists, "playlist"),
+    schedules > 0 && plural(schedules, "schedule"),
+  ].filter((part): part is string => typeof part === "string");
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : (parts[0] ?? "");
 }
 
 interface StartOptions {
@@ -159,7 +172,10 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
         () => deleteAll(client, { resetSettings: reset }),
       );
       const text = wording(reset);
-      toast({ title: text.done(describe(removed.animations, removed.playlists)), description: text.doneDetail });
+      toast({
+        title: text.done(describe(removed.animations, removed.playlists, removed.schedules ?? 0)),
+        description: text.doneDetail,
+      });
     } catch (error) {
       if (error instanceof BoardError && error.code === "unknown_command") setNotice({ type: "old" });
       // A firmware that knows delete_all but not its `settings` field refuses the request and removes nothing.
@@ -181,7 +197,9 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
     try {
       const animations = await listFiles(client, "animation");
       const playlists = await listFiles(client, "playlist");
-      const empty = animations.length + playlists.length === 0;
+      // A firmware older than schedules answers invalid_kind: it stores none.
+      const schedules = supportsSchedules(client.info) ? await listFiles(client, "schedule") : [];
+      const empty = animations.length + playlists.length + schedules.length === 0;
       // With nothing to delete, only a settings reset is left to confirm.
       if (empty && (!presetReset || overWifi)) {
         toast({
@@ -197,6 +215,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
       setCounts({
         animations: animations.length,
         playlists: playlists.length,
+        schedules: schedules.length,
         animationIds: animations.map((e) => e.id),
       });
     } catch (error) {
@@ -206,7 +225,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
     }
   }
 
-  const total = counts ? counts.animations + counts.playlists : 0;
+  const total = counts ? counts.animations + counts.playlists + counts.schedules : 0;
   const holdsOnlyCopy = counts !== null && held !== null && counts.animationIds.includes(held);
 
   // A board without files reaches the dialog only to reset its settings: the dialog then asks for that alone.
@@ -227,7 +246,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
   } else if (counts) {
     dialogs = (
       <ConfirmDialog
-        title={`Delete all ${describe(counts.animations, counts.playlists)} from this board?`}
+        title={`Delete all ${describe(counts.animations, counts.playlists, counts.schedules)} from this board?`}
         confirmLabel={`Delete ${plural(total, "file")}${wording(resetSettings).confirm}`}
         destructive
         onCancel={() => setCounts(null)}

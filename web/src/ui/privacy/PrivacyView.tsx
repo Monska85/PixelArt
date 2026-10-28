@@ -65,9 +65,11 @@ export function PrivacyView() {
       <Section id="privacy-board-contacts" title="What your board contacts">
         <p>
           To check for updates the board itself contacts the release site (the firmware manifest) and the animation
-          source, and pool.ntp.org for the time when the install window is narrower than the whole day. Those requests
-          carry none of your data, and those hosts see the board&apos;s IP address. Set the update mode to Off to stop
-          them.
+          source. For the time it asks the time server of its Time server setting (pool.ntp.org unless you change it),
+          and only while it needs the time: when Automatic plays a schedule, or when the install window is narrower than
+          the whole day. Those requests carry none of your data, and those hosts see the board&apos;s IP address. Set
+          the update mode to Off to stop the update checks; the time requests stop when no schedule and no narrow
+          install window needs the time.
         </p>
       </Section>
       <Section id="privacy-limits" title="Limits">

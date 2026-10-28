@@ -77,7 +77,7 @@ describe("the board's file lists", () => {
     expect(read).toHaveBeenCalledWith("playlist");
     expect(instance.current.animation.status).toBe("loading");
     await instance.refresh(KINDS);
-    expect(read).toHaveBeenCalledTimes(3);
+    expect(read).toHaveBeenCalledTimes(4);
   });
 
   it("never lets an older read replace a newer one", async () => {

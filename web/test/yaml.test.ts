@@ -2,7 +2,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { loadAnimation, loadPlaylist } from "../src/engine";
+import { loadAnimation, loadPlaylist, loadSchedule } from "../src/engine";
 import { readYaml } from "../src/yaml/read";
 import { jsonBytes, pythonFloat, writeJson } from "../src/yaml/writeJson";
 import { writeYaml } from "../src/yaml/writeYaml";
@@ -16,7 +16,7 @@ const read = (source: string) => {
 const toJson = (source: string): string => writeJson(read(source));
 
 describe("repository files", () => {
-  for (const kind of ["animations", "playlists"]) {
+  for (const kind of ["animations", "playlists", "schedules"]) {
     const sources = readdirSync(`${REPO}content/${kind}`).filter((n) => n.endsWith(".yaml") || n.endsWith(".yml"));
     it(`${kind} has sources`, () => expect(sources.length).toBeGreaterThan(0));
     it.each(sources)(`${kind}/%s converts to the bytes of make data`, (name) => {
@@ -31,6 +31,48 @@ describe("repository files", () => {
       expect(toJson(writeYaml(value))).toBe(writeJson(value));
     });
   }
+});
+
+describe("schedules in YAML", () => {
+  const source = [
+    "format: pixelart-schedule/1",
+    "name: Seasons",
+    "fallback: [default]",
+    "entries:",
+    "  - name: Halloween",
+    "    from: { month: 10, day: 1 }",
+    "    to: { month: 11, day: 2 }",
+    "    playlists: [halloween]",
+    "  - from: { year: 2027 }",
+    "    to: { year: 2028 }",
+    "    playlists: [later, default]",
+    "",
+  ].join("\n");
+
+  it("converts flow mappings and lists to the JSON the board stores", () => {
+    expect(toJson(source)).toBe(
+      '{"format":"pixelart-schedule/1","name":"Seasons","fallback":["default"],"entries":[' +
+        '{"name":"Halloween","from":{"month":10,"day":1},"to":{"month":11,"day":2},"playlists":["halloween"]},' +
+        '{"from":{"year":2027},"to":{"year":2028},"playlists":["later","default"]}]}',
+    );
+  });
+
+  it("gives a schedule the engine loads", () => {
+    const result = loadSchedule(jsonBytes(read(source)));
+    expect(result.schedule?.entries.map((e) => e.playlists)).toEqual([["halloween"], ["later", "default"]]);
+  });
+
+  it("makes the engine refuse a month written as text", () => {
+    const result = loadSchedule(
+      jsonBytes(
+        read(
+          "format: pixelart-schedule/1\nfallback: [a]\nentries:\n  - {from: {month: '10'}, to: {month: 11}, playlists: [b]}\n",
+        ),
+      ),
+    );
+    expect(result.schedule).toBeNull();
+    expect(result.diagnostics.some((d) => d.code === "structure" && d.where === "entries[0].from.month")).toBe(true);
+  });
 });
 
 describe("YAML 1.1 rules", () => {

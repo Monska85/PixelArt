@@ -72,6 +72,7 @@ function emptyBoard(simulator: Simulator): void {
   for (const id of ["ball", "bear", "candle", "snowflake", "star", "wreath"])
     rmSync(stored(simulator, "animations", id));
   for (const id of ["default", "holiday"]) rmSync(stored(simulator, "playlists", id));
+  rmSync(stored(simulator, "schedules", "default"));
 }
 
 async function go(page: Page, view: string, heading: string): Promise<void> {
@@ -210,7 +211,33 @@ export const states = {
   "board-playlists": async ({ page, simulator, check }) => {
     await connected(page, simulator);
     await showBoardPlaylists(page);
-    await expect(row(page, "default")).toBeVisible();
+    await expect(page.getByRole("table", { name: "Playlists on the board" }).getByText("Christmas")).toBeVisible();
+    await check();
+  },
+  "board-schedules": async ({ page, simulator, check }) => {
+    await connected(page, simulator);
+    await showFiles(page);
+    await page.getByRole("tab", { name: /^Schedules/ }).click();
+    await expect(page.getByRole("table", { name: "Schedules on the board" }).getByText("Seasons")).toBeVisible();
+    await check();
+  },
+  "board-automatic-schedule": async ({ page, simulator, check }) => {
+    await connected(page, simulator);
+    const automatic = page.getByTestId("play-auto");
+    await expect(automatic.getByTestId("play-next")).toContainText("February 1, 2026");
+    await automatic.getByRole("button", { name: "Show the schedule" }).click();
+    await expect(page.getByTestId("schedule-view")).toContainText("Quiet season");
+    await page.getByTestId("what-to-play").scrollIntoViewIfNeeded();
+    await check();
+  },
+  "board-my-playlists": async ({ page, simulator, check }) => {
+    await connected(page, simulator);
+    await page.getByRole("radio", { name: "My playlists" }).check();
+    const mine = page.getByTestId("play-playlists");
+    await mine.getByLabel("Add a playlist").selectOption("holiday");
+    await mine.getByRole("button", { name: "Add" }).click();
+    await expect(mine.getByRole("listitem")).toHaveCount(2);
+    await mine.scrollIntoViewIfNeeded();
     await check();
   },
   "board-more-menu": async ({ page, simulator, check }) => {
@@ -322,7 +349,9 @@ export const states = {
     await connected(page, simulator);
     await page.getByRole("button", { name: "More", exact: true }).click();
     await page.getByRole("menuitem", { name: "Delete everything" }).click();
-    await expect(page.getByRole("dialog", { name: /^Delete all 6 animations and 2 playlists/ })).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: /^Delete all 6 animations, 2 playlists and 1 schedule/ }),
+    ).toBeVisible();
     await check();
   },
   "board-delete-everything-reset-dialog": async ({ page, simulator, check }) => {
@@ -331,7 +360,7 @@ export const states = {
     await page.getByRole("menuitem", { name: "Delete everything" }).click();
     await page.getByRole("dialog").getByRole("checkbox", { name: "Also reset the settings" }).check();
     await expect(
-      page.getByRole("dialog").getByRole("button", { name: "Delete 8 files and reset the settings" }),
+      page.getByRole("dialog").getByRole("button", { name: "Delete 9 files and reset the settings" }),
     ).toBeVisible();
     await check();
   },
@@ -340,7 +369,7 @@ export const states = {
     board.hold("delete_all");
     await page.getByRole("button", { name: "More", exact: true }).click();
     await page.getByRole("menuitem", { name: "Delete everything" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Delete 8 files" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete 9 files" }).click();
     await expect(page.getByTestId("activity")).toContainText("Deleting every animation and playlist");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await check();
@@ -633,11 +662,13 @@ export const states = {
     await go(page, "firmware", "Firmware");
     await installers(page);
     await page.getByRole("button", { name: "Delete everything" }).click();
-    await expect(page.getByRole("dialog", { name: /^Delete all 6 animations and 2 playlists/ })).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: /^Delete all 6 animations, 2 playlists and 1 schedule/ }),
+    ).toBeVisible();
     await check();
   },
   "firmware-reset-settings-only-dialog": async ({ page, simulator, check }) => {
-    for (const kind of ["animations", "playlists"])
+    for (const kind of ["animations", "playlists", "schedules"])
       for (const name of readdirSync(join(simulator.dataDir, kind))) rmSync(join(simulator.dataDir, kind, name));
     await connected(page, simulator, { firmware: "0.0.9" });
     await go(page, "firmware", "Firmware");

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { supportsSchedules } from "../../protocol";
 import type { SerialPortLike } from "../../protocol/serial";
 import { contentVersionOf, type Manifest } from "../../release/manifest";
 import { Button } from "../components/button";
@@ -26,7 +27,7 @@ interface Job {
 }
 
 /**
- * The animations and playlists after a first install (docs/web/web-app-v1.md#install-and-update): when the ESP Web
+ * The animations, playlists and schedules after a first install (docs/web/web-app-v1.md#install-and-update): when the ESP Web
  * Tools dialog of Install from scratch closes after a finished installation and `enabled` is true, connect over the
  * port it used and send everything the release publishes through the upload queue.
  */
@@ -92,6 +93,10 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
     const items = [
       ...manifest.animations.map((entry) => ({ kind: "animation" as const, entry })),
       ...manifest.playlists.map((entry) => ({ kind: "playlist" as const, entry })),
+      // Only a firmware that knows schedules gets them: an older one answers invalid_kind.
+      ...(supportsSchedules(client.info)
+        ? manifest.schedules.map((entry) => ({ kind: "schedule" as const, entry }))
+        : []),
     ];
     void install(items, manifest).finally(() => {
       current.stop();

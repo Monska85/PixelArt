@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { isValidId } from "../../engine";
-import { sha256Hex, type BoardClient, type Kind } from "../../protocol";
+import { sha256Hex, supportsSchedules, type BoardClient, type Kind } from "../../protocol";
 import { type QueueFile, type QueueSummary } from "../../queue/plan";
 import { runQueue, type Refusal } from "../../queue/run";
 import { downloadPublished } from "../../release/library";
@@ -14,6 +14,10 @@ import { SUPPORTED_FILE, idFromFileName, inspectFile, readPicked, suggestId, val
 import { session } from "../session";
 import { reserveUploadQueue, sendQueue, useUploadRunning, type QueueReservation } from "../upload";
 import { refusalProblem, summaryReport, type QueueOutcome } from "./summary";
+
+/** A schedule picked for a board whose firmware knows none. */
+export const SCHEDULES_NEED_FIRMWARE =
+  "This board's firmware does not know schedules, so the file was not uploaded. Update the firmware to use schedules.";
 
 interface QueueOptions {
   /**
@@ -200,6 +204,10 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
               diagnostics: inspected.diagnostics,
             }),
           );
+          continue;
+        }
+        if (inspected.kind === "schedule" && !supportsSchedules(client.info)) {
+          onProblem(shownError(`Uploading ${file.name}`, "refused", SCHEDULES_NEED_FIRMWARE));
           continue;
         }
         files.push({

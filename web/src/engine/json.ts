@@ -27,10 +27,11 @@ export type JsonValue = null | boolean | string | JsonNumber | JsonArray | JsonO
 
 /**
  * How many containers may nest in a stored file: the NestingLimit that lib/PixelEngine
- * passes to ArduinoJson (MAX_JSON_DEPTH in animation_loader.cpp and playlist.cpp).
+ * passes to ArduinoJson (MAX_JSON_DEPTH in animation_loader.cpp, playlist.cpp and schedule.cpp).
  */
 export const ANIMATION_JSON_DEPTH = 32;
 export const PLAYLIST_JSON_DEPTH = 10;
+export const SCHEDULE_JSON_DEPTH = 10;
 
 type JsonResult = { ok: true; value: JsonValue } | { ok: false; reason: string };
 

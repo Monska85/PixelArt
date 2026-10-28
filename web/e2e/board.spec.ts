@@ -4,6 +4,7 @@ import { readdirSync, readFileSync, existsSync, writeFileSync, copyFileSync } fr
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { decodeLine } from "../src/protocol/framing";
+import { firmwareBeforeSchedules } from "./board";
 import {
   animations,
   connectSimulator,
@@ -222,6 +223,8 @@ test("deletes after a confirmation that names the file", async ({ page, simulato
 });
 
 test("deleting the active playlist says the board then plays every animation", async ({ page, simulator }) => {
+  // The Active playlist menu of a firmware from before schedules; What to play is in what-to-play.spec.ts.
+  await firmwareBeforeSchedules(page, simulator);
   await connectSimulator(page, simulator);
   await showBoardPlaylists(page);
   await chooseDelete(page, playlists(page), "default");
@@ -258,6 +261,7 @@ test("changes the brightness on release and shows what the board answered", asyn
 });
 
 test("changes the active playlist", async ({ page, simulator }) => {
+  await firmwareBeforeSchedules(page, simulator);
   await connectSimulator(page, simulator);
   await newPlaylist(page);
   await page.getByLabel("ID", { exact: true }).fill("mine");

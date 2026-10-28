@@ -2,7 +2,7 @@
 
 // Serves what GitHub Pages would: the built app with a fixture release next to it.
 //
-// The release is made from the fixture board files of e2e/board-files/ (the animations and playlists named in
+// The release is made from the fixture board files of e2e/board-files/ (the animations, playlists and schedules named in
 // site/published.json, with their real sizes and SHA-256) and the ESP Web Tools manifests of site/firmware/.
 // PIXELART_DATA and PIXELART_PUBLISHED name other files (the screenshot suite has its own). Set NO_RELEASE=1 to serve
 // the app alone. A path that does not exist answers 404, as on Pages.
@@ -58,6 +58,8 @@ if (process.env.NO_RELEASE !== "1") {
     ],
     animations: published.animations.map((id) => ({ ...describe("animations", id), version: 1 })),
     playlists: published.playlists.map((id) => describe("playlists", id)),
+    // A release before schedules has no list: the fixture of such a site leaves the key out.
+    ...(published.schedules ? { schedules: published.schedules.map((id) => describe("schedules", id)) } : {}),
   };
   writeFileSync(join(root, "manifest.json"), JSON.stringify(manifest, null, 2));
   cpSync(join(here, "site", "firmware"), join(root, "firmware"), { recursive: true });

@@ -2,17 +2,21 @@
 
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { decodeLine, encodeLine } from "../src/protocol/framing";
 import { closeInstallDialog, fakeSerial, portLog } from "./first-install";
 import { expect, stored, summary, test, type Simulator } from "./fixtures";
 
 const published = JSON.parse(
   readFileSync(fileURLToPath(new URL("./site/published.json", import.meta.url)), "utf8"),
-) as { animations: string[]; playlists: string[] };
+) as { animations: string[]; playlists: string[]; schedules: string[] };
 
-const BOX = "Then install the animations and playlists";
+const BOX = "Then install the animations, playlists and schedules";
+const schedules = (simulator: Simulator): string[] =>
+  published.schedules.map((id) => stored(simulator, "schedules", id));
 const files = (simulator: Simulator): string[] => [
   ...published.animations.map((id) => stored(simulator, "animations", id)),
   ...published.playlists.map((id) => stored(simulator, "playlists", id)),
+  ...schedules(simulator),
 ];
 
 /** A board that has just been flashed with an empty file system: none of the published files is there. */
@@ -38,6 +42,43 @@ test("installs the published animations and playlists over the port ESP Web Tool
   await expect(page.getByTestId("connection-state")).toHaveText("Connected");
   expect(await portLog(page)).toEqual({ opens: 3, pickerRequests: 0 });
   await expect(page.getByTestId("content-not-installed")).toHaveCount(0);
+});
+
+test("sends the published schedule only to a firmware that reports schedules", async ({ page, simulator }) => {
+  emptyBoard(simulator);
+  // The simulator plays a firmware from before schedules: its info has no formats.schedule.
+  const port = new URL(simulator.address).port;
+  const begun: unknown[] = [];
+  await page.routeWebSocket(
+    (url) => url.port === port,
+    (socket) => {
+      const server = socket.connectToServer();
+      socket.onMessage((message) => {
+        const request = decodeLine(new TextEncoder().encode(String(message)));
+        if (request?.cmd === "put_begin") begun.push(request.kind);
+        server.send(message);
+      });
+      server.onMessage((message) => {
+        const reply = decodeLine(new TextEncoder().encode(String(message)));
+        if (!reply || typeof reply.formats !== "object" || reply.formats === null) return socket.send(message);
+        const formats = { ...(reply.formats as Record<string, unknown>) };
+        const limits = { ...((reply.limits ?? {}) as Record<string, unknown>) };
+        delete formats.schedule;
+        delete limits.schedule;
+        socket.send(encodeLine({ ...reply, formats, limits }));
+      });
+    },
+  );
+  await fakeSerial(page, { board: simulator.address });
+  await page.goto("/#firmware");
+  await expect(page.getByRole("checkbox", { name: BOX })).toBeChecked();
+  await closeInstallDialog(page, { state: "finished" });
+  await expect(summary(page)).toContainText("Installed");
+  for (const path of files(simulator).filter((p) => !schedules(simulator).includes(p)))
+    expect(existsSync(path), path).toBe(true);
+  for (const path of schedules(simulator)) expect(existsSync(path), path).toBe(false);
+  expect(begun.length).toBeGreaterThan(0);
+  expect(begun).not.toContain("schedule");
 });
 
 test("installs nothing when the box is unchecked", async ({ page, simulator }) => {

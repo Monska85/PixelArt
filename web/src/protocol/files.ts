@@ -3,6 +3,7 @@
 // What the board stores: listing, download, upload, delete, settings
 // (docs/protocol/protocol-v1.md#commands) with the recovery of tools/pixelart.py.
 
+import type { PlayMode } from "../engine/schedule";
 import { FILE_LIMITS } from "../engine/types";
 import {
   BoardError,
@@ -31,7 +32,11 @@ export const sameSha = (entry: Entry, sha256: string): boolean =>
 
 export interface Settings {
   brightness: number;
+  /** The active playlist as a client older than `play` sees it: `default` in Automatic, else the first of `playlists`. */
   playlist: string;
+  // What to play (docs/protocol/protocol-v1.md#settings_get-settings_set): present when the firmware knows schedules.
+  play?: PlayMode;
+  playlists?: string[];
   // The settings of WiFi and updates (docs/protocol/protocol-v1.md): present when the board's firmware has them.
   wifi_power?: string;
   update_mode?: string;
@@ -41,6 +46,8 @@ export interface Settings {
   install_start?: number;
   install_end?: number;
   timezone?: string;
+  time_sync_hours?: number;
+  ntp_server?: string;
   animation_source?: string;
   network_login?: boolean;
   /** Read only, and only over USB. */
@@ -50,8 +57,21 @@ export interface Settings {
 /** The settings a client can change: every one but the token. */
 export type SettingsChanges = Partial<Omit<Settings, "token">>;
 
-/** The settings of a board that was never set up, and after `delete_all` with `settings`. */
-export const DEFAULT_SETTINGS: Readonly<Settings> = { brightness: 100, playlist: "default" };
+export const DEFAULT_NTP_SERVER = "pool.ntp.org";
+export const DEFAULT_TIME_SYNC_HOURS = 6;
+
+/**
+ * The settings of a board that was never set up, and after `delete_all` with `settings`. `play`, `playlists`,
+ * `time_sync_hours` and `ntp_server` exist only on a firmware that knows schedules.
+ */
+export const DEFAULT_SETTINGS: Readonly<Settings> = {
+  brightness: 100,
+  playlist: "default",
+  play: "auto",
+  playlists: ["default"],
+  time_sync_hours: DEFAULT_TIME_SYNC_HOURS,
+  ntp_server: DEFAULT_NTP_SERVER,
+};
 
 const MAX_RESUMES = 5;
 const UPLOAD_ATTEMPTS = 2;
@@ -166,6 +186,8 @@ export async function deleteFile(client: BoardClient, kind: Kind, id: string): P
 }
 
 interface DeleteAllResult {
+  /** Null for a firmware older than schedules, which leaves the count out. */
+  schedules: number | null;
   playlists: number;
   animations: number;
   /** The settings after the reset, when the settings were reset. */
@@ -176,24 +198,32 @@ interface DeleteAllResult {
 const DELETE_ALL_TIMEOUT_MS = PUT_END_TIMEOUT_MS;
 
 /**
- * Removes every playlist and animation and, with `resetSettings`, then puts the settings back to their defaults. A
+ * Removes every schedule, playlist and animation and, with `resetSettings`, then puts the settings back to their defaults. A
  * failure reply throws: `unknown_command` on a firmware without `delete_all`, `bad_request` on one that does not know
  * `settings` (nothing is removed then), `storage_error` when a file or the settings could not be changed.
  */
 export async function deleteAll(client: BoardClient, { resetSettings = false } = {}): Promise<DeleteAllResult> {
   const reply = await client.command("delete_all", resetSettings ? { settings: true } : {}, DELETE_ALL_TIMEOUT_MS);
-  if (!isCount(reply.playlists) || !isCount(reply.animations))
+  if (
+    !isCount(reply.playlists) ||
+    !isCount(reply.animations) ||
+    (reply.schedules !== undefined && !isCount(reply.schedules))
+  )
     throw new BoardError("protocol", "the board sent invalid counts for delete_all");
-  const removed = { playlists: reply.playlists, animations: reply.animations };
+  const removed = {
+    schedules: isCount(reply.schedules) ? reply.schedules : null,
+    playlists: reply.playlists,
+    animations: reply.animations,
+  };
   if (!resetSettings) return removed;
   if (typeof reply.settings !== "object" || reply.settings === null)
     throw new BoardError("protocol", "the board sent no settings after resetting them");
   return { ...removed, settings: parseSettings(reply) };
 }
 
-const TEXT_SETTINGS = ["wifi_power", "update_mode", "timezone", "animation_source", "token"] as const;
+const TEXT_SETTINGS = ["wifi_power", "update_mode", "timezone", "ntp_server", "animation_source", "token"] as const;
 const FLAG_SETTINGS = ["update_firmware", "update_animations", "network_login"] as const;
-const NUMBER_SETTINGS = ["check_hours", "install_start", "install_end"] as const;
+const NUMBER_SETTINGS = ["check_hours", "install_start", "install_end", "time_sync_hours"] as const;
 
 function parseSettings(reply: Body): Settings {
   const s = isRecord(reply.settings) ? reply.settings : {};
@@ -205,6 +235,9 @@ function parseSettings(reply: Body): Settings {
   for (const key of TEXT_SETTINGS) if (typeof s[key] === "string") settings[key] = s[key];
   for (const key of FLAG_SETTINGS) if (typeof s[key] === "boolean") settings[key] = s[key];
   for (const key of NUMBER_SETTINGS) if (isCount(s[key])) settings[key] = s[key];
+  if (s.play === "auto" || s.play === "playlists") settings.play = s.play;
+  if (Array.isArray(s.playlists) && s.playlists.length > 0 && s.playlists.every((id) => typeof id === "string"))
+    settings.playlists = s.playlists as string[];
   return settings;
 }
 

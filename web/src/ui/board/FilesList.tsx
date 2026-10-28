@@ -27,10 +27,15 @@ interface Props {
   /** What the session knows of this list: only a known list can be empty. */
   list: BoardFileList;
   activePlaylist: string | null;
+  /** The board knows schedules: `activePlaylist` is then the playlist it plays now. */
+  knowsSchedules?: boolean;
+  /** The board plays the schedule `default` (Automatic). */
+  automatic?: boolean;
   disabled: boolean;
   onChanged: () => void;
   onError: (error: ShownError) => void;
-  onEdit: (id: string) => void;
+  /** Edit, for animations and playlists: a schedule has no editor. */
+  onEdit?: (id: string) => void;
   onPreview?: (preview: PreviewData) => void;
   /** The preview shown now, so deleting its animation closes it. */
   previewId?: string | null;
@@ -43,12 +48,19 @@ interface Props {
   missingContext?: MissingContext;
 }
 
+/** The one schedule the board plays (docs/format/schedule-v1.md#files). */
+const PLAYED_SCHEDULE = "default";
+
+const LIST_LABEL: Record<Kind, string> = { animation: "Animations", playlist: "Playlists", schedule: "Schedules" };
+
 /** One list of the Board view: its table, the actions of each row, and the empty state. */
 export function FilesList({
   client,
   kind,
   list,
   activePlaylist,
+  knowsSchedules = false,
+  automatic = false,
   disabled,
   onChanged,
   onError,
@@ -64,7 +76,7 @@ export function FilesList({
 }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Entry | null>(null);
-  const noun = kind === "animation" ? "animation" : "playlist";
+  const noun = kind;
   const held = useHeldId();
 
   async function run(id: string, context: string, action: () => Promise<void>): Promise<void> {
@@ -114,6 +126,13 @@ export function FilesList({
       </div>
     );
   const entries = list.entries;
+  if (entries.length === 0 && kind === "schedule")
+    return (
+      <EmptyList title="No schedules on this board">
+        A schedule chooses the playlists Automatic plays in each season. Upload a YAML or JSON schedule with Upload
+        files, or install the published one from the Firmware view with the animations and playlists.
+      </EmptyList>
+    );
   if (entries.length === 0)
     return (
       <EmptyList
@@ -155,7 +174,8 @@ export function FilesList({
       name: entry.name ?? null,
       badge: (
         <>
-          {kind === "playlist" && entry.id === activePlaylist && (
+          {((kind === "playlist" && entry.id === activePlaylist) ||
+            (kind === "schedule" && automatic && entry.id === PLAYED_SCHEDULE)) && (
             <Badge variant="success" data-testid={`active-${entry.id}`}>
               Active
             </Badge>
@@ -180,13 +200,15 @@ export function FilesList({
               onClick={() => void showPreview(entry)}
             />
           )}
-          <IconButton
-            label={`Edit ${entry.id}`}
-            tooltip={kind === "animation" ? "Edit in the Editor" : "Edit playlist"}
-            icon={Pencil}
-            disabled={inactive}
-            onClick={() => onEdit(entry.id)}
-          />
+          {onEdit && (
+            <IconButton
+              label={`Edit ${entry.id}`}
+              tooltip={kind === "animation" ? "Edit in the Editor" : "Edit playlist"}
+              icon={Pencil}
+              disabled={inactive}
+              onClick={() => onEdit(entry.id)}
+            />
+          )}
           {gaps && missingContext && (
             <InstallMissingButton playlist={entry.id} missing={gaps} context={missingContext} />
           )}
@@ -207,7 +229,7 @@ export function FilesList({
   return (
     <>
       <FileTable
-        label={kind === "animation" ? "Animations on the board" : "Playlists on the board"}
+        label={`${LIST_LABEL[kind]} on the board`}
         columns={[
           ...(kind === "animation" ? [{ label: "Version", width: "w-24" }] : []),
           { label: "Size", width: "w-28" },
@@ -235,7 +257,14 @@ export function FilesList({
             undone.
           </p>
           {kind === "playlist" && confirm.id === activePlaylist && (
-            <p>This is the active playlist: the board will then play every animation.</p>
+            <p>
+              {!knowsSchedules
+                ? "This is the active playlist: the board will then play every animation."
+                : "The board plays this playlist now: it will then skip it, and play every animation when no other playlist of its list can play."}
+            </p>
+          )}
+          {kind === "schedule" && automatic && confirm.id === PLAYED_SCHEDULE && (
+            <p>Automatic plays this schedule: the board will then play the playlist default.</p>
           )}
           {kind === "animation" && held === confirm.id && (
             <p data-testid="only-copy">The editor holds this animation and it has no other saved copy.</p>

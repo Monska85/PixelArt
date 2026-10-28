@@ -120,3 +120,52 @@ test("settings that could not be read say so and Retry reads the settings only",
   await expect(card.getByText("Could not read the board's settings.")).toHaveCount(0);
   expect(board.requests.slice(since).map((r) => r.cmd)).toEqual(["settings_get"]);
 });
+
+test("a board that knows schedules lists them as a third group, uploads one by its format and deletes it", async ({
+  page,
+}) => {
+  const board = await scriptedBoard(page);
+  board.info = {
+    formats: { animation: ["pixelart/1"], playlist: ["pixelart-playlist/1"], schedule: ["pixelart-schedule/1"] },
+    limits: { line: 1024, chunk: 512, page: 8, animation: 65536, playlist: 16384, schedule: 16384 },
+  };
+  board.settings = {
+    ...board.settings,
+    play: "auto",
+    playlists: ["default"],
+    time_sync_hours: 6,
+    ntp_server: "pool.ntp.org",
+  };
+  board.files.playlist.set("default", Buffer.from("{}"));
+  await connectScripted(page, board);
+  const tab = page.getByRole("tab", { name: /^Schedules/ });
+  await expect(tab).toContainText("0");
+  await tab.click();
+  await expect(page.getByText("No schedules on this board")).toBeVisible();
+
+  await pick(
+    page,
+    upload(
+      "seasons.yaml",
+      "format: pixelart-schedule/1\nname: Seasons\nfallback: [default]\nentries:\n  - from: { month: 12 }\n    to: { month: 12 }\n    playlists: [default]\n",
+    ),
+  );
+  const table = page.getByRole("table", { name: "Schedules on the board" });
+  await expect(table).toContainText("seasons");
+  await expect(tab).toContainText("1");
+  const stored = JSON.parse(board.files.schedule.get("seasons")?.toString() ?? "null");
+  expect(stored).toMatchObject({ format: "pixelart-schedule/1", entries: [{ from: { month: 12 } }] });
+
+  await page.getByRole("button", { name: "More actions for seasons" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByText("No schedules on this board")).toBeVisible();
+  expect(board.files.schedule.size).toBe(0);
+});
+
+test("a schedule picked for a board from before schedules is not sent", async ({ page }) => {
+  const board = await connected(page);
+  await pick(page, upload("seasons.json", '{"format":"pixelart-schedule/1","fallback":["mix"]}'));
+  await expect(page.getByRole("alert").filter({ hasText: "does not know schedules" })).toBeVisible();
+  expect(board.requests.some((r) => r.kind === "schedule")).toBe(false);
+});

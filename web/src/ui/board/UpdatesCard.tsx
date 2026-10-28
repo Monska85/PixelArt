@@ -7,6 +7,7 @@ import {
   installUpdate,
   isUpdateRunning,
   setSettings,
+  supportsSchedules,
   type BoardClient,
   type Settings,
   type SettingsChanges,
@@ -23,7 +24,7 @@ import { Select } from "../components/select";
 import { Switch } from "../components/switch";
 import { ReasonTooltip } from "../components/tooltip";
 import { toShownError, type ShownError } from "../errors";
-import { browserTimeZone, posixTimeZone } from "./timezones";
+import { browserTimeZone, posixTimeZone, zoneOfSetting } from "./timezones";
 import {
   ANIMATION_NOTE,
   DEFAULT_ANIMATION_SOURCE,
@@ -123,6 +124,8 @@ export function UpdatesCard({ client, poll, settings, disabled, onSettings, onEr
 
   const zone = browserTimeZone();
   const posix = zone ? posixTimeZone(zone) : null;
+  // A firmware that knows schedules has its own Time zone setting in the Settings card, the one control for it.
+  const zoneInSettings = supportsSchedules(client.info);
 
   async function change(changes: SettingsChanges, context: string): Promise<void> {
     setChanging(true);
@@ -160,8 +163,9 @@ export function UpdatesCard({ client, poll, settings, disabled, onSettings, onEr
 
   function changeWindow(next: { install_start?: number; install_end?: number }): void {
     const changes: SettingsChanges = { ...next };
-    // The window is read in the board's time zone: send the browser's along with it when the board has another.
-    if (posix !== null && posix !== settings?.timezone) changes.timezone = posix;
+    // The window is read in the board's time zone: send the browser's along with it when the board has another, unless
+    // the Settings card has the zone.
+    if (!zoneInSettings && posix !== null && posix !== settings?.timezone) changes.timezone = posix;
     void change(changes, "Changing the install window");
   }
 
@@ -295,11 +299,13 @@ export function UpdatesCard({ client, poll, settings, disabled, onSettings, onEr
             window; Install does not wait for it.
           </p>
           <p className="text-xs text-muted-foreground" data-testid="time-zone">
-            {posix === null
-              ? `The app does not know the rules of your time zone${zone ? ` (${zone})` : ""}. The board uses ${settings.timezone ?? "UTC0"}.`
-              : posix === settings.timezone
-                ? `Time zone: ${zone}, the one of this browser.`
-                : `Time zone: ${zone}. The board uses ${settings.timezone ?? "UTC0"} until you change the window.`}
+            {zoneInSettings
+              ? `Time zone: ${zoneOfSetting(settings.timezone, zone) ?? settings.timezone ?? "UTC0"}, set under Time in the Settings card.`
+              : posix === null
+                ? `The app does not know the rules of your time zone${zone ? ` (${zone})` : ""}. The board uses ${settings.timezone ?? "UTC0"}.`
+                : posix === settings.timezone
+                  ? `Time zone: ${zone}, the one of this browser.`
+                  : `Time zone: ${zone}. The board uses ${settings.timezone ?? "UTC0"} until you change the window.`}
           </p>
         </fieldset>
         <div className="flex min-w-0 flex-col gap-1.5">

@@ -1,0 +1,13 @@
+{
+  "format": "pixelart-schedule/1",
+  "name": "Seasons",
+  "fallback": ["default"],
+  "entries": [
+    {
+      "name": "Quiet season",
+      "from": { "month": 2, "day": 1 },
+      "to": { "month": 3, "day": 15 },
+      "playlists": ["holiday"]
+    }
+  ]
+}

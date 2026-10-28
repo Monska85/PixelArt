@@ -12,13 +12,13 @@ import { BUSY_MESSAGE } from "../upload";
 
 type Verb = "Uploaded" | "Installed";
 
-/** "3 animations", "1 playlist", "2 animations and 1 playlist". */
+/** "3 animations", "1 playlist", "2 animations and 1 playlist", "2 animations, 1 playlist and 1 schedule". */
 function describeCounts(files: QueueFile[]): string {
-  const animations = files.filter((f) => f.kind === "animation").length;
-  const playlists = files.length - animations;
-  return [animations > 0 && plural(animations, "animation"), playlists > 0 && plural(playlists, "playlist")]
-    .filter(Boolean)
-    .join(" and ");
+  const parts = (["animation", "playlist", "schedule"] as const)
+    .map((kind) => [kind, files.filter((f) => f.kind === kind).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([kind, n]) => plural(n, kind));
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : (parts[0] ?? "");
 }
 
 const ids = (files: QueueFile[]): string => files.map((f) => f.id).join(", ");

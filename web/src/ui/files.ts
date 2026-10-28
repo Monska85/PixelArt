@@ -9,6 +9,7 @@ import {
   isObject,
   loadAnimation,
   loadPlaylist,
+  loadSchedule,
   parseStrictJson,
   type Diagnostic,
   type JsonValue,
@@ -71,7 +72,11 @@ export async function prepareUpload(fileName: string, bytes: Uint8Array): Promis
   return { ok: true, bytes, document: parsed.value };
 }
 
-const KINDS: Record<string, Kind> = { "pixelart/1": "animation", "pixelart-playlist/1": "playlist" };
+const KINDS: Record<string, Kind> = {
+  "pixelart/1": "animation",
+  "pixelart-playlist/1": "playlist",
+  "pixelart-schedule/1": "schedule",
+};
 
 /** The name of a file the app reads: JSON or YAML. */
 export const SUPPORTED_FILE = /\.(json|ya?ml)$/i;
@@ -96,15 +101,22 @@ export function detectKind(document: JsonValue): { ok: true; kind: Kind } | { ok
   const described = typeof format === "string" ? `"${format}"` : format === undefined ? "missing" : "not a text";
   return {
     ok: false,
-    message: `The format of this file is ${described}, which is neither "pixelart/1" nor "pixelart-playlist/1".`,
+    message: `The format of this file is ${described}, which is none of "pixelart/1", "pixelart-playlist/1" and "pixelart-schedule/1".`,
   };
 }
 
 /** The app's own check of a file, with the diagnostics whether it passes or not. */
 export function validateFile(kind: Kind, bytes: Uint8Array): { ok: boolean; diagnostics: Diagnostic[] } {
-  const result = kind === "animation" ? loadAnimation(bytes) : loadPlaylist(bytes);
-  const rejected = ("animation" in result ? result.animation : result.items) === null;
-  return { ok: !rejected, diagnostics: result.diagnostics };
+  if (kind === "animation") {
+    const { animation, diagnostics } = loadAnimation(bytes);
+    return { ok: animation !== null, diagnostics };
+  }
+  if (kind === "playlist") {
+    const { items, diagnostics } = loadPlaylist(bytes);
+    return { ok: items !== null, diagnostics };
+  }
+  const { schedule, diagnostics } = loadSchedule(bytes);
+  return { ok: schedule !== null, diagnostics };
 }
 
 type Inspected =

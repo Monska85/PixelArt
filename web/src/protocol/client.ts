@@ -16,7 +16,7 @@ export const TRIES = 5;
 const PROTOCOL_VERSION = 1;
 const DEFAULT_CHUNK = 512;
 
-export type Kind = "animation" | "playlist";
+export type Kind = "animation" | "playlist" | "schedule";
 
 export interface WireDiagnostic {
   severity: string;
@@ -47,10 +47,15 @@ export interface BoardInfo {
   firmware: string;
   board: string;
   bootId: number | null;
-  formats: { animation: string[]; playlist: string[] };
+  /** `schedule` is null on a firmware older than schedules, which knows no schedule, `play` or time settings. */
+  formats: { animation: string[]; playlist: string[]; schedule: string[] | null };
   storage: { total: number; used: number } | null;
-  limits: { line: number; chunk: number; page: number; animation: number; playlist: number };
+  limits: { line: number; chunk: number; page: number; animation: number; playlist: number; schedule: number };
 }
+
+/** Whether the board knows schedules, the `play`, `playlists`, `time_sync_hours` and `ntp_server` settings and `status.play`. */
+export const supportsSchedules = (info: BoardInfo | null | undefined): boolean =>
+  (info?.formats.schedule ?? null) !== null;
 
 const count = (value: unknown): number | null => (isCount(value) ? value : null);
 const strings = (value: unknown): string[] =>
@@ -68,7 +73,11 @@ function parseInfo(reply: Body): BoardInfo {
     firmware: text(reply.firmware),
     board: text(reply.board),
     bootId: count(reply.boot_id),
-    formats: { animation: strings(formats.animation), playlist: strings(formats.playlist) },
+    formats: {
+      animation: strings(formats.animation),
+      playlist: strings(formats.playlist),
+      schedule: Array.isArray(formats.schedule) ? strings(formats.schedule) : null,
+    },
     storage: total !== null && used !== null ? { total, used } : null,
     limits: {
       line: count(limits.line) ?? 1024,
@@ -76,6 +85,7 @@ function parseInfo(reply: Body): BoardInfo {
       page: count(limits.page) ?? 8,
       animation: count(limits.animation) ?? FILE_LIMITS.animation,
       playlist: count(limits.playlist) ?? FILE_LIMITS.playlist,
+      schedule: count(limits.schedule) ?? FILE_LIMITS.schedule,
     },
   };
 }
