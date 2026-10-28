@@ -573,7 +573,9 @@ class SimulatorTest(SimulatorHarness):
         self.assertEqual((self.data / "animations" / "dot.json").read_bytes(), content)
 
     def test_log_lines_are_not_sent(self):
-        # One short animation, so the playlist set below is loaded at once
+        # One short animation, so the playlist set below is loaded at once. Without a play file the board plays
+        # the playlist `default`, whatever the content's play file chooses.
+        shutil.rmtree(self.data / "play", ignore_errors=True)
         (self.data / "animations" / "dot.json").write_bytes(DOT)
         (self.data / "playlists" / "default.json").write_text(
             '{"format":"pixelart-playlist/1","name":"Dot","canvas":{"width":16,"height":16},"items":[{"animation":"dot"}]}')
