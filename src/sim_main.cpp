@@ -36,12 +36,12 @@ void print(const std::string &file, bool loaded, const std::vector<pixelart::Dia
   }
 }
 
-// Checks every animation and playlist in the data folder with the same code
+// Checks every animation, playlist, schedule and play file in the data folder with the same code
 // the board uses to load them. Returns the process exit status.
 int validate()
 {
   int errors = 0, files = 0;
-  std::set<std::string> valid_ids;
+  std::set<std::string> valid_ids, valid_playlists, valid_schedules;
   for (const std::string &id : stored_animations())
   {
     pixelart::Animation animation;
@@ -58,11 +58,52 @@ int validate()
     std::vector<pixelart::Diagnostic> diagnostics;
     bool loaded = load_stored_playlist(name, playlist, diagnostics);
     if (loaded)
+      valid_playlists.insert(name);
+    if (loaded)
       for (const pixelart::PlaylistItem &item : playlist.items())
         if (!valid_ids.count(item.animation) && diagnostics.size() < pixelart::MAX_DIAGNOSTICS)
           diagnostics.push_back({pixelart::Severity::Warning, "unknown_animation", "",
                                  "\"" + item.animation + "\" is missing or invalid"});
     print(playlist_file(name), loaded, diagnostics, errors);
+    files++;
+  }
+  for (const std::string &id : stored_schedules())
+  {
+    pixelart::Schedule schedule;
+    std::vector<pixelart::Diagnostic> diagnostics;
+    bool loaded = load_stored_schedule(id, schedule, diagnostics);
+    if (loaded)
+      valid_schedules.insert(id);
+    auto warn = [&](const std::vector<std::string> &ids, const std::string &where)
+    {
+      for (size_t i = 0; i < ids.size(); i++)
+        if (!valid_playlists.count(ids[i]) && diagnostics.size() < pixelart::MAX_DIAGNOSTICS)
+          diagnostics.push_back({pixelart::Severity::Warning, "unknown_playlist", where + "[" + std::to_string(i) + "]",
+                                 "\"" + ids[i] + "\" is missing or invalid"});
+    };
+    if (loaded)
+    {
+      warn(schedule.fallback(), "fallback");
+      for (size_t e = 0; e < schedule.entry_count(); e++)
+        warn(schedule.playlists(e), "entries[" + std::to_string(e) + "].playlists");
+    }
+    print(schedule_file(id), loaded, diagnostics, errors);
+    files++;
+  }
+  for (const std::string &id : stored_play_files())
+  {
+    pixelart::ServerChoice choice;
+    std::vector<pixelart::Diagnostic> diagnostics;
+    const bool loaded = load_stored_play(id, choice, diagnostics);
+    if (loaded && !choice.schedule.empty() && !valid_schedules.count(choice.schedule))
+      diagnostics.push_back({pixelart::Severity::Warning, "unknown_schedule", "default.schedule",
+                             "\"" + choice.schedule + "\" is missing or invalid"});
+    for (size_t i = 0; loaded && i < choice.playlists.size(); i++)
+      if (!valid_playlists.count(choice.playlists[i]))
+        diagnostics.push_back({pixelart::Severity::Warning, "unknown_playlist",
+                               "default.playlists[" + std::to_string(i) + "]",
+                               "\"" + choice.playlists[i] + "\" is missing or invalid"});
+    print(play_file(id), loaded, diagnostics, errors);
     files++;
   }
   printf("%d files checked in %s, %d rejected\n", files, sim::data_dir().c_str(), errors);
@@ -99,6 +140,18 @@ void set_update_time(const std::string &text)
   if (sscanf(text.c_str(), "%u:%u%c", &hours, &minutes, &extra) != 2 || hours > 23 || minutes > 59)
     option_error("--update-time expects HH:MM, got '" + text + "'");
   updates::sim_set_local_minutes((int)(hours * 60 + minutes));
+}
+
+// --date YYYY-MM-DD: the local date the schedule sees. Without it, and without --update-time, the time is not known.
+void set_local_date(const std::string &text)
+{
+  unsigned year = 0, month = 0, day = 0;
+  char extra;
+  const bool parsed = sscanf(text.c_str(), "%4u-%2u-%2u%c", &year, &month, &day, &extra) == 3 && text.size() == 10;
+  const pixelart::LocalDate date = {(uint16_t)year, (uint8_t)month, (uint8_t)day};
+  if (!parsed || !pixelart::is_schedule_date(date))
+    option_error("--date expects a real date YYYY-MM-DD with a year from 2000 to 2999, got '" + text + "'");
+  updates::sim_set_local_date(date);
 }
 
 // --update-trial ok|fail: whether the health check of a firmware just installed passes. A failed one makes the
@@ -148,6 +201,11 @@ int main(int argc, char **argv)
                        [](const char *text)
                        {
                          set_update_time(text);
+                       });
+  sim::register_option("--date", "local date for the schedule, YYYY-MM-DD (default: not known)",
+                       [](const char *text)
+                       {
+                         set_local_date(text);
                        });
   sim::register_option("--firmware-version",
                        "version of the simulated firmware, for the update checks (default: the build's version)",

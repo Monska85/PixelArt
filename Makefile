@@ -46,10 +46,10 @@ help: ## Show this help
 	@echo ""
 	@echo "Variables: BOARD=$(BOARD) (esp32c3, esp32, esp32s3)  ANIM=name[,name]  OUT=$(OUT)  SITE=$(SITE)  ARGS=extra simulator options  WS=1 (emulate with the WebSocket)  PORT=$(PORT) (serve)  PYTHON=$(PYTHON)  JOBS=$(JOBS) (parallel jobs)  NICE=$(NICE) (priority of the heavy steps)"
 
-data: ## Build data/ (the board's files) from content/animations/ and content/playlists/
+data: ## Build data/ (the board's files) from content/animations/, content/playlists/, content/schedules/ and content/play.yaml
 	$(PYTHON) tools/pixelart.py build
 
-validate: data sim-build ## Check every animation and playlist with the board's engine
+validate: data sim-build ## Check every animation, playlist and schedule with the board's engine
 	$(NICED) $(SIM) --validate
 
 build: ## Build the firmware for BOARD
@@ -58,14 +58,14 @@ build: ## Build the firmware for BOARD
 build-all: ## Build the firmware for every board
 	$(NICED) pio run -j $(JOBS) -e esp32c3 -e esp32 -e esp32s3
 
-upload: data ## Flash the firmware and the content (animations and playlists) of this working tree to BOARD
+upload: data ## Flash the firmware and the content (animations, playlists, schedules and the play file) of this working tree to BOARD
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t upload
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t uploadfs
 
-upload-firmware: ## Flash only the firmware, keeping the animations and playlists on the board
+upload-firmware: ## Flash only the firmware, keeping the animations, playlists, schedules and the play file on the board
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t upload
 
-upload-content: data ## Flash only the animations and playlists, keeping the firmware
+upload-content: data ## Flash only the animations, playlists, schedules and the play file, keeping the firmware
 	$(NICED) pio run -j $(JOBS) -e $(BOARD) -t uploadfs
 
 monitor: ## Open the serial monitor
@@ -110,7 +110,7 @@ release-firmware: ## Build every board and the firmware release (no animations, 
 	$(NICED) pio run -j $(JOBS) -e esp32c3 -e esp32 -e esp32s3; \
 	$(NICED) $(PYTHON) tools/release.py build --out $(SITE) --schema
 
-release-content: data ## Build the content release (animations, playlists and their manifest) into SITE (default site/)
+release-content: data ## Build the content release (animations, playlists, schedules, the play file and their manifest) into SITE (default site/)
 	@set -eu; \
 	echo "Content release site for version $$($(PYTHON) tools/release.py content-version)"; \
 	$(NICED) $(PYTHON) tools/release.py content --out $(SITE) --schema

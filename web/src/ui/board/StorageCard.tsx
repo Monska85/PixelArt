@@ -10,19 +10,24 @@ import { summarizeStorage } from "./storage";
 interface Props {
   /** `info.storage`, or null for a board that does not say. */
   storage: { total: number; used: number } | null;
-  /** The stored animations and playlists, or null while a list is not known. */
+  /**
+   * The stored animations and playlists, or null while a list is not known. The counts and the estimate wait for every
+   * list, the schedules included on a board that knows them.
+   */
   animations: Entry[] | null;
   playlists: Entry[] | null;
+  /** The stored schedules, null while not known; left out for a board that knows none. */
+  schedules?: Entry[] | null;
 }
 
 /**
  * The Storage card of the Board view: the space left, a bar, how many files are stored and how many more animations
  * of average size would fit, with a warning when less than one is left.
  */
-export function StorageCard({ storage, animations, playlists }: Props) {
+export function StorageCard({ storage, animations, playlists, schedules }: Props) {
   if (!storage || storage.total <= 0) return null;
   const s = summarizeStorage(storage, animations ?? [], playlists ?? []);
-  const known = animations !== null && playlists !== null;
+  const known = animations !== null && playlists !== null && schedules !== null;
   return (
     <Card aria-labelledby="storage-title" data-testid="storage-card">
       <CardHeader>
@@ -35,7 +40,9 @@ export function StorageCard({ storage, animations, playlists }: Props) {
         <Progress aria-label="Storage used" value={s.used} max={s.total} className="max-w-sm" />
         {known && (
           <p className="text-sm text-muted-foreground" data-testid="storage-files">
-            {plural(s.animations, "animation")} and {plural(s.playlists, "playlist")} stored.
+            {schedules === undefined
+              ? `${plural(s.animations, "animation")} and ${plural(s.playlists, "playlist")} stored.`
+              : `${plural(s.animations, "animation")}, ${plural(s.playlists, "playlist")} and ${plural((schedules ?? []).length, "schedule")} stored.`}
           </p>
         )}
         {known && (

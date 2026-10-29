@@ -1,0 +1,19 @@
+{
+  "format": "pixelart-schedule/1",
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": {
+        "day": -9223372036854775809
+      },
+      "to": {
+        "day": 1
+      },
+      "playlists": [
+        "a"
+      ]
+    }
+  ]
+}

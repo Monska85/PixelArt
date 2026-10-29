@@ -2,7 +2,8 @@
 
 import { FolderUp, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { downloadFile, isUpdateRunning, sha256Hex, type BoardClient } from "../../protocol";
+import { flushSync } from "react-dom";
+import { downloadFile, isUpdateRunning, sha256Hex, supportsSchedules, type BoardClient } from "../../protocol";
 import { BlockedNote } from "../common/BlockedNote";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useDeleteEverything } from "../common/DeleteEverything";
@@ -80,6 +81,11 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   const { data, reload, settingsUnreadable, setSettings } = useBoardData(client, restarts, report);
   const animations = entriesOf(data.animations);
   const playlists = entriesOf(data.playlists);
+  const schedules = entriesOf(data.schedules);
+  const knowsSchedules = supportsSchedules(info);
+  // What to play replaces the Active playlist menu on a firmware that knows schedules and reports `play`: the active
+  // playlist, the Settings card and the notes of the lists all follow this one value.
+  const whatToPlay = knowsSchedules && data.settings?.play !== undefined;
   const animationIds = animations && new Set(animations.map((a) => a.id));
   const playlistNames = playlists && new Map(playlists.map((p) => [p.id, p.name]));
 
@@ -87,6 +93,8 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   const changed = (): void => {
     reload();
     void session.refreshInfo();
+    // A stored or deleted playlist or schedule makes the board choose again: the status says what.
+    statusPoll.refresh();
   };
   const refresh = (): void => {
     void session.refreshFiles(KINDS);
@@ -120,6 +128,9 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
     // `refresh` is made again on every render and only reads the session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateRunning]);
+  // With What to play, the active playlist is the one the board says it plays.
+  const play = statusPoll.status?.play ?? null;
+  const active = whatToPlay ? (play?.playing ?? null) : (data.settings?.playlist ?? null);
   const library = useManifest();
   const named = usePlaylistAnimations(client, playlists, uploadRunning);
   const missing = missingByPlaylist(named, animationIds);
@@ -166,7 +177,9 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
 
   const listProps = {
     client,
-    activePlaylist: data.settings?.playlist ?? null,
+    activePlaylist: active,
+    knowsSchedules: whatToPlay,
+    play,
     disabled: lost,
     onChanged: changed,
     onError: report,
@@ -211,6 +224,8 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
           playlists={data.playlists}
           settings={data.settings}
           playlistNames={playlistNames}
+          schedules={knowsSchedules ? data.schedules : undefined}
+          play={play}
           missing={missing}
           actions={{
             primary: {
@@ -287,18 +302,46 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
                 />
               ),
             }}
+            schedules={
+              knowsSchedules
+                ? {
+                    count: schedules?.length ?? null,
+                    content: <FilesList {...listProps} kind="schedule" list={data.schedules} />,
+                  }
+                : undefined
+            }
           />
         </FilesCard>
-        <StorageCard storage={info?.storage ?? null} animations={animations} playlists={playlists} />
+        <StorageCard
+          storage={info?.storage ?? null}
+          animations={animations}
+          playlists={playlists}
+          schedules={knowsSchedules ? schedules : undefined}
+        />
         {data.settings && (
           <SettingsPanel
             client={client}
             settings={data.settings}
             playlists={playlistNames}
-            missing={missing.get(data.settings.playlist) ?? []}
+            schedules={schedules}
+            play={play}
+            whatToPlay={whatToPlay}
+            active={active}
+            missing={active === null ? [] : (missing.get(active) ?? [])}
             missingContext={missingContext}
             disabled={lost}
             onSettings={setSettings}
+            onPlayChanged={statusPoll.refresh}
+            onShowSchedules={() => {
+              // The tab list is shown and the Schedules tab selected only after the render: commit it first.
+              flushSync(() => {
+                setList("schedule");
+                reveal();
+              });
+              document
+                .querySelector<HTMLElement>('[data-testid="files-card"] [role="tab"][aria-selected="true"]')
+                ?.focus();
+            }}
             onError={report}
           />
         )}

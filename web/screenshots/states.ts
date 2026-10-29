@@ -7,7 +7,7 @@
 // `make web-screenshots-update`, and update the image count in web/README.md. Every state is
 // its own test with its own simulator, so one that breaks does not hide the others.
 
-import { readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   animations,
@@ -21,6 +21,7 @@ import {
   settled,
   showFiles,
   showBoardPlaylists,
+  showBoardSchedules,
   type Simulator,
   stored,
   test as base,
@@ -29,7 +30,7 @@ import {
 } from "../e2e/fixtures";
 import type { Page } from "@playwright/test";
 import { connectScripted, scriptedBoard } from "../e2e/scripted";
-import { watchBoard } from "../e2e/board";
+import { setServerChoice, watchBoard } from "../e2e/board";
 
 const SIZES = [
   { width: 1280, height: 800 },
@@ -68,10 +69,16 @@ function missingAnimations(simulator: Simulator): void {
   for (const id of ["star", "candle"]) rmSync(stored(simulator, "animations", id));
 }
 
+/** A second schedule, Summer, next to the stored one, so the choice of a schedule has something to choose from. */
+function addSummer(simulator: Simulator): void {
+  copyFileSync(file("summer.json"), stored(simulator, "schedules", "summer"));
+}
+
 function emptyBoard(simulator: Simulator): void {
   for (const id of ["ball", "bear", "candle", "snowflake", "star", "wreath"])
     rmSync(stored(simulator, "animations", id));
   for (const id of ["default", "holiday"]) rmSync(stored(simulator, "playlists", id));
+  rmSync(stored(simulator, "schedules", "default"));
 }
 
 async function go(page: Page, view: string, heading: string): Promise<void> {
@@ -183,7 +190,7 @@ export const states = {
   // Board view, connected
   "board-connected": async ({ page, simulator, check }) => {
     await connected(page, simulator);
-    await expect(page.getByTestId("files-summary")).toContainText("active playlist");
+    await expect(page.getByTestId("files-summary")).toContainText("Automatic: playing");
     await expect(animations(page)).toBeHidden();
     await check();
   },
@@ -210,7 +217,80 @@ export const states = {
   "board-playlists": async ({ page, simulator, check }) => {
     await connected(page, simulator);
     await showBoardPlaylists(page);
-    await expect(row(page, "default")).toBeVisible();
+    await expect(page.getByRole("table", { name: "Playlists on the board" }).getByText("Christmas")).toBeVisible();
+    await check();
+  },
+  "board-schedules": async ({ page, simulator, check }) => {
+    await connected(page, simulator);
+    await showBoardSchedules(page);
+    await expect(page.getByRole("table", { name: "Schedules on the board" }).getByText("Seasons")).toBeVisible();
+    await check();
+  },
+  "board-automatic-schedule": async ({ page, simulator, check }) => {
+    await connected(page, simulator);
+    const automatic = page.getByTestId("play-auto");
+    await expect(automatic.getByTestId("play-next")).toContainText("February 1, 2026");
+    await automatic.getByRole("button", { name: "Show the schedule" }).click();
+    await expect(page.getByTestId("schedule-view")).toContainText("Quiet season");
+    await page.getByTestId("what-to-play").scrollIntoViewIfNeeded();
+    await check();
+  },
+  "board-automatic-server-schedule": async ({ page, simulator, check }) => {
+    addSummer(simulator);
+    await setServerChoice(simulator, { schedule: "summer" });
+    await connected(page, simulator);
+    const automatic = page.getByTestId("play-auto");
+    await expect(automatic.getByTestId("server-choice")).toHaveText("The site plays the schedule Summer.");
+    await expect(automatic.getByTestId("play-next")).toContainText("Next change:");
+    await automatic.getByRole("button", { name: "Show the schedule" }).click();
+    await expect(page.getByTestId("schedule-view")).toContainText("Beach days");
+    await page.getByTestId("what-to-play").scrollIntoViewIfNeeded();
+    await check();
+  },
+  "board-my-schedule": async ({ page, simulator, check }) => {
+    addSummer(simulator);
+    await connected(page, simulator);
+    await page.getByRole("radio", { name: "Schedule", exact: true }).check();
+    await page.getByRole("combobox", { name: "Schedule", exact: true }).selectOption("summer");
+    const mine = page.getByTestId("my-schedule");
+    await expect(page.getByRole("radio", { name: "My choice", exact: true })).toBeChecked();
+    await expect(mine.getByTestId("my-schedule-now")).toContainText("Now:");
+    await mine.getByRole("button", { name: "Show the schedule" }).click();
+    await expect(mine.getByTestId("schedule-view")).toContainText("Beach days");
+    await mine.scrollIntoViewIfNeeded();
+    await check();
+  },
+  "board-my-schedule-disabled": async ({ page, simulator, check }) => {
+    rmSync(stored(simulator, "schedules", "default"));
+    await connected(page, simulator);
+    await expect(page.getByRole("radio", { name: "Schedule", exact: true })).toBeDisabled();
+    await expect(page.getByTestId("no-schedule-link")).toBeVisible();
+    await page.getByTestId("what-to-play").scrollIntoViewIfNeeded();
+    await check();
+  },
+  "board-my-schedule-missing": async ({ page, simulator, check }) => {
+    addSummer(simulator);
+    await connected(page, simulator);
+    await page.getByRole("radio", { name: "Schedule", exact: true }).check();
+    await page.getByRole("combobox", { name: "Schedule", exact: true }).selectOption("summer");
+    await expect(page.getByRole("radio", { name: "My choice", exact: true })).toBeChecked();
+    // The schedule is deleted while it is chosen: the board keeps the setting and plays its own rule.
+    await showBoardSchedules(page);
+    await more(page, "summer").click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page.getByTestId("my-schedule-missing")).toBeVisible();
+    await page.getByTestId("my-schedule-missing").scrollIntoViewIfNeeded();
+    await check();
+  },
+  "board-my-playlists": async ({ page, simulator, check }) => {
+    await connected(page, simulator);
+    await page.getByRole("radio", { name: "My choice", exact: true }).check();
+    const mine = page.getByTestId("play-mine");
+    await mine.getByLabel("Add a playlist").selectOption("holiday");
+    await mine.getByRole("button", { name: "Add" }).click();
+    await expect(mine.getByRole("listitem")).toHaveCount(2);
+    await mine.scrollIntoViewIfNeeded();
     await check();
   },
   "board-more-menu": async ({ page, simulator, check }) => {
@@ -322,7 +402,9 @@ export const states = {
     await connected(page, simulator);
     await page.getByRole("button", { name: "More", exact: true }).click();
     await page.getByRole("menuitem", { name: "Delete everything" }).click();
-    await expect(page.getByRole("dialog", { name: /^Delete all 6 animations and 2 playlists/ })).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: /^Delete all 6 animations, 2 playlists and 1 schedule/ }),
+    ).toBeVisible();
     await check();
   },
   "board-delete-everything-reset-dialog": async ({ page, simulator, check }) => {
@@ -331,7 +413,7 @@ export const states = {
     await page.getByRole("menuitem", { name: "Delete everything" }).click();
     await page.getByRole("dialog").getByRole("checkbox", { name: "Also reset the settings" }).check();
     await expect(
-      page.getByRole("dialog").getByRole("button", { name: "Delete 8 files and reset the settings" }),
+      page.getByRole("dialog").getByRole("button", { name: "Delete 9 files and reset the settings" }),
     ).toBeVisible();
     await check();
   },
@@ -340,8 +422,8 @@ export const states = {
     board.hold("delete_all");
     await page.getByRole("button", { name: "More", exact: true }).click();
     await page.getByRole("menuitem", { name: "Delete everything" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Delete 8 files" }).click();
-    await expect(page.getByTestId("activity")).toContainText("Deleting every animation and playlist");
+    await page.getByRole("dialog").getByRole("button", { name: "Delete 9 files" }).click();
+    await expect(page.getByTestId("activity")).toContainText("Deleting every animation, playlist and schedule");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await check();
   },
@@ -633,11 +715,13 @@ export const states = {
     await go(page, "firmware", "Firmware");
     await installers(page);
     await page.getByRole("button", { name: "Delete everything" }).click();
-    await expect(page.getByRole("dialog", { name: /^Delete all 6 animations and 2 playlists/ })).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: /^Delete all 6 animations, 2 playlists and 1 schedule/ }),
+    ).toBeVisible();
     await check();
   },
   "firmware-reset-settings-only-dialog": async ({ page, simulator, check }) => {
-    for (const kind of ["animations", "playlists"])
+    for (const kind of ["animations", "playlists", "schedules"])
       for (const name of readdirSync(join(simulator.dataDir, kind))) rmSync(join(simulator.dataDir, kind, name));
     await connected(page, simulator, { firmware: "0.0.9" });
     await go(page, "firmware", "Firmware");

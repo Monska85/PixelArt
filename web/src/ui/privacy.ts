@@ -23,7 +23,11 @@ export function sourceOfVersion(version: string): { url: string; tag: string | n
 }
 
 export const FOOTER_TEXT =
-  "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board.";
+  "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board. The board itself contacts only its update source and its time server.";
+
+/** Under the Time server field: the one outside host the board asks for the time, and what it learns. */
+export const TIME_SERVER_NOTE =
+  "The board asks this server for the time when the board plays a schedule or the install window is narrower than the whole day. The request carries none of your data; the server sees the board's IP address.";
 
 export const PASSWORD_NOTE = "The password goes straight to the board over USB. It is never sent anywhere else.";
 

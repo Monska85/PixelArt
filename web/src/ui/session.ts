@@ -13,11 +13,11 @@ import {
   getStatus,
   isToken,
   listFiles,
+  supportsSchedules,
   type BoardInfo,
-  type Kind,
   type Login,
 } from "../protocol";
-import { FileListReader, KINDS, NO_LISTS, type FileLists } from "./fileLists";
+import { FileListReader, KINDS, NO_LISTS, type FileLists, type ListedKind } from "./fileLists";
 import { SerialTransport, serialApi, type SerialPortLike } from "../protocol/serial";
 import type { ImprovLink } from "../protocol/improv";
 import type { Transport } from "../protocol/transport";
@@ -104,6 +104,8 @@ class Session {
     (kind) => {
       const client = this.snapshot.client;
       if (!client) throw new Error("No board is connected.");
+      // A firmware older than schedules answers invalid_kind: it stores none, and is not asked.
+      if (kind === "schedule" && !supportsSchedules(client.info)) return Promise.resolve([]);
       return listFiles(client, kind);
     },
     (files) => this.set({ files }),
@@ -339,7 +341,7 @@ class Session {
    * Reads the board's lists of these kinds again; call it, without waiting for it, after anything that adds or
    * removes files of those kinds. A failed read leaves the list "unknown", never the old one.
    */
-  async refreshFiles(kinds: readonly Kind[]): Promise<void> {
+  async refreshFiles(kinds: readonly ListedKind[]): Promise<void> {
     if (this.snapshot.state !== "connected") return;
     await this.reader.refresh(kinds);
   }

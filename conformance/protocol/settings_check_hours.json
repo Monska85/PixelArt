@@ -11,6 +11,11 @@
         "settings": {
           "brightness": 100,
           "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -19,6 +24,8 @@
           "install_start": 0,
           "install_end": 0,
           "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
           "network_login": false,
           "token": "<any>"
@@ -35,6 +42,11 @@
         "settings": {
           "brightness": 100,
           "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -43,6 +55,8 @@
           "install_start": 0,
           "install_end": 0,
           "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
           "network_login": false,
           "token": "<any>"
@@ -59,6 +73,11 @@
         "settings": {
           "brightness": 100,
           "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -67,6 +86,8 @@
           "install_start": 0,
           "install_end": 0,
           "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
           "network_login": false,
           "token": "<any>"
@@ -160,6 +181,11 @@
         "settings": {
           "brightness": 100,
           "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
           "wifi_power": "auto",
           "update_mode": "automatic",
           "update_firmware": true,
@@ -168,6 +194,8 @@
           "install_start": 0,
           "install_end": 0,
           "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
           "network_login": false,
           "token": "<any>"

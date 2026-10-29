@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 import { decodeLine, encodeLine, type Body } from "../src/protocol/framing";
 import { openConnectCard } from "./fixtures";
 
-type Kind = "animation" | "playlist";
+type Kind = "animation" | "playlist" | "schedule";
 
 export interface Scripted {
   /** Every request the page sent, in order. */
@@ -25,6 +25,8 @@ export interface Scripted {
   address: string;
   /** Fields that replace those of the `info` reply, for a board of another firmware. */
   info: Body;
+  /** The settings, as a firmware from before schedules has them; `settings_set` changes the ones it names. */
+  settings: Body;
 }
 
 /**
@@ -34,7 +36,7 @@ export interface Scripted {
 export async function scriptedBoard(page: Page, port = 9): Promise<Scripted> {
   const board: Scripted = {
     requests: [],
-    files: { animation: new Map(), playlist: new Map() },
+    files: { animation: new Map(), playlist: new Map(), schedule: new Map() },
     refuse: new Set(),
     deleteAll: () => ({ ok: true, playlists: 0, animations: 0 }),
     storage: { total: 1_441_792, used: 8192 },
@@ -42,12 +44,17 @@ export async function scriptedBoard(page: Page, port = 9): Promise<Scripted> {
     failSettings: 0,
     address: `ws://127.0.0.1:${port}/`,
     info: {},
+    settings: { brightness: 100, playlist: "default" },
   };
   let uploading: { kind: Kind; id: string; data: Buffer[] } | null = null;
   let deleteCalls = 0;
 
   const run = (request: Body): Body => {
     const kind = request.kind as Kind;
+    // Like a firmware from before schedules, unless the test says the board reports them.
+    const formats = (board.info.formats ?? {}) as Body;
+    if (kind === "schedule" && formats.schedule === undefined)
+      return { ok: false, error: "invalid_kind", message: "unknown kind" };
     switch (request.cmd) {
       case "info":
         return {
@@ -84,7 +91,10 @@ export async function scriptedBoard(page: Page, port = 9): Promise<Scripted> {
           board.failSettings -= 1;
           return { ok: false, error: "storage_error", message: "the settings cannot be read" };
         }
-        return { ok: true, settings: { brightness: 100, playlist: "default" } };
+        return { ok: true, settings: { ...board.settings } };
+      case "settings_set":
+        for (const key of ["brightness", "playlist"]) if (key in request) board.settings[key] = request[key];
+        return { ok: true, settings: { ...board.settings } };
       case "put_begin":
         uploading = { kind, id: String(request.id), data: [] };
         return { ok: true };
@@ -127,6 +137,7 @@ export async function scriptedBoard(page: Page, port = 9): Promise<Scripted> {
       if (request.cmd === "delete_all" && reply.ok === true) {
         board.files.animation.clear();
         board.files.playlist.clear();
+        board.files.schedule.clear();
       }
       socket.send(encodeLine({ seq: request.seq, ...reply }));
     });

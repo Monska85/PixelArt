@@ -5,10 +5,13 @@
 
 #include <ArduinoJson.h>
 #include <pixelart_engine.h>
+#include <server_choice.h>
 #include <unity.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <filesystem>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -196,6 +199,239 @@ static void test_playlist_invalid_cases()
   }
 }
 
+// "YYYY-MM-DD" of a row.
+static pixelart::LocalDate row_date(const char *text)
+{
+  unsigned year = 0, month = 0, day = 0;
+  TEST_ASSERT_EQUAL_MESSAGE(3, sscanf(text, "%u-%u-%u", &year, &month, &day), "a date is YYYY-MM-DD");
+  return {(uint16_t)year, (uint8_t)month, (uint8_t)day};
+}
+
+static std::vector<std::string> text_list(JsonVariantConst list)
+{
+  std::vector<std::string> out;
+  for (JsonVariantConst v : list.as<JsonArrayConst>())
+    out.push_back(v.as<std::string>());
+  return out;
+}
+
+// The parts of `end` that are present, as the expected file writes them.
+static std::string end_text(const pixelart::ScheduleEnd &end)
+{
+  JsonDocument doc;
+  if (end.year)
+    doc["year"] = end.year;
+  if (end.month)
+    doc["month"] = end.month;
+  if (end.day)
+    doc["day"] = end.day;
+  return doc.as<std::string>();
+}
+
+static std::string expected_end_text(JsonVariantConst end)
+{
+  JsonDocument doc;
+  for (const char *part : {"year", "month", "day"})
+    if (!end[part].isNull())
+      doc[part] = end[part].as<int>();
+  return doc.as<std::string>();
+}
+
+// The schedules of a row file, loaded with the real loader, by key.
+static std::map<std::string, pixelart::Schedule> row_schedules(const JsonDocument &rows, const std::string &file)
+{
+  std::map<std::string, pixelart::Schedule> out;
+  for (JsonPairConst pair : rows["schedules"].as<JsonObjectConst>())
+  {
+    const std::string json = pair.value().as<std::string>();
+    std::vector<pixelart::Diagnostic> diagnostics;
+    TEST_ASSERT_TRUE_MESSAGE(
+        out[pair.key().c_str()].load(json.data(), json.size(), diagnostics),
+        (file + ": schedule " + pair.key().c_str() + " rejected:" + describe(diagnostics)).c_str());
+  }
+  return out;
+}
+
+static void test_schedule_valid_cases()
+{
+  std::vector<fs::path> files = cases("schedule/valid");
+  TEST_ASSERT_TRUE_MESSAGE(!files.empty(), "no valid schedule cases found");
+  for (const fs::path &file : files)
+  {
+    std::string name = file.stem().string();
+    std::string json = read_file(file);
+    std::vector<pixelart::Diagnostic> diagnostics;
+    pixelart::Schedule schedule;
+    TEST_ASSERT_TRUE_MESSAGE(schedule.load(json.data(), json.size(), diagnostics),
+                             (name + ": rejected:" + describe(diagnostics)).c_str());
+
+    JsonDocument expected;
+    std::string expected_json = read_file(expected_path(file));
+    TEST_ASSERT_FALSE_MESSAGE(deserializeJson(expected, expected_json), (name + ": bad expected file").c_str());
+    TEST_ASSERT_TRUE_MESSAGE(text_list(expected["fallback"]) == schedule.fallback(), (name + ": fallback").c_str());
+    JsonArrayConst entries = expected["entries"].as<JsonArrayConst>();
+    TEST_ASSERT_EQUAL_MESSAGE(entries.size(), schedule.entry_count(), (name + ": number of entries").c_str());
+    size_t i = 0;
+    for (JsonVariantConst want : entries)
+    {
+      const std::string at = name + ": entry " + std::to_string(i);
+      TEST_ASSERT_EQUAL_STRING_MESSAGE(expected_end_text(want["from"]).c_str(), end_text(schedule.from(i)).c_str(),
+                                       (at + " from").c_str());
+      TEST_ASSERT_EQUAL_STRING_MESSAGE(expected_end_text(want["to"]).c_str(), end_text(schedule.to(i)).c_str(),
+                                       (at + " to").c_str());
+      TEST_ASSERT_TRUE_MESSAGE(text_list(want["playlists"]) == schedule.playlists(i), (at + " playlists").c_str());
+      i++;
+    }
+  }
+}
+
+static void test_schedule_invalid_cases()
+{
+  std::vector<fs::path> files = cases("schedule/invalid");
+  TEST_ASSERT_TRUE_MESSAGE(!files.empty(), "no invalid schedule cases found");
+  for (const fs::path &file : files)
+  {
+    std::string name = file.stem().string();
+    std::string json = read_file(file);
+    JsonDocument expected;
+    std::string expected_json = read_file(expected_path(file));
+    TEST_ASSERT_FALSE_MESSAGE(deserializeJson(expected, expected_json), (name + ": bad expected file").c_str());
+
+    std::vector<pixelart::Diagnostic> diagnostics;
+    pixelart::Schedule schedule;
+    TEST_ASSERT_FALSE_MESSAGE(schedule.load(json.data(), json.size(), diagnostics), (name + ": accepted").c_str());
+    TEST_ASSERT_TRUE_MESSAGE(schedule.fallback().empty() && schedule.entry_count() == 0,
+                             (name + ": rejected but kept its content").c_str());
+    check_rejection(name, expected, diagnostics);
+  }
+}
+
+static void test_play_valid_cases()
+{
+  std::vector<fs::path> files = cases("play/valid");
+  TEST_ASSERT_TRUE_MESSAGE(!files.empty(), "no valid play cases found");
+  for (const fs::path &file : files)
+  {
+    std::string name = file.stem().string();
+    std::string json = read_file(file);
+    std::vector<pixelart::Diagnostic> diagnostics;
+    pixelart::ServerChoice choice;
+    TEST_ASSERT_TRUE_MESSAGE(pixelart::load_play_file(json.data(), json.size(), choice, diagnostics),
+                             (name + ": rejected:" + describe(diagnostics)).c_str());
+    TEST_ASSERT_TRUE_MESSAGE(diagnostics.empty(), (name + ": reported:" + describe(diagnostics)).c_str());
+
+    JsonDocument expected;
+    std::string expected_json = read_file(expected_path(file));
+    TEST_ASSERT_FALSE_MESSAGE(deserializeJson(expected, expected_json), (name + ": bad expected file").c_str());
+    JsonVariantConst want = expected["default"];
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(want["schedule"].isNull() ? "" : want["schedule"].as<const char *>(),
+                                     choice.schedule.c_str(), (name + ": schedule").c_str());
+    TEST_ASSERT_TRUE_MESSAGE(text_list(want["playlists"]) == choice.playlists, (name + ": playlists").c_str());
+    TEST_ASSERT_FALSE_MESSAGE(choice.is_none(), (name + ": no server choice").c_str());
+  }
+}
+
+static void test_play_invalid_cases()
+{
+  std::vector<fs::path> files = cases("play/invalid");
+  TEST_ASSERT_TRUE_MESSAGE(!files.empty(), "no invalid play cases found");
+  for (const fs::path &file : files)
+  {
+    std::string name = file.stem().string();
+    std::string json = read_file(file);
+    JsonDocument expected;
+    std::string expected_json = read_file(expected_path(file));
+    TEST_ASSERT_FALSE_MESSAGE(deserializeJson(expected, expected_json), (name + ": bad expected file").c_str());
+
+    std::vector<pixelart::Diagnostic> diagnostics;
+    pixelart::ServerChoice choice;
+    TEST_ASSERT_FALSE_MESSAGE(pixelart::load_play_file(json.data(), json.size(), choice, diagnostics),
+                              (name + ": accepted").c_str());
+    TEST_ASSERT_TRUE_MESSAGE(choice.is_none(), (name + ": rejected but kept its content").c_str());
+    check_rejection(name, expected, diagnostics);
+  }
+}
+
+static void test_schedule_winner_rows()
+{
+  JsonDocument rows;
+  TEST_ASSERT_FALSE(deserializeJson(rows, read_file(SUITE / "schedule" / "winner.json")));
+  const std::map<std::string, pixelart::Schedule> schedules = row_schedules(rows, "winner.json");
+  TEST_ASSERT_TRUE(rows["rows"].size() > 0);
+  for (JsonVariantConst row : rows["rows"].as<JsonArrayConst>())
+  {
+    const std::string schedule = row["schedule"].as<std::string>(), date = row["date"].as<std::string>();
+    const std::string at = "winner.json: " + schedule + " on " + date;
+    TEST_ASSERT_TRUE_MESSAGE(schedules.count(schedule) == 1, (at + ": no such schedule").c_str());
+    const pixelart::LocalDate local = row_date(date.c_str());
+    TEST_ASSERT_TRUE_MESSAGE(pixelart::is_schedule_date(local), (at + ": not a date").c_str());
+    const int want = row["entry"].isNull() ? -1 : row["entry"].as<int>();
+    TEST_ASSERT_EQUAL_INT_MESSAGE(want, schedules.at(schedule).winner(local), at.c_str());
+  }
+}
+
+static void test_schedule_resolver_rows()
+{
+  JsonDocument rows;
+  TEST_ASSERT_FALSE(deserializeJson(rows, read_file(SUITE / "schedule" / "resolver.json")));
+  const std::map<std::string, pixelart::Schedule> schedules = row_schedules(rows, "resolver.json");
+  TEST_ASSERT_TRUE(rows["rows"].size() > 0);
+  for (JsonVariantConst row : rows["rows"].as<JsonArrayConst>())
+  {
+    const std::string at = std::string("resolver.json: ") + row["name"].as<const char *>();
+    const std::string play = row["play"].as<std::string>();
+    TEST_ASSERT_TRUE_MESSAGE(play == "auto" || play == "playlists" || play == "schedule", (at + ": play").c_str());
+    const pixelart::PlayMode mode = play == "auto"        ? pixelart::PlayMode::Auto
+                                    : play == "playlists" ? pixelart::PlayMode::Playlists
+                                                          : pixelart::PlayMode::Schedule;
+    // The valid schedules stored on the board, by ID, as the file names them.
+    std::map<std::string, const pixelart::Schedule *> stored;
+    for (JsonPairConst pair : row["stored"].as<JsonObjectConst>())
+    {
+      const std::string key = pair.value().as<std::string>();
+      TEST_ASSERT_TRUE_MESSAGE(schedules.count(key) == 1, (at + ": no such schedule " + key).c_str());
+      stored[pair.key().c_str()] = &schedules.at(key);
+    }
+    pixelart::ServerChoice server;
+    if (!row["server_choice"].isNull())
+      TEST_ASSERT_TRUE_MESSAGE(pixelart::read_server_choice(row["server_choice"], server),
+                               (at + ": server_choice is not valid").c_str());
+    int lookups = 0;
+    const pixelart::ScheduleLookup lookup = [&](const std::string &id) -> const pixelart::Schedule *
+    {
+      lookups++;
+      const auto found = stored.find(id);
+      return found == stored.end() ? nullptr : found->second;
+    };
+    pixelart::LocalDate date;
+    if (!row["date"].isNull())
+      date = row_date(row["date"].as<const char *>());
+    const std::vector<std::string> playable = text_list(row["playable"]);
+    const pixelart::PlayChoice choice =
+        pixelart::choose_playlists(mode, text_list(row["playlists"]), row["schedule"].as<std::string>(), server, lookup,
+                                   row["date"].isNull() ? nullptr : &date,
+                                   [&](const std::string &id)
+                                   {
+                                     return std::find(playable.begin(), playable.end(), id) != playable.end();
+                                   });
+    TEST_ASSERT_TRUE_MESSAGE(lookups <= 2, (at + ": more than two schedules asked for").c_str());
+
+    JsonVariantConst expected = row["expected"];
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(expected["source"].as<const char *>(), pixelart::play_source_name(choice.source),
+                                     (at + ": source").c_str());
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(expected["schedule"].isNull() ? "" : expected["schedule"].as<const char *>(),
+                                     choice.schedule.c_str(), (at + ": schedule").c_str());
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(expected["reason"].as<const char *>(), pixelart::play_reason_name(choice.reason),
+                                     (at + ": reason").c_str());
+    TEST_ASSERT_EQUAL_INT_MESSAGE(expected["entry"].isNull() ? -1 : expected["entry"].as<int>(), choice.entry,
+                                  (at + ": entry").c_str());
+    TEST_ASSERT_TRUE_MESSAGE(text_list(expected["playlists"]) == choice.playlists, (at + ": playlists").c_str());
+    const std::string playing = choice.playing < 0 ? "" : choice.playlists[choice.playing];
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(expected["playing"].isNull() ? "" : expected["playing"].as<const char *>(),
+                                     playing.c_str(), (at + ": playing").c_str());
+  }
+}
+
 static void test_restart_replays_from_start()
 {
   std::string json = read_file(SUITE / "valid" / "timeline_loops_and_ms.json");
@@ -225,5 +461,11 @@ int main(int, char **)
   RUN_TEST(test_restart_replays_from_start);
   RUN_TEST(test_playlist_valid_cases);
   RUN_TEST(test_playlist_invalid_cases);
+  RUN_TEST(test_schedule_valid_cases);
+  RUN_TEST(test_schedule_invalid_cases);
+  RUN_TEST(test_play_valid_cases);
+  RUN_TEST(test_play_invalid_cases);
+  RUN_TEST(test_schedule_winner_rows);
+  RUN_TEST(test_schedule_resolver_rows);
   return UNITY_END();
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { supportsPlayFile, supportsSchedules } from "../../protocol";
 import type { SerialPortLike } from "../../protocol/serial";
 import { contentVersionOf, type Manifest } from "../../release/manifest";
 import { Button } from "../components/button";
@@ -26,7 +27,7 @@ interface Job {
 }
 
 /**
- * The animations and playlists after a first install (docs/web/web-app-v1.md#install-and-update): when the ESP Web
+ * The animations, playlists and schedules after a first install (docs/web/web-app-v1.md#install-and-update): when the ESP Web
  * Tools dialog of Install from scratch closes after a finished installation and `enabled` is true, connect over the
  * port it used and send everything the release publishes through the upload queue.
  */
@@ -42,14 +43,16 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
   // a repeated effect run never starts the queue twice and leaving the view drops it.
   const [phase, setPhase] = useState<Phase>("idle");
   const job = useRef<Job | null>(null);
-  const latest = useLatest({ manifest, enabled });
+  const latest = useLatest({ manifest, enabled, report });
 
   useEffect(() => {
     async function start(port: SerialPortLike, release: Manifest): Promise<void> {
       if (job.current) return;
       const mine: Job = {
         manifest: release,
-        stop: announceActivity(`Installing the animations and playlists of release ${contentVersionOf(release)}`),
+        stop: announceActivity(
+          `Installing the animations, playlists and schedules of release ${contentVersionOf(release)}`,
+        ),
       };
       job.current = mine;
       setPhase("connecting");
@@ -92,6 +95,13 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
     const items = [
       ...manifest.animations.map((entry) => ({ kind: "animation" as const, entry })),
       ...manifest.playlists.map((entry) => ({ kind: "playlist" as const, entry })),
+      // Only a firmware that knows schedules gets them, and only one that knows the play file gets it: an older one
+      // answers invalid_kind. The play file goes last, in the same queue: a refused or cancelled install sends none
+      // of it, so Automatic changes only once the file is stored.
+      ...(supportsSchedules(client.info)
+        ? manifest.schedules.map((entry) => ({ kind: "schedule" as const, entry }))
+        : []),
+      ...(supportsPlayFile(client.info) ? manifest.play.map((entry) => ({ kind: "play" as const, entry })) : []),
     ];
     void install(items, manifest).finally(() => {
       current.stop();
@@ -99,13 +109,13 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
       job.current = null;
       setPhase("idle");
     });
-  }, [phase, state, client, install]);
+  }, [phase, state, client, install, latest]);
 
   const notice: ReactNode = (
     <>
       {phase === "failed" && (
         <ErrorAlert
-          title="The animations and playlists were not installed"
+          title="The animations, playlists and schedules were not installed"
           testId="content-not-installed"
           onDismiss={() => setPhase("idle")}
           actions={
@@ -116,7 +126,7 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
         >
           <p>
             The board could not be reached after the installation. It shows its &quot;no animations&quot; image until it
-            gets them. Connect the board, then use <strong>Install all</strong> in the{" "}
+            gets them. Connect the board, then use <strong>Install all</strong>, <strong>Everything</strong>, in the{" "}
             <a href="#library" className="font-medium text-primary underline underline-offset-4">
               Library view
             </a>

@@ -1,0 +1,98 @@
+{
+  "description": "list of play files pages by ID like any other kind",
+  "files": {
+    "play/p0.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "play/p1.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "play/p2.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "play/p3.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "play/p4.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "play/p5.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "play/p6.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "play/p7.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "play/p8.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}"
+  },
+  "steps": [
+    {
+      "send": "@PR 9f7d4fd2 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"play\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "play",
+        "entries": [
+          {
+            "id": "p0",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          },
+          {
+            "id": "p1",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          },
+          {
+            "id": "p2",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          },
+          {
+            "id": "p3",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          },
+          {
+            "id": "p4",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          },
+          {
+            "id": "p5",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          },
+          {
+            "id": "p6",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          },
+          {
+            "id": "p7",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          }
+        ],
+        "more": true
+      }
+    },
+    {
+      "send": "@PR 595e3952 {\"seq\":2,\"cmd\":\"list\",\"kind\":\"play\",\"after\":\"p7\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "kind": "play",
+        "entries": [
+          {
+            "id": "p8",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          }
+        ],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR 422a7167 {\"seq\":3,\"cmd\":\"list\",\"kind\":\"play\",\"after\":\"Bad\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_id",
+        "message": "<any>"
+      }
+    }
+  ]
+}

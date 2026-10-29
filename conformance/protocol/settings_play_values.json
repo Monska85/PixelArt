@@ -1,0 +1,102 @@
+{
+  "description": "play is auto, playlists or schedule, anything else is bad_request and changes nothing",
+  "steps": [
+    {
+      "send": "@PR 8cda0cc1 {\"seq\":1,\"cmd\":\"settings_set\",\"play\":\"Auto\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR a03edb6c {\"seq\":2,\"cmd\":\"settings_set\",\"play\":\"\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 5e56d3e3 {\"seq\":3,\"cmd\":\"settings_set\",\"play\":\"Schedule\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 6486857b {\"seq\":4,\"cmd\":\"settings_set\",\"play\":null}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 19fd7bd9 {\"seq\":5,\"cmd\":\"settings_set\",\"play\":1}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR cae6d8d7 {\"seq\":6,\"cmd\":\"settings_set\",\"play\":[\"auto\"]}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR cc9911f7 {\"seq\":7,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    }
+  ]
+}

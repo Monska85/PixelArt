@@ -12,6 +12,8 @@
       "expect": {
         "seq": 1,
         "ok": true,
+        "play": 0,
+        "schedules": 0,
         "playlists": 1,
         "animations": 1
       }
@@ -23,6 +25,8 @@
       "expect": {
         "seq": 1,
         "ok": true,
+        "play": 0,
+        "schedules": 0,
         "playlists": 1,
         "animations": 1
       }
@@ -34,6 +38,8 @@
       "expect": {
         "seq": 1,
         "ok": true,
+        "play": 0,
+        "schedules": 0,
         "playlists": 1,
         "animations": 1
       }

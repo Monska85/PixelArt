@@ -229,6 +229,7 @@ test("the file lists are tabs that work with the keyboard", async ({ page, simul
   await showFiles(page);
   const animationsTab = page.getByRole("tab", { name: /^Animations/ });
   const playlistsTab = page.getByRole("tab", { name: /^Playlists/ });
+  const schedulesTab = page.getByRole("tab", { name: /^Schedules/ });
   await expect(animationsTab).toHaveAttribute("aria-selected", "true");
   await expect(animations(page)).toBeVisible();
   await expect(page.getByRole("table", { name: "Playlists on the board" })).toBeHidden();
@@ -240,15 +241,19 @@ test("the file lists are tabs that work with the keyboard", async ({ page, simul
   await expect(page.getByRole("table", { name: "Playlists on the board" })).toBeVisible();
   await expect(animations(page)).toBeHidden();
   await page.keyboard.press("ArrowRight");
+  await expect(schedulesTab).toBeFocused();
+  await expect(page.getByRole("table", { name: "Schedules on the board" })).toBeVisible();
+  await page.keyboard.press("ArrowRight");
   await expect(animationsTab).toBeFocused();
   await page.keyboard.press("End");
-  await expect(playlistsTab).toBeFocused();
+  await expect(schedulesTab).toBeFocused();
   await page.keyboard.press("Home");
   await expect(animationsTab).toBeFocused();
   await page.keyboard.press("ArrowLeft");
-  await expect(playlistsTab).toBeFocused();
-  await expect(playlistsTab).toHaveAttribute("tabindex", "0");
+  await expect(schedulesTab).toBeFocused();
+  await expect(schedulesTab).toHaveAttribute("tabindex", "0");
   await expect(animationsTab).toHaveAttribute("tabindex", "-1");
+  await expect(playlistsTab).toHaveAttribute("tabindex", "-1");
 });
 
 for (const width of [1280, 320]) {

@@ -1,0 +1,209 @@
+{
+  "description": "status.play reports the new list as soon as the play settings change",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "schedules/default.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}"
+  },
+  "update_source": {
+    "local_date": "2026-12-25"
+  },
+  "steps": [
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": true
+        },
+        "play": {
+          "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
+          "reason": "schedule",
+          "entry": 1,
+          "playlists": [
+            "christmas"
+          ],
+          "playing": "christmas",
+          "server_choice": null
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 5bf07442 {\"seq\":2,\"cmd\":\"settings_set\",\"play\":\"playlists\",\"playlists\":[\"halloween\"]}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "halloween",
+          "play": "playlists",
+          "playlists": [
+            "halloween"
+          ],
+          "schedule": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR d7145863 {\"seq\":3,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": true
+        },
+        "play": {
+          "mode": "playlists",
+          "source": "playlists",
+          "schedule": null,
+          "reason": "playlists",
+          "entry": null,
+          "playlists": [
+            "halloween"
+          ],
+          "playing": "halloween",
+          "server_choice": null
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 43719206 {\"seq\":4,\"cmd\":\"settings_set\",\"playlist\":\"default\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 7020ef6b {\"seq\":5,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": true
+        },
+        "play": {
+          "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
+          "reason": "schedule",
+          "entry": 1,
+          "playlists": [
+            "christmas"
+          ],
+          "playing": "christmas",
+          "server_choice": null
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    }
+  ]
+}

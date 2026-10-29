@@ -33,15 +33,18 @@ test("the card is first, closed by default, and says what the board holds", asyn
   await connectSimulator(page, simulator);
   await expect(card(page)).toBeVisible();
   await expect(page.getByRole("region", { name: "Files" })).toBeVisible();
-  const cards = page.getByRole("main").getByRole("region");
+  // The cards, without the regions inside them (the What to play choices of the Settings card).
+  const cards = page.getByRole("main").getByRole("region").and(page.locator(":not(section section)"));
   const order = ["Files", "Storage", "Settings", "WiFi", "Updates", "Network access"];
   await expect(cards).toHaveCount(order.length);
   for (const [index, name] of order.entries()) await expect(cards.nth(index)).toHaveAccessibleName(name);
 
   const animationCount = count(simulator.dataDir, "animations");
   const playlistCount = count(simulator.dataDir, "playlists");
+  expect(count(simulator.dataDir, "schedules")).toBe(1);
+  // The simulator does not know the date: Automatic plays the schedule's fallback, the playlist default.
   await expect(page.getByTestId("files-summary")).toHaveText(
-    `${animationCount} animations, ${playlistCount} playlists, active playlist: Christmas`,
+    `${animationCount} animations, ${playlistCount} playlists, 1 schedule, Automatic: playing Christmas`,
   );
   await expect(toggle(page)).toHaveText("Show all files");
   await expect(toggle(page)).toHaveAttribute("aria-expanded", "false");
@@ -137,7 +140,7 @@ test("a long active playlist name wraps inside the card on a phone", async ({ pa
     .getByRole("button", { name: "Replace them" })
     .click();
   const line = page.getByTestId("files-summary");
-  await expect(line).toContainText(`active playlist: ${name}`);
+  await expect(line).toContainText(`Automatic: playing ${name}`);
   // The line's text fits its own box, which the card holds.
   expect(await line.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE);
@@ -216,10 +219,18 @@ test("a playlist that misses animations is flagged while the section is closed, 
   await expect(page.getByTestId("files-missing")).toBeVisible();
 });
 
-test("the summary says when the active playlist is not stored", async ({ page, simulator }) => {
-  rmSync(stored(simulator, "playlists", "default"));
+test("the summary follows What to play and says when the board plays every animation", async ({ page, simulator }) => {
   await connectSimulator(page, simulator);
-  await expect(page.getByTestId("files-summary")).toContainText("active playlist: default (not stored)");
+  const line = page.getByTestId("files-summary");
+  await page.getByRole("radio", { name: "My choice" }).check();
+  await expect(line).toContainText("My choice, playlists: playing Christmas");
+
+  // Without the playlist default, Automatic has nothing to play from the schedule's fallback.
+  rmSync(stored(simulator, "playlists", "default"));
+  await page.getByRole("radio", { name: "Automatic" }).check();
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Refresh" }).click();
+  await expect(line).toContainText("Automatic: every animation plays");
 });
 
 // Edit sits in the list, so only an editor that does not need the list (New playlist) can open the section while it

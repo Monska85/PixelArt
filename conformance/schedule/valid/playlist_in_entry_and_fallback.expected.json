@@ -1,0 +1,31 @@
+{
+  "fallback": [
+    "default",
+    "x-1_y"
+  ],
+  "entries": [
+    {
+      "from": {
+        "month": 6
+      },
+      "to": {
+        "month": 6
+      },
+      "playlists": [
+        "default"
+      ]
+    },
+    {
+      "from": {
+        "month": 7
+      },
+      "to": {
+        "month": 7
+      },
+      "playlists": [
+        "default",
+        "x-1_y"
+      ]
+    }
+  ]
+}

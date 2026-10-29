@@ -5,6 +5,8 @@
 // live in are carried here, in a small table, because the board has no time zone database. Offsets are written the
 // POSIX way: the sign is the opposite of the usual one (CET-1 is one hour ahead of UTC).
 
+import type { LocalDate } from "../../engine";
+
 /** Central European, Eastern European and Western European rules share the day and the hour (01:00 UTC). */
 const CET = "CET-1CEST,M3.5.0,M10.5.0/3";
 const EET = "EET-2EEST,M3.5.0/3,M10.5.0/4";
@@ -123,7 +125,7 @@ export function posixTimeZone(iana: string): string | null {
   return Object.prototype.hasOwnProperty.call(ZONES, iana) ? (ZONES[iana] as string) : null;
 }
 
-/** The zones the table knows, for tests. */
+/** The IANA zones the table knows. */
 export const knownTimeZones = (): string[] => Object.keys(ZONES);
 
 /** The browser's IANA time zone, or null when it does not say. */
@@ -133,4 +135,34 @@ export function browserTimeZone(): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * The IANA zone that stands for the board's POSIX `timezone`: the browser's when it has the same rules, else the first
+ * zone of the table with them, else null (a string the table does not know).
+ */
+export function zoneOfSetting(posix: string | undefined, browser: string | null): string | null {
+  if (posix === undefined) return null;
+  if (browser !== null && posixTimeZone(browser) === posix) return browser;
+  return knownTimeZones().find((zone) => ZONES[zone] === posix) ?? null;
+}
+
+/** Today's date in an IANA zone, or in the browser's own zone when `zone` is null or unknown to the browser. */
+export function localDateIn(zone: string | null, now: Date = new Date()): LocalDate {
+  try {
+    if (zone !== null) {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: zone,
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      }).formatToParts(now);
+      const part = (type: string): number => Number(parts.find((p) => p.type === type)?.value);
+      const date = { year: part("year"), month: part("month"), day: part("day") };
+      if (Object.values(date).every(Number.isInteger)) return date;
+    }
+  } catch {
+    // A zone the browser does not know: the browser's own date.
+  }
+  return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
 }

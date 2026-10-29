@@ -7,9 +7,9 @@ import { isCount, isRecord } from "../protocol/guards";
 
 const MANIFEST_FORMAT = "pixelart-manifest/1";
 
-export type PublishedKind = "animation" | "playlist";
+export type PublishedKind = "animation" | "playlist" | "schedule" | "play";
 
-/** An animation or playlist of the release. Its address is derived from its ID, never taken from the manifest. */
+/** An animation, playlist, schedule or play file of the release. Its address is derived from its ID, never taken from the manifest. */
 export interface Published {
   id: string;
   name: string | null;
@@ -20,21 +20,30 @@ export interface Published {
 
 export interface Manifest {
   version: string;
-  /** The content release the animations and playlists come from; null for a manifest that has none (older releases). */
+  /** The content release the animations, playlists and schedules come from; null for a manifest that has none (older releases). */
   contentVersion: string | null;
   /** Whether the manifest lists firmware files: a content release alone has none, and its `version` is not a firmware's. */
   hasFirmware: boolean;
   animations: Published[];
   playlists: Published[];
+  /** Empty for a manifest without `schedules` (older releases). */
+  schedules: Published[];
+  /** The play file, the release's server choice: empty for a manifest without `play` (older releases). */
+  play: Published[];
 }
 
-/** The version the animations and playlists were released with: the content version, else the manifest's own. */
+/** The version the animations, playlists and schedules were released with: the content version, else the manifest's own. */
 export const contentVersionOf = (manifest: Manifest): string => manifest.contentVersion ?? manifest.version;
 
 /** The most a board stores per file (docs/protocol/protocol-v1.md); a larger published file cannot be installed. */
 export const MAX_FILE_BYTES: Record<PublishedKind, number> = FILE_LIMITS;
 
-const FOLDER: Record<PublishedKind, string> = { animation: "animations", playlist: "playlists" };
+const FOLDER: Record<PublishedKind, string> = {
+  animation: "animations",
+  playlist: "playlists",
+  schedule: "schedules",
+  play: "play",
+};
 
 /** Relative to the page, as the manifest's own paths are relative to the manifest. */
 export const publishedPath = (kind: PublishedKind, id: string): string => `./${FOLDER[kind]}/${id}.json`;
@@ -80,6 +89,8 @@ export function parseManifest(text: string): Manifest | null {
     hasFirmware: Array.isArray(firmware) && firmware.length > 0,
     animations: parseEntries(document.animations, "animation"),
     playlists: parseEntries(document.playlists, "playlist"),
+    schedules: parseEntries(document.schedules, "schedule"),
+    play: parseEntries(document.play, "play"),
   };
 }
 

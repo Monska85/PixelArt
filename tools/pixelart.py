@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Converts animation and playlist sources (YAML or JSON) to the JSON files the board reads.
+"""Converts animation, playlist, schedule and play sources (YAML or JSON) to the JSON files the board reads.
 
     python3 tools/pixelart.py build [--source DIR] [--out DIR] [--schema]
     python3 tools/pixelart.py board (--port DEVICE | --ws URL) [--token TOKEN] COMMAND
 
-Reads <source>/animations/*.yaml|*.json and <source>/playlists/*.yaml|*.json and
-writes compact JSON to <out>/animations/<id>.json and <out>/playlists/<id>.json,
-the layout of the board's file system. The file name (without extension) is
-the ID. With --schema, every file is also checked against the JSON Schemas in
-schema/ (needs the jsonschema package). The full validation, including
-references between sprites, runs in the engine: see `make validate`.
+Reads <source>/animations/, <source>/playlists/ and <source>/schedules/ (*.yaml,
+*.yml or *.json) and writes compact JSON to <out>/<folder>/<id>.json, the layout
+of the board's file system. The file name (without extension) is the ID. With
+--schema, every file is also checked against the JSON Schemas in schema/ (needs
+the jsonschema package). Schedules are always checked in full, ties included
+(docs/format/schedule-v1.md), and a playlist they name that the source lacks is
+a warning. <source>/play.yaml, when it exists, is built as <out>/play/default.json (docs/format/play-v1.md);
+the schedule or playlists it names that the source lacks are warnings. The full validation of animations and
+playlists, including references between sprites, runs in the engine: see `make validate`.
 
 The board command talks to a board over USB serial (--port, needs pyserial), to
 the simulator over its WebSocket (--ws ws://127.0.0.1:8765) or to a board over
@@ -22,18 +25,19 @@ as an HMAC and never printed. Commands reserved for USB (wifi, token, wipe
 --settings) are refused over WiFi. COMMAND is one of:
 
     info                           firmware, storage and limits of the board
-    ls [--kind KIND]               stored animations and playlists
+    ls [--kind KIND]               stored animations, playlists, schedules and play files
     put FILE [--id ID] [--kind KIND]   upload a YAML or JSON file
     get ID [--kind KIND] [-o FILE]     download a file, checked against its SHA-256
     rm ID [--kind KIND]            delete a file
-    settings [key=value ...]       show or change the settings (brightness, playlist, wifi_power, update_mode, ...)
+    settings [key=value ...]       show or change the settings (brightness, play, playlists, wifi_power, ...);
+                                   a list takes IDs separated by commas: playlists=halloween,christmas
     status                         WiFi state, network name, address, signal, transmit power and update state
     update check                   check for updates now and wait for the result
-    update install animations      install the animations and playlists the last check found, and wait
+    update install animations      install the animations, playlists, schedules and play files the last check found, and wait
     update install firmware [--force]  install the firmware the last check found, and wait for the restart;
                                    --force also installs a version a rollback put on the skip list
     wifi [--forget]                set up WiFi with Improv over USB (--port only), or forget the stored network
-    wipe [--settings] [--yes]      delete every animation and playlist, and with --settings reset the settings,
+    wipe [--settings] [--yes]      delete every animation, playlist, schedule and play file, and with --settings reset the settings,
                                    forget the WiFi network and make a new token
 
 The serial port can be open in one program only: close the serial monitor first.
@@ -43,6 +47,7 @@ Needs Python 3.9+ and PyYAML. --ws needs the websockets package, version 15 or l
 
 import argparse
 import base64
+import datetime
 import getpass
 import hashlib
 import hmac
@@ -64,7 +69,10 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
-KINDS = {"animations": "pixelart-1.schema.json", "playlists": "playlist-1.schema.json"}
+# In build order: a schedule is checked against the playlists built before it
+KINDS = {"animations": "pixelart-1.schema.json", "playlists": "playlist-1.schema.json", "schedules": "schedule-1.schema.json"}
+PLAY_FILE = "play.yaml"
+PLAY_SCHEMA = "play-1.schema.json"
 
 
 class StrictLoader(yaml.SafeLoader):
@@ -104,8 +112,510 @@ def compact_json(document):
         raise ValueError(f"text with a lone surrogate (U+{ord(e.object[e.start]):04X}), which UTF-8 cannot hold") from None
 
 
+# ---- schedules: the validation and the winner rules of docs/format/schedule-v1.md ----
+
+SCHEDULE_FORMAT = "pixelart-schedule/1"
+SCHEDULE_MAX_BYTES = 16 * 1024
+SCHEDULE_MAX_ENTRIES = 64
+SCHEDULE_MAX_PLAYLISTS = 8
+SCHEDULE_MAX_NAME = 128
+SCHEDULE_YEARS = (2000, 2999)
+MAX_DIAGNOSTICS = 32
+PART_RANGES = {"year": SCHEDULE_YEARS, "month": (1, 12), "day": (1, 31)}
+INT64_MIN, INT64_MAX = -2**63, 2**63 - 1
+# The accepted part sets, from the one that wins to the one that loses (winner rules 1 and 2)
+PART_SETS = (("year", "month", "day"), ("month", "day"), ("year", "month"), ("day",), ("month",), ("year",))
+COMMON_MONTH_DAYS = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+DAYS_BEFORE_MONTH = tuple(sum(COMMON_MONTH_DAYS[:m]) for m in range(12))
+
+
+class Diagnostics(list):
+    """The messages about one file, at most MAX_DIAGNOSTICS: when full, an error replaces the latest warning."""
+
+    def add(self, severity, code, where, message):
+        item = {"severity": severity, "code": code, "where": where, "message": message}
+        if len(self) < MAX_DIAGNOSTICS:
+            self.append(item)
+        elif severity == "error":
+            for i in range(len(self) - 1, -1, -1):
+                if self[i]["severity"] == "warning":
+                    self[i] = item
+                    return
+
+    def error(self, code, where, message):
+        self.add("error", code, where, message)
+
+    def has_errors(self):
+        return any(d["severity"] == "error" for d in self)
+
+
+def is_leap(year):
+    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+
+
+def month_days(year_is_leap, month):
+    return 29 if month == 2 and year_is_leap else COMMON_MONTH_DAYS[month - 1]
+
+
+def _bad_text(value):
+    """Why a text breaks the rules of the files (U+0000, a lone surrogate), or None."""
+    if "\0" in value:
+        return "holds U+0000"
+    if any(0xD800 <= ord(c) <= 0xDFFF for c in value):
+        return "holds a lone surrogate"
+    return None
+
+
+def parse_strict_json(data):
+    """The value of a board file's bytes, or a ValueError for anything strict JSON in valid UTF-8 refuses
+    (docs/format/pixelart-v1.md#files): Python's own reader also takes NaN, Infinity and lone surrogate escapes."""
+    if data.startswith(b"\xef\xbb\xbf"):
+        raise ValueError("a byte order mark")
+    text = data.decode("utf-8")  # strict: invalid, overlong and surrogate sequences raise
+
+    def refuse(name):
+        raise ValueError(f"{name} is not JSON")
+
+    value = json.loads(text, parse_constant=refuse)
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, str):
+            texts, children = [item], []
+        elif isinstance(item, dict):
+            texts, children = list(item), list(item.values())
+        elif isinstance(item, list):
+            texts, children = [], item
+        else:
+            continue
+        for t in texts:
+            problem = _bad_text(t)
+            if problem:
+                raise ValueError(f"a text {problem}")
+        stack.extend(children)
+    return value
+
+
+def _check_text(diagnostics, value, where):
+    reason = _bad_text(value)
+    if reason:
+        diagnostics.error("structure", where, f"the text {reason}")
+    return reason is None
+
+
+def _check_name(diagnostics, value, where):
+    if not isinstance(value, str):
+        diagnostics.error("structure", where, "a name is text")
+    elif _check_text(diagnostics, value, where) and not 1 <= len(value) <= SCHEDULE_MAX_NAME:
+        diagnostics.error("structure", where, f"a name is 1 to {SCHEDULE_MAX_NAME} characters, this one has {len(value)}")
+
+
+def _check_playlists(diagnostics, value, where, known):
+    if not isinstance(value, list):
+        diagnostics.error("structure", where, "a list of playlist IDs is expected")
+        return
+    if not value:
+        diagnostics.error("structure", where, "the list names no playlist")
+        return
+    if len(value) > SCHEDULE_MAX_PLAYLISTS:
+        diagnostics.error("limit_exceeded", where, f"{len(value)} playlists, more than {SCHEDULE_MAX_PLAYLISTS}")
+    seen = set()
+    for i, item in enumerate(value):
+        at = f"{where}[{i}]"
+        if not isinstance(item, str) or not ID_PATTERN.fullmatch(item):
+            diagnostics.error("structure", at, "a playlist ID: lowercase letters, digits, _ and -, at most 32 characters")
+        elif item in seen:
+            diagnostics.error("structure", at, f"the playlist '{item}' is named twice")
+        else:
+            seen.add(item)
+            if known is not None and item not in known:
+                diagnostics.add("warning", "unknown_playlist", at, f"no playlist '{item}'")
+
+
+def _part_set(end):
+    return tuple(p for p in ("year", "month", "day") if p in end)
+
+
+def _check_end(diagnostics, end, where):
+    """(part set, whether every part is in range) of an end, or (None, False) after a structure error.
+
+    A part out of its range is an invalid_date error but keeps the part set, so the part sets of the two ends are
+    still compared, as the engine does.
+    """
+    if not isinstance(end, dict):
+        diagnostics.error("structure", where, "an end is an object with year, month and day")
+        return None, False
+    ok = True
+    in_range = True
+    for key in end:
+        if key not in PART_RANGES:
+            diagnostics.error("structure", f"{where}.{key}", f"unknown field '{key}'")
+            ok = False
+    parts = _part_set(end)
+    if not parts:
+        diagnostics.error("structure", where, "an end needs a year, a month or a day")
+        return None, False
+    if parts == ("year", "day"):
+        diagnostics.error("structure", where, "an end with a year and a day needs a month")
+        ok = False
+    for part in parts:
+        value = end[part]
+        # An integer beyond the signed 64-bit range is not an integer for the format (schedule-v1.md#validation).
+        if not isinstance(value, int) or isinstance(value, bool) or not INT64_MIN <= value <= INT64_MAX:
+            diagnostics.error("structure", f"{where}.{part}", f"{part} is an integer of at most 64 bits")
+            ok = False
+        elif not PART_RANGES[part][0] <= value <= PART_RANGES[part][1]:
+            low, high = PART_RANGES[part]
+            diagnostics.error("invalid_date", f"{where}.{part}", f"{part} is {low} to {high}, not {value}")
+            in_range = False
+    return (parts, in_range) if ok else (None, False)
+
+
+def _check_dates(diagnostics, entry, parts, where):
+    """The rules on real dates and on the order of the ends, for an entry whose ends are valid."""
+    for side in ("from", "to"):
+        end = entry[side]
+        if "day" in end and "month" in end:
+            leap = is_leap(end["year"]) if "year" in end else True
+            if end["day"] > month_days(leap, end["month"]):
+                what = f"{end['year']}-{end['month']:02}-{end['day']:02}" if "year" in end else f"month {end['month']} day {end['day']}"
+                diagnostics.error("invalid_date", f"{where}.{side}", f"{what} is not a date")
+                return
+    if "year" in parts:
+        first, last = (tuple(entry[side][p] for p in parts) for side in ("from", "to"))
+        if first > last:
+            diagnostics.error("invalid_date", where, "from is after to")
+
+
+def validate_schedule(document, size=None, playlists=None):
+    """The diagnostics of a pixelart-schedule/1 document, its errors and its unknown_playlist warnings.
+
+    size is the length of its JSON in bytes, when known. playlists is the set of the playlist IDs the board or the
+    release has: without it, no unknown_playlist warning. The tie check is separate: find_schedule_tie().
+    """
+    diagnostics = Diagnostics()
+    if size is not None and size > SCHEDULE_MAX_BYTES:
+        diagnostics.error("limit_exceeded", "", f"the file is {size} bytes, more than {SCHEDULE_MAX_BYTES}")
+    if not isinstance(document, dict):
+        diagnostics.error("format_unsupported", "", "a schedule is a JSON object")
+        return diagnostics
+    if document.get("format") != SCHEDULE_FORMAT:
+        diagnostics.error("format_unsupported", "format", f"the format is not {SCHEDULE_FORMAT}")
+        return diagnostics
+    for key in document:
+        if key not in ("format", "name", "fallback", "entries"):
+            diagnostics.error("structure", key, f"unknown field '{key}'")
+    if "name" in document:
+        _check_name(diagnostics, document["name"], "name")
+    if "fallback" not in document:
+        diagnostics.error("structure", "fallback", "fallback is required")
+    else:
+        _check_playlists(diagnostics, document["fallback"], "fallback", playlists)
+    entries = document.get("entries", [])
+    if not isinstance(entries, list):
+        diagnostics.error("structure", "entries", "entries is a list")
+        return diagnostics
+    if len(entries) > SCHEDULE_MAX_ENTRIES:
+        diagnostics.error("limit_exceeded", "entries", f"{len(entries)} entries, more than {SCHEDULE_MAX_ENTRIES}")
+    for i, entry in enumerate(entries):
+        where = f"entries[{i}]"
+        if not isinstance(entry, dict):
+            diagnostics.error("structure", where, "an entry is an object")
+            continue
+        for key in entry:
+            if key not in ("name", "from", "to", "playlists"):
+                diagnostics.error("structure", f"{where}.{key}", f"unknown field '{key}'")
+        if "name" in entry:
+            _check_name(diagnostics, entry["name"], f"{where}.name")
+        for key in ("from", "to", "playlists"):
+            if key not in entry:
+                diagnostics.error("structure", f"{where}.{key}", f"{key} is required")
+        if "playlists" in entry:
+            _check_playlists(diagnostics, entry["playlists"], f"{where}.playlists", playlists)
+        (from_parts, from_ok), (to_parts, to_ok) = (
+            _check_end(diagnostics, entry[side], f"{where}.{side}") if side in entry else (None, False)
+            for side in ("from", "to"))
+        if from_parts is not None and to_parts is not None:
+            if from_parts != to_parts:
+                diagnostics.error("structure", where, "from and to have different parts")
+            elif from_ok and to_ok:
+                _check_dates(diagnostics, entry, from_parts, where)
+    return diagnostics
+
+
+def _common_day_number(month, day):
+    """n(month, day) of docs/format/schedule-v1.md#lengths: February 29 is day 60, as March 1."""
+    return DAYS_BEFORE_MONTH[month - 1] + day
+
+
+def schedule_length(entry):
+    """The length of an entry's range in the unit of its part set (winner rule 3)."""
+    first, last = entry["from"], entry["to"]
+    parts = _part_set(first)
+    if parts == ("year", "month", "day"):
+        return (datetime.date(last["year"], last["month"], last["day"]) -
+                datetime.date(first["year"], first["month"], first["day"])).days + 1
+    if parts == ("month", "day"):
+        start, end = _common_day_number(first["month"], first["day"]), _common_day_number(last["month"], last["day"])
+        crosses = (first["month"], first["day"]) > (last["month"], last["day"])
+        return 365 - start + end + 1 if crosses else end - start + 1
+    if parts == ("year", "month"):
+        return (12 * last["year"] + last["month"]) - (12 * first["year"] + first["month"]) + 1
+    if parts == ("year",):
+        return last["year"] - first["year"] + 1
+    part, cycle = ("day", 31) if parts == ("day",) else ("month", 12)
+    start, end = first[part], last[part]
+    return cycle - start + end + 1 if start > end else end - start + 1
+
+
+def _year_mask(entry, year, leap):
+    """The days of `year` an entry matches, as a bit set: bit n is day n of the year, from 0.
+
+    For an entry without a year only `leap` matters, so the caller may pass any year.
+    """
+    first, last = entry["from"], entry["to"]
+    parts = _part_set(first)
+
+    def day_index(month, day):
+        return DAYS_BEFORE_MONTH[month - 1] + (1 if leap and month > 2 else 0) + day - 1
+
+    def span(start, end):
+        return (1 << (end + 1)) - (1 << start) if start <= end else 0
+
+    year_end = day_index(12, 31)
+    if "year" in parts:
+        start = (first["year"], first.get("month", 1), first.get("day", 1))
+        end = (last["year"], last.get("month", 12), last.get("day", 31))
+        if not start[0] <= year <= end[0]:
+            return 0
+        start = start if start[0] == year else (year, 1, 1)
+        end = end if end[0] == year else (year, 12, 31)
+        # A month without a day ends on its last day
+        end_day = min(end[2], month_days(leap, end[1]))
+        return span(day_index(start[1], start[2]), day_index(end[1], end_day))
+    if parts == ("month",):
+        a, b = first["month"], last["month"]
+        months = range(a, b + 1) if a <= b else [*range(a, 13), *range(1, b + 1)]
+        mask = 0
+        for m in months:
+            mask |= span(day_index(m, 1), day_index(m, month_days(leap, m)))
+        return mask
+    if parts == ("month", "day"):
+        def first_on_or_after(m, d):  # February 29 of a common year: March 1
+            return day_index(m, d) if d <= month_days(leap, m) else day_index(m + 1, 1)
+
+        def last_on_or_before(m, d):  # February 29 of a common year: February 28
+            return day_index(m, min(d, month_days(leap, m)))
+
+        a, b = (first["month"], first["day"]), (last["month"], last["day"])
+        if a <= b:
+            return span(first_on_or_after(*a), last_on_or_before(*b))
+        return span(first_on_or_after(*a), year_end) | span(0, last_on_or_before(*b))
+    a, b = first["day"], last["day"]
+    mask = 0
+    for m in range(1, 13):
+        length = month_days(leap, m)
+        if a <= b:
+            mask |= span(day_index(m, a), day_index(m, min(b, length))) if a <= length else 0
+        else:
+            mask |= span(day_index(m, a), day_index(m, length)) if a <= length else 0
+            mask |= span(day_index(m, 1), day_index(m, min(b, length)))
+    return mask
+
+
+def _ranked(entries):
+    """The entries as (index, part set rank, length), for a document validate_schedule() accepts."""
+    return [(i, PART_SETS.index(_part_set(e["from"])), schedule_length(e)) for i, e in enumerate(entries)]
+
+
+def schedule_winner(document, year, month, day):
+    """The index of the entry that wins on a date, or None when none matches; the first one of a tie, as a board takes it."""
+    entries = document.get("entries", [])
+    leap = is_leap(year)
+    bit = 1 << (DAYS_BEFORE_MONTH[month - 1] + (1 if leap and month > 2 else 0) + day - 1)
+    candidates = [(rank, length, i) for i, rank, length in _ranked(entries) if _year_mask(entries[i], year, leap) & bit]
+    return min(candidates)[2] if candidates else None
+
+
+def _date_of(year, leap, index):
+    """The date of a day of the year, YYYY-MM-DD, or MM-DD of a leap or common year when year is None."""
+    for m in range(1, 13):
+        if index < month_days(leap, m):
+            day = f"{m:02}-{index + 1:02}"
+            return f"{year}-{day}" if year is not None else f"{day} of a {'leap' if leap else 'common'} year"
+        index -= month_days(leap, m)
+    raise ValueError(index)
+
+
+def _tie_in_year(ranked, masks):
+    """(day index, first entry, second entry) of the first tie in one year, or None.
+
+    The entries go from the best rank and length to the worst. Two entries with the same rank and length that match
+    one day tie there, unless a better entry, already in `covered`, matches it too.
+    """
+    covered = 0
+    groups = {}
+    for i, rank, length in ranked:
+        groups.setdefault((rank, length), []).append(i)
+    for key in sorted(groups):
+        seen = 0
+        for position, i in enumerate(groups[key]):
+            mask = masks(i)
+            clash = mask & seen & ~covered
+            if clash:
+                day = (clash & -clash).bit_length() - 1
+                other = next(j for j in groups[key][:position] if (masks(j) >> day) & 1)
+                return day, other, i
+            seen |= mask
+        covered |= seen
+    return None
+
+
+def find_schedule_tie(document):
+    """The first date that ends in a tie (docs/format/schedule-v1.md#ties) as (date, first entry, second entry), or None.
+
+    The date is YYYY-MM-DD, or MM-DD of a leap or common year for a tie of the entries without a year. The document
+    must have no errors. The check covers every day from the smallest to the largest year of the entries with a
+    year, with every entry, then one leap year and one common year with the entries without a year, which depend
+    only on the month lengths. One bit set per entry and year keeps 1,000 years of 64 entries fast.
+    """
+    entries = document.get("entries", [])
+    ranked = _ranked(entries)
+    years = [e[side]["year"] for e in entries for side in ("from", "to") if "year" in e[side]]
+    undated = [r for r in ranked if "year" not in entries[r[0]]["from"]]
+    # Only the entries without a year are kept between years: each year, and so each mask of an entry with a year,
+    # is visited once.
+    undated_masks = {}
+
+    def masks_for(year, leap):
+        dated_masks = {}
+
+        def mask(i):
+            cache, key = (dated_masks, i) if "year" in entries[i]["from"] else (undated_masks, (i, leap))
+            if key not in cache:
+                cache[key] = _year_mask(entries[i], year, leap)
+            return cache[key]
+        return mask
+
+    checks = [(year, ranked, True) for year in range(min(years), max(years) + 1)] if years else []
+    # Any leap and any common year: without a year, an entry matches the same days in all of them
+    checks += [(2028, undated, False), (2027, undated, False)]
+    for year, subset, dated_pass in checks:
+        leap = is_leap(year)
+        tie = _tie_in_year(subset, masks_for(year, leap))
+        if tie is not None:
+            day, first, second = tie
+            return _date_of(year if dated_pass else None, leap, day), first, second
+    return None
+
+
+def check_schedule(document, size=None, playlists=None):
+    """validate_schedule() and, when the document has no error, the tie check: every diagnostic of the build tools."""
+    diagnostics = validate_schedule(document, size, playlists)
+    if not diagnostics.has_errors():
+        tie = find_schedule_tie(document)
+        if tie is not None:
+            date, first, second = tie
+            diagnostics.error("schedule_tie", "entries",
+                              f"entries {first} and {second} tie on {date}: change one of them so one entry wins")
+    return diagnostics
+
+
+PLAY_FORMAT = "pixelart-play/1"
+PLAY_MAX_BYTES = 1024
+
+
+def validate_play(document, size=None, schedules=None, playlists=None):
+    """The diagnostics of a pixelart-play/1 document, its errors and its unknown_schedule and unknown_playlist
+    warnings (docs/format/play-v1.md#validation).
+
+    size is the length of its JSON in bytes, when known. schedules and playlists are the sets of IDs the board or the
+    release has: without one, no warning about that kind.
+    """
+    diagnostics = Diagnostics()
+    if size is not None and size > PLAY_MAX_BYTES:
+        diagnostics.error("limit_exceeded", "", f"the file is {size} bytes, more than {PLAY_MAX_BYTES}")
+    if not isinstance(document, dict):
+        diagnostics.error("format_unsupported", "", "a play file is a JSON object")
+        return diagnostics
+    if document.get("format") != PLAY_FORMAT:
+        diagnostics.error("format_unsupported", "format", f"the format is not {PLAY_FORMAT}")
+        return diagnostics
+    for key in document:
+        if key not in ("format", "default"):
+            diagnostics.error("structure", key, f"unknown field '{key}'")
+    if "default" not in document:
+        diagnostics.error("structure", "default", "default is required")
+        return diagnostics
+    choice = document["default"]
+    if not isinstance(choice, dict):
+        diagnostics.error("structure", "default", "default is an object with schedule or playlists")
+        return diagnostics
+    for key in choice:
+        if key not in ("schedule", "playlists"):
+            diagnostics.error("structure", f"default.{key}", f"unknown field '{key}'")
+    kinds = [key for key in ("schedule", "playlists") if key in choice]
+    if len(kinds) != 1:
+        diagnostics.error("structure", "default", "default has exactly one of schedule and playlists")
+    elif kinds[0] == "schedule":
+        value = choice["schedule"]
+        if not isinstance(value, str) or not ID_PATTERN.fullmatch(value):
+            diagnostics.error("structure", "default.schedule", "a schedule ID: lowercase letters, digits, _ and -, at most 32 characters")
+        elif schedules is not None and value not in schedules:
+            diagnostics.add("warning", "unknown_schedule", "default.schedule", f"no schedule '{value}'")
+    else:
+        _check_playlists(diagnostics, choice["playlists"], "default.playlists", playlists)
+    return diagnostics
+
+
+def build_play_file(source, out, built, validator):
+    """Builds <source>/play.yaml as <out>/play/default.json. 1 when it fails, else 0 (also without the file) and
+    the number of files written. A play file left in <out> by an earlier build goes first, so that a play.yaml
+    that is gone or fails is never published from an old output."""
+    path = source / PLAY_FILE
+    target = out / "play" / "default.json"
+    target.unlink(missing_ok=True)
+    if not path.is_file():
+        return 0, 0
+    try:
+        document = load_source(path)
+        data = compact_json(document)
+    except (yaml.YAMLError, TypeError, ValueError) as e:
+        print(f"{path}: {e}", file=sys.stderr)
+        return 1, 0
+    if validator is not None:
+        problems = sorted(validator.iter_errors(document), key=lambda e: list(e.absolute_path))
+        for problem in problems:
+            where = ".".join(str(p) for p in problem.absolute_path) or "(root)"
+            print(f"{path}: {where}: {problem.message}", file=sys.stderr)
+        if problems:
+            return 1, 0
+    # Always, with or without --schema: that the files exist is beyond the schema
+    diagnostics = validate_play(document, len(data), set(built.get("schedules", ())), set(built.get("playlists", ())))
+    print_diagnostics(str(path), diagnostics, sys.stderr)
+    if diagnostics.has_errors():
+        return 1, 0
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    return 0, 1
+
+
+def remove_stale_outputs(out, outputs):
+    """Removes every JSON file of the board's folders in <out> that this build did not write: the output of a source
+    file that is gone or failed, and anything else stored there, such as a file uploaded to the simulator. <out> is
+    then exactly the build of the content. Returns how many files it removed."""
+    removed = 0
+    for folder in (*KINDS, "play"):
+        for path in sorted((out / folder).glob("*.json")):
+            if f"{folder}/{path.name}" not in outputs:
+                path.unlink()
+                removed += 1
+    return removed
+
+
 def build(source, out, use_schema):
     validators = {}
+    play_validator = None
     if use_schema:
         try:
             import jsonschema
@@ -113,9 +623,12 @@ def build(source, out, use_schema):
             sys.exit("pixelart: --schema needs the jsonschema package (pip install jsonschema)")
         for kind, schema in KINDS.items():
             validators[kind] = jsonschema.Draft202012Validator(json.loads((ROOT / "schema" / schema).read_text()))
+        play_validator = jsonschema.Draft202012Validator(json.loads((ROOT / "schema" / PLAY_SCHEMA).read_text()))
 
     errors = 0
     written = 0
+    built = {}
+    outputs = set()  # every file this build wrote, relative to out
     for kind in KINDS:
         files = sorted(p for p in (source / kind).glob("*") if p.suffix in (".yaml", ".yml", ".json"))
         ids = {}
@@ -146,11 +659,27 @@ def build(source, out, use_schema):
                 if problems:
                     errors += 1
                     continue
+            if kind == "schedules":
+                # Always, with or without --schema: the dates and the ties are beyond the schema
+                diagnostics = check_schedule(document, len(data), set(built.get("playlists", ())))
+                print_diagnostics(str(path), diagnostics, sys.stderr)
+                if diagnostics.has_errors():
+                    errors += 1
+                    continue
             target = out / kind / f"{name}.json"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
+            built.setdefault(kind, []).append(name)
+            outputs.add(f"{kind}/{name}.json")
             written += 1
-    print(f"pixelart: wrote {written} files to {out}" + (f", {errors} failed" if errors else ""))
+    failed, wrote = build_play_file(source, out, built, play_validator)
+    errors += failed
+    written += wrote
+    if wrote:
+        outputs.add("play/default.json")
+    removed = remove_stale_outputs(out, outputs)
+    print(f"pixelart: wrote {written} files to {out}" + (f", removed {removed} stale" if removed else "")
+          + (f", {errors} failed" if errors else ""))
     return 1 if errors else 0
 
 
@@ -165,10 +694,12 @@ CONNECT_DELAYS = (0.2, 0.4, 0.8, 1.6, 3.2)  # seconds waited after each refused 
 # A reply line is at most 16 KiB (protocol-v1.md, limits): a line or a fragmented message gets that plus margin.
 MAX_LINE = 64 * 1024
 DEFAULT_CHUNK = 512
-KIND_FOLDERS = {"animations": "animation", "playlists": "playlist"}
-KIND_FORMATS = {"pixelart/1": "animation", "pixelart-playlist/1": "playlist"}
+KIND_FOLDERS = {"animations": "animation", "playlists": "playlist", "schedules": "schedule", "play": "play"}
+KIND_FORMATS = {"pixelart/1": "animation", "pixelart-playlist/1": "playlist", SCHEDULE_FORMAT: "schedule",
+                PLAY_FORMAT: "play"}
 # The board's own limits (docs/protocol/protocol-v1.md, limits): the most a client accepts when the board names none.
-FILE_LIMITS = {"animation": 64 * 1024, "playlist": 16 * 1024}
+FILE_LIMITS = {"animation": 64 * 1024, "playlist": 16 * 1024, "schedule": SCHEDULE_MAX_BYTES,
+               "play": PLAY_MAX_BYTES}
 # Control (Cc), format (Cf, which holds the bidirectional overrides and zero-width marks), line and paragraph
 # separators (Zl, Zp) and lone surrogates (Cs) change what a terminal shows or cannot be printed.
 _UNSAFE_CATEGORIES = {"Cc", "Cf", "Zl", "Zp", "Cs"}
@@ -494,7 +1025,7 @@ def print_diagnostics(label, diagnostics, stream=sys.stderr):
 
 
 def infer_kind(path, document):
-    """animation or playlist, from the folder the file is in, else from its `format` field."""
+    """animation, playlist, schedule or play, from the folder the file is in, else from its `format` field."""
     kind = KIND_FOLDERS.get(path.resolve().parent.name)
     if kind is None and isinstance(document, dict):
         kind = KIND_FORMATS.get(document.get("format"))
@@ -639,8 +1170,15 @@ def board_info(board, args):
     return 0
 
 
+def board_kinds(board):
+    """The kinds of file the board stores. A firmware older than schedules or than the play file has no
+    formats.schedule or formats.play and answers invalid_kind to that kind."""
+    formats = dict_of(board.info.get("formats"))
+    return ["animation", "playlist"] + [kind for kind in ("schedule", "play") if kind in formats]
+
+
 def board_ls(board, args):
-    for kind in [args.kind] if args.kind else ["animation", "playlist"]:
+    for kind in [args.kind] if args.kind else board_kinds(board):
         for e in board.entries(kind):
             e = shown(e)
             # A faulty board may send an id that is not a string: the format spec needs one.
@@ -660,8 +1198,9 @@ def board_put(board, args):
         raise BoardError(f"{path}: {e}")
     kind = args.kind or infer_kind(path, document)
     if kind is None:
-        raise BoardError(f"{path}: cannot tell an animation from a playlist: pass --kind")
-    file_id = args.id or path.stem
+        raise BoardError(f"{path}: cannot tell an animation, a playlist, a schedule or a play file apart: pass --kind")
+    # content/play.yaml is built as the ID default, the one the board uses
+    file_id = args.id or ("default" if kind == "play" else path.stem)
     if not ID_PATTERN.match(file_id):
         raise BoardError(f"invalid ID '{file_id}': use lowercase letters, digits, _ and -, at most 32 characters (--id)")
     try:
@@ -707,15 +1246,20 @@ def confirmed(prompt):
 
 # What `wipe --settings` puts back: the defaults of the settings table in docs/protocol/protocol-v1.md, also
 # DEFAULT_SETTINGS in web/src/protocol/files.ts.
-DEFAULT_SETTINGS = {"brightness": 100, "playlist": "default"}
-DEFAULTS_TEXT = (f"brightness {DEFAULT_SETTINGS['brightness']}, playlist {DEFAULT_SETTINGS['playlist']} and the defaults "
+DEFAULT_SETTINGS = {"brightness": 100, "play": "auto", "playlists": ["default"], "schedule": "default",
+                    "playlist": "default", "time_sync_hours": 6, "ntp_server": "pool.ntp.org"}
+DEFAULTS_TEXT = (f"brightness {DEFAULT_SETTINGS['brightness']}, play {DEFAULT_SETTINGS['play']}, playlists "
+                 f"{','.join(DEFAULT_SETTINGS['playlists'])}, schedule {DEFAULT_SETTINGS['schedule']}, playlist "
+                 f"{DEFAULT_SETTINGS['playlist']}, time_sync_hours "
+                 f"{DEFAULT_SETTINGS['time_sync_hours']}, ntp_server {DEFAULT_SETTINGS['ntp_server']} and the defaults "
                  "of the WiFi power, update and login settings; the WiFi network is forgotten and the token is made again")
 
 
 def board_wipe(board, args):
     reset = args.settings
-    question = ("Delete every animation and playlist on the board and put the settings back to their defaults "
-                f"({DEFAULTS_TEXT}, over USB only)? " if reset else "Delete every animation and playlist on the board? The settings stay. ")
+    question = ("Delete every animation, playlist, schedule and play file on the board and put the settings back to their defaults "
+                f"({DEFAULTS_TEXT}, over USB only)? " if reset
+                else "Delete every animation, playlist, schedule and play file on the board? The settings stay. ")
     if not args.yes and not confirmed(question + "Type yes to continue: "):
         print("nothing deleted", file=sys.stderr)
         return 1
@@ -729,24 +1273,32 @@ def board_wipe(board, args):
             raise BoardError(f"{e}: nothing was deleted; update the board's firmware to use wipe --settings") from e
         raise
     playlists, animations = reply.get("playlists"), reply.get("animations")
-    if not (is_count(playlists) and is_count(animations)):
+    # A firmware older than schedules or than the play file leaves that count out of the reply
+    counts = {name: reply[name] for name in ("play", "schedules") if name in reply}
+    if not (is_count(playlists) and is_count(animations) and all(is_count(n) for n in counts.values())):
         raise BoardError("the board reports invalid counts for delete_all")
-    print(f"deleted {playlists} playlists and {animations} animations")
+    names = {"play": "play files", "schedules": "schedules"}
+    parts = [f"{counts[name]} {names[name]}" for name in ("play", "schedules") if name in counts]
+    print("deleted " + ", ".join(parts + [f"{playlists} playlists"]) + f" and {animations} animations" if parts
+          else f"deleted {playlists} playlists and {animations} animations")
     if reset:
         settings = reply.get("settings")
         if not isinstance(settings, dict):
             raise BoardError("the board sent no settings after resetting them")
-        for key, value in shown(settings).items():
-            print(f"{key}={value}")
+        print_settings(settings)
     return 0
 
 
 WIFI_POWERS = ("auto", "8.5", "11", "13", "15", "17", "18.5", "19.5")
 TEXT_SETTINGS = {"wifi_power", "update_mode", "timezone", "animation_source"}
 FLAG_SETTINGS = {"update_firmware", "update_animations", "network_login"}
-NUMBER_SETTINGS = {"check_hours": (1, 168), "install_start": (0, 1439), "install_end": (0, 1439)}
-SETTING_NAMES = ("brightness", "playlist", "wifi_power", "update_mode", "update_firmware", "update_animations",
-                 "check_hours", "install_start", "install_end", "timezone", "animation_source", "network_login")
+NUMBER_SETTINGS = {"check_hours": (1, 168), "install_start": (0, 1439), "install_end": (0, 1439),
+                   "time_sync_hours": (1, 168)}
+SETTING_NAMES = ("brightness", "play", "playlists", "schedule", "playlist", "wifi_power", "update_mode", "update_firmware",
+                 "update_animations", "check_hours", "install_start", "install_end", "timezone", "time_sync_hours",
+                 "ntp_server", "animation_source", "network_login")
+MAX_USER_PLAYLISTS = 8
+NTP_SERVER_PATTERN = re.compile(r"[A-Za-z0-9.-]{1,64}")
 
 
 def parse_settings(pairs):
@@ -763,9 +1315,26 @@ def parse_settings(pairs):
             if not re.fullmatch(r"[0-9]{1,3}", value) or int(value) > 255:
                 raise BoardError("brightness is a whole number from 0 to 255")
             changes[key] = int(value)
-        elif key == "playlist":
-            if not ID_PATTERN.match(value):
-                raise BoardError("playlist is a playlist ID: lowercase letters, digits, _ and -")
+        elif key in ("playlist", "schedule"):
+            if not ID_PATTERN.fullmatch(value):
+                raise BoardError(f"{key} is a {key} ID: lowercase letters, digits, _ and -")
+            changes[key] = value
+        elif key == "play":
+            if value not in ("auto", "playlists", "schedule"):
+                raise BoardError("play is auto (what the release says), playlists (the playlists setting) or "
+                                 "schedule (the schedule setting)")
+            changes[key] = value
+        elif key == "playlists":
+            ids = value.split(",")
+            if not 1 <= len(ids) <= MAX_USER_PLAYLISTS or not all(ID_PATTERN.fullmatch(i) for i in ids):
+                raise BoardError(f"playlists is 1 to {MAX_USER_PLAYLISTS} playlist IDs separated by commas: "
+                                 "lowercase letters, digits, _ and -")
+            if len(set(ids)) != len(ids):
+                raise BoardError("playlists names a playlist twice")
+            changes[key] = ids
+        elif key == "ntp_server":
+            if not NTP_SERVER_PATTERN.fullmatch(value):
+                raise BoardError("ntp_server is a host name or an IPv4 address of 1 to 64 letters, digits, . and -")
             changes[key] = value
         elif key == "wifi_power":
             if value not in WIFI_POWERS:
@@ -793,11 +1362,18 @@ def parse_settings(pairs):
     return changes
 
 
+def print_settings(settings):
+    """Every setting as key=value, a list as its items separated by commas, the form `settings` takes back."""
+    for key, value in shown(settings).items():
+        if isinstance(value, list):
+            value = ",".join(str(v) for v in value)
+        print(f"{key}={value}")
+
+
 def board_settings(board, args):
     changes = parse_settings(args.pairs)
     reply = board.command("settings_set", **changes) if changes else board.command("settings_get")
-    for key, value in shown(dict_of(reply.get("settings"))).items():
-        print(f"{key}={value}")
+    print_settings(dict_of(reply.get("settings")))
     return 0
 
 
@@ -1052,14 +1628,15 @@ def add_board_parser(sub):
     b.add_argument("--token", help="the board's token, for a board over WiFi with network login on "
                                    "(safer: the environment variable PIXELART_TOKEN)")
     commands = b.add_subparsers(dest="board_command", required=True)
-    kinds = ("animation", "playlist")
+    kinds = ("animation", "playlist", "schedule", "play")
     commands.add_parser("info", help="firmware, storage and limits")
     ls = commands.add_parser("ls", help="list the stored files")
-    ls.add_argument("--kind", choices=kinds, help="only this kind (default: both)")
-    put = commands.add_parser("put", help="upload an animation or a playlist (YAML or JSON)")
+    ls.add_argument("--kind", choices=kinds, help="only this kind (default: every kind the board stores)")
+    put = commands.add_parser("put", help="upload an animation, a playlist, a schedule or a play file (YAML or JSON)")
     put.add_argument("file", type=Path)
-    put.add_argument("--id", help="file ID (default: the file name without extension)")
-    put.add_argument("--kind", choices=kinds, help="default: from the animations/ or playlists/ folder, else the format field")
+    put.add_argument("--id", help="file ID (default: the file name without extension, `default` for a play file)")
+    put.add_argument("--kind", choices=kinds,
+                     help="default: from the animations/, playlists/, schedules/ or play/ folder, else the format field")
     get = commands.add_parser("get", help="download a stored file, checking its SHA-256")
     get.add_argument("id")
     get.add_argument("--kind", choices=kinds, default="animation")
@@ -1067,20 +1644,21 @@ def add_board_parser(sub):
     rm = commands.add_parser("rm", help="delete a stored file")
     rm.add_argument("id")
     rm.add_argument("--kind", choices=kinds, default="animation")
-    wipe = commands.add_parser("wipe", help="delete every animation and playlist; the settings stay unless --settings")
+    wipe = commands.add_parser("wipe", help="delete every animation, playlist, schedule and play file; the settings stay unless --settings")
     wipe.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     wipe.add_argument("--settings", action="store_true",
                       help=f"also put the settings back to their defaults ({DEFAULTS_TEXT}; USB only)")
     settings = commands.add_parser("settings", help="show the settings, or change them with key=value")
     settings.add_argument("pairs", nargs="*", metavar="key=value",
-                          help="any of: " + ", ".join(SETTING_NAMES) + ". The token is read only and shown by `settings`")
+                          help="any of: " + ", ".join(SETTING_NAMES) + ". playlists takes IDs separated by commas. "
+                               "The token is read only and shown by `settings`")
     commands.add_parser("status", help="WiFi state, network name, address, signal and update state")
     update = commands.add_parser("update", help="check for updates, or install what a check found, and wait for the board")
     update_commands = update.add_subparsers(dest="update_command", required=True)
     update_commands.add_parser("check", help="check now")
     install = update_commands.add_parser("install", help="install what the last check found, ignoring the install window")
     install.add_argument("target", choices=("animations", "firmware"),
-                         help="animations: the animations and playlists; firmware: the firmware, which restarts the board")
+                         help="animations: the animations, playlists, schedules and play files; firmware: the firmware, which restarts the board")
     install.add_argument("--force", action="store_true",
                          help="firmware only: also install the version a rollback put on the skip list")
     wifi = commands.add_parser("wifi", help="set up WiFi with Improv over USB, asking for the name and password")
@@ -1091,8 +1669,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     b = sub.add_parser("build", help="convert sources to the board's JSON files")
-    b.add_argument("--source", type=Path, default=ROOT / "content", help="folder with animations/ and playlists/ (default: content/)")
-    b.add_argument("--out", type=Path, default=ROOT / "data", help="output folder (default: data/)")
+    b.add_argument("--source", type=Path, default=ROOT / "content",
+                   help="folder with animations/, playlists/, schedules/ and play.yaml (default: content/)")
+    b.add_argument("--out", type=Path, default=ROOT / "data", help="output folder; its JSON files that no source produces are removed (default: data/)")
     b.add_argument("--schema", action="store_true", help="also check every file against the JSON Schemas")
     add_board_parser(sub)
     args = parser.parse_args()

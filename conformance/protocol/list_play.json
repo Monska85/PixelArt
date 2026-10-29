@@ -1,0 +1,52 @@
+{
+  "description": "list of play files has no name and no version, sorted by ID, apart from the other kinds",
+  "files": {
+    "play/other.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"playlists\":[\"default\"]}}",
+    "play/default.json": "{\"format\":\"pixelart-play/1\",\"default\":{\"schedule\":\"seasons\"}}",
+    "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 9f7d4fd2 {\"seq\":1,\"cmd\":\"list\",\"kind\":\"play\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "play",
+        "entries": [
+          {
+            "id": "default",
+            "size": 61,
+            "sha256": "c400d5de00ce76e0c3ec2cd724395c8195126711ccc9e7e11afd17b2b2a52407"
+          },
+          {
+            "id": "other",
+            "size": 64,
+            "sha256": "fdf45f7c2db2b34f98c3d48097311a042dd7431422d2c2db04666695565da693"
+          }
+        ],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR a3cd6daa {\"seq\":2,\"cmd\":\"list\",\"kind\":\"schedule\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "kind": "schedule",
+        "entries": [
+          {
+            "id": "seasons",
+            "name": "Seasons",
+            "size": 285,
+            "sha256": "6cc16775019c0be9f62dd35f2919dc51e39e5afcafad2cf29292ba6c8e6ee2b0"
+          }
+        ],
+        "more": false
+      }
+    }
+  ]
+}

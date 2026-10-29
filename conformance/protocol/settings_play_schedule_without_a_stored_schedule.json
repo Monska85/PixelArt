@@ -1,0 +1,67 @@
+{
+  "description": "play schedule on a board that never set a schedule uses default, even though no schedule default is stored",
+  "steps": [
+    {
+      "send": "@PR 1a55f730 {\"seq\":1,\"cmd\":\"settings_set\",\"play\":\"schedule\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "play": "schedule",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": {
+          "brightness": 100,
+          "playlist": "default",
+          "play": "schedule",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
+          "wifi_power": "auto",
+          "update_mode": "automatic",
+          "update_firmware": true,
+          "update_animations": true,
+          "check_hours": 6,
+          "install_start": 0,
+          "install_end": 0,
+          "timezone": "UTC0",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
+          "animation_source": "https://monska85.github.io/PixelArt/manifest.json",
+          "network_login": false,
+          "token": "<any>"
+        }
+      }
+    }
+  ]
+}

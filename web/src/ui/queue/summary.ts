@@ -12,13 +12,15 @@ import { BUSY_MESSAGE } from "../upload";
 
 type Verb = "Uploaded" | "Installed";
 
-/** "3 animations", "1 playlist", "2 animations and 1 playlist". */
+const KIND_NAMES = { animation: "animation", playlist: "playlist", schedule: "schedule", play: "play file" } as const;
+
+/** "3 animations", "1 playlist", "2 animations and 1 playlist", "2 animations, 1 playlist and 1 play file". */
 function describeCounts(files: QueueFile[]): string {
-  const animations = files.filter((f) => f.kind === "animation").length;
-  const playlists = files.length - animations;
-  return [animations > 0 && plural(animations, "animation"), playlists > 0 && plural(playlists, "playlist")]
-    .filter(Boolean)
-    .join(" and ");
+  const parts = (["animation", "playlist", "schedule", "play"] as const)
+    .map((kind) => [kind, files.filter((f) => f.kind === kind).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([kind, n]) => plural(n, KIND_NAMES[kind]));
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : (parts[0] ?? "");
 }
 
 const ids = (files: QueueFile[]): string => files.map((f) => f.id).join(", ");
@@ -67,7 +69,7 @@ export function summaryReport(summary: QueueSummary, verb: Verb): SummaryReport 
   else if (uploaded.length === 1 && skipped.length === 0) {
     const file = uploaded[0]?.file as QueueFile;
     toast = {
-      title: `${verb} ${file.kind} ${file.id}`,
+      title: `${verb} ${KIND_NAMES[file.kind]} ${file.id}`,
       description: formatSize(file.bytes.length),
       tone: "success",
     };

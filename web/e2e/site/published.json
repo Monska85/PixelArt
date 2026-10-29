@@ -2,5 +2,7 @@
   "version": "0.1.0",
   "contentVersion": "0.2.0",
   "animations": ["snowflake", "star", "wreath"],
-  "playlists": ["default"]
+  "playlists": ["default"],
+  "schedules": ["default"],
+  "play": ["default"]
 }

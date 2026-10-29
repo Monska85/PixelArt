@@ -1,0 +1,1056 @@
+{
+  "description": "Hand-computed rows of docs/format/playlist-v1.md#how-the-board-chooses-what-to-play. schedules holds valid pixelart-schedule/1 documents by key. Each row gives the settings play (auto, playlists or schedule), playlists and schedule; stored, the valid schedules stored on the board, by ID, each naming a key of schedules (an ID that is not there is not stored, and a schedule that is stored but not valid is not listed); server_choice (null, {\"schedule\": id} or {\"playlists\": [ids]}); the local date (YYYY-MM-DD, or null when the time is not known); and playable, the IDs of the stored playlists the board can play. expected is what status.play reports besides mode and server_choice: source (server, playlists, schedule or fallback), schedule (the ID of the schedule the list comes from, or null), reason, entry (the winning entry's 0-based index, or null), playlists (the list the board plays) and playing (the first playable playlist of that list, or null when the board plays every animation).",
+  "schedules": {
+    "seasons": {
+      "format": "pixelart-schedule/1",
+      "name": "Seasons",
+      "fallback": ["default"],
+      "entries": [
+        {
+          "name": "Halloween",
+          "from": {
+            "month": 10,
+            "day": 1
+          },
+          "to": {
+            "month": 11,
+            "day": 2
+          },
+          "playlists": ["halloween"]
+        },
+        {
+          "name": "Christmas",
+          "from": {
+            "month": 12,
+            "day": 1
+          },
+          "to": {
+            "month": 1,
+            "day": 6
+          },
+          "playlists": ["christmas"]
+        }
+      ]
+    },
+    "winter": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["winter", "default"],
+      "entries": [
+        {
+          "from": {
+            "month": 12
+          },
+          "to": {
+            "month": 12
+          },
+          "playlists": ["christmas", "snow"]
+        }
+      ]
+    },
+    "fallback_only": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["christmas", "halloween"]
+    },
+    "missing_fallback": {
+      "format": "pixelart-schedule/1",
+      "fallback": ["winter"]
+    }
+  },
+  "rows": [
+    {
+      "name": "my playlists play the user's list, whatever the schedule and the date",
+      "play": "playlists",
+      "playlists": ["halloween", "christmas"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": "2026-12-25",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "playlists",
+        "schedule": null,
+        "reason": "playlists",
+        "entry": null,
+        "playlists": ["halloween", "christmas"],
+        "playing": "halloween"
+      }
+    },
+    {
+      "name": "my playlists skip a missing playlist",
+      "play": "playlists",
+      "playlists": ["ghost", "christmas"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": null,
+      "playable": ["christmas"],
+      "expected": {
+        "source": "playlists",
+        "schedule": null,
+        "reason": "playlists",
+        "entry": null,
+        "playlists": ["ghost", "christmas"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "my playlists with every playlist skipped play every animation, never default",
+      "play": "playlists",
+      "playlists": ["ghost"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": "2026-11-15",
+      "playable": ["default"],
+      "expected": {
+        "source": "playlists",
+        "schedule": null,
+        "reason": "playlists",
+        "entry": null,
+        "playlists": ["ghost"],
+        "playing": null
+      }
+    },
+    {
+      "name": "my playlists without a schedule",
+      "play": "playlists",
+      "playlists": ["christmas"],
+      "schedule": "default",
+      "stored": {},
+      "server_choice": null,
+      "date": null,
+      "playable": ["christmas"],
+      "expected": {
+        "source": "playlists",
+        "schedule": null,
+        "reason": "playlists",
+        "entry": null,
+        "playlists": ["christmas"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "automatic without a schedule plays default",
+      "play": "auto",
+      "playlists": ["christmas"],
+      "schedule": "default",
+      "stored": {},
+      "server_choice": null,
+      "date": "2026-12-25",
+      "playable": ["default", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "automatic without a schedule and without default plays every animation",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {},
+      "server_choice": null,
+      "date": null,
+      "playable": [],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": null
+      }
+    },
+    {
+      "name": "automatic without the time plays the fallback",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": null,
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "no_time",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "automatic on Christmas day plays the winning entry, and ignores the user's list",
+      "play": "auto",
+      "playlists": ["halloween"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": "2026-12-25",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "schedule",
+        "entry": 1,
+        "playlists": ["christmas"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "automatic on Halloween",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "schedule",
+        "entry": 0,
+        "playlists": ["halloween"],
+        "playing": "halloween"
+      }
+    },
+    {
+      "name": "the last day of an entry that crosses the end of the year",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": "2027-01-06",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "schedule",
+        "entry": 1,
+        "playlists": ["christmas"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "the day after it plays the fallback",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": "2027-01-07",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "fallback",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "no entry matches",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": "2026-11-15",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "fallback",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "the winning entry's only playlist is missing: the fallback plays, and entry still names the winner",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": "2026-12-25",
+      "playable": ["default"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "fallback",
+        "entry": 1,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "the first playlist of the entry is skipped, the second plays",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "winter"
+      },
+      "server_choice": null,
+      "date": "2026-12-10",
+      "playable": ["snow"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "schedule",
+        "entry": 0,
+        "playlists": ["christmas", "snow"],
+        "playing": "snow"
+      }
+    },
+    {
+      "name": "every playlist of the entry is skipped: the fallback plays from its first playable playlist",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "winter"
+      },
+      "server_choice": null,
+      "date": "2026-12-10",
+      "playable": ["default"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "fallback",
+        "entry": 0,
+        "playlists": ["winter", "default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "the entry and the fallback are skipped, and so is default: every animation",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "winter"
+      },
+      "server_choice": null,
+      "date": "2026-12-10",
+      "playable": [],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "fallback",
+        "entry": 0,
+        "playlists": ["default"],
+        "playing": null
+      }
+    },
+    {
+      "name": "no entry matches and the fallback plays its first playlist",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "winter"
+      },
+      "server_choice": null,
+      "date": "2026-11-10",
+      "playable": ["winter", "default"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "fallback",
+        "entry": null,
+        "playlists": ["winter", "default"],
+        "playing": "winter"
+      }
+    },
+    {
+      "name": "without the time, a fallback that is entirely skipped falls back to default",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "missing_fallback"
+      },
+      "server_choice": null,
+      "date": null,
+      "playable": ["default"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "no_time",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "with the time, a fallback that is entirely skipped falls back to default",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "missing_fallback"
+      },
+      "server_choice": null,
+      "date": "2027-05-05",
+      "playable": ["default"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "fallback",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "without the time, the fallback, then default, are skipped: every animation",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "winter"
+      },
+      "server_choice": null,
+      "date": null,
+      "playable": ["snow"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "no_time",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": null
+      }
+    },
+    {
+      "name": "a schedule with only a fallback plays its playlists in turn",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "fallback_only"
+      },
+      "server_choice": null,
+      "date": "2026-06-01",
+      "playable": ["default", "christmas", "halloween"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "fallback",
+        "entry": null,
+        "playlists": ["christmas", "halloween"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "a schedule with only a fallback, without the time",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "fallback_only"
+      },
+      "server_choice": null,
+      "date": null,
+      "playable": ["halloween"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "no_time",
+        "entry": null,
+        "playlists": ["christmas", "halloween"],
+        "playing": "halloween"
+      }
+    },
+    {
+      "name": "my playlists ignore the schedule setting and the server choice",
+      "play": "playlists",
+      "playlists": ["halloween"],
+      "schedule": "seasons",
+      "stored": {
+        "seasons": "seasons",
+        "default": "winter"
+      },
+      "server_choice": {
+        "schedule": "seasons"
+      },
+      "date": "2026-12-25",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "playlists",
+        "schedule": null,
+        "reason": "playlists",
+        "entry": null,
+        "playlists": ["halloween"],
+        "playing": "halloween"
+      }
+    },
+    {
+      "name": "my schedule: a valid stored schedule plays by the date",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "seasons",
+      "stored": {
+        "seasons": "seasons"
+      },
+      "server_choice": null,
+      "date": "2026-12-25",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "schedule",
+        "schedule": "seasons",
+        "reason": "schedule",
+        "entry": 1,
+        "playlists": ["christmas"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "my schedule without the time plays its fallback",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "seasons",
+      "stored": {
+        "seasons": "seasons"
+      },
+      "server_choice": null,
+      "date": null,
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "schedule",
+        "schedule": "seasons",
+        "reason": "no_time",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "my schedule is found by its ID, not by the key of the document",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "summer",
+      "stored": {
+        "summer": "fallback_only"
+      },
+      "server_choice": null,
+      "date": "2026-06-01",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "schedule",
+        "schedule": "summer",
+        "reason": "fallback",
+        "entry": null,
+        "playlists": ["christmas", "halloween"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "my schedule ignores the server choice and the schedule default",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "seasons",
+      "stored": {
+        "seasons": "seasons",
+        "default": "winter"
+      },
+      "server_choice": {
+        "playlists": ["christmas"]
+      },
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "schedule",
+        "schedule": "seasons",
+        "reason": "schedule",
+        "entry": 0,
+        "playlists": ["halloween"],
+        "playing": "halloween"
+      }
+    },
+    {
+      "name": "my schedule: the winning entry is skipped, the fallback plays",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "winter",
+      "stored": {
+        "winter": "winter"
+      },
+      "server_choice": null,
+      "date": "2026-12-10",
+      "playable": ["default"],
+      "expected": {
+        "source": "schedule",
+        "schedule": "winter",
+        "reason": "fallback",
+        "entry": 0,
+        "playlists": ["winter", "default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "my schedule: the entry, the fallback and default are skipped, every animation plays",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "winter",
+      "stored": {
+        "winter": "winter"
+      },
+      "server_choice": null,
+      "date": "2026-12-10",
+      "playable": [],
+      "expected": {
+        "source": "schedule",
+        "schedule": "winter",
+        "reason": "fallback",
+        "entry": 0,
+        "playlists": ["default"],
+        "playing": null
+      }
+    },
+    {
+      "name": "my schedule is missing: the schedule default plays instead, with source fallback",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "ghost",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": null,
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "schedule",
+        "entry": 0,
+        "playlists": ["halloween"],
+        "playing": "halloween"
+      }
+    },
+    {
+      "name": "my schedule is missing and the schedule default plays its fallback without the time",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "ghost",
+      "stored": {
+        "default": "winter"
+      },
+      "server_choice": null,
+      "date": null,
+      "playable": ["default"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "no_time",
+        "entry": null,
+        "playlists": ["winter", "default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "my schedule is missing and so is the schedule default: the playlist default",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "ghost",
+      "stored": {},
+      "server_choice": null,
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "my schedule is missing, the schedule default is missing and the playlist default is skipped: every animation",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "ghost",
+      "stored": {},
+      "server_choice": null,
+      "date": "2026-10-31",
+      "playable": ["christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": null
+      }
+    },
+    {
+      "name": "my schedule named default is missing: it is not tried twice, and another stored schedule is not used",
+      "play": "schedule",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "seasons": "seasons"
+      },
+      "server_choice": null,
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "automatic, server schedule: the winning entry plays, and the user's settings are ignored",
+      "play": "auto",
+      "playlists": ["halloween"],
+      "schedule": "winter",
+      "stored": {
+        "seasons": "seasons",
+        "default": "winter"
+      },
+      "server_choice": {
+        "schedule": "seasons"
+      },
+      "date": "2026-12-25",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "server",
+        "schedule": "seasons",
+        "reason": "schedule",
+        "entry": 1,
+        "playlists": ["christmas"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "automatic, server schedule without the time plays its fallback",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "seasons": "seasons"
+      },
+      "server_choice": {
+        "schedule": "seasons"
+      },
+      "date": null,
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "server",
+        "schedule": "seasons",
+        "reason": "no_time",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "automatic, server schedule with no matching entry plays its fallback",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "seasons": "seasons"
+      },
+      "server_choice": {
+        "schedule": "seasons"
+      },
+      "date": "2026-11-15",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "server",
+        "schedule": "seasons",
+        "reason": "fallback",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "automatic, server schedule: the winning entry is skipped, the fallback plays",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "seasons": "seasons"
+      },
+      "server_choice": {
+        "schedule": "seasons"
+      },
+      "date": "2026-12-25",
+      "playable": ["default"],
+      "expected": {
+        "source": "server",
+        "schedule": "seasons",
+        "reason": "fallback",
+        "entry": 1,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "automatic, server schedule: everything is skipped, every animation plays and the source stays server",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "winter": "winter"
+      },
+      "server_choice": {
+        "schedule": "winter"
+      },
+      "date": "2026-12-10",
+      "playable": [],
+      "expected": {
+        "source": "server",
+        "schedule": "winter",
+        "reason": "fallback",
+        "entry": 0,
+        "playlists": ["default"],
+        "playing": null
+      }
+    },
+    {
+      "name": "automatic, server schedule named default and stored: source server",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": {
+        "schedule": "default"
+      },
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "server",
+        "schedule": "default",
+        "reason": "schedule",
+        "entry": 0,
+        "playlists": ["halloween"],
+        "playing": "halloween"
+      }
+    },
+    {
+      "name": "automatic, server schedule named default and missing: the playlist default, tried once",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {},
+      "server_choice": {
+        "schedule": "default"
+      },
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "automatic, server schedule is missing: the schedule default plays, with source fallback",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": {
+        "schedule": "ghost"
+      },
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "schedule",
+        "entry": 0,
+        "playlists": ["halloween"],
+        "playing": "halloween"
+      }
+    },
+    {
+      "name": "automatic, server schedule is missing and so is the schedule default: the playlist default",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {},
+      "server_choice": {
+        "schedule": "ghost"
+      },
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "automatic, server schedule and the schedule default are missing, the playlist default too: every animation",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {},
+      "server_choice": {
+        "schedule": "ghost"
+      },
+      "date": null,
+      "playable": ["christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": null
+      }
+    },
+    {
+      "name": "automatic, server list plays its playlists in turn, whatever the date and the schedule default",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": {
+        "playlists": ["christmas", "halloween"]
+      },
+      "date": "2026-10-31",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "server",
+        "schedule": null,
+        "reason": "playlists",
+        "entry": null,
+        "playlists": ["christmas", "halloween"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "automatic, server list skips a missing playlist and keeps the list",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {},
+      "server_choice": {
+        "playlists": ["ghost", "halloween"]
+      },
+      "date": null,
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "server",
+        "schedule": null,
+        "reason": "playlists",
+        "entry": null,
+        "playlists": ["ghost", "halloween"],
+        "playing": "halloween"
+      }
+    },
+    {
+      "name": "automatic, server list with every playlist skipped: the schedule default plays, with source fallback",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {
+        "default": "seasons"
+      },
+      "server_choice": {
+        "playlists": ["ghost", "other"]
+      },
+      "date": "2026-12-25",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": "default",
+        "reason": "schedule",
+        "entry": 1,
+        "playlists": ["christmas"],
+        "playing": "christmas"
+      }
+    },
+    {
+      "name": "automatic, server list with every playlist skipped and no schedule default: the playlist default",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {},
+      "server_choice": {
+        "playlists": ["ghost", "other"]
+      },
+      "date": "2026-12-25",
+      "playable": ["default", "halloween", "christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": "default"
+      }
+    },
+    {
+      "name": "automatic, server list skipped, no schedule default, the playlist default skipped: every animation",
+      "play": "auto",
+      "playlists": ["default"],
+      "schedule": "default",
+      "stored": {},
+      "server_choice": {
+        "playlists": ["ghost"]
+      },
+      "date": null,
+      "playable": ["christmas"],
+      "expected": {
+        "source": "fallback",
+        "schedule": null,
+        "reason": "no_schedule",
+        "entry": null,
+        "playlists": ["default"],
+        "playing": null
+      }
+    }
+  ]
+}

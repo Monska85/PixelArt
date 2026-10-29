@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { firmwareBeforeSchedules } from "./board";
 import { connectSimulator, expect, stored, test, watchReplies, watchRequests, type Simulator } from "./fixtures";
 
 const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
@@ -84,7 +85,9 @@ test.describe("with an update source", () => {
     await expect(updates.getByTestId("update-modes")).toContainText("Automatic: The board checks and installs");
     await expect(updates.getByRole("switch", { name: "Firmware updates" })).toBeChecked();
     await expect(updates.getByRole("switch", { name: "Animation updates" })).toBeChecked();
-    await expect(updates).toContainText("The release wins: animations and playlists with the same name are replaced");
+    await expect(updates).toContainText(
+      "The release wins: animations, playlists and schedules with the same name are replaced",
+    );
     await expect(updates.getByLabel("Check every (hours)")).toHaveValue("6");
     await expect(updates.getByLabel("From", { exact: true })).toHaveValue("00:00");
     await expect(updates.getByLabel("To", { exact: true })).toHaveValue("00:00");
@@ -111,12 +114,16 @@ test.describe("with an update source", () => {
     const updates = card(page);
     await updates.getByRole("button", { name: "Check now" }).click();
     await expect(updates.getByTestId("update-last-check")).toContainText("ago: Done");
-    await expect(updates.getByTestId("update-available")).toContainText("3 animation or playlist changes to install");
+    await expect(updates.getByTestId("update-available")).toContainText(
+      "3 animation, playlist or schedule changes to install",
+    );
     // Notify mode stores nothing by itself.
     expect(existsSync(stored(simulator, "animations", "one"))).toBe(false);
 
     await updates.getByRole("button", { name: "Install animations" }).click();
-    await expect(updates.getByTestId("update-available")).toContainText("animations and playlists are up to date");
+    await expect(updates.getByTestId("update-available")).toContainText(
+      "animations, playlists and schedules are up to date",
+    );
     expect(readFileSync(stored(simulator, "animations", "one"), "utf8")).toBe(ONE);
     expect(readFileSync(stored(simulator, "animations", "two"), "utf8")).toBe(TWO);
     expect(readFileSync(stored(simulator, "playlists", "mix"), "utf8")).toBe(PLAYLIST);
@@ -224,13 +231,14 @@ test.describe("in the time zone of Rome", () => {
   test.use({ updateSource: site(), timezoneId: "Europe/Rome" });
 
   test("the install window is sent with the POSIX rule of the browser's time zone", async ({ page, simulator }) => {
-    const replies = watchReplies(page, "settings_set");
+    // A firmware from before schedules: the Updates card sends the zone. One that knows them has a Time zone field.
+    const board = await firmwareBeforeSchedules(page, simulator);
     await connectInNotifyMode(page, simulator);
     const updates = card(page);
     await expect(updates.getByTestId("time-zone")).toContainText("Time zone: Europe/Rome. The board uses UTC0");
     await updates.getByLabel("From", { exact: true }).fill("22:00");
     await expect(updates.getByLabel("From", { exact: true })).toHaveValue("22:00");
-    expect(replies.replies.at(-1)).toMatchObject({
+    expect(board.replies("settings_set").at(-1)).toMatchObject({
       ok: true,
       settings: { install_start: 1320, install_end: 0, timezone: "CET-1CEST,M3.5.0,M10.5.0/3" },
     });
@@ -238,11 +246,24 @@ test.describe("in the time zone of Rome", () => {
     await expect(updates.getByTestId("time-zone")).toContainText("the one of this browser");
     await updates.getByLabel("To", { exact: true }).fill("06:00");
     await expect(updates.getByLabel("To", { exact: true })).toHaveValue("06:00");
-    expect(replies.replies.at(-1)).toMatchObject({ settings: { install_start: 1320, install_end: 360 } });
+    expect(board.replies("settings_set").at(-1)).toMatchObject({ settings: { install_start: 1320, install_end: 360 } });
     await expect(updates.getByTestId("install-window")).toContainText("22:00 to 06:00 (over midnight)");
     // Equal times are the whole day again.
     await updates.getByLabel("To", { exact: true }).fill("22:00");
     await expect(updates.getByTestId("install-window")).toContainText("whole day");
+  });
+
+  test("on a firmware that knows schedules the window sends no time zone: Settings has the field", async ({
+    page,
+    simulator,
+  }) => {
+    const replies = watchReplies(page, "settings_set");
+    await connectInNotifyMode(page, simulator);
+    const updates = card(page);
+    await expect(updates.getByTestId("time-zone")).toHaveText("Time zone: UTC, set under Time in the Settings card.");
+    await updates.getByLabel("From", { exact: true }).fill("22:00");
+    await expect(updates.getByLabel("From", { exact: true })).toHaveValue("22:00");
+    expect(replies.replies.at(-1)).toMatchObject({ ok: true, settings: { install_start: 1320, timezone: "UTC0" } });
   });
 });
 
@@ -250,13 +271,13 @@ test.describe("in a time zone the table does not have", () => {
   test.use({ updateSource: site(), timezoneId: "Pacific/Chatham" });
 
   test("the window keeps the board's time zone and the card says so", async ({ page, simulator }) => {
-    const replies = watchReplies(page, "settings_set");
+    const board = await firmwareBeforeSchedules(page, simulator);
     await connectInNotifyMode(page, simulator);
     const updates = card(page);
     await expect(updates.getByTestId("time-zone")).toContainText("does not know the rules of your time zone");
     await updates.getByLabel("From", { exact: true }).fill("01:00");
     await expect(updates.getByLabel("From", { exact: true })).toHaveValue("01:00");
-    expect(replies.replies.at(-1)).toMatchObject({ settings: { install_start: 60, timezone: "UTC0" } });
+    expect(board.replies("settings_set").at(-1)).toMatchObject({ settings: { install_start: 60, timezone: "UTC0" } });
   });
 });
 
@@ -271,7 +292,9 @@ test.describe("with a download that fails", () => {
     await updates.getByRole("button", { name: "Install animations" }).click();
     await expect(updates.getByTestId("update-last-check")).toContainText("(network_error)");
     await expect(updates).toContainText("1 file in the last update");
-    await expect(updates.getByTestId("update-available")).toContainText("1 animation or playlist change to install");
+    await expect(updates.getByTestId("update-available")).toContainText(
+      "1 animation, playlist or schedule change to install",
+    );
     expect(existsSync(stored(simulator, "animations", "one"))).toBe(true);
     expect(existsSync(stored(simulator, "animations", "two"))).toBe(false);
   });

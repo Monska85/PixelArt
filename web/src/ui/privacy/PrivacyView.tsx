@@ -29,8 +29,8 @@ export function PrivacyView() {
       />
       <Section id="privacy-browser" title="What stays in your browser">
         <p>
-          Your animations, playlists, settings and WiFi details are not sent to any server. The app keeps only these
-          things in this browser, and you can remove them by clearing the site data:
+          Your animations, playlists, schedules, settings and WiFi details are not sent to any server. The app keeps
+          only these things in this browser, and you can remove them by clearing the site data:
         </p>
         <ul className="flex list-disc flex-col gap-1 pl-5" data-testid="privacy-stored">
           {STORED_ITEMS.map((item) => (
@@ -52,10 +52,11 @@ export function PrivacyView() {
       </Section>
       <Section id="privacy-site" title="What the site sees">
         <p>
-          The site only serves files: this app, the list of released animations and playlists, and the firmware. The app
-          loads them from its own address and from nowhere else: no fonts, analytics, error reporting, advertising or
-          other third-party service, and no request to any site other than this one and your board (a link opens another
-          site only when you click it). It does not tell the site which board you use or what is on it.
+          The site only serves files: this app, the list of released animations, playlists and schedules, and the
+          firmware. The app loads them from its own address and from nowhere else: no fonts, analytics, error reporting,
+          advertising or other third-party service, and no request to any site other than this one and your board (a
+          link opens another site only when you click it). It does not tell the site which board you use or what is on
+          it.
         </p>
         <p>
           Like any website, the host of the site (GitHub Pages) sees the standard data of every request: your IP
@@ -65,9 +66,11 @@ export function PrivacyView() {
       <Section id="privacy-board-contacts" title="What your board contacts">
         <p>
           To check for updates the board itself contacts the release site (the firmware manifest) and the animation
-          source, and pool.ntp.org for the time when the install window is narrower than the whole day. Those requests
-          carry none of your data, and those hosts see the board&apos;s IP address. Set the update mode to Off to stop
-          them.
+          source. For the time it asks the time server of its Time server setting (pool.ntp.org unless you change it),
+          and only while it needs the time: when the board plays a schedule, or when the install window is narrower than
+          the whole day. Those requests carry none of your data, and those hosts see the board&apos;s IP address. Set
+          the update mode to Off to stop the update checks; the time requests stop when no schedule and no narrow
+          install window needs the time.
         </p>
       </Section>
       <Section id="privacy-limits" title="Limits">

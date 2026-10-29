@@ -22,7 +22,7 @@ import { text } from "./helpers";
 
 const sha = (n: number): string => n.toString(16).padStart(64, "0");
 
-function file(kind: "animation" | "playlist", id: string, size = 100, hash = 1): QueueFile {
+function file(kind: QueueFile["kind"], id: string, size = 100, hash = 1): QueueFile {
   return { kind, id, bytes: new Uint8Array(size), sha256: sha(hash), origin: `${id}.yaml` };
 }
 
@@ -34,7 +34,17 @@ const entry = (id: string, size: number, hash: number | null): Entry => ({
   version: null,
 });
 
-const board = (animation: Entry[] = [], playlist: Entry[] = []): StoredFiles => ({ animation, playlist });
+const board = (
+  animation: Entry[] = [],
+  playlist: Entry[] = [],
+  schedule: Entry[] = [],
+  play: Entry[] = [],
+): StoredFiles => ({
+  animation,
+  playlist,
+  schedule,
+  play,
+});
 
 const playlist = (...items: Array<string | [string, boolean]>): Uint8Array =>
   text(
@@ -54,6 +64,8 @@ const manifest = (...ids: string[]): Manifest => ({
   hasFirmware: true,
   animations: ids.map(published),
   playlists: [],
+  schedules: [],
+  play: [],
 });
 
 describe("planning against the board", () => {
@@ -104,6 +116,25 @@ describe("the order files are sent in", () => {
       file("animation", "a1"),
     ].map((f) => ({ file: f }));
     expect(sendOrder(entries).map((e) => e.file.id)).toEqual(["a2", "a1", "p1", "p2"]);
+  });
+
+  it("sends schedules after the playlists, so a schedule finds its playlists", () => {
+    const entries = [
+      file("schedule", "default"),
+      file("playlist", "p1"),
+      file("schedule", "other"),
+      file("animation", "a1"),
+    ].map((f) => ({ file: f }));
+    expect(sendOrder(entries).map((e) => e.file.id)).toEqual(["a1", "p1", "default", "other"]);
+  });
+
+  it("sends the play file last, so it finds its schedule or playlists, and skips it when the board has it", () => {
+    const entries = [file("play", "default"), file("schedule", "s1"), file("animation", "a1")].map((f) => ({
+      file: f,
+    }));
+    expect(sendOrder(entries).map((e) => e.file.id)).toEqual(["a1", "s1", "default"]);
+    const plan = planAgainstBoard([file("play", "default")], board([], [], [], [entry("default", 100, 1)]));
+    expect(plan.map((e) => e.status)).toEqual(["identical"]);
   });
 });
 

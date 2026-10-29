@@ -19,6 +19,8 @@ const manifest: Manifest = {
   hasFirmware: true,
   animations: [],
   playlists: [],
+  schedules: [],
+  play: [],
 };
 
 describe("a first-install job whose link drops after the port connected", () => {

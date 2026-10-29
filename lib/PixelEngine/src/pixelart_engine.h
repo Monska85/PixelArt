@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -202,8 +203,156 @@ private:
   std::vector<PlaylistItem> items_;
 };
 
-// True if `id` is a valid animation or playlist ID (file name without extension).
+// True if `id` is a valid animation, playlist or schedule ID (file name without extension).
 bool is_valid_id(const char *id);
+
+// Limits from docs/format/schedule-v1.md#limits. MAX_SCHEDULE_PLAYLISTS also bounds the `playlists` setting.
+constexpr size_t MAX_SCHEDULE_FILE_SIZE = 16 * 1024;
+constexpr size_t MAX_SCHEDULE_ENTRIES = 64;
+constexpr size_t MAX_SCHEDULE_PLAYLISTS = 8;
+constexpr int MIN_SCHEDULE_YEAR = 2000;
+constexpr int MAX_SCHEDULE_YEAR = 2999;
+// Limit from docs/format/play-v1.md#limits. The playlists of a play file are bounded by MAX_SCHEDULE_PLAYLISTS.
+constexpr size_t MAX_PLAY_FILE_SIZE = 1024;
+
+// A local date of the Gregorian calendar.
+struct LocalDate
+{
+  uint16_t year = 0;
+  uint8_t month = 0;
+  uint8_t day = 0;
+};
+
+inline bool operator==(const LocalDate &a, const LocalDate &b)
+{
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+inline bool operator!=(const LocalDate &a, const LocalDate &b) { return !(a == b); }
+
+// True for a real date with a year from MIN_SCHEDULE_YEAR to MAX_SCHEDULE_YEAR.
+bool is_schedule_date(const LocalDate &date);
+
+// One end of a schedule entry. A part that is absent is 0.
+struct ScheduleEnd
+{
+  uint16_t year = 0;
+  uint8_t month = 0;
+  uint8_t day = 0;
+};
+
+// A pixelart-schedule/1 document (docs/format/schedule-v1.md), parsed into a compact form: each
+// playlist ID is kept once, and the entries refer to it by index.
+class Schedule
+{
+public:
+  // Parses and validates a schedule. Returns false on any error; a failed load leaves the schedule empty.
+  bool load(const char *json, size_t length, std::vector<Diagnostic> &diagnostics);
+
+  std::vector<std::string> fallback() const { return names(fallback_, fallback_count_); }
+  size_t entry_count() const { return entries_.size(); }
+  const ScheduleEnd &from(size_t entry) const { return entries_[entry].from; }
+  const ScheduleEnd &to(size_t entry) const { return entries_[entry].to; }
+  std::vector<std::string> playlists(size_t entry) const
+  {
+    return names(entries_[entry].playlists, entries_[entry].count);
+  }
+
+  // Index of the entry that wins on `date` by the rules of docs/format/schedule-v1.md#which-entry-wins,
+  // or -1 when no entry matches. A tie goes to the first tied entry in the file. Looks at each entry once.
+  int winner(const LocalDate &date) const;
+
+private:
+  struct Entry
+  {
+    ScheduleEnd from, to;
+    uint8_t parts = 0; // PART_* bits, the same on both ends
+    uint8_t count = 0;
+    uint16_t playlists[MAX_SCHEDULE_PLAYLISTS] = {};
+  };
+
+  struct Loader; // the parsing of load(), in schedule.cpp
+
+  std::vector<std::string> names(const uint16_t *indexes, size_t count) const;
+
+  std::vector<std::string> ids_; // every playlist ID the file names, once
+  std::vector<Entry> entries_;
+  uint8_t fallback_count_ = 0;
+  uint16_t fallback_[MAX_SCHEDULE_PLAYLISTS] = {};
+};
+
+// The playlist the board plays when its choice has no list left to play (docs/format/playlist-v1.md).
+constexpr const char *DEFAULT_PLAYLIST_ID = "default";
+// The schedule the board's own rule uses when nothing else chooses one.
+constexpr const char *DEFAULT_SCHEDULE_ID = "default";
+
+// What the release says Automatic plays (docs/format/play-v1.md): a schedule, or 1 to MAX_SCHEDULE_PLAYLISTS
+// playlists, or nothing. The IDs are valid and a list holds none twice.
+struct ServerChoice
+{
+  std::string schedule;               // the schedule it names, empty when it names playlists or nothing
+  std::vector<std::string> playlists; // the playlists it names, empty when it names a schedule or nothing
+
+  bool is_none() const { return schedule.empty() && playlists.empty(); }
+  bool operator==(const ServerChoice &other) const
+  {
+    return schedule == other.schedule && playlists == other.playlists;
+  }
+  bool operator!=(const ServerChoice &other) const { return !(*this == other); }
+};
+
+// The rules of docs/format/playlist-v1.md#how-the-board-chooses-what-to-play.
+enum class PlayMode : uint8_t
+{
+  Auto,
+  Playlists,
+  Schedule
+};
+
+enum class PlaySource : uint8_t
+{
+  Server,
+  Playlists,
+  Schedule,
+  Fallback
+};
+
+enum class PlayReason : uint8_t
+{
+  Playlists,
+  Schedule,
+  Fallback,
+  NoTime,
+  NoSchedule
+};
+
+// `server`, `playlists`, `schedule` or `fallback`.
+const char *play_source_name(PlaySource source);
+
+// `playlists`, `schedule`, `fallback`, `no_time` or `no_schedule`.
+const char *play_reason_name(PlayReason reason);
+
+struct PlayChoice
+{
+  PlaySource source = PlaySource::Fallback;
+  PlayReason reason = PlayReason::NoSchedule;
+  std::string schedule; // the schedule the list comes from, empty when none
+  int entry = -1;       // the winning entry, -1 when none won
+  std::vector<std::string> playlists;
+  int playing = -1; // index in `playlists` of the first playable playlist, -1: every animation plays
+};
+
+// The valid stored schedule `id`, or null. The result stays valid until the next call, so the board keeps one
+// schedule in memory at a time.
+using ScheduleLookup = std::function<const Schedule *(const std::string &id)>;
+
+// What the board plays. `user`, `user_schedule` and `mode` are the settings `playlists`, `schedule` and `play`;
+// `server` is the server choice; `schedule_by_id` finds a valid stored schedule and is called at most twice (the
+// named schedule, then `default`), never again for a `default` it did not find; `date` is the local date or null
+// while the time is not known; `playable` says whether the board can play a playlist. Resolves one date: never
+// loops over days or years.
+PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user, const std::string &user_schedule,
+                            const ServerChoice &server, const ScheduleLookup &schedule_by_id, const LocalDate *date,
+                            const std::function<bool(const std::string &)> &playable);
 
 // Plays an animation frame by frame. The animation must outlive the player.
 class Player

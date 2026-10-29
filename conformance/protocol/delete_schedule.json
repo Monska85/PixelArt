@@ -1,0 +1,44 @@
+{
+  "description": "delete removes a schedule, and a name is looked up per kind",
+  "files": {
+    "schedules/default.json": "{\"format\":\"pixelart-schedule/1\",\"fallback\":[\"default\"]}"
+  },
+  "steps": [
+    {
+      "send": "@PR e808173f {\"seq\":1,\"cmd\":\"delete\",\"kind\":\"playlist\",\"id\":\"default\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 392308c1 {\"seq\":2,\"cmd\":\"delete\",\"kind\":\"schedule\",\"id\":\"default\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true
+      }
+    },
+    {
+      "expect_files": {
+        "schedules/default.json": null
+      }
+    },
+    {
+      "send": "@PR bd121130 {\"seq\":3,\"cmd\":\"delete\",\"kind\":\"schedule\",\"id\":\"default\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "not_found",
+        "message": "<any>"
+      }
+    }
+  ]
+}

@@ -19,7 +19,8 @@ export function useBoardFiles(onError: (error: ShownError) => void) {
   const report = useLatest(onError);
   useReportOnce(files.animation, report);
   useReportOnce(files.playlist, report);
-  return { animations: files.animation, playlists: files.playlist };
+  useReportOnce(files.schedule, report);
+  return { animations: files.animation, playlists: files.playlist, schedules: files.schedule };
 }
 
 /**

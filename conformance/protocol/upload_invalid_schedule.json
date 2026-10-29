@@ -1,0 +1,53 @@
+{
+  "description": "a schedule with a date that does not exist is rejected with invalid_date and not stored",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 9648786e {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"schedule\",\"id\":\"default\",\"size\":146,\"sha256\":\"7c75e9792497a4ff9413d7e7acdd31b87c27156cfc166527db66e8f1c079b334\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 5d00129b {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1zY2hlZHVsZS8xIiwiZmFsbGJhY2siOlsiZGVmYXVsdCJdLCJlbnRyaWVzIjpbeyJmcm9tIjp7Im1vbnRoIjoyLCJkYXkiOjF9LCJ0byI6eyJtb250aCI6MiwiZGF5IjozMH0sInBsYXlsaXN0cyI6WyJkZWZhdWx0Il19XX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 146
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "invalid_date",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "schedules/default.json": null,
+        "upload.tmp": null
+      }
+    }
+  ]
+}

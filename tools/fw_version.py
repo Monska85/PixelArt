@@ -75,5 +75,5 @@ def describe_version(root, prefix=FIRMWARE_PREFIX, variable="PIXELART_VERSION"):
 
 
 def describe_content_version(root):
-    """The version of the content (animations and playlists) of the checkout in root, by the same rules."""
+    """The version of the content (animations, playlists and schedules) of the checkout in root, by the same rules."""
     return describe_version(root, CONTENT_PREFIX, "PIXELART_CONTENT_VERSION")

@@ -1,0 +1,18 @@
+{
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": {
+        "year": 2000
+      },
+      "to": {
+        "year": 2999
+      },
+      "playlists": [
+        "always"
+      ]
+    }
+  ]
+}

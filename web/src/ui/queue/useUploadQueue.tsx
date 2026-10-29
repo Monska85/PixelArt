@@ -2,7 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { isValidId } from "../../engine";
-import { sha256Hex, type BoardClient, type Kind } from "../../protocol";
+import { sha256Hex, supportsSchedules, type BoardClient } from "../../protocol";
+import type { ListedKind } from "../fileLists";
 import { type QueueFile, type QueueSummary } from "../../queue/plan";
 import { runQueue, type Refusal } from "../../queue/run";
 import { downloadPublished } from "../../release/library";
@@ -14,6 +15,10 @@ import { SUPPORTED_FILE, idFromFileName, inspectFile, readPicked, suggestId, val
 import { session } from "../session";
 import { reserveUploadQueue, sendQueue, useUploadRunning, type QueueReservation } from "../upload";
 import { refusalProblem, summaryReport, type QueueOutcome } from "./summary";
+
+/** A schedule picked for a board whose firmware knows none. */
+export const SCHEDULES_NEED_FIRMWARE =
+  "This board's firmware does not know schedules, so the file was not uploaded. Update the firmware to use schedules.";
 
 interface QueueOptions {
   /**
@@ -134,7 +139,14 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
     if (result.status === "summary") {
       // A file that failed may still have been stored: its list is read again too. The views do not wait for it.
       const { uploaded, failed } = result.summary;
-      const touched = [...new Set<Kind>([...uploaded.map((u) => u.file.kind), ...(failed ? [failed.file.kind] : [])])];
+      // The play file has no list: its effect shows in the status, which the views read again when the queue ends.
+      const touched = [
+        ...new Set<ListedKind>(
+          [...uploaded.map((u) => u.file.kind), ...(failed ? [failed.file.kind] : [])].filter(
+            (kind): kind is ListedKind => kind !== "play",
+          ),
+        ),
+      ];
       if (touched.length > 0) void session.refreshFiles(touched);
       if (!options.quiet) report(result.summary, options.verb ?? "Uploaded");
       if (result.summary.uploaded.length > 0 || result.summary.failed || result.summary.cancelled)
@@ -202,6 +214,10 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
           );
           continue;
         }
+        if (inspected.kind === "schedule" && !supportsSchedules(client.info)) {
+          onProblem(shownError(`Uploading ${file.name}`, "refused", SCHEDULES_NEED_FIRMWARE));
+          continue;
+        }
         files.push({
           kind: inspected.kind,
           id,
@@ -232,7 +248,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
         const where = `Installing ${kind} ${entry.id}`;
         try {
           const bytes = await downloadPublished(kind, entry);
-          const checked = validateFile(kind as Kind, bytes);
+          const checked = validateFile(kind, bytes);
           if (!checked.ok) {
             onProblem(
               shownError(where, "rejected", "The published file has errors and was not installed.", {

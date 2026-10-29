@@ -28,9 +28,9 @@ Runs the sketch on a virtual clock and records every matrix show() as a frame.
 
 Selection:
   --data DIR           folder that stands in for the board's file system (default data,
-                       built from animations/ and playlists/ by `make data`)
+                       built from animations/, playlists/ and schedules/ by `make data`)
   --list               list the animations in DIR/animations and exit
-  --validate           check every animation and playlist in the data folder, then exit
+  --validate           check every animation, playlist and schedule in the data folder, then exit
                        (status 1 if any file has an error)
   --anim NAME[,NAME]   run setup() then only these animations, instead of loop()
   --loops N            how many times to run loop() or the selected scenes (default 1, 0 = forever)

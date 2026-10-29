@@ -4,7 +4,8 @@ import { Download, FileJson, FileText, Pencil, Play, Plus, Trash2, Upload } from
 import { useState } from "react";
 import { loadAnimation } from "../../engine";
 import { session } from "../session";
-import { deleteFile, downloadFile, type BoardClient, type Entry, type Kind } from "../../protocol";
+import { deleteFile, downloadFile, type BoardClient, type Entry, type PlayStatus } from "../../protocol";
+import type { ListedKind } from "../fileLists";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
 import { IconButton } from "../components/icon-button";
@@ -20,17 +21,23 @@ import { toShownError, type ShownError } from "../errors";
 import { jsonBytesToYaml, saveBytes } from "../files";
 import { formatSize } from "../format";
 import { InstallMissingButton, MissingBadge, type MissingContext } from "./MissingAnimations";
+import { describeScheduleDeletion } from "./scheduleDeletion";
 
 interface Props {
   client: BoardClient;
-  kind: Kind;
+  kind: ListedKind;
   /** What the session knows of this list: only a known list can be empty. */
   list: BoardFileList;
   activePlaylist: string | null;
+  /** The board has What to play: `activePlaylist` is then the playlist it plays now. */
+  knowsSchedules?: boolean;
+  /** What the board says it plays: the schedule it plays from is the active one. */
+  play?: PlayStatus | null;
   disabled: boolean;
   onChanged: () => void;
   onError: (error: ShownError) => void;
-  onEdit: (id: string) => void;
+  /** Edit, for animations and playlists: a schedule has no editor. */
+  onEdit?: (id: string) => void;
   onPreview?: (preview: PreviewData) => void;
   /** The preview shown now, so deleting its animation closes it. */
   previewId?: string | null;
@@ -43,12 +50,20 @@ interface Props {
   missingContext?: MissingContext;
 }
 
+const LIST_LABEL: Record<ListedKind, string> = {
+  animation: "Animations",
+  playlist: "Playlists",
+  schedule: "Schedules",
+};
+
 /** One list of the Board view: its table, the actions of each row, and the empty state. */
 export function FilesList({
   client,
   kind,
   list,
   activePlaylist,
+  knowsSchedules = false,
+  play = null,
   disabled,
   onChanged,
   onError,
@@ -64,7 +79,6 @@ export function FilesList({
 }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Entry | null>(null);
-  const noun = kind === "animation" ? "animation" : "playlist";
   const held = useHeldId();
 
   async function run(id: string, context: string, action: () => Promise<void>): Promise<void> {
@@ -114,10 +128,18 @@ export function FilesList({
       </div>
     );
   const entries = list.entries;
+  if (entries.length === 0 && kind === "schedule")
+    return (
+      <EmptyList title="No schedules on this board">
+        A schedule chooses the playlists the board plays in each season. The published one comes with Install all in the
+        Library, with the update over WiFi (Install animations, when Animation updates is on) and with Install from
+        scratch. Upload your own YAML or JSON schedule with Upload files.
+      </EmptyList>
+    );
   if (entries.length === 0)
     return (
       <EmptyList
-        title={`No ${noun}s on this board`}
+        title={`No ${kind}s on this board`}
         actions={
           <>
             {kind === "animation" ? (
@@ -155,7 +177,8 @@ export function FilesList({
       name: entry.name ?? null,
       badge: (
         <>
-          {kind === "playlist" && entry.id === activePlaylist && (
+          {((kind === "playlist" && entry.id === activePlaylist) ||
+            (kind === "schedule" && entry.id === play?.schedule)) && (
             <Badge variant="success" data-testid={`active-${entry.id}`}>
               Active
             </Badge>
@@ -180,13 +203,15 @@ export function FilesList({
               onClick={() => void showPreview(entry)}
             />
           )}
-          <IconButton
-            label={`Edit ${entry.id}`}
-            tooltip={kind === "animation" ? "Edit in the Editor" : "Edit playlist"}
-            icon={Pencil}
-            disabled={inactive}
-            onClick={() => onEdit(entry.id)}
-          />
+          {onEdit && (
+            <IconButton
+              label={`Edit ${entry.id}`}
+              tooltip={kind === "animation" ? "Edit in the Editor" : "Edit playlist"}
+              icon={Pencil}
+              disabled={inactive}
+              onClick={() => onEdit(entry.id)}
+            />
+          )}
           {gaps && missingContext && (
             <InstallMissingButton playlist={entry.id} missing={gaps} context={missingContext} />
           )}
@@ -207,7 +232,7 @@ export function FilesList({
   return (
     <>
       <FileTable
-        label={kind === "animation" ? "Animations on the board" : "Playlists on the board"}
+        label={`${LIST_LABEL[kind]} on the board`}
         columns={[
           ...(kind === "animation" ? [{ label: "Version", width: "w-24" }] : []),
           { label: "Size", width: "w-28" },
@@ -231,11 +256,18 @@ export function FilesList({
           }
         >
           <p>
-            This deletes the {noun} <code className="text-foreground">{confirm.id}</code> from the board. It cannot be
+            This deletes the {kind} <code className="text-foreground">{confirm.id}</code> from the board. It cannot be
             undone.
           </p>
           {kind === "playlist" && confirm.id === activePlaylist && (
-            <p>This is the active playlist: the board will then play every animation.</p>
+            <p>
+              {!knowsSchedules
+                ? "This is the active playlist: the board will then play every animation."
+                : "The board plays this playlist now: it will then skip it, and play every animation when no other playlist of its list can play."}
+            </p>
+          )}
+          {kind === "schedule" && play && confirm.id === play.schedule && (
+            <p>{describeScheduleDeletion(play, new Set(entries.map((e) => e.id).filter((id) => id !== confirm.id)))}</p>
           )}
           {kind === "animation" && held === confirm.id && (
             <p data-testid="only-copy">The editor holds this animation and it has no other saved copy.</p>

@@ -28,10 +28,11 @@ test("the Storage card shows the free space and the stored files, and follows an
   await connectSimulator(page, simulator);
   const animations = count(simulator.dataDir, "animations");
   const playlists = count(simulator.dataDir, "playlists");
+  const schedules = count(simulator.dataDir, "schedules");
   await expect(card(page).getByTestId("storage-free")).toContainText("KB free of");
   await expect(card(page).getByRole("progressbar", { name: "Storage used" })).toBeVisible();
   await expect(card(page).getByTestId("storage-files")).toContainText(
-    `${animations} animations and ${playlists} playlist${playlists === 1 ? "" : "s"} stored.`,
+    `${animations} animations, ${playlists} playlist${playlists === 1 ? "" : "s"} and ${schedules} schedule${schedules === 1 ? "" : "s"} stored.`,
   );
   await expect(card(page).getByTestId("storage-estimate")).toContainText(/^Estimate: about \d+ more animations/);
   await expect(card(page).getByTestId("storage-warning")).toHaveCount(0);
@@ -50,7 +51,9 @@ test("the Storage card shows the free space and the stored files, and follows an
     .getByRole("dialog")
     .getByRole("button", { name: /^Delete \d+ files$/ })
     .click();
-  await expect(card(page).getByTestId("storage-files")).toContainText("0 animations and 0 playlists stored.");
+  await expect(card(page).getByTestId("storage-files")).toContainText(
+    "0 animations, 0 playlists and 0 schedules stored.",
+  );
   await expect(card(page).getByTestId("storage-estimate")).toHaveText(
     "Store an animation to see how many more would fit.",
   );

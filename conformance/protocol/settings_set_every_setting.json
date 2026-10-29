@@ -1,5 +1,5 @@
 {
-  "description": "One settings_set can change every setting but the token, and settings_get returns them",
+  "description": "One settings_set can change every setting that existed before play but the playlist and the token, and settings_get returns them",
   "steps": [
     {
       "send": "@PR 54f5f7ad {\"seq\":1,\"cmd\":\"settings_set\",\"brightness\":40,\"wifi_power\":\"13\",\"update_mode\":\"automatic\",\"update_firmware\":false,\"update_animations\":false,\"check_hours\":12,\"install_start\":60,\"install_end\":120,\"timezone\":\"CET-1CEST,M3.5.0,M10.5.0/3\",\"animation_source\":\"http://localhost:8000/manifest.json\",\"network_login\":true}"
@@ -11,6 +11,11 @@
         "settings": {
           "brightness": 40,
           "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
           "wifi_power": "13",
           "update_mode": "automatic",
           "update_firmware": false,
@@ -19,6 +24,8 @@
           "install_start": 60,
           "install_end": 120,
           "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "http://localhost:8000/manifest.json",
           "network_login": true,
           "token": "<any>"
@@ -35,6 +42,11 @@
         "settings": {
           "brightness": 40,
           "playlist": "default",
+          "play": "auto",
+          "playlists": [
+            "default"
+          ],
+          "schedule": "default",
           "wifi_power": "13",
           "update_mode": "automatic",
           "update_firmware": false,
@@ -43,6 +55,8 @@
           "install_start": 60,
           "install_end": 120,
           "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "http://localhost:8000/manifest.json",
           "network_login": true,
           "token": "<any>"

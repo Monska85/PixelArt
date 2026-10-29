@@ -1,0 +1,664 @@
+{
+  "description": "every structure error rejects a play file with invalid_file, and nothing is stored: not strict JSON; an unknown field; an unknown field in default; no default; a null default; both keys; neither key; a null schedule; a schedule that is not text; a schedule ID with a capital; a schedule ID of 33 characters; playlists that is not a list; a null playlists; an empty list; a playlist ID that is not text; a playlist ID with a space; a playlist twice",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "schedules/seasons.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR e17b8541 {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":62,\"sha256\":\"8225be919ac0d837539061a1a20076ea3ec86a8e7a0c42704adc0b8fa5bb72c8\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 46bf99a1 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InNjaGVkdWxlIjoic2Vhc29ucyJ9LH0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 62
+      }
+    },
+    {
+      "send": "@PR 0ed71458 {\"seq\":3,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 8b2cc43e {\"seq\":4,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":72,\"sha256\":\"b21da74740e775a723c6328bc6c2590fd269fda8a5f2948c489f171663bfbd6f\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 83a52498 {\"seq\":5,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InNjaGVkdWxlIjoic2Vhc29ucyJ9LCJuYW1lIjoieCJ9\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "received": 72
+      }
+    },
+    {
+      "send": "@PR ea2d75bf {\"seq\":6,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR a5c74b60 {\"seq\":7,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":71,\"sha256\":\"c116a2ea786ba3f421c9105e7d40345463d203156dd2d3494553b82e5a0bf6f0\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR fd3121db {\"seq\":8,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InNjaGVkdWxlIjoic2Vhc29ucyIsIm90aGVyIjoxfX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 8,
+        "ok": true,
+        "received": 71
+      }
+    },
+    {
+      "send": "@PR 1c52d1d7 {\"seq\":9,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 9,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 8e6acdbf {\"seq\":10,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":28,\"sha256\":\"5c988d0b8b8903ad7bb1c6b97640fa80324278ce025010d710e12b5788f2652e\"}"
+    },
+    {
+      "expect": {
+        "seq": 10,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR f3e0d919 {\"seq\":11,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEifQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 11,
+        "ok": true,
+        "received": 28
+      }
+    },
+    {
+      "send": "@PR 59b21719 {\"seq\":12,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 12,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 94fb5097 {\"seq\":13,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":43,\"sha256\":\"5d861585c7e5b0da0125a5423bf07ecfb4b34ce9ac371a1c83bf52ab0f54387a\"}"
+    },
+    {
+      "expect": {
+        "seq": 13,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 0bf92956 {\"seq\":14,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0IjpudWxsfQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 14,
+        "ok": true,
+        "received": 43
+      }
+    },
+    {
+      "send": "@PR b89c1d7d {\"seq\":15,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 15,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 8e8af044 {\"seq\":16,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":85,\"sha256\":\"e6c730fc689ac837857bab7f4b7ba704401e6e4c9006606edc88989faf1c7cb2\"}"
+    },
+    {
+      "expect": {
+        "seq": 16,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR f4058379 {\"seq\":17,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InNjaGVkdWxlIjoic2Vhc29ucyIsInBsYXlsaXN0cyI6WyJkZWZhdWx0Il19fQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 17,
+        "ok": true,
+        "received": 85
+      }
+    },
+    {
+      "send": "@PR 4b37d296 {\"seq\":18,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 18,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 375e8dad {\"seq\":19,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":41,\"sha256\":\"50c32636bbf46c5fd4ebb028bde1ffe7fade295a018c1c38fe2d6cf172bcb2bb\"}"
+    },
+    {
+      "expect": {
+        "seq": 19,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 2f5f5991 {\"seq\":20,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7fX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 20,
+        "ok": true,
+        "received": 41
+      }
+    },
+    {
+      "send": "@PR 10624cd2 {\"seq\":21,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 21,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 9cae0b57 {\"seq\":22,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":56,\"sha256\":\"4fbae0787dbb7164206d8bcb2503d777118a341111a90b181299516b7e409458\"}"
+    },
+    {
+      "expect": {
+        "seq": 22,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 3945be69 {\"seq\":23,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InNjaGVkdWxlIjpudWxsfX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 23,
+        "ok": true,
+        "received": 56
+      }
+    },
+    {
+      "send": "@PR f4982d35 {\"seq\":24,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 24,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR fd15d9fe {\"seq\":25,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":53,\"sha256\":\"bb4e3ffc4bf29ce37c24865d272f96e41b7f54fd85d6488677aea946649f4f3c\"}"
+    },
+    {
+      "expect": {
+        "seq": 25,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR b081d233 {\"seq\":26,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InNjaGVkdWxlIjo1fX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 26,
+        "ok": true,
+        "received": 53
+      }
+    },
+    {
+      "send": "@PR 1e1ef057 {\"seq\":27,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 27,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 4e3112be {\"seq\":28,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":61,\"sha256\":\"3b3e0ff98c0049b5d2f56c0113ed465470dadac273e18ffe3d85b225249a94e0\"}"
+    },
+    {
+      "expect": {
+        "seq": 28,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 64a6607e {\"seq\":29,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InNjaGVkdWxlIjoiU2Vhc29ucyJ9fQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 29,
+        "ok": true,
+        "received": 61
+      }
+    },
+    {
+      "send": "@PR 28d27a6b {\"seq\":30,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 30,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR b2363036 {\"seq\":31,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":87,\"sha256\":\"2395bc8b67cf079ff17a8978e4fec74dc57e9b4f74820801f322ee6f724c2796\"}"
+    },
+    {
+      "expect": {
+        "seq": 31,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 08c4fb17 {\"seq\":32,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InNjaGVkdWxlIjoiYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIn19\"}"
+    },
+    {
+      "expect": {
+        "seq": 32,
+        "ok": true,
+        "received": 87
+      }
+    },
+    {
+      "send": "@PR c254a709 {\"seq\":33,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 33,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR db6523a4 {\"seq\":34,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":62,\"sha256\":\"960db515e6eac62ef17c575c8766de892b3e9341f624150a7b5f0169cb3866f2\"}"
+    },
+    {
+      "expect": {
+        "seq": 34,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 2c6b57b6 {\"seq\":35,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6ImRlZmF1bHQifX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 35,
+        "ok": true,
+        "received": 62
+      }
+    },
+    {
+      "send": "@PR 26aec6ee {\"seq\":36,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 36,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR fab5175d {\"seq\":37,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":57,\"sha256\":\"0c89e42598089dbb3460fa3a46b88c3fd107ebf70d134ff5c2d423ee79776911\"}"
+    },
+    {
+      "expect": {
+        "seq": 37,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR e0db4722 {\"seq\":38,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6bnVsbH19\"}"
+    },
+    {
+      "expect": {
+        "seq": 38,
+        "ok": true,
+        "received": 57
+      }
+    },
+    {
+      "send": "@PR d0d16286 {\"seq\":39,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 39,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 0679327c {\"seq\":40,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":55,\"sha256\":\"c71ba7768f3224291a6d82998cfc092d2c380a4d359d575389f79fdc6c198dbf\"}"
+    },
+    {
+      "expect": {
+        "seq": 40,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 0540e711 {\"seq\":41,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6W119fQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 41,
+        "ok": true,
+        "received": 55
+      }
+    },
+    {
+      "send": "@PR 67389aa3 {\"seq\":42,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 42,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 96c468c1 {\"seq\":43,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":56,\"sha256\":\"af2d3c3ae3c789eb5962517f3c0a6a2af3be647e0cab9f1618bec692cea8aed1\"}"
+    },
+    {
+      "expect": {
+        "seq": 43,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 3a6ae0c6 {\"seq\":44,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6WzFdfX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 44,
+        "ok": true,
+        "received": 56
+      }
+    },
+    {
+      "send": "@PR 861690c7 {\"seq\":45,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 45,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR 7f3c1693 {\"seq\":46,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":64,\"sha256\":\"7d02878072a4e130d9b3edc5fe9e0863bf5d7ef85aa8d20215fd56d60d27cd8e\"}"
+    },
+    {
+      "expect": {
+        "seq": 46,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR ac212405 {\"seq\":47,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6WyJteSBsaXN0Il19fQ==\"}"
+    },
+    {
+      "expect": {
+        "seq": 47,
+        "ok": true,
+        "received": 64
+      }
+    },
+    {
+      "send": "@PR 75bd5f2c {\"seq\":48,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 48,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "send": "@PR fa4d98e6 {\"seq\":49,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":74,\"sha256\":\"320319e2a3dc91533eb4cc39976c510f2ca1d4dc1c29da3d61668dbf93c89a2a\"}"
+    },
+    {
+      "expect": {
+        "seq": 49,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR f882145e {\"seq\":50,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1wbGF5LzEiLCJkZWZhdWx0Ijp7InBsYXlsaXN0cyI6WyJkZWZhdWx0IiwiZGVmYXVsdCJdfX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 50,
+        "ok": true,
+        "received": 74
+      }
+    },
+    {
+      "send": "@PR 5a5cc799 {\"seq\":51,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 51,
+        "ok": false,
+        "error": "invalid_file",
+        "message": "<any>",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "structure",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "play/default.json": null,
+        "upload.tmp": null
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 Status: **implemented** by the firmware (`src/protocol.cpp`) and the simulator.
 
-This document specifies how a client (the command line tool, the web app, a test) talks to a PixelArt board: reading what is stored, uploading and downloading animations and playlists, deleting them, and changing the board's settings. Why the protocol works this way is recorded in [ADR 0002](../adr/0002-command-protocol.md).
+This document specifies how a client (the command line tool, the web app, a test) talks to a PixelArt board: reading what is stored, uploading and downloading animations, playlists, schedules and play files, deleting them, and changing the board's settings. Why the protocol works this way is recorded in [ADR 0002](../adr/0002-command-protocol.md).
 
 The protocol does not depend on the link. The board speaks it over its USB serial port and over a WebSocket on WiFi, and the simulator speaks it over a local WebSocket.
 
@@ -136,10 +136,10 @@ A file has at most 32 diagnostics, as the format specifications require. The boa
 
 Every command that names a file uses two fields:
 
-- `kind`: `animation` or `playlist`. Any other value is `invalid_kind`.
+- `kind`: `animation`, `playlist`, `schedule` or `play`. Any other value is `invalid_kind`. A board whose firmware is older than schedules answers `invalid_kind` to `schedule`, and its `info` has no `formats.schedule`. A board whose firmware is older than the play file answers `invalid_kind` to `play`, and its `info` has no `formats.play`.
 - `id`: the file ID, with the rule of the [format](../format/pixelart-v1.md#files): lowercase letters, digits, `_` and `-`, starting with a letter or digit, at most 32 characters. Any other value is `invalid_id`.
 
-The board builds the path itself, `/animations/<id>.json` or `/playlists/<id>.json`. A client never sends a path.
+The board builds the path itself, `/animations/<id>.json`, `/playlists/<id>.json`, `/schedules/<id>.json` or `/play/<id>.json`. A client never sends a path.
 
 ### `info`
 
@@ -147,22 +147,26 @@ What the board is and what it supports. No fields.
 
 ```text
 @PR 3c250228 {"seq":1,"cmd":"info"}
-@PR 64db6cd1 {"seq":1,"ok":true,"protocol":1,"firmware":"1.2.0","board":"esp32c3","boot_id":2864434397,"formats":{"animation":["pixelart/1"],"playlist":["pixelart-playlist/1"]},"canvas":{"width":16,"height":16},"storage":{"total":983040,"used":180224},"memory":{"free":182340,"largest":110580},"limits":{"line":1024,"chunk":512,"page":8,"animation":65536,"playlist":16384}}
+@PR bd456dde {"seq":1,"ok":true,"protocol":1,"firmware":"1.2.0","board":"esp32c3","boot_id":2864434397,"formats":{"animation":["pixelart/1"],"playlist":["pixelart-playlist/1"],"schedule":["pixelart-schedule/1"],"play":["pixelart-play/1"]},"canvas":{"width":16,"height":16},"storage":{"total":983040,"used":180224},"memory":{"free":182340,"largest":110580},"limits":{"line":1024,"chunk":512,"page":8,"animation":65536,"playlist":16384,"schedule":16384,"play":1024}}
 ```
 
-| Field      | Meaning                                                                                                                                                                      |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `protocol` | The protocol version, `1`. A client reads it before anything else, see [Versions](#versions).                                                                                |
-| `firmware` | The firmware version, see [Firmware version](#firmware-version).                                                                                                             |
-| `board`    | The build: `esp32c3`, `esp32`, `esp32s3`, or `simulator`.                                                                                                                    |
-| `boot_id`  | A random number from 0 to 4,294,967,295, chosen at every start. A change means the board restarted: any upload in progress is gone.                                          |
-| `formats`  | The file format versions the board plays.                                                                                                                                    |
-| `canvas`   | The matrix size.                                                                                                                                                             |
-| `storage`  | `total` and `used` bytes of the file system that holds animations and playlists.                                                                                             |
-| `memory`   | `free` bytes of memory and the `largest` block that can be allocated, for diagnosis. The simulator reports `0` for both, and `0` for both means the memory was not measured. |
-| `limits`   | `line`: longest line the board reads; `chunk`: most bytes in one chunk; `page`: most entries in one `list` reply; `animation` and `playlist`: largest file.                  |
+| Field      | Meaning                                                                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `protocol` | The protocol version, `1`. A client reads it before anything else, see [Versions](#versions).                                                                                   |
+| `firmware` | The firmware version, see [Firmware version](#firmware-version).                                                                                                                |
+| `board`    | The build: `esp32c3`, `esp32`, `esp32s3`, or `simulator`.                                                                                                                       |
+| `boot_id`  | A random number from 0 to 4,294,967,295, chosen at every start. A change means the board restarted: any upload in progress is gone.                                             |
+| `formats`  | The file format versions the board plays: `animation`, `playlist`, `schedule` and `play`.                                                                                       |
+| `canvas`   | The matrix size.                                                                                                                                                                |
+| `storage`  | `total` and `used` bytes of the file system that holds animations, playlists, schedules and play files.                                                                         |
+| `memory`   | `free` bytes of memory and the `largest` block that can be allocated, for diagnosis. The simulator reports `0` for both, and `0` for both means the memory was not measured.    |
+| `limits`   | `line`: longest line the board reads; `chunk`: most bytes in one chunk; `page`: most entries in one `list` reply; `animation`, `playlist`, `schedule` and `play`: largest file. |
 
 Clients take the limits from `info` instead of assuming the values of this document.
+
+`formats.schedule` and `limits.schedule` were added with [schedules](../format/schedule-v1.md), together with the `schedule` kind, the `play`, `playlists`, `time_sync_hours` and `ntp_server` settings and `status.play`. A board without `formats.schedule` knows none of them, and a client offers them only to a board that reports `formats.schedule`.
+
+`formats.play` and `limits.play` were added with the [play file](../format/play-v1.md), together with the `play` kind and `status.play.server_choice`. A client offers the play file only to a board that reports `formats.play`.
 
 ### `list`
 
@@ -170,20 +174,20 @@ The stored files of one kind, sorted by ID in byte order, one page at a time.
 
 | Field   | Required | Meaning                                                             |
 | ------- | -------- | ------------------------------------------------------------------- |
-| `kind`  | yes      | `animation` or `playlist`.                                          |
+| `kind`  | yes      | `animation`, `playlist`, `schedule` or `play`.                      |
 | `after` | no       | An ID. The page starts with the first file whose ID sorts after it. |
 
 The reply holds `kind`, `entries` (at most 8) and `more`, which is `true` when files remain after the last entry. The client asks for the next page with `after` set to the last ID it received. `after` does not have to name an existing file, but it must follow the ID rule, and a value that is not text, `null` included, is `bad_request`. While an update holds the memory for more than 2 seconds, the board answers `out_of_memory`, over USB as over WiFi, and the client asks again later.
 
 Each entry has:
 
-| Field     | Meaning                                                                                       |
-| --------- | --------------------------------------------------------------------------------------------- |
-| `id`      | The file ID.                                                                                  |
-| `size`    | Size in bytes.                                                                                |
-| `sha256`  | SHA-256 of the file, 64 lowercase hexadecimal digits.                                         |
-| `name`    | Animations and playlists that have one: the `name` field of the file, at most 128 characters. |
-| `version` | Animations only: the `version` field of the file, `1` when the file has none.                 |
+| Field     | Meaning                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------ |
+| `id`      | The file ID.                                                                                     |
+| `size`    | Size in bytes.                                                                                   |
+| `sha256`  | SHA-256 of the file, 64 lowercase hexadecimal digits.                                            |
+| `name`    | Files that have one: the `name` field of the file, at most 128 characters. A play file has none. |
+| `version` | Animations only: the `version` field of the file, `1` when the file has none.                    |
 
 Only files whose name is a valid ID followed by `.json` are listed. The `name` is cut after 128 characters, never inside a character, and any bytes that are not valid UTF-8 are replaced as described under [Lines](#lines) before it is cut. `name` and `version` are left out when the board cannot read them from the file, for example because the file is not valid JSON; such a file is still listed, so a client can see it and delete it. A file whose content cannot be read at all has no `sha256` either.
 
@@ -198,7 +202,7 @@ Reads part of a stored file. Reads are independent of each other, so a client re
 
 | Field    | Required | Meaning                                         |
 | -------- | -------- | ----------------------------------------------- |
-| `kind`   | yes      | `animation` or `playlist`.                      |
+| `kind`   | yes      | `animation`, `playlist`, `schedule` or `play`.  |
 | `id`     | yes      | The file ID.                                    |
 | `offset` | yes      | First byte to read, from 0 to the file size.    |
 | `length` | yes      | Bytes to read, from 1 to the chunk limit (512). |
@@ -209,13 +213,13 @@ A file can change between two reads. A client that needs a consistent copy compa
 
 ### `put_begin`, `put_chunk`, `put_end`, `put_abort`
 
-Upload one animation or playlist, replacing the stored file with the same ID, if any. See [Uploads](#uploads) for the whole sequence. While an upload is in progress, the four commands over the other transport than the one that began it are answered `busy`.
+Upload one animation, playlist, schedule or play file, replacing the stored file with the same ID, if any. See [Uploads](#uploads) for the whole sequence. While an upload is in progress, the four commands over the other transport than the one that began it are answered `busy`.
 
 `put_begin` starts an upload:
 
 | Field    | Required | Meaning                                                           |
 | -------- | -------- | ----------------------------------------------------------------- |
-| `kind`   | yes      | `animation` or `playlist`.                                        |
+| `kind`   | yes      | `animation`, `playlist`, `schedule` or `play`.                    |
 | `id`     | yes      | The file ID.                                                      |
 | `size`   | yes      | Size of the whole file in bytes, from 1 to the limit of its kind. |
 | `sha256` | yes      | SHA-256 of the whole file, 64 lowercase hexadecimal digits.       |
@@ -239,27 +243,27 @@ The reply on success holds `received`, the number of bytes received so far.
 
 Removes a stored file. Fields `kind` and `id`. A missing file is `not_found`.
 
-Deleting the active playlist is allowed: the board then plays every animation, as the [playlist specification](../format/playlist-v1.md#how-the-board-chooses-what-to-play) describes for a missing playlist.
+Deleting a playlist the board plays, or a schedule it uses, is allowed: the board chooses what to play again and skips the missing playlist, or falls back when the schedule is missing, as [How the board chooses what to play](../format/playlist-v1.md#how-the-board-chooses-what-to-play) describes.
 
 ### `delete_all`
 
-Removes every animation and every playlist, and, when asked, puts the settings back to their defaults. It has one optional field, `settings`: `true` or `false`, `false` when it is left out. Any other value, `null` included, is `bad_request`, and nothing changes.
+Removes every play file, schedule, playlist and animation, and, when asked, puts the settings back to their defaults. It has one optional field, `settings`: `true` or `false`, `false` when it is left out. Any other value, `null` included, is `bad_request`, and nothing changes.
 
-With `settings: true`, the board first queues the erase of the WiFi network (see below). Then it cancels an upload in progress, over either transport, and removes its temporary file. It also stops an installation of animations and playlists that is running or was asked for with `update_install`, so that the files it removes are not stored again: the file being downloaded is discarded, the files not yet stored are skipped, and the files the last check found are forgotten, so `update.files` and `update.failed_files` are 0 and `update.state` is `idle` at once. A stopped installation counts no failure and sets no `last_result`: it stays what it was. A new `update_check` finds the files again. An installation of firmware is not touched. Then it removes every file in `/playlists`, then every file in `/animations`, including files whose names are not valid IDs, so a damaged file can always be cleared.
+With `settings: true`, the board first queues the erase of the WiFi network (see below). Then it cancels an upload in progress, over either transport, and removes its temporary file. It also stops an installation of animations, playlists, schedules and play files that is running or was asked for with `update_install`, so that the files it removes are not stored again: the file being downloaded is discarded, the files not yet stored are skipped, and the files the last check found are forgotten, so `update.files` and `update.failed_files` are 0 and `update.state` is `idle` at once. A stopped installation counts no failure and sets no `last_result`: it stays what it was. A new `update_check` finds the files again. An installation of firmware is not touched. Then it removes every file in `/play`, then every file in `/schedules`, then every file in `/playlists`, then every file in `/animations`, including files whose names are not valid IDs, so a damaged file can always be cleared.
 
-Without `settings` (or with `false`) the settings do not change: the `playlist` setting keeps its value, so the board plays every animation until a playlist with that ID is stored again, and shows its built-in "no animations" image while there is none.
+Without `settings` (or with `false`) the settings do not change: `play`, `playlists`, `schedule` and `playlist` keep their values. The play file is a file like the others, so it is removed too and the board has no server choice until a play file is stored again. The board falls back as its rules say when a schedule is missing, skips the missing playlists until they are stored again, and shows its built-in "no animations" image while there is nothing to play.
 
-With `settings: true`, once every file is removed, every setting goes back to its default in the [settings tables](#settings_get-settings_set): brightness `100`, playlist `default`, and the defaults of the update, power and login settings. The board asks the network task to erase the stored WiFi network, as `wifi_forget` does, before it cancels an upload or removes anything: when it cannot hand that request over, the answer is `busy`, nothing has changed, and the client repeats the command. Once every file is removed, a new token is made as by `token_regenerate` (and a new certificate as by `cert_regenerate`, where it exists). With `settings: true`, `delete_all` works over USB only; over WiFi it is `usb_only` and removes nothing. Without it, `delete_all` works over WiFi too. The playlist setting takes its default even though no playlist `default` is stored, which `settings_set` refuses. Saving follows the all or nothing rule of `settings_set`: the playlist is saved first and put back if the brightness cannot be saved.
+With `settings: true`, once every file is removed, every setting goes back to its default in the [settings tables](#settings_get-settings_set): brightness `100`, play `auto`, playlists `["default"]`, schedule `default`, playlist `default`, and the defaults of the update, time, power and login settings. The board asks the network task to erase the stored WiFi network, as `wifi_forget` does, before it cancels an upload or removes anything: when it cannot hand that request over, the answer is `busy`, nothing has changed, and the client repeats the command. Once every file is removed, a new token is made as by `token_regenerate` (and a new certificate as by `cert_regenerate`, where it exists). With `settings: true`, `delete_all` works over USB only; over WiFi it is `usb_only` and removes nothing. Without it, `delete_all` works over WiFi too. The playlist settings take their defaults even though no playlist `default` is stored, which `settings_set` refuses. Saving follows the all or nothing rule of `settings_set`.
 
-The reply on success holds `playlists` and `animations`, the number of files removed from each folder, and with `settings: true` also `settings`, with every setting after the reset, as `settings_get` gives them. When a file cannot be removed, the board stops and replies `storage_error`; the files removed before it stay removed, the settings do not change, and sending `delete_all` again removes the rest. With `settings: true`, the erase of the stored WiFi network has been requested by then, since that request goes first, and may still be pending, as for `wifi_forget`. When every file is removed but the settings cannot be saved, the reply is `storage_error` too: the files stay removed and the settings are as they were, except when the settings memory fails twice, as for `settings_set`, and the message says the settings may be partly changed. Sending `delete_all` with `settings: true` again, as a new request, finishes the reset; the client can also read the settings with `settings_get`.
+The reply on success holds `play`, `schedules`, `playlists` and `animations`, the number of files removed from each folder, and with `settings: true` also `settings`, with every setting after the reset, as `settings_get` gives them. When a file cannot be removed, the board stops and replies `storage_error`; the files removed before it stay removed, the settings do not change, and sending `delete_all` again removes the rest. With `settings: true`, the erase of the stored WiFi network has been requested by then, since that request goes first, and may still be pending, as for `wifi_forget`. When every file is removed but the settings cannot be saved, the reply is `storage_error` too: the files stay removed and the settings are as they were, except when the settings memory fails twice, as for `settings_set`, and the message says the settings may be partly changed. Sending `delete_all` with `settings: true` again, as a new request, finishes the reset; the client can also read the settings with `settings_get`.
 
-A board whose firmware is older than this field answers `bad_request` to `settings`, since a field the command does not define is an error, and removes nothing.
+A board whose firmware is older than this field answers `bad_request` to `settings`, since a field the command does not define is an error, and removes nothing. A board whose firmware is older than schedules has no `/schedules` and leaves `schedules` out of the reply, and a board older than the play file has no `/play` and leaves `play` out.
 
 ```text
 > {"seq":12,"cmd":"delete_all"}
-< {"seq":12,"ok":true,"playlists":1,"animations":30}
+< {"seq":12,"ok":true,"play":1,"schedules":1,"playlists":1,"animations":30}
 > {"seq":13,"cmd":"delete_all","settings":true}
-< {"seq":13,"ok":true,"playlists":0,"animations":0,"settings":{"brightness":100,"playlist":"default",...}}
+< {"seq":13,"ok":true,"play":0,"schedules":0,"playlists":0,"animations":0,"settings":{"brightness":100,"play":"auto","playlists":["default"],"schedule":"default","playlist":"default",...}}
 ```
 
 Removing many files takes time on the board, so the frame being waited for can be shown late, as for other slow commands (see [Playback while commands run](#playback-while-commands-run)).
@@ -268,10 +272,15 @@ Removing many files takes time on the board, so the frame being waited for can b
 
 The board's settings. They live in the board's settings memory (NVS), not with the animations, so uploading or deleting files never changes them; only `delete_all` with `settings: true` puts them back to their defaults. The simulator keeps them in memory for the length of a run.
 
-| Setting      | Type    | Default   | Meaning                                                                                                                                                                             |
-| ------------ | ------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `brightness` | integer | `100`     | LED brightness, from 0 (off) to 255. It is the limit: the playing animation can lower it with its own `brightness` ([format](../format/pixelart-v1.md#brightness)), never raise it. |
-| `playlist`   | string  | `default` | ID of the active playlist, the one the board plays.                                                                                                                                 |
+| Setting      | Type    | Default       | Meaning                                                                                                                                                                                                                                |
+| ------------ | ------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brightness` | integer | `100`         | LED brightness, from 0 (off) to 255. It is the limit: the playing animation can lower it with its own `brightness` ([format](../format/pixelart-v1.md#brightness)), never raise it.                                                    |
+| `play`       | string  | see below     | What the board plays: `auto` (Automatic, what the [play file](../format/play-v1.md) `/play/default.json` says: the server choice), `playlists` (My choice, the `playlists` setting) or `schedule` (My choice, the `schedule` setting). |
+| `playlists`  | array   | `["default"]` | The user's playlists, 1 to 8 playlist IDs, no ID twice, each one stored when it is set. The board plays them when `play` is `playlists`, and keeps them while another mode is active.                                                  |
+| `schedule`   | string  | `default`     | The user's [schedule](../format/schedule-v1.md): an ID, stored when it is set. The board plays it when `play` is `schedule`, and keeps it while another mode is active.                                                                |
+| `playlist`   | string  | `default`     | The active playlist as a client older than `play` sees it: `default` while `play` is `auto` or `schedule`, otherwise the first of `playlists`. See [Older clients](#older-clients).                                                    |
+
+How the board turns these settings into what it plays is specified in [How the board chooses what to play](../format/playlist-v1.md#how-the-board-chooses-what-to-play).
 
 The board also has these settings, specified in [WiFi and updates](../board/wifi-and-updates-v1.md):
 
@@ -285,6 +294,8 @@ The board also has these settings, specified in [WiFi and updates](../board/wifi
 | `install_start`     | integer | `0`                                | 0 to 1,439, minutes after midnight.                                                         |
 | `install_end`       | integer | `0`                                | 0 to 1,439. Equal to `install_start`: the whole day.                                        |
 | `timezone`          | string  | `UTC0`                             | A POSIX TZ string, 1 to 64 printable ASCII characters.                                      |
+| `time_sync_hours`   | integer | `6`                                | 1 to 168: hours between two requests for the time.                                          |
+| `ntp_server`        | string  | `pool.ntp.org`                     | A host name or IPv4 address, 1 to 64 characters: letters, digits, `.` and `-`.              |
 | `animation_source`  | string  | `<site>manifest.json` of the build | An `https://` or `http://` URL with a host, no user information, at most 512 characters.    |
 | `network_login`     | boolean | `false`                            | `true` or `false`: whether WiFi clients must [authenticate](#authentication).               |
 | `token`             | string  | made at first start                | Read only: 16 characters from `a-z` and `0-9`. See [`token_regenerate`](#token_regenerate). |
@@ -293,28 +304,45 @@ The board also has these settings, specified in [WiFi and updates](../board/wifi
 
 `settings_get` over USB includes `token`; over WiFi it leaves it out. `settings_set` with `token` is `bad_request`. A value that breaks the rules of its row is `bad_request`.
 
-A `settings_set` that sets every setting to its longest value (a 32 character playlist ID, a 64 character time zone and a 512 character `animation_source`) is a line of 903 bytes, within the 1,024 byte limit of a request.
+A client sends in `settings_set` only the settings it changes, as the web app does. A `settings_set` that sets every setting to its longest value no longer fits in one request line: 8 playlist IDs of 32 characters, a schedule ID of 32 characters, a 64 character `ntp_server`, a 64 character time zone and a 512 character `animation_source` together take more than the 1,024 bytes of the [line limit](#limits). The settings that existed before `play` still fit together: set to their longest values (a 32 character playlist ID, a 64 character time zone and a 512 character `animation_source`), they make a line of 903 bytes.
 
 `settings_get` has no fields. Its reply holds `settings`, an object with every setting.
 
-`settings_set` has one optional field per setting, and at least one of them. The board checks every field before changing anything: a value out of range or of the wrong type, `null` included, is `bad_request`, a `playlist` that does not follow the ID rule is `invalid_id`, and a `playlist` that is not stored is `not_found`. If a setting cannot be saved, the reply is `storage_error` and no setting has changed. The one exception is a settings memory that fails twice: when the brightness cannot be saved and the previous playlist cannot be put back either, the reply is `storage_error` with a message that the settings may be partly changed, and the client reads them again with `settings_get`. On success the reply holds `settings`, with every setting after the change.
+`settings_set` has one optional field per setting, and at least one of them. The board checks every field before changing anything: a value out of range or of the wrong type, `null` included, is `bad_request`, a `playlist` that does not follow the ID rule, a `schedule` that does not, or an ID of `playlists` that does not, is `invalid_id`, and a `playlist`, a `schedule`, or an ID of `playlists`, that is not stored is `not_found`. A `schedule` that is not text, `null` included, is `bad_request`. A `playlists` that is not an array, is empty, has more than 8 IDs, names an ID twice or holds a value that is not text is `bad_request`. Once every field is valid, the board checks that a `playlist` sent with `play` or `playlists` agrees with them (see [Older clients](#older-clients)); when it does not, the reply is `bad_request`. If a setting cannot be saved, the reply is `storage_error` and no setting has changed. The one exception is a settings memory that fails twice: when a setting cannot be saved and one saved before it cannot be put back either, the reply is `storage_error` with a message that the settings may be partly changed, and the client reads them again with `settings_get`. On success the reply holds `settings`, with every setting after the change.
 
 ```text
 > {"seq":9,"cmd":"settings_set","brightness":40}
-< {"seq":9,"ok":true,"settings":{"brightness":40,"playlist":"default",...}}
+< {"seq":9,"ok":true,"settings":{"brightness":40,"play":"auto","playlists":["default"],"playlist":"default",...}}
+> {"seq":10,"cmd":"settings_set","play":"playlists","playlists":["halloween","christmas"]}
+< {"seq":10,"ok":true,"settings":{"brightness":40,"play":"playlists","playlists":["halloween","christmas"],"playlist":"halloween",...}}
 ```
 
-(This example and the later ones show the JSON only, and `...` stands for the other settings. On the link, each one is a full `@PR <crc> <json>` line.)
+(These examples and the later ones show the JSON only, and `...` stands for the other settings. On the link, each one is a full `@PR <crc> <json>` line.)
 
-The active playlist can be deleted after it was set. The board then falls back as for a missing playlist, and the setting keeps its value, so uploading the playlist again makes it active again.
+`play` sent without `playlists` keeps the stored `playlists`, and sent without `schedule` keeps the stored `schedule`: `play: "playlists"` plays the list, `play: "schedule"` plays the schedule, even when that schedule is not stored on the board (a schedule deleted after it was set, or never uploaded: the board then falls back as [How the board chooses what to play](../format/playlist-v1.md#how-the-board-chooses-what-to-play) says), and `play: "auto"` keeps both for later. `playlists` or `schedule` sent without `play` replaces that setting and leaves `play` as it was, so a board in Automatic keeps following the release. The stored `schedule` is written only once it is set: a board that never set it reads `default`.
+
+A playlist can be deleted after it was set in `playlists`. The board then skips it, as for any missing playlist, and the setting keeps it, so `settings_get` still reports it and uploading the playlist again makes the board play it again. The same holds for a `playlist` set by an older client, and for a `schedule` that is deleted after it was set: the board falls back, and the setting keeps it.
+
+`time_sync_hours` and `ntp_server` change only when and where the board asks for the time ([Time](../board/wifi-and-updates-v1.md#time)). A change of `ntp_server` makes the board ask the new server, and a change of `time_sync_hours` counts the next request from the last answer, both only while the board needs the time.
+
+#### Older clients
+
+A client written before `play` knows only `playlist`, and every older firmware plays the playlist that `playlist` names. The board keeps both working:
+
+- **No stored `play`.** The board stores `play` and `playlists` only once one of them is set, and then stores both. A board without them (one upgraded from an older firmware, a new board, a board after a settings reset) reads `play` as `auto` when the stored `playlist` is `default` and as `playlists` otherwise, and `playlists` as `[playlist]`. Nothing is written when the board is upgraded: a board on `default` becomes Automatic, and a board on another playlist keeps playing it as My choice, Playlists.
+- **What `playlist` reports.** `playlist` is always `default` while `play` is `auto` or `schedule`, and the first of `playlists` otherwise. The board keeps its stored `playlist` equal to that value, so a firmware rolled back to an older version plays `default` for a board in Automatic or on My choice, Schedule, and the first of the user's playlists for a board on My choice, Playlists.
+- **`playlist` alone.** A `settings_set` with `playlist` and without `play`, `playlists` or `schedule` sets `playlists` to `[playlist]`, and `play` to `auto` when the value is `default`, `playlists` otherwise. An older client's choice of the active playlist therefore keeps working, its `default` means Automatic, and it switches a board on My choice, Schedule to My choice, Playlists. The `schedule` setting is kept. The playlist must be stored, as before (`not_found`).
+- **`playlist` with `play`, `playlists` or `schedule`.** The value must agree with the settings after the change: `default` when `play` ends up `auto` or `schedule`, otherwise the first of `playlists`. Any other value is `bad_request`, and nothing changes.
+
+`delete_all` with `settings: true` puts `play` back to `auto`, `playlists` to `["default"]` and `schedule` to `default`, as for a board that never stored them.
 
 ### `status`
 
-The board's WiFi and update state, specified in [WiFi and updates](../board/wifi-and-updates-v1.md). No fields.
+The board's WiFi, time, play and update state, specified in [WiFi and updates](../board/wifi-and-updates-v1.md) and, for `play`, in [How the board chooses what to play](../format/playlist-v1.md#how-the-board-chooses-what-to-play). No fields.
 
 ```text
 > {"seq":20,"cmd":"status"}
-< {"seq":20,"ok":true,"wifi":{"state":"connected","ip":"192.168.1.42","rssi":-58,"power":"19.5","power_reduced":false,"hostname":"pixelart-118c","ssid":"Example Home WiFi"},"time":{"known":true},"update":{"state":"idle","progress":0,"last_check":1200,"last_result":"ok","last_detail":null,"failed_files":0,"firmware":"1.3.0","files":3,"last_install":{"result":"updated","from":"1.2.0","to":"1.3.0"}}}
+< {"seq":20,"ok":true,"wifi":{"state":"connected","ip":"192.168.1.42","rssi":-58,"power":"19.5","power_reduced":false,"hostname":"pixelart-118c","ssid":"Example Home WiFi"},"time":{"known":true},"play":{"mode":"auto","source":"server","schedule":"seasons","reason":"schedule","entry":1,"playlists":["christmas"],"playing":"christmas","server_choice":{"schedule":"seasons"}},"update":{"state":"idle","progress":0,"last_check":1200,"last_result":"ok","last_detail":null,"failed_files":0,"firmware":"1.3.0","files":3,"last_install":{"result":"updated","from":"1.2.0","to":"1.3.0"}}}
 ```
 
 | Field                 | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -326,33 +354,43 @@ The board's WiFi and update state, specified in [WiFi and updates](../board/wifi
 | `wifi.power_reduced`  | `true` when the board fell back to 8.5 dBm.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `wifi.hostname`       | `pixelart-XXXX`, also its mDNS name without `.local`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `wifi.ssid`           | The name of the stored network, text, or `null` when none is stored (`not_configured`). It is the name as stored, up to 32 bytes; bytes that are not valid UTF-8 are sent as U+FFFD, one for each byte that is not part of a well-formed sequence. See the note below.                                                                                                                                                                                                                                                      |
-| `time.known`          | Whether the board knows the time: it asks for it only when the install window is narrower than the whole day.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `time.known`          | Whether the board knows the time. It asks for it only when it needs it: when the list it plays comes from a schedule, whatever the source, or when the updates are not `off` and the install window is narrower than the whole day ([Time](../board/wifi-and-updates-v1.md#time)).                                                                                                                                                                                                                                          |
+| `play.mode`           | The `play` setting the list was chosen for: `auto`, `playlists` or `schedule`. While an update connection holds the memory, every `play` field reflects the last choice made (see below).                                                                                                                                                                                                                                                                                                                                   |
+| `play.source`         | Where the list comes from: `server` (Automatic follows the server choice), `playlists` (My choice, Playlists), `schedule` (My choice, Schedule) or `fallback` (the board's own rule, when Automatic has no usable server choice or My choice, Schedule names a schedule the board does not have).                                                                                                                                                                                                                           |
+| `play.schedule`       | The ID of the schedule the list comes from, or `null` when no schedule is used (My choice, Playlists, a server list, or the board's own rule without a schedule `default`).                                                                                                                                                                                                                                                                                                                                                 |
+| `play.reason`         | Why the board plays `play.playlists`: `playlists` for a list of playlists, the user's or the server's; `schedule` when an entry of the schedule won; `fallback` when the date is known and no entry matched, or when every playlist of the winning entry was skipped; `no_time` with a schedule while the date is not known; `no_schedule` when the board's own rule finds no valid schedule `default`.                                                                                                                     |
+| `play.entry`          | The 0-based index of the winning entry in the schedule's `entries`, or `null` when no entry won. With `fallback` it is the winning entry whose playlists were all skipped, or `null` when no entry matched.                                                                                                                                                                                                                                                                                                                 |
+| `play.playlists`      | The list the board plays, as [How the board chooses what to play](../format/playlist-v1.md#how-the-board-chooses-what-to-play) computes it: the `playlists` setting, the server's list, the winning entry's playlists, the schedule's `fallback`, or `["default"]` when the list falls back that far.                                                                                                                                                                                                                       |
+| `play.playing`        | The ID of the playlist the board plays, or the one it will start when the current animation ends; `null` when it plays every animation or shows its "no animations" image.                                                                                                                                                                                                                                                                                                                                                  |
+| `play.server_choice`  | The `default` of the valid `/play/default.json`, `{"schedule": "<id>"}` or `{"playlists": ["<id>", ...]}`, or `null` when the file is missing or invalid. Reported in every mode.                                                                                                                                                                                                                                                                                                                                           |
 | `update.state`        | `idle`, `checking`, `downloading`, `installing` or `waiting_for_time`.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `update.progress`     | From 0 to 100 while downloading or installing, `0` otherwise.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `update.last_check`   | Seconds since the last check ended, or `null` when none ended since the board started.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `update.last_result`  | `ok`, or the [update error](#update-errors) of the last check or installation; `null` before the first one.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `update.last_detail`  | `no_release` when the last check failed because a manifest request was answered 404 (`last_result` is then `http_error`), `null` otherwise, and before the first check. See [update errors](#update-errors).                                                                                                                                                                                                                                                                                                                |
-| `update.failed_files` | How many files failed in the last animation update.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `update.failed_files` | How many files (animations, playlists, schedules and play files) failed in the last animation update.                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `update.firmware`     | The firmware version the last check found for this board, newer than the running one, or `null`. A version on the skip list is reported too: `last_install` then says `rolled_back` with the same `to`, and only `update_install` with `force` installs it.                                                                                                                                                                                                                                                                 |
-| `update.files`        | How many animations and playlists would be added or replaced, as the last check found them. A check starts from 0, so it is 0 after a check that could not read the manifest at `animation_source`.                                                                                                                                                                                                                                                                                                                         |
+| `update.files`        | How many animations, playlists, schedules and play files would be added or replaced, as the last check found them. A check starts from 0, so it is 0 after a check that could not read the manifest at `animation_source`.                                                                                                                                                                                                                                                                                                  |
 | `update.last_install` | `null`, or the last firmware installation: `result` (`updated` or `rolled_back`), `from` and `to` (versions). A firmware on its trial boot has not confirmed itself yet: it reports the installation before it, and `updated` once it has confirmed itself, normally at its first frame. When storing that it booted or marking itself valid fails, the confirmation waits and is tried again (see the [updates specification](../board/wifi-and-updates-v1.md#rollback)); a restart before it rolls the installation back. |
 
-The board reports the name of the stored network in `wifi.ssid` and never the password, over any transport. Over WiFi, `status` is a command like the others: with `network_login` on, a client that has not logged in gets `unauthorized`, so only a logged in client is sent the name, and with it off every client is. The simulator reports `connected`, the address `127.0.0.1`, `rssi` `-50`, the hostname `pixelart-sim` and the name `PixelArt Simulator`, and keeps reporting them after `wifi_forget`: it has no stored network to erase, and a `null` name next to `connected` would break the rule above. Its `wifi.power` follows the `wifi_power` setting (`19.5` for `auto`), and `time.known` is `false` unless the simulator was given a time with `--update-time`.
+The board reports the name of the stored network in `wifi.ssid` and never the password, over any transport. Over WiFi, `status` is a command like the others: with `network_login` on, a client that has not logged in gets `unauthorized`, so only a logged in client is sent the name, and with it off every client is. The simulator reports `connected`, the address `127.0.0.1`, `rssi` `-50`, the hostname `pixelart-sim` and the name `PixelArt Simulator`, and keeps reporting them after `wifi_forget`: it has no stored network to erase, and a `null` name next to `connected` would break the rule above. Its `wifi.power` follows the `wifi_power` setting (`19.5` for `auto`), and `time.known` is `false` unless the simulator was given a time with `--update-time` or a date with `--date` ([Simulator and tests](../board/wifi-and-updates-v1.md#simulator-and-tests)).
+
+`status.play` reports the newest list at once, also while the animation that was playing finishes: a new list takes effect only when that animation ends. `status` never waits for the memory: while an update connection holds it, the board cannot read its files to choose, and `status.play` reports the last choice made, and the newest one once the connection ends. The board makes its first choice at boot, before it connects to the network. When it cannot read its files then, `status.play` reports `source` `playlists`, the reason `playlists` and the `playlists` setting for My choice, Playlists; for Automatic and for My choice, Schedule it reports `source` `fallback`, the reason `no_schedule`, `["default"]` and `schedule` `null`. `entry` and `playing` are `null` in every case. A client older than `play` ignores the field, as it ignores every reply field it does not know.
 
 #### Update errors
 
-| Code                | Meaning                                                                       |
-| ------------------- | ----------------------------------------------------------------------------- |
-| `network_error`     | The server could not be reached, or the connection dropped.                   |
-| `tls_error`         | The server's certificate could not be checked.                                |
-| `http_error`        | The server answered with a status other than 200.                             |
-| `bad_manifest`      | The manifest is too large, not strict JSON, of another format, or incomplete. |
-| `checksum_mismatch` | A downloaded file differs from the manifest's size or SHA-256.                |
-| `invalid_file`      | A downloaded animation or playlist fails the engine's validation.             |
-| `no_space`          | Not enough free space for a file.                                             |
-| `out_of_memory`     | Not enough free memory for the connection, the manifest or the validation.    |
-| `storage_error`     | The file system failed.                                                       |
-| `flash_error`       | The firmware slot could not be written, or the image is larger than the slot. |
+| Code                | Meaning                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `network_error`     | The server could not be reached, or the connection dropped.                            |
+| `tls_error`         | The server's certificate could not be checked.                                         |
+| `http_error`        | The server answered with a status other than 200.                                      |
+| `bad_manifest`      | The manifest is too large, not strict JSON, of another format, or incomplete.          |
+| `checksum_mismatch` | A downloaded file differs from the manifest's size or SHA-256.                         |
+| `invalid_file`      | A downloaded animation, playlist, schedule or play file fails the engine's validation. |
+| `no_space`          | Not enough free space for a file.                                                      |
+| `out_of_memory`     | Not enough free memory for the connection, the manifest or the validation.             |
+| `storage_error`     | The file system failed.                                                                |
+| `flash_error`       | The firmware slot could not be written, or the image is larger than the slot.          |
 
 An `http_error` has a detail when the request that failed was for a manifest (the animation source or the firmware manifest) and the server answered 404, after any redirects: `status` then reports `update.last_detail` as `no_release`, meaning that no release is published at that address yet. A file (an animation, a playlist or a firmware) that is answered 404, and every other status of a manifest, is an `http_error` with `last_detail` `null`. The detail belongs to the last result: the next check or installation replaces it, and a success clears it. The simulator answers 404 for a manifest that its `--update-source` folder does not have, and for a file the folder does not have it answers a plain `http_error`.
 
@@ -371,7 +409,7 @@ Installs what the last check found, at once, ignoring the install window. The re
 | `target` | yes      | `firmware` or `animations`.                                                                |
 | `force`  | no       | `true` installs a firmware version on the skip list. `false` when left out. Firmware only. |
 
-It is `updates_off` when `update_mode` is `off` or the switch of `target` is `false`. It is `no_network` or `busy` under the same conditions as for `update_check`. For `firmware`, it is also `busy` while the running firmware is still on its trial boot, which normally ends at its first frame and may last longer when its confirmation is delayed. The answer is `nothing_to_install` when the last check found nothing for `target`; a check that is still running answers `busy`. The board tests these conditions in this order. The `message` of the `busy` for a running trial says that the firmware is still confirming itself and that the request can be repeated after it has, so a client can tell it from a running check or installation; the text is not fixed. A field other than `target` and `force` is `bad_request`, as is a `target` that is not `firmware` or `animations` and a `force` that is not `true` or `false`; `force` is ignored for `animations`. The animations and playlists the last check found are stored as for an upload (`put_end`), one file at a time; `status` shows the progress, and the files that failed stay in `update.files`. What the last check found for animations and playlists is forgotten when `animation_source` changes (`update.files` becomes 0 until the next check, and `update_install` for `animations` answers `nothing_to_install`), while a firmware it found is kept, since it does not come from `animation_source`. The files are also forgotten when `delete_all` stops the installation (see [`delete_all`](#delete_all)). An upload (`put_*`) during an installation is allowed: the installation may replace the uploaded file, as the server wins at the next check. A firmware installation ends with a restart, which the client notices by a changed `info.boot_id`; while it runs, `update.state` is `installing` and `update.progress` counts the written part. An installation that fails leaves `update.last_result` set to the error, `update.state` back to `idle`, and the firmware still in `update.firmware`. `force` installs a version of the skip list, never a lower or equal version than the running one: for those the answer is `nothing_to_install`. For `firmware` the answer is also `nothing_to_install` when the last check found a skipped version and `force` is not `true`.
+It is `updates_off` when `update_mode` is `off` or the switch of `target` is `false`. It is `no_network` or `busy` under the same conditions as for `update_check`. For `firmware`, it is also `busy` while the running firmware is still on its trial boot, which normally ends at its first frame and may last longer when its confirmation is delayed. The answer is `nothing_to_install` when the last check found nothing for `target`; a check that is still running answers `busy`. The board tests these conditions in this order. The `message` of the `busy` for a running trial says that the firmware is still confirming itself and that the request can be repeated after it has, so a client can tell it from a running check or installation; the text is not fixed. A field other than `target` and `force` is `bad_request`, as is a `target` that is not `firmware` or `animations` and a `force` that is not `true` or `false`; `force` is ignored for `animations`. The animations, playlists and schedules the last check found are stored as for an upload (`put_end`), one file at a time; `status` shows the progress, and the files that failed stay in `update.files`. What the last check found for animations, playlists and schedules is forgotten when `animation_source` changes (`update.files` becomes 0 until the next check, and `update_install` for `animations` answers `nothing_to_install`), while a firmware it found is kept, since it does not come from `animation_source`. The files are also forgotten when `delete_all` stops the installation (see [`delete_all`](#delete_all)). An upload (`put_*`) during an installation is allowed: the installation may replace the uploaded file, as the server wins at the next check. A firmware installation ends with a restart, which the client notices by a changed `info.boot_id`; while it runs, `update.state` is `installing` and `update.progress` counts the written part. An installation that fails leaves `update.last_result` set to the error, `update.state` back to `idle`, and the firmware still in `update.firmware`. `force` installs a version of the skip list, never a lower or equal version than the running one: for those the answer is `nothing_to_install`. For `firmware` the answer is also `nothing_to_install` when the last check found a skipped version and `force` is not `true`.
 
 ### `wifi_forget`
 
@@ -416,13 +454,17 @@ The `offset` of a `put_chunk` is compared with the number of bytes received so f
 
 An already received chunk is therefore never written twice, even when the client changed `seq` before retrying.
 
-The temporary file lives outside the animation and playlist folders, so the board never lists or plays it, and a stored file is never half written:
+The temporary file lives outside the animation, playlist, schedule and play folders, so the board never lists or plays it, and a stored file is never half written:
 
 - **The client stops sending.** After 10 seconds without a `put_begin` or an accepted `put_chunk`, the board cancels the upload and removes the temporary file. A later `put_chunk` or `put_end` is `no_upload`. A dropped connection does not end an upload by itself: the upload stays open until it ends as described above (`put_end`, `put_abort`, a new `put_begin`, a failed chunk write, or this timeout), so the next client over the same transport can continue it, while the other transport gets `busy` until the timeout.
 - **The board restarts during an upload.** It removes any leftover temporary file at boot.
 - **The file is wrong.** `size_mismatch`, `checksum_mismatch` and `invalid_file` all leave the stored file untouched.
 
 For a playlist, the board also checks its items against the stored animations: a missing animation is reported as an `unknown_animation` warning, and the playlist is still stored, because the animation can be uploaded afterwards.
+
+A schedule is validated as the [schedule format](../format/schedule-v1.md#validation) says: an error rejects it with `invalid_file` and its diagnostics. The board also checks its `fallback` and the `playlists` of its entries against the stored playlists: each ID that is not stored is reported as an `unknown_playlist` warning, once for each place it appears, and the schedule is still stored, because the playlist can be uploaded afterwards. The board never checks ties, which only the tools refuse.
+
+A play file is validated as the [play file format](../format/play-v1.md#validation) says: an error rejects it with `invalid_file` and its diagnostics. The board also checks the schedule or the playlists it names against the stored files: each ID that is not stored is reported as an `unknown_schedule` or `unknown_playlist` warning, and the file is still stored, because the schedule or the playlist can be uploaded afterwards. The board accepts any valid ID for a play file, and uses only `default`.
 
 The board needs free space for the whole new file while the old one still exists. It refuses an upload with `no_space` when the free space is smaller than `size` rounded up to the file system block (4,096 bytes).
 
@@ -456,8 +498,8 @@ The board keeps playing its animations while it handles commands. It reads reque
 Changes reach the matrix at these times:
 
 - **`brightness`** applies from the next frame. The brightness the LEDs receive is the board setting lowered by the playing animation's own `brightness` ([format](../format/pixelart-v1.md#brightness)), so a change of the setting reaches the LEDs in that proportion.
-- **The active playlist,** and any upload or deletion of a playlist, applies when the current animation ends: the board then reads the active playlist again and starts it from its first item.
-- **Animations** are read from storage each time they start, so an uploaded or deleted animation applies the next time the playlist reaches it. The animation playing at the moment finishes unchanged. The same holds for animations and playlists installed by an [update](../board/wifi-and-updates-v1.md#animation-updates).
+- **What the board plays** changes when the current animation ends, after a change of `play`, `playlists`, `playlist` or `timezone`, an upload or deletion of a playlist, of a schedule or of the play file `default`, the time becoming known, or local midnight: the board then computes its list of playlists again, as [How the board chooses what to play](../format/playlist-v1.md#when-the-board-chooses-again) describes. A list that is the same keeps its position, a different list starts from its first playlist, and an upload or deletion of a playlist always starts the list again from its first playlist, as it restarted the active playlist before.
+- **Animations** are read from storage each time they start, so an uploaded or deleted animation applies the next time the playlist reaches it. The animation playing at the moment finishes unchanged. The same holds for animations, playlists, schedules and play files installed by an [update](../board/wifi-and-updates-v1.md#animation-updates).
 - **A firmware installation** stops the animation and shows the update icon until the board restarts, see [Firmware updates](../board/wifi-and-updates-v1.md#firmware-updates). Requests are still answered meanwhile.
 
 ## Errors
@@ -467,8 +509,8 @@ Changes reach the matrix at these times:
 | `bad_frame`          | The line is too long, its CRC is malformed or wrong, or its JSON is broken. The reply has no `seq`.                                                                                                                                                                                                                        |
 | `bad_request`        | A field is missing, unknown, of the wrong type or out of range, or the base64 data is invalid.                                                                                                                                                                                                                             |
 | `unknown_command`    | `cmd` names a command this firmware does not know.                                                                                                                                                                                                                                                                         |
-| `invalid_kind`       | `kind` is not `animation` or `playlist`.                                                                                                                                                                                                                                                                                   |
-| `invalid_id`         | `id`, `after` or the `playlist` setting does not follow the ID rule.                                                                                                                                                                                                                                                       |
+| `invalid_kind`       | `kind` is not `animation`, `playlist`, `schedule` or `play`.                                                                                                                                                                                                                                                               |
+| `invalid_id`         | `id`, `after`, the `playlist` setting or an ID of `playlists` does not follow the ID rule.                                                                                                                                                                                                                                 |
 | `not_found`          | The named file is not stored.                                                                                                                                                                                                                                                                                              |
 | `too_large`          | The declared `size` is over the limit of its kind, or a chunk goes past the declared `size`.                                                                                                                                                                                                                               |
 | `no_space`           | Not enough free space for the upload.                                                                                                                                                                                                                                                                                      |
@@ -500,8 +542,11 @@ Every error leaves the stored files and the settings as they were (so a `busy` a
 | Upload idle timeout                      | 10 seconds            |
 | Animation file                           | 64 KiB (65,536 bytes) |
 | Playlist file                            | 16 KiB (16,384 bytes) |
+| Schedule file                            | 16 KiB (16,384 bytes) |
+| Play file                                | 1 KiB (1,024 bytes)   |
+| Playlists in the `playlists` setting     | 8                     |
 
-A 512-byte chunk is 684 characters in base64, which leaves room for the rest of the `put_chunk` line within 1,024 bytes. Lines sent by the board can be longer than 1,024 bytes; with at most 8 list entries and 32 diagnostics, they stay under 16 KiB, and clients accept lines up to that length.
+A 512-byte chunk is 684 characters in base64, which leaves room for the rest of the `put_chunk` line within 1,024 bytes. A `settings_set` with every setting at its longest value does not fit in one line; a client sends only the settings it changes (see [`settings_set`](#settings_get-settings_set)). Lines sent by the board can be longer than 1,024 bytes; with at most 8 list entries and 32 diagnostics, they stay under 16 KiB, and clients accept lines up to that length.
 
 ## Versions
 
@@ -521,7 +566,7 @@ A 512-byte chunk is 684 characters in base64, which leaves room for the rest of 
 
 The board treats every request as untrusted:
 
-- It builds file paths only from `kind` and a valid `id`, so a request cannot reach any other file.
+- It builds file paths only from `kind` and a valid `id`, so a request cannot reach any other file. The `ntp_server` setting accepts only letters, digits, `.` and `-`, so it never carries a path, a port or a scheme.
 - Every size, count and nesting depth has a limit, checked before any memory is used for it: line length, JSON depth, chunk size, file size, upload count.
 - Every uploaded file goes through the same engine validation as a file read from storage, and is stored only if it passes.
 - Over USB and the simulator's WebSocket there is no authentication: whoever can open the USB port, or connect to the simulator on the same computer, can change the board.
@@ -552,4 +597,4 @@ For example, with the token `k3j9x0q7w2m5z8a1` and the nonce below (the HMAC com
 
 ## Conformance
 
-The cases in `conformance/protocol/` describe exchanges of requests and expected replies, run in CI against the simulator. Every implementation of this protocol passes them. Each change to the protocol comes with new cases.
+The cases in `conformance/protocol/` describe exchanges of requests and expected replies, run in CI against the simulator. Every implementation of this protocol passes them. Each change to the protocol comes with new cases. The cases written before schedules keep the requests and the replies an older client sees; they only expect the reply fields added since, such as the new settings, `formats.schedule`, `limits.schedule`, `status.play` and the `schedules` count of `delete_all`. A case can give the board a local date, as [`conformance/README.md`](../../conformance/README.md#protocol-cases) describes.

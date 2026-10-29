@@ -66,7 +66,8 @@ export function FirmwareView() {
   const release = manifest.status === "ready" && manifest.manifest.hasFirmware ? manifest.manifest : null;
   const installer = useInstaller(release !== null && serial);
   const published =
-    manifest.status === "ready" && manifest.manifest.animations.length + manifest.manifest.playlists.length > 0;
+    manifest.status === "ready" &&
+    manifest.manifest.animations.length + manifest.manifest.playlists.length + manifest.manifest.schedules.length > 0;
   const [thenInstall, setThenInstall] = useState(true);
   const content = useContentInstall(manifest.status === "ready" ? manifest.manifest : null, thenInstall && published);
 
@@ -169,8 +170,8 @@ export function FirmwareView() {
               <AlertDescription>
                 It still has the flash layout of the firmware before WiFi, and Update firmware cannot move its stored
                 files to the current one. Use Install from scratch below and let it erase the board: that deletes the
-                animations, playlists and settings, and the app then installs the published animations and playlists.
-                Later updates keep them.
+                animations, playlists and settings, and the app then installs the published animations, playlists and
+                schedules. Later updates keep them.
               </AlertDescription>
             </Alert>
           )}
@@ -209,7 +210,9 @@ export function FirmwareView() {
             />
             <div className="flex flex-col gap-1">
               <Label htmlFor="then-install-content" className="leading-normal text-foreground">
-                Then install the animations and playlists
+                {manifest.status === "ready" && manifest.manifest.schedules.length > 0
+                  ? "Then install the animations, playlists and schedules"
+                  : "Then install the animations and playlists"}
               </Label>
               <p className="text-sm text-muted-foreground">
                 {published
@@ -259,7 +262,7 @@ function ResetCard({
       <CardHeader>
         <CardTitle id="firmware-reset">Reset</CardTitle>
         <CardDescription>
-          Delete every animation and playlist stored on the board. The firmware stays. With the box checked,{" "}
+          Delete every animation, playlist and schedule stored on the board. The firmware stays. With the box checked,{" "}
           {RESET_TEXT.charAt(0).toLowerCase() + RESET_TEXT.slice(1)}
         </CardDescription>
       </CardHeader>

@@ -1,0 +1,45 @@
+{
+  "description": "list of schedules has name when the file has one and no version, sorted by ID",
+  "files": {
+    "schedules/plain.json": "{\"format\":\"pixelart-schedule/1\",\"fallback\":[\"default\"]}",
+    "schedules/default.json": "{\"format\":\"pixelart-schedule/1\",\"name\":\"Seasons\",\"fallback\":[\"default\"],\"entries\":[{\"name\":\"Halloween\",\"from\":{\"month\":10,\"day\":1},\"to\":{\"month\":11,\"day\":2},\"playlists\":[\"halloween\"]},{\"name\":\"Christmas\",\"from\":{\"month\":12,\"day\":1},\"to\":{\"month\":1,\"day\":6},\"playlists\":[\"christmas\"]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR f8dadcbf {\"seq\":1,\"cmd\":\"list\",\"kind\":\"schedule\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "schedule",
+        "entries": [
+          {
+            "id": "default",
+            "size": 285,
+            "sha256": "6cc16775019c0be9f62dd35f2919dc51e39e5afcafad2cf29292ba6c8e6ee2b0",
+            "name": "Seasons"
+          },
+          {
+            "id": "plain",
+            "size": 55,
+            "sha256": "2677259f1c4cae0e12a560d8ff855ea3af73e4e5523f2396d721214900be864d"
+          }
+        ],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR 74af8289 {\"seq\":2,\"cmd\":\"list\",\"kind\":\"playlist\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "kind": "playlist",
+        "entries": [],
+        "more": false
+      }
+    }
+  ]
+}

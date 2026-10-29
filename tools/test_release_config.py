@@ -42,6 +42,8 @@ EXPECTED = {
     "docs/adr/x.md": None,
     "v0/x.ino": None,
     "content/animations/x.yaml": "content",
+    "content/playlists/x.yaml": "content",
+    "content/schedules/x.yaml": "content",
 }
 PACKAGE_NAMES = {".": "firmware", "web": "web", "content": "content"}
 

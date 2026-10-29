@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// `status`: the board's WiFi and update state (docs/protocol/protocol-v1.md#status).
+// `status`: the board's WiFi, time, play and update state (docs/protocol/protocol-v1.md#status).
 
+import {
+  PLAY_REASONS,
+  PLAY_SOURCES,
+  parseServerChoice,
+  type PlayMode,
+  type PlayReason,
+  type PlaySource,
+  type ServerChoice,
+} from "../engine/schedule";
 import type { BoardClient } from "./client";
 import type { Body } from "./framing";
 import { isRecord } from "./guards";
@@ -58,15 +67,41 @@ export interface UpdateStatus {
   failedFiles: number;
   /** The firmware version available, or null. */
   firmware: string | null;
-  /** How many animations and playlists would be added or replaced. */
+  /** How many animations, playlists and schedules would be added or replaced. */
   files: number;
   lastInstall: { result: string; from: string; to: string } | null;
+}
+
+const isPlayReason = (value: unknown): value is PlayReason =>
+  typeof value === "string" && (PLAY_REASONS as readonly string[]).includes(value);
+
+const isPlaySource = (value: unknown): value is PlaySource =>
+  typeof value === "string" && (PLAY_SOURCES as readonly string[]).includes(value);
+
+/** What the board plays and why (`status.play`), on a firmware that knows schedules. */
+export interface PlayStatus {
+  mode: PlayMode;
+  /** Where the list comes from: the server choice, My choice, or the board's own rule. */
+  source: PlaySource;
+  /** The ID of the schedule the list comes from, or null. */
+  schedule: string | null;
+  reason: PlayReason;
+  /** The winning entry's 0-based index in the schedule, or null. */
+  entry: number | null;
+  /** The list the board plays. */
+  playlists: string[];
+  /** The playlist now playing or the next to start, or null when the board plays every animation. */
+  playing: string | null;
+  /** What the release says Automatic plays, in every mode; null when there is none. */
+  serverChoice: ServerChoice | null;
 }
 
 export interface BoardStatus {
   wifi: WifiStatus;
   /** Whether the board knows the time. */
   timeKnown: boolean;
+  /** Null for a firmware older than schedules, or a `play` this app cannot read. */
+  play: PlayStatus | null;
   update: UpdateStatus;
 }
 
@@ -120,10 +155,29 @@ function parseUpdate(value: unknown): UpdateStatus {
   };
 }
 
+function parsePlay(value: unknown): PlayStatus | null {
+  if (!isRecord(value)) return null;
+  const { mode, source, schedule, reason, entry, playlists, playing } = value;
+  if (mode !== "auto" && mode !== "playlists" && mode !== "schedule") return null;
+  if (!isPlaySource(source) || !isPlayReason(reason)) return null;
+  if (!Array.isArray(playlists) || !playlists.every((id) => typeof id === "string")) return null;
+  return {
+    mode,
+    source,
+    schedule: text(schedule),
+    reason,
+    entry: typeof entry === "number" && Number.isSafeInteger(entry) && entry >= 0 ? entry : null,
+    playlists: playlists as string[],
+    playing: text(playing),
+    serverChoice: parseServerChoice(value.server_choice),
+  };
+}
+
 export function parseStatus(reply: Body): BoardStatus {
   return {
     wifi: parseWifi(reply.wifi),
     timeKnown: isRecord(reply.time) && reply.time.known === true,
+    play: parsePlay(reply.play),
     update: parseUpdate(reply.update),
   };
 }

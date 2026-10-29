@@ -1,0 +1,184 @@
+{
+  "description": "storing or deleting the schedule changes status.play at once",
+  "files": {
+    "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}",
+    "playlists/default.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/halloween.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
+    "playlists/christmas.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}"
+  },
+  "update_source": {
+    "local_date": "2026-12-25"
+  },
+  "steps": [
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": true
+        },
+        "play": {
+          "mode": "auto",
+          "source": "fallback",
+          "schedule": null,
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": "default",
+          "server_choice": null
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR a2feddd1 {\"seq\":2,\"cmd\":\"put_begin\",\"kind\":\"schedule\",\"id\":\"default\",\"size\":285,\"sha256\":\"6cc16775019c0be9f62dd35f2919dc51e39e5afcafad2cf29292ba6c8e6ee2b0\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 3490252d {\"seq\":3,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1zY2hlZHVsZS8xIiwibmFtZSI6IlNlYXNvbnMiLCJmYWxsYmFjayI6WyJkZWZhdWx0Il0sImVudHJpZXMiOlt7Im5hbWUiOiJIYWxsb3dlZW4iLCJmcm9tIjp7Im1vbnRoIjoxMCwiZGF5IjoxfSwidG8iOnsibW9udGgiOjExLCJkYXkiOjJ9LCJwbGF5bGlzdHMiOlsiaGFsbG93ZWVuIl19LHsibmFtZSI6IkNocmlzdG1hcyIsImZyb20iOnsibW9udGgiOjEyLCJkYXkiOjF9LCJ0byI6eyJtb250aCI6MSwiZGF5Ijo2fSwicGxheWxpc3RzIjpbImNocmlzdG1hcyJdfV19\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "received": 285
+      }
+    },
+    {
+      "send": "@PR eff91e3c {\"seq\":4,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "send": "@PR 7020ef6b {\"seq\":5,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 5,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": true
+        },
+        "play": {
+          "mode": "auto",
+          "source": "fallback",
+          "schedule": "default",
+          "reason": "schedule",
+          "entry": 1,
+          "playlists": [
+            "christmas"
+          ],
+          "playing": "christmas",
+          "server_choice": null
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "send": "@PR 447465c6 {\"seq\":6,\"cmd\":\"delete\",\"kind\":\"schedule\",\"id\":\"default\"}"
+    },
+    {
+      "expect": {
+        "seq": 6,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR a41c7fac {\"seq\":7,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 7,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": true
+        },
+        "play": {
+          "mode": "auto",
+          "source": "fallback",
+          "schedule": null,
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": "default",
+          "server_choice": null
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": null,
+          "last_result": null,
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 name: Checks
-description: Checks the C++ formatting, converts the animations, validates them and runs every test suite. Needs the repository checked out. The firmware version is read from git tags, so full history is needed only where the real version matters, as in the release site build.
+description: Checks the C++ formatting, converts the animations, playlists, schedules and the play file, validates them and runs every test suite. Needs the repository checked out. The firmware version is read from git tags, so full history is needed only where the real version matters, as in the release site build.
 
 inputs:
   node:
@@ -18,11 +18,12 @@ runs:
       shell: bash
       run: make format-check
 
-    - name: Convert animations and playlists, check them against the JSON Schemas
+    # The build refuses a schedule with an invalid date or a tie, with or without --schema
+    - name: Convert animations, playlists, schedules and the play file, check them against the JSON Schemas and check the schedules for ties
       shell: bash
       run: python tools/pixelart.py build --schema
 
-    - name: Check animations and playlists with the board's engine
+    - name: Check animations, playlists, schedules and the play file with the board's engine
       shell: bash
       run: |
         pio run -e native

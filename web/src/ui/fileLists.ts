@@ -15,22 +15,31 @@ export type BoardFileList =
   | { status: "known"; entries: Entry[]; staleSince: number | null }
   | { status: "unknown"; error: unknown };
 
+/** The kinds the app lists: the play file is one file the site manages, so it has no list. */
+export type ListedKind = Exclude<Kind, "play">;
+
 export interface FileLists {
   animation: BoardFileList;
   playlist: BoardFileList;
+  /** Known and empty on a board that knows no schedules: it stores none. */
+  schedule: BoardFileList;
 }
 
-export const KINDS: Kind[] = ["animation", "playlist"];
+export const KINDS: ListedKind[] = ["animation", "playlist", "schedule"];
 
-export const NO_LISTS: FileLists = { animation: { status: "loading" }, playlist: { status: "loading" } };
+export const NO_LISTS: FileLists = {
+  animation: { status: "loading" },
+  playlist: { status: "loading" },
+  schedule: { status: "loading" },
+};
 
 export class FileListReader {
   private lists: FileLists = NO_LISTS;
   /** Counts the reads of each kind: a read that is not the latest one never replaces a newer result. */
-  private sequence: Record<Kind, number> = { animation: 0, playlist: 0 };
+  private sequence: Record<ListedKind, number> = { animation: 0, playlist: 0, schedule: 0 };
 
   constructor(
-    private readonly read: (kind: Kind) => Promise<Entry[]>,
+    private readonly read: (kind: ListedKind) => Promise<Entry[]>,
     private readonly publish: (lists: FileLists) => void,
   ) {}
 
@@ -46,11 +55,11 @@ export class FileListReader {
   }
 
   /** Reads the lists of these kinds again. Never rejects: a failed read leaves the list "unknown". */
-  async refresh(kinds: readonly Kind[]): Promise<void> {
+  async refresh(kinds: readonly ListedKind[]): Promise<void> {
     await Promise.all(kinds.map((kind) => this.refreshOne(kind)));
   }
 
-  private async refreshOne(kind: Kind): Promise<void> {
+  private async refreshOne(kind: ListedKind): Promise<void> {
     const mine = ++this.sequence[kind];
     const before = this.lists[kind];
     // An earlier read still running keeps its start: a save between the two starts must still count.
@@ -64,7 +73,7 @@ export class FileListReader {
     if (mine === this.sequence[kind]) this.put(kind, next);
   }
 
-  private put(kind: Kind, list: BoardFileList): void {
+  private put(kind: ListedKind, list: BoardFileList): void {
     this.lists = { ...this.lists, [kind]: list };
     this.publish(this.lists);
   }

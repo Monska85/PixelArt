@@ -1,0 +1,19 @@
+{
+  "format": "pixelart-schedule/1",
+  "fallback": [
+    "default"
+  ],
+  "entries": [
+    {
+      "from": {
+        "year": 2999
+      },
+      "to": {
+        "year": 3000
+      },
+      "playlists": [
+        "a"
+      ]
+    }
+  ]
+}

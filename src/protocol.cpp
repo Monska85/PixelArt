@@ -7,6 +7,7 @@
 #include <net_auth.h>
 #include <pixel_codec.h>
 #include <pixelart_engine.h>
+#include <server_choice.h>
 #include <strict_json.h>
 
 #include <algorithm>
@@ -45,6 +46,7 @@ constexpr size_t MAX_BYTES_PER_POLL = 512;
 const char *TEMP_FILE = "/upload.tmp";
 const char OUT_OF_MEMORY_MESSAGE[] = "not enough free memory to validate the file";
 
+using install::file_path;
 using install::Kind;
 
 struct Upload
@@ -115,14 +117,20 @@ void close_wifi_client()
   network::close_client();
 }
 
-size_t size_limit(Kind kind)
+const char *kind_name(Kind kind)
 {
-  return kind == Kind::Animation ? pixelart::MAX_FILE_SIZE : pixelart::MAX_PLAYLIST_FILE_SIZE;
-}
-
-std::string file_path(Kind kind, const std::string &id)
-{
-  return kind == Kind::Animation ? animation_file(id) : playlist_file(id);
+  switch (kind)
+  {
+  case Kind::Animation:
+    return "animation";
+  case Kind::Playlist:
+    return "playlist";
+  case Kind::Schedule:
+    return "schedule";
+  case Kind::Play:
+    break;
+  }
+  return "play";
 }
 
 // Every byte that is not part of a well-formed UTF-8 sequence becomes U+FFFD,
@@ -266,8 +274,12 @@ Status get_kind(JsonObjectConst request, Kind &kind)
     kind = Kind::Animation;
   else if (text == "playlist")
     kind = Kind::Playlist;
+  else if (text == "schedule")
+    kind = Kind::Schedule;
+  else if (text == "play")
+    kind = Kind::Play;
   else
-    return fail("invalid_kind", "kind must be \"animation\" or \"playlist\"");
+    return fail("invalid_kind", "kind must be \"animation\", \"playlist\", \"schedule\" or \"play\"");
   return {};
 }
 
@@ -380,6 +392,38 @@ void warn_unknown_animations(const pixelart::Playlist &playlist, std::vector<pix
   }
 }
 
+// Adds an `unknown_playlist` warning for each place of a schedule that names a playlist that is not stored, up to
+// the MAX_DIAGNOSTICS a file has: a schedule can name hundreds of places, and a warning for each would not fit in
+// the memory. The stored playlists are listed once instead of looking each place up in the storage.
+void warn_unknown_playlists(const pixelart::Schedule &schedule, std::vector<pixelart::Diagnostic> &diagnostics)
+{
+  const std::vector<std::string> stored = stored_playlists();
+  auto check = [&](const std::vector<std::string> &ids, const std::string &where)
+  {
+    for (size_t i = 0; i < ids.size() && diagnostics.size() < pixelart::MAX_DIAGNOSTICS; i++)
+      if (std::find(stored.begin(), stored.end(), ids[i]) == stored.end())
+        diagnostics.push_back({pixelart::Severity::Warning, "unknown_playlist", where + "[" + std::to_string(i) + "]",
+                               "\"" + ids[i] + "\" is not stored"});
+  };
+  check(schedule.fallback(), "fallback");
+  for (size_t e = 0; e < schedule.entry_count(); e++)
+    check(schedule.playlists(e), "entries[" + std::to_string(e) + "].playlists");
+}
+
+// Adds an `unknown_schedule` or `unknown_playlist` warning for the schedule or each playlist of a play file that is
+// not stored. A play file names at most MAX_SCHEDULE_PLAYLISTS places.
+void warn_unknown_play_targets(const pixelart::ServerChoice &choice, std::vector<pixelart::Diagnostic> &diagnostics)
+{
+  if (!choice.schedule.empty() && !storage::exists(schedule_file(choice.schedule)))
+    diagnostics.push_back({pixelart::Severity::Warning, "unknown_schedule", "default.schedule",
+                           "\"" + choice.schedule + "\" is not stored"});
+  for (size_t i = 0; i < choice.playlists.size(); i++)
+    if (!storage::exists(playlist_file(choice.playlists[i])))
+      diagnostics.push_back({pixelart::Severity::Warning, "unknown_playlist",
+                             "default.playlists[" + std::to_string(i) + "]",
+                             "\"" + choice.playlists[i] + "\" is not stored"});
+}
+
 // ---- Commands ----
 
 Status cmd_info(JsonObjectConst request, JsonDocument &reply)
@@ -393,6 +437,8 @@ Status cmd_info(JsonObjectConst request, JsonDocument &reply)
   reply["boot_id"] = boot_id;
   reply["formats"]["animation"].add("pixelart/1");
   reply["formats"]["playlist"].add("pixelart-playlist/1");
+  reply["formats"]["schedule"].add("pixelart-schedule/1");
+  reply["formats"]["play"].add("pixelart-play/1");
   reply["canvas"]["width"] = pixelart::CANVAS_WIDTH;
   reply["canvas"]["height"] = pixelart::CANVAS_HEIGHT;
   reply["storage"]["total"] = storage::total_bytes();
@@ -404,6 +450,8 @@ Status cmd_info(JsonObjectConst request, JsonDocument &reply)
   reply["limits"]["page"] = PAGE_SIZE;
   reply["limits"]["animation"] = pixelart::MAX_FILE_SIZE;
   reply["limits"]["playlist"] = pixelart::MAX_PLAYLIST_FILE_SIZE;
+  reply["limits"]["schedule"] = pixelart::MAX_SCHEDULE_FILE_SIZE;
+  reply["limits"]["play"] = pixelart::MAX_PLAY_FILE_SIZE;
   return {};
 }
 
@@ -497,14 +545,14 @@ Status cmd_list(JsonObjectConst request, JsonDocument &reply)
     if (Status s = check_id(after, "after"); s.code)
       return s;
 
-  std::vector<std::string> ids = kind == Kind::Animation ? stored_animations() : stored_playlists();
+  std::vector<std::string> ids = install::stored_ids(kind);
   // Ids sort differently from file names (`a-b.json` before `a.json`), and paging goes by id.
   std::sort(ids.begin(), ids.end());
   // One lock for the page. An update holding the memory for longer than the wait is `out_of_memory`.
   task_sync::HeapLock lock(task_sync::Owner::Loop);
   if (!lock.held())
     return fail("out_of_memory", "an update holds the memory, try again in a moment");
-  reply["kind"] = kind == Kind::Animation ? "animation" : "playlist";
+  reply["kind"] = kind_name(kind);
   JsonArray entries = reply["entries"].to<JsonArray>();
   bool more = false;
   for (const std::string &id : ids)
@@ -662,12 +710,16 @@ struct TempFileGuard
 // the reply.
 Status validate_temp_file(Kind kind, size_t size, JsonDocument &reply, std::vector<pixelart::Diagnostic> &diagnostics)
 {
-  pixelart::Playlist playlist;
-  switch (install::check(kind, TEMP_FILE, size, diagnostics, &playlist))
+  install::Parsed parsed;
+  switch (install::check(kind, TEMP_FILE, size, diagnostics, &parsed))
   {
   case install::Result::Ok:
     if (kind == Kind::Playlist)
-      warn_unknown_animations(playlist, diagnostics);
+      warn_unknown_animations(parsed.playlist, diagnostics);
+    else if (kind == Kind::Schedule)
+      warn_unknown_playlists(parsed.schedule, diagnostics);
+    else if (kind == Kind::Play)
+      warn_unknown_play_targets(parsed.play, diagnostics);
     return {};
   case install::Result::OutOfMemory:
     return fail("out_of_memory", OUT_OF_MEMORY_MESSAGE);
@@ -677,8 +729,7 @@ Status validate_temp_file(Kind kind, size_t size, JsonDocument &reply, std::vect
     break;
   }
   add_diagnostics(reply["diagnostics"].to<JsonArray>(), diagnostics);
-  return fail("invalid_file",
-              kind == Kind::Animation ? "the file is not a valid animation" : "the file is not a valid playlist");
+  return fail("invalid_file", std::string("the file is not a valid ") + kind_name(kind));
 }
 
 Status cmd_put_end(JsonObjectConst request, JsonDocument &reply)
@@ -734,8 +785,7 @@ Status cmd_delete(JsonObjectConst request, JsonDocument &)
     return fail("not_found", "no such file");
   if (!storage::remove(path))
     return fail("storage_error", "the file cannot be removed");
-  if (kind == Kind::Playlist)
-    request_playlist_reload();
+  install::file_changed(kind);
   return {};
 }
 
@@ -757,8 +807,9 @@ bool remove_all_files(const char *folder, size_t &count)
 void apply_changes(const settings::Values &before)
 {
   const settings::Values &now = settings::current();
-  if (now.playlist != before.playlist)
-    request_playlist_reload(); // playback follows the playlist that is now set
+  if (now.playlist != before.playlist || now.play != before.play || now.playlists != before.playlists ||
+      now.schedule != before.schedule || now.timezone != before.timezone)
+    request_choice(); // playback follows the play settings, and the schedule the local date
   if (now.wifi_power != before.wifi_power)
     network::set_power(now.wifi_power);
   if (now.update_config_differs(before))
@@ -795,6 +846,11 @@ void add_settings(JsonDocument &reply)
   JsonObject out = reply["settings"].to<JsonObject>();
   out["brightness"] = v.brightness;
   out["playlist"] = v.playlist;
+  out["play"] = v.play;
+  JsonArray playlists = out["playlists"].to<JsonArray>();
+  for (const std::string &id : v.playlists)
+    playlists.add(id);
+  out["schedule"] = v.schedule;
   out["wifi_power"] = v.wifi_power;
   out["update_mode"] = v.update_mode;
   out["update_firmware"] = v.update_firmware;
@@ -803,6 +859,8 @@ void add_settings(JsonDocument &reply)
   out["install_start"] = v.install_start;
   out["install_end"] = v.install_end;
   out["timezone"] = v.timezone;
+  out["time_sync_hours"] = v.time_sync_hours;
+  out["ntp_server"] = v.ntp_server;
   out["animation_source"] = v.animation_source;
   out["network_login"] = v.network_login;
   if (current_transport == Transport::Usb)
@@ -833,10 +891,15 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
     return fail("busy", "the board could not take the request now; nothing was changed, repeat the command");
   cancel_upload();
   updates::cancel_install(); // before the files go, so an installation does not store them again
-  size_t playlists = 0, animations = 0;
-  bool done = remove_all_files(PLAYLISTS_FOLDER, playlists) && remove_all_files(ANIMATIONS_FOLDER, animations);
+  size_t play = 0, schedules = 0, playlists = 0, animations = 0;
+  bool done = remove_all_files(PLAY_FOLDER, play) && remove_all_files(SCHEDULES_FOLDER, schedules) &&
+              remove_all_files(PLAYLISTS_FOLDER, playlists) && remove_all_files(ANIMATIONS_FOLDER, animations);
   if (playlists > 0)
-    request_playlist_reload();
+    install::file_changed(Kind::Playlist);
+  else if (schedules > 0)
+    install::file_changed(Kind::Schedule);
+  else if (play > 0)
+    install::file_changed(Kind::Play);
   if (!done)
     return fail("storage_error", "a file cannot be removed");
   // The settings go back to their defaults only once every file is gone, with a new token.
@@ -844,9 +907,13 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   {
     if (const char *failure = save_settings(settings::defaults_with_new_token()))
       return fail("storage_error", std::string("the files are removed but ") + failure);
+    request_choice();
+    request_choice();
     close_wifi_client(); // the old token is gone
     add_settings(reply);
   }
+  reply["play"] = play;
+  reply["schedules"] = schedules;
   reply["playlists"] = playlists;
   reply["animations"] = animations;
   return {};
@@ -872,6 +939,9 @@ const std::string &animation_source_rule()
                                   std::to_string(settings::MAX_ANIMATION_SOURCE) + " characters";
   return rule;
 }
+
+// The ID rule of a `schedule` is checked afterwards, as for `playlists`: `invalid_id`, not `bad_request`.
+bool any_text(const std::string &) { return true; }
 
 Status optional_text(JsonObjectConst request, const char *key, bool (*valid)(const std::string &), const char *rule,
                      std::string &out)
@@ -918,17 +988,88 @@ bool has_fields(JsonObjectConst request)
   return false;
 }
 
+// The older `playlist` setting of a request, when present: any text. The ID is checked afterwards.
+Status read_playlist(JsonVariantConst value, std::string &out)
+{
+  if (!value.is<const char *>())
+    return fail("bad_request", "playlist must be text");
+  out = value.as<std::string>();
+  return {};
+}
+
+// The `playlists` setting of a request, when present: 1 to MAX_PLAYLISTS texts, no ID twice. The IDs are checked
+// afterwards.
+Status read_playlists(JsonVariantConst value, std::vector<std::string> &out)
+{
+  const std::string rule =
+      "playlists must be a list of 1 to " + std::to_string(settings::MAX_PLAYLISTS) + " playlist IDs, no ID twice";
+  if (!value.is<JsonArrayConst>() || value.size() < 1 || value.size() > settings::MAX_PLAYLISTS)
+    return fail("bad_request", rule);
+  out.clear();
+  for (JsonVariantConst item : value.as<JsonArrayConst>())
+  {
+    if (!item.is<const char *>())
+      return fail("bad_request", rule);
+    std::string id = item.as<std::string>();
+    if (std::find(out.begin(), out.end(), id) != out.end())
+      return fail("bad_request", rule);
+    out.push_back(std::move(id));
+  }
+  return {};
+}
+
+// What a request says about what to play. `playlist`, `playlists` and `schedule` are read only when present.
+struct PlayFields
+{
+  bool has_play = false;
+  bool has_playlists = false;
+  bool has_playlist = false;
+  bool has_schedule = false;
+  std::vector<std::string> playlists;
+  std::string playlist;
+};
+
+// Puts the play fields, already checked, into `next`, keeping playlist == reported_playlist(play, playlists).
+// A `playlist` given with `play` or `playlists` must agree with them.
+Status apply_play(const PlayFields &fields, settings::Values &next)
+{
+  if (fields.has_play || fields.has_playlists)
+  {
+    if (fields.has_playlists)
+      next.playlists = fields.playlists;
+    next.play_stored = true;
+    next.playlist = settings::reported_playlist(next.play, next.playlists);
+    if (fields.has_playlist && fields.playlist != next.playlist)
+      return fail("bad_request", "playlist must be " + next.playlist + " with these play and playlists");
+  }
+  else if (fields.has_schedule)
+  {
+    // The schedule alone leaves play and playlists as they are, so a `playlist` has to agree with them.
+    if (fields.has_playlist && fields.playlist != next.playlist)
+      return fail("bad_request", "playlist must be " + next.playlist + " with these play and playlists");
+  }
+  else if (fields.has_playlist)
+  {
+    // An older client: its `default` means Automatic, another playlist My playlists with that one.
+    next.playlist = fields.playlist;
+    settings::derive_play(next);
+  }
+  return {};
+}
+
 Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
 {
   if (!request["token"].isUnbound())
     return fail("bad_request", "token is read only");
-  if (Status s = allow_only(request, {"brightness", "playlist", "wifi_power", "update_mode", "update_firmware",
-                                      "update_animations", "check_hours", "install_start", "install_end", "timezone",
-                                      "animation_source", "network_login"});
+  if (Status s =
+          allow_only(request, {"brightness", "playlist", "play", "playlists", "schedule", "wifi_power", "update_mode",
+                               "update_firmware", "update_animations", "check_hours", "install_start", "install_end",
+                               "timezone", "time_sync_hours", "ntp_server", "animation_source", "network_login"});
       s.code)
     return s;
 
-  // Check everything before changing anything: the fields go into a copy of the settings.
+  // Check everything before changing anything: the fields go into a copy of the settings. The errors come in
+  // this order: bad_request for any field, then invalid_id, then not_found, then a playlist that disagrees.
   settings::Values next = settings::current();
   JsonVariantConst brightness = request["brightness"];
   if (!brightness.isUnbound())
@@ -937,24 +1078,24 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
       return fail("bad_request", "brightness must be a whole number from 0 to 255");
     next.brightness = brightness.as<uint8_t>();
   }
-  JsonVariantConst playlist = request["playlist"];
-  if (!playlist.isUnbound())
-  {
-    if (!playlist.is<const char *>())
-      return fail("bad_request", "playlist must be text");
-    next.playlist = playlist.as<std::string>();
-    if (Status s = check_id(next.playlist, "playlist"); s.code)
-      return s;
-    if (!storage::exists(playlist_file(next.playlist)))
-      return fail("not_found", "no such playlist");
-  }
+  PlayFields play;
+  play.has_play = !request["play"].isUnbound();
+  play.has_playlists = !request["playlists"].isUnbound();
+  play.has_playlist = !request["playlist"].isUnbound();
+  play.has_schedule = !request["schedule"].isUnbound();
   for (Status s :
-       {optional_text(request, "wifi_power", settings::valid_wifi_power, "auto, 8.5, 11, 13, 15, 17, 18.5 or 19.5",
+       {play.has_playlist ? read_playlist(request["playlist"], play.playlist) : Status{},
+        optional_text(request, "play", settings::valid_play, "auto, playlists or schedule", next.play),
+        play.has_playlists ? read_playlists(request["playlists"], play.playlists) : Status{},
+        optional_text(request, "schedule", any_text, "text", next.schedule),
+        optional_text(request, "wifi_power", settings::valid_wifi_power, "auto, 8.5, 11, 13, 15, 17, 18.5 or 19.5",
                       next.wifi_power),
         optional_text(request, "update_mode", settings::valid_update_mode, "off, notify or automatic",
                       next.update_mode),
         optional_text(request, "timezone", settings::valid_timezone, "1 to 64 printable ASCII characters",
                       next.timezone),
+        optional_text(request, "ntp_server", settings::valid_ntp_server,
+                      "a host name or IPv4 address of 1 to 64 letters, digits, dots and dashes", next.ntp_server),
         optional_text(request, "animation_source", settings::valid_animation_source, animation_source_rule().c_str(),
                       next.animation_source),
         optional_flag(request, "update_firmware", next.update_firmware),
@@ -962,16 +1103,56 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
         optional_flag(request, "network_login", next.network_login),
         optional_number(request, "check_hours", settings::valid_check_hours, "from 1 to 168", next.check_hours),
         optional_number(request, "install_start", settings::valid_minutes, "from 0 to 1439", next.install_start),
-        optional_number(request, "install_end", settings::valid_minutes, "from 0 to 1439", next.install_end)})
+        optional_number(request, "install_end", settings::valid_minutes, "from 0 to 1439", next.install_end),
+        optional_number(request, "time_sync_hours", settings::valid_time_sync_hours, "from 1 to 168",
+                        next.time_sync_hours)})
     if (s.code)
       return s;
   if (!has_fields(request)) // every field is a setting: allow_only refused the others
     return fail("bad_request", "give at least one setting");
 
+  if (play.has_playlist)
+    if (Status s = check_id(play.playlist, "playlist"); s.code)
+      return s;
+  if (play.has_schedule)
+    if (Status s = check_id(next.schedule, "schedule"); s.code)
+      return s;
+  for (const std::string &id : play.playlists)
+    if (Status s = check_id(id, "playlists"); s.code)
+      return s;
+  if (play.has_playlist && !storage::exists(playlist_file(play.playlist)))
+    return fail("not_found", "no such playlist");
+  if (play.has_schedule && !storage::exists(schedule_file(next.schedule)))
+    return fail("not_found", "no such schedule");
+  for (const std::string &id : play.playlists)
+    if (!storage::exists(playlist_file(id)))
+      return fail("not_found", "no such playlist: " + id);
+  if (Status s = apply_play(play, next); s.code)
+    return s;
+
   if (const char *failure = save_settings(next))
     return fail("storage_error", failure);
   add_settings(reply);
   return {};
+}
+
+// `choice` as a reply field: the object, or null for none.
+template <typename Field> void set_server_choice_field(Field field, const pixelart::ServerChoice &choice)
+{
+  if (choice.is_none())
+  {
+    field.set(nullptr);
+    return;
+  }
+  JsonObject object = field.template to<JsonObject>();
+  if (!choice.schedule.empty())
+    object["schedule"] = choice.schedule;
+  else
+  {
+    JsonArray list = object["playlists"].to<JsonArray>();
+    for (const std::string &id : choice.playlists)
+      list.add(id);
+  }
 }
 
 Status cmd_status(JsonObjectConst request, JsonDocument &reply)
@@ -998,6 +1179,28 @@ Status cmd_status(JsonObjectConst request, JsonDocument &reply)
     wifi["ssid"] = nullptr;
   const updates::Snapshot u = updates::snapshot();
   reply["time"]["known"] = u.time_known;
+  refresh_choice();
+  const PlayStatus p = play_status();
+  JsonObject play = reply["play"].to<JsonObject>();
+  play["mode"] = p.mode;
+  play["source"] = pixelart::play_source_name(p.source);
+  if (p.schedule.empty())
+    play["schedule"] = nullptr;
+  else
+    play["schedule"] = p.schedule;
+  play["reason"] = pixelart::play_reason_name(p.reason);
+  if (p.entry >= 0)
+    play["entry"] = p.entry;
+  else
+    play["entry"] = nullptr;
+  JsonArray list = play["playlists"].to<JsonArray>();
+  for (const std::string &id : p.playlists)
+    list.add(id);
+  if (p.playing.empty())
+    play["playing"] = nullptr;
+  else
+    play["playing"] = p.playing;
+  set_server_choice_field(play["server_choice"], p.server_choice);
   JsonObject update = reply["update"].to<JsonObject>();
   update["state"] = u.state;
   update["progress"] = u.progress;

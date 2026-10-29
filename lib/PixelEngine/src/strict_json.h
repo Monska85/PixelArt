@@ -3,7 +3,7 @@
 // Strict JSON check run before ArduinoJson parses a file. ArduinoJson accepts
 // more than RFC 8259 (comments, single quotes, unquoted keys, a leading +, and
 // more), and the format requires strict JSON, so this scan rejects the rest.
-// Also the parsing steps shared by the animation and playlist loaders.
+// Also the parsing steps shared by the animation, playlist and schedule loaders.
 
 #pragma once
 

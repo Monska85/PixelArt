@@ -1,0 +1,243 @@
+{
+  "description": "a schedule naming playlists that are not stored in more places than a reply holds is stored with 32 unknown_playlist warnings, the most a file has",
+  "files": {},
+  "steps": [
+    {
+      "send": "@PR 2ac3b4cf {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"schedule\",\"id\":\"default\",\"size\":529,\"sha256\":\"c0d42d8c292ff49b080a0b236f97d94fbd6c5cd35c19763b9726936467c4d3a3\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 9ba70275 {\"seq\":2,\"cmd\":\"put_chunk\",\"offset\":0,\"data\":\"eyJmb3JtYXQiOiJwaXhlbGFydC1zY2hlZHVsZS8xIiwiZmFsbGJhY2siOlsiZjAiLCJmMSIsImYyIiwiZjMiLCJmNCIsImY1IiwiZjYiLCJmNyJdLCJlbnRyaWVzIjpbeyJmcm9tIjp7Im1vbnRoIjoxfSwidG8iOnsibW9udGgiOjF9LCJwbGF5bGlzdHMiOlsiZTBwMCIsImUwcDEiLCJlMHAyIiwiZTBwMyIsImUwcDQiLCJlMHA1IiwiZTBwNiIsImUwcDciXX0seyJmcm9tIjp7Im1vbnRoIjoyfSwidG8iOnsibW9udGgiOjJ9LCJwbGF5bGlzdHMiOlsiZTFwMCIsImUxcDEiLCJlMXAyIiwiZTFwMyIsImUxcDQiLCJlMXA1IiwiZTFwNiIsImUxcDciXX0seyJmcm9tIjp7Im1vbnRoIjozfSwidG8iOnsibW9udGgiOjN9LCJwbGF5bGlzdHMiOlsiZTJwMCIsImUycDEiLCJlMnAyIiwiZTJwMyIsImUycDQiLCJlMnA1IiwiZTJwNiIsImUycDciXX0seyJmcm9tIjp7Im1vbnRoIjo0fSwidG8iOnsibW9udGgiOjR9LCJwbGF5bGlzdHMiOlsiZTNwMCIsImUzcDEiLCJlM3AyIiwiZTNwMyIsImUzcDQiLCJlM3A1Iiw=\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "received": 512
+      }
+    },
+    {
+      "send": "@PR 580fed26 {\"seq\":3,\"cmd\":\"put_chunk\",\"offset\":512,\"data\":\"ImUzcDYiLCJlM3A3Il19XX0=\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "received": 529
+      }
+    },
+    {
+      "send": "@PR eff91e3c {\"seq\":4,\"cmd\":\"put_end\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "warnings": [
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          },
+          {
+            "severity": "warning",
+            "code": "unknown_playlist",
+            "where": "<any>",
+            "message": "<any>"
+          }
+        ]
+      }
+    },
+    {
+      "expect_files": {
+        "schedules/default.json": "{\"format\":\"pixelart-schedule/1\",\"fallback\":[\"f0\",\"f1\",\"f2\",\"f3\",\"f4\",\"f5\",\"f6\",\"f7\"],\"entries\":[{\"from\":{\"month\":1},\"to\":{\"month\":1},\"playlists\":[\"e0p0\",\"e0p1\",\"e0p2\",\"e0p3\",\"e0p4\",\"e0p5\",\"e0p6\",\"e0p7\"]},{\"from\":{\"month\":2},\"to\":{\"month\":2},\"playlists\":[\"e1p0\",\"e1p1\",\"e1p2\",\"e1p3\",\"e1p4\",\"e1p5\",\"e1p6\",\"e1p7\"]},{\"from\":{\"month\":3},\"to\":{\"month\":3},\"playlists\":[\"e2p0\",\"e2p1\",\"e2p2\",\"e2p3\",\"e2p4\",\"e2p5\",\"e2p6\",\"e2p7\"]},{\"from\":{\"month\":4},\"to\":{\"month\":4},\"playlists\":[\"e3p0\",\"e3p1\",\"e3p2\",\"e3p3\",\"e3p4\",\"e3p5\",\"e3p6\",\"e3p7\"]}]}"
+      }
+    }
+  ]
+}

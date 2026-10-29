@@ -24,6 +24,10 @@ export interface QueueFile {
 export interface StoredFiles {
   animation: Entry[];
   playlist: Entry[];
+  /** Empty on a board that knows no schedules. */
+  schedule: Entry[];
+  /** Empty on a board that knows no play file. */
+  play: Entry[];
 }
 
 type PlanStatus = "missing" | "identical" | "different";
@@ -145,9 +149,13 @@ export function checkSpace(sends: PlanEntry[], storage: { total: number; used: n
   return { needed, freed, free, short };
 }
 
-/** Animations first, playlists last, each kind in the order given: a playlist never arrives before its animations. */
+/**
+ * Animations first, then playlists, schedules and the play file, each kind in the order given: a playlist never arrives
+ * before its animations, a schedule before its playlists, nor the play file before the schedule or playlists it names.
+ */
 export function sendOrder<T extends { file: QueueFile }>(entries: T[]): T[] {
-  return [...entries.filter((e) => e.file.kind === "animation"), ...entries.filter((e) => e.file.kind === "playlist")];
+  const of = (kind: Kind): T[] => entries.filter((e) => e.file.kind === kind);
+  return [...of("animation"), ...of("playlist"), ...of("schedule"), ...of("play")];
 }
 
 export type SendOutcome =

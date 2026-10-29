@@ -131,9 +131,9 @@ public:
 
   bool local_minutes(uint16_t &minutes) override { return net_time::local_minutes(minutes); }
 
-  void time_config(bool needed, const std::string &timezone) override
+  void time_config(bool needed, const std::string &timezone, const std::string &server, uint32_t sync_hours) override
   {
-    net_time::configure(needed, online(), timezone);
+    net_time::configure(needed, online(), timezone, server, sync_hours);
   }
 
 private:
@@ -153,12 +153,16 @@ struct Shared
   bool install_requested = false;
   bool firmware_requested = false;
   bool firmware_force = false;
-  // delete_all stopped the installation of animations and playlists: the update task drops it, and the loop
-  // task discards a file that arrives meanwhile.
+  // delete_all stopped the installation of animations, playlists and schedules: the update task drops it, and
+  // the loop task discards a file that arrives meanwhile.
   bool cancel_install = false;
   bool busy = false;
   pixelart_update::Status status;
   bool time_known = false;
+  // The local date, valid when `time_known`. Written in every build, read only on the board: the loop task reads
+  // it here because the network task owns TZ, and localtime_r() on the loop task would race its tzset().
+  pixelart::LocalDate date;
+  bool schedule_needs_time = false; // the player plays a schedule
 };
 
 Shared shared;
@@ -179,10 +183,22 @@ pixelart_update::Config make_config(const settings::Values &v)
   c.firmware_manifest = FIRMWARE_MANIFEST;
   c.firmware_allow_http = FIRMWARE_ALLOW_HTTP;
   c.timezone = v.timezone;
+  c.ntp_server = v.ntp_server;
+  c.time_sync_hours = v.time_sync_hours;
   return c;
 }
 
 uint64_t now_ms() { return platform::now_us() / 1000; }
+
+// The local date where the clock is kept, false while the time is not known.
+bool clock_date(pixelart::LocalDate &date)
+{
+#ifdef PIXELART_SIM
+  return local_date(date);
+#else
+  return net_time::local_date(date);
+#endif
+}
 
 // One unit of the updater's work, with the requests and settings the loop task left for it. Returns
 // the milliseconds until the updater needs to run again.
@@ -218,14 +234,15 @@ uint64_t step()
   const uint64_t now = now_ms();
   updater->tick(now);
 
-  uint16_t minutes;
-  const bool time_known = host->local_minutes(minutes);
+  pixelart::LocalDate date;
+  const bool time_known = clock_date(date);
   const pixelart_update::Status status = updater->status();
   const bool busy = updater->busy();
   {
     Locked guard;
     shared.status = status;
     shared.time_known = time_known;
+    shared.date = date;
     shared.busy = busy || shared.check_requested || shared.install_requested || shared.firmware_requested;
   }
   return updater->wait_ms(now);
@@ -305,8 +322,8 @@ pixelart_update::Error install_temp_file(Kind kind, const std::string &id)
     ~RemoveTemp() { storage::remove(TEMP_FILE); }
   } remove_temp;
   std::vector<pixelart::Diagnostic> diagnostics;
-  const install::Kind install_kind = kind == Kind::Animation ? install::Kind::Animation : install::Kind::Playlist;
-  switch (install::check(install_kind, TEMP_FILE, install::SIZE_ANY, diagnostics))
+  const install::Kind checked_kind = install_kind(kind);
+  switch (install::check(checked_kind, TEMP_FILE, install::SIZE_ANY, diagnostics))
   {
   case install::Result::Ok:
     break;
@@ -317,7 +334,7 @@ pixelart_update::Error install_temp_file(Kind kind, const std::string &id)
   case install::Result::Invalid:
     return Error::InvalidFile;
   }
-  if (!install::commit(install_kind, TEMP_FILE, kind == Kind::Animation ? animation_file(id) : playlist_file(id)))
+  if (!install::commit(checked_kind, TEMP_FILE, install::file_path(checked_kind, id)))
     return Error::StorageError;
   return Error::None;
 }
@@ -343,10 +360,35 @@ void apply(const settings::Values &values)
   {
     Locked guard;
     shared.config = make_config(values);
+    shared.config.schedule_needs_time = shared.schedule_needs_time;
     shared.config_dirty = true;
   }
   network::wake();
 }
+
+void set_schedule_needs_time(bool needed)
+{
+  {
+    Locked guard;
+    if (shared.schedule_needs_time == needed)
+      return;
+    shared.schedule_needs_time = needed;
+    shared.config.schedule_needs_time = needed;
+    shared.config_dirty = true;
+  }
+  network::wake();
+}
+
+#ifndef PIXELART_SIM
+bool local_date(pixelart::LocalDate &date)
+{
+  Locked guard;
+  if (!shared.time_known)
+    return false;
+  date = shared.date;
+  return true;
+}
+#endif
 
 Snapshot snapshot()
 {

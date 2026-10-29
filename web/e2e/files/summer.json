@@ -1,0 +1,13 @@
+{
+  "format": "pixelart-schedule/1",
+  "name": "Summer",
+  "fallback": ["holiday"],
+  "entries": [
+    {
+      "name": "Beach days",
+      "from": { "month": 6, "day": 1 },
+      "to": { "month": 8, "day": 31 },
+      "playlists": ["default"]
+    }
+  ]
+}

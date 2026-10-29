@@ -33,6 +33,9 @@ jobs:
       # tools/test_site_url.py reads), the documentation and v0/.
       # web: everything the steps of the web job read: the web app, the converted content, the simulator's sources
       # and build scripts, the conformance suite, the tools, the license texts the build copies and the CI setup.
+      # content/** in both covers every content folder, content/animations, content/playlists and content/schedules,
+      # and the file content/play.yaml, and schema/** covers schema/schedule-1.schema.json and schema/play-1.schema.json,
+      # which the build of the content reads.
       # docs: the documentation and v0/, which no job reads.
       # changed: every changed file, for the last step.
       FILTERS: |
@@ -270,7 +273,7 @@ jobs:
           node: true
 
       # The end-to-end tests run against the simulator, and the YAML tests compare with the converted files
-      - name: Build the simulator and convert the animations and playlists
+      - name: Build the simulator and convert the animations, playlists, schedules and the play file
         run: |
           python3 tools/pixelart.py build
           pio run -e native

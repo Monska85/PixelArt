@@ -40,6 +40,7 @@ void setup()
   protocol::begin();
   task_sync::begin();
   updates::begin(settings::current());
+  begin_player(); // its first choice reads the files before the network task can hold the memory
   network::begin(settings::current().wifi_power);
 }
 

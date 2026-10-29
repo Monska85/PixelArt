@@ -28,7 +28,7 @@
       "maxLength": 200
     },
     "content_version": {
-      "description": "Optional. The version of the content release whose animations and playlists the manifest lists: its tag without the leading content-v. Absent when they do not come from a content release.",
+      "description": "Optional. The version of the content release whose animations, playlists, schedules and play file the manifest lists: its tag without the leading content-v. Absent when they do not come from a content release.",
       "type": "string",
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
       "maxLength": 64
@@ -39,7 +39,15 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["board", "chip", "part", "offset", "file", "size", "sha256"],
+        "required": [
+          "board",
+          "chip",
+          "part",
+          "offset",
+          "file",
+          "size",
+          "sha256"
+        ],
         "additionalProperties": false,
         "properties": {
           "board": {
@@ -50,7 +58,14 @@
             "enum": ["ESP32-C3", "ESP32", "ESP32-S3"]
           },
           "part": {
-            "enum": ["bootloader", "partitions", "boot_app0", "app", "filesystem", "factory"]
+            "enum": [
+              "bootloader",
+              "partitions",
+              "boot_app0",
+              "app",
+              "filesystem",
+              "factory"
+            ]
           },
           "offset": {
             "description": "Flash address the part is written to, in bytes.",
@@ -123,6 +138,61 @@
           "file": {
             "type": "string",
             "pattern": "^playlists/[a-z0-9][a-z0-9_-]{0,31}\\.json$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "schedules": {
+      "description": "Optional. Every published schedule. Absent in a firmware release; a reader takes a missing list as no schedule.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "file", "size", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^schedules/[a-z0-9][a-z0-9_-]{0,31}\\.json$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "play": {
+      "description": "Optional. Every published play file: the release's choice of what Automatic plays. Absent in a firmware release; a reader takes a missing list as no play file. See docs/format/play-v1.md.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "file", "size", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^play/[a-z0-9][a-z0-9_-]{0,31}\\.json$"
           },
           "size": {
             "type": "integer",

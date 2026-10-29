@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures";
+import { expect, showFiles, test } from "./fixtures";
 import { connectScripted, scriptedBoard } from "./scripted";
 
 /** A board of an older firmware: another protocol version or other file formats. */
@@ -49,4 +49,27 @@ test("does not warn a board on the current flash layout", async ({ page }) => {
   await page.getByRole("link", { name: "Firmware", exact: true }).click();
   await expect(page.getByTestId("firmware-check")).toBeVisible();
   await expect(page.getByTestId("old-layout")).toHaveCount(0);
+});
+
+test("a firmware from before schedules keeps the Active playlist, and asks only what it knows", async ({ page }) => {
+  const board = await scriptedBoard(page);
+  board.files.playlist.set("default", Buffer.from("{}"));
+  board.files.playlist.set("mine", Buffer.from("{}"));
+  await connectScripted(page, board);
+  const card = page.getByRole("region", { name: "Settings" });
+  await expect(card.getByLabel("Active playlist")).toHaveValue("default");
+  await expect(page.getByTestId("what-to-play")).toHaveCount(0);
+  await expect(page.getByTestId("time-settings")).toHaveCount(0);
+  await expect(page.getByTestId("files-summary")).toHaveText("0 animations, 2 playlists, active playlist: default");
+  await showFiles(page);
+  await expect(page.getByRole("tab", { name: /^Playlists/ })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /^Schedules/ })).toHaveCount(0);
+
+  await card.getByLabel("Active playlist").selectOption("mine");
+  await expect(card.getByLabel("Active playlist")).toHaveValue("mine");
+  await expect(page.getByTestId("files-summary")).toHaveText("0 animations, 2 playlists, active playlist: mine");
+  const set = board.requests.filter((r) => r.cmd === "settings_set");
+  expect(set.map((request) => ({ ...request, seq: 0 }))).toEqual([{ seq: 0, cmd: "settings_set", playlist: "mine" }]);
+  // The board was never asked about schedules.
+  expect(board.requests.some((r) => r.kind === "schedule")).toBe(false);
 });

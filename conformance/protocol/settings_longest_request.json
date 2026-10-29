@@ -1,5 +1,5 @@
 {
-  "description": "A settings_set that sets every setting to its longest value, a 512 character animation_source included, still fits the 1,024 byte request line",
+  "description": "A settings_set that sets every setting that existed before play to its longest value, a 512 character animation_source included, still fits the 1,024 byte request line",
   "files": {
     "playlists/pppppppppppppppppppppppppppppppp.json": "{\"format\":\"pixelart-playlist/1\",\"canvas\":{\"width\":16,\"height\":16},\"items\":[{\"animation\":\"dot\"}]}",
     "animations/dot.json": "{\"format\":\"pixelart/1\",\"name\":\"Dot\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"dot\":{\"points\":[[7,7,\"#ff0000\"]]}},\"timeline\":[{\"show\":[\"dot\"]}]}"
@@ -15,6 +15,11 @@
         "settings": {
           "brightness": 255,
           "playlist": "pppppppppppppppppppppppppppppppp",
+          "play": "playlists",
+          "playlists": [
+            "pppppppppppppppppppppppppppppppp"
+          ],
+          "schedule": "default",
           "wifi_power": "18.5",
           "update_mode": "automatic",
           "update_firmware": false,
@@ -23,6 +28,8 @@
           "install_start": 1439,
           "install_end": 1439,
           "timezone": "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+          "time_sync_hours": 6,
+          "ntp_server": "pool.ntp.org",
           "animation_source": "https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "network_login": false,
           "token": "<any>"

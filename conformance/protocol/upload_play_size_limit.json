@@ -1,0 +1,45 @@
+{
+  "description": "a play file may be 1,024 bytes, one byte more is too_large",
+  "steps": [
+    {
+      "send": "@PR c60ed4fe {\"seq\":1,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":1024,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR f5818eba {\"seq\":2,\"cmd\":\"put_abort\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true
+      }
+    },
+    {
+      "send": "@PR 8103768e {\"seq\":3,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":1025,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": false,
+        "error": "too_large",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 7cc73f97 {\"seq\":4,\"cmd\":\"put_begin\",\"kind\":\"play\",\"id\":\"default\",\"size\":0,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    }
+  ]
+}
