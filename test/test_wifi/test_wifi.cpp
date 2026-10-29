@@ -5,6 +5,7 @@
 // Run with: pio test -e native_test (or make test)
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <sim.h>
 #include <unity.h>
 
@@ -18,6 +19,7 @@
 #include "protocol.h"
 #include "settings.h"
 #include "wifi_logic.h"
+#include "wifi_credentials.h"
 #include "pixelart_test.h"
 
 using pixelart_test::protocol_frame;
@@ -37,6 +39,62 @@ static std::string bytes(std::initializer_list<int> values)
   for (int v : values)
     out += (char)v;
   return out;
+}
+
+static std::vector<uint8_t> record_bytes(const std::string &hex)
+{
+  std::vector<uint8_t> out;
+  for (size_t i = 0; i + 1 < hex.size(); i += 2)
+    out.push_back((uint8_t)std::stoi(hex.substr(i, 2), nullptr, 16));
+  return out;
+}
+
+static void test_credential_record_conformance()
+{
+  JsonDocument cases;
+  const auto path = std::string(PIXELART_PROJECT_DIR) + "/conformance/wifi-credentials.json";
+  TEST_ASSERT_FALSE(deserializeJson(cases, pixelart_test::read_file(path)));
+  for (JsonObjectConst row : cases["encoded"].as<JsonArrayConst>())
+  {
+    const std::string ssid = row["ssid"].as<std::string>();
+    const std::string password = row["password"].as<std::string>();
+    const auto expected = record_bytes(row["hex"].as<std::string>());
+    uint8_t record[wifi_credentials::MAX_RECORD_BYTES] = {};
+    size_t length = 0;
+    TEST_ASSERT_TRUE(wifi_credentials::encode(ssid.c_str(), password.c_str(), record, length));
+    TEST_ASSERT_EQUAL(expected.size(), length);
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(expected.data(), record, length);
+    char decoded_ssid[network::MAX_SSID + 1] = {};
+    char decoded_password[network::MAX_PASSWORD + 1] = {};
+    TEST_ASSERT_TRUE(wifi_credentials::decode(expected.data(), expected.size(), decoded_ssid, decoded_password));
+    TEST_ASSERT_EQUAL_STRING(ssid.c_str(), decoded_ssid);
+    TEST_ASSERT_EQUAL_STRING(password.c_str(), decoded_password);
+  }
+  for (const char *hex : cases["invalid"].as<JsonArrayConst>())
+  {
+    const auto record = record_bytes(hex);
+    char decoded_ssid[network::MAX_SSID + 1] = {};
+    char decoded_password[network::MAX_PASSWORD + 1] = {};
+    TEST_ASSERT_FALSE(wifi_credentials::decode(record.data(), record.size(), decoded_ssid, decoded_password));
+  }
+}
+
+static void test_credential_record_length_limits()
+{
+  uint8_t record[wifi_credentials::MAX_RECORD_BYTES] = {};
+  size_t length = 0;
+  const std::string longest_ssid(network::MAX_SSID, 'a');
+  const std::string longest_password(network::MAX_PASSWORD, 'b');
+  TEST_ASSERT_TRUE(wifi_credentials::encode(longest_ssid.c_str(), longest_password.c_str(), record, length));
+  TEST_ASSERT_EQUAL(wifi_credentials::MAX_RECORD_BYTES, length);
+  char decoded_ssid[network::MAX_SSID + 1] = {};
+  char decoded_password[network::MAX_PASSWORD + 1] = {};
+  TEST_ASSERT_TRUE(wifi_credentials::decode(record, length, decoded_ssid, decoded_password));
+  TEST_ASSERT_EQUAL_STRING(longest_ssid.c_str(), decoded_ssid);
+  TEST_ASSERT_EQUAL_STRING(longest_password.c_str(), decoded_password);
+  TEST_ASSERT_FALSE(wifi_credentials::encode("", "", record, length));
+  TEST_ASSERT_FALSE(wifi_credentials::encode((longest_ssid + "a").c_str(), "", record, length));
+  TEST_ASSERT_FALSE(wifi_credentials::encode("a", (longest_password + "b").c_str(), record, length));
 }
 
 // A frame as a client builds it: IMPROV, version 1, the type, the data length, the data, the checksum.
@@ -849,6 +907,8 @@ static void test_the_hostname_is_the_last_two_mac_bytes_in_lowercase_hex()
 int main()
 {
   UNITY_BEGIN();
+  RUN_TEST(test_credential_record_conformance);
+  RUN_TEST(test_credential_record_length_limits);
   RUN_TEST(test_a_hand_written_frame_is_read);
   RUN_TEST(test_packets_the_board_sends_match_hand_computed_bytes);
   RUN_TEST(test_parser_reports_a_bad_checksum);

@@ -230,7 +230,13 @@ void make_parents(const std::string &path)
 }
 } // namespace
 
-bool begin() { return LittleFS.begin(true, MOUNT_POINT); }
+bool begin()
+{
+  if (LittleFS.begin(false, MOUNT_POINT))
+    return true;
+  delay(100);
+  return LittleFS.begin(true, MOUNT_POINT);
+}
 
 // Lists names without opening the files, which costs one open per file.
 std::vector<std::string> list(const std::string &folder)

@@ -1,5 +1,7 @@
 # Conformance suite
 
+`wifi-credentials.json` holds hand-computed bytes for the version 1 WiFi credential record in NVS, plus invalid records. The native WiFi test checks its encoding and decoding. The old separate NVS keys remain available for older firmware after rollback, as the [board specification](../docs/board/wifi-and-updates-v1.md#setup-with-improv) describes.
+
 Test cases for the [`pixelart/1` animation format](../docs/format/pixelart-v1.md), the [`pixelart-playlist/1` playlist format](../docs/format/playlist-v1.md) and the [`pixelart-schedule/1` schedule format](../docs/format/schedule-v1.md) and the [`pixelart-play/1` play file format](../docs/format/play-v1.md), with the rules that choose what the board plays. Every implementation of the formats must pass all of them. Today there are two: the engine in `lib/PixelEngine/`, used by the firmware and the simulator, and the web app engine in `web/src/engine`. `make test` runs the first locally (`pio test -e native_test`), `make web-test` runs the second, and CI runs both.
 
 ## Layout

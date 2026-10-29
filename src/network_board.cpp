@@ -15,6 +15,7 @@
 
 #include "platform.h"
 #include "updates.h"
+#include "wifi_credentials.h"
 #include "ws_server.h"
 
 #include <ESPmDNS.h>
@@ -46,6 +47,8 @@ constexpr uint16_t MDNS_PORT = 80; // the WebSocket of the protocol over WiFi
 constexpr TickType_t SEND_WAIT = pdMS_TO_TICKS(100);
 
 const char *PREFS_NAMESPACE = "pixelart_wifi";
+const char *KEY_CREDENTIALS = "credentials_v1";
+// Kept for older firmware after an OTA rollback. New firmware reads the record first.
 const char *KEY_SSID = "ssid";
 const char *KEY_PASSWORD = "password";
 
@@ -110,6 +113,8 @@ bool wifi_started = false;
 bool mdns_started = false;
 bool credentials_erase_pending = false;
 uint32_t next_erase_attempt_ms = 0;
+bool credentials_legacy_retry_pending = false;
+uint32_t next_legacy_attempt_ms = 0;
 char hostname[HOSTNAME_SIZE];
 
 uint32_t now_ms() { return (uint32_t)(platform::now_us() / 1000); }
@@ -240,10 +245,62 @@ void start_mdns()
     MDNS.addService("pixelart", "tcp", MDNS_PORT);
 }
 
+bool legacy_credentials_match(nvs_handle_t handle)
+{
+  char old_ssid[MAX_SSID + 1] = {};
+  char old_password[MAX_PASSWORD + 1] = {};
+  size_t ssid_size = sizeof(old_ssid);
+  size_t password_size = sizeof(old_password);
+  const bool matches = nvs_get_str(handle, KEY_SSID, old_ssid, &ssid_size) == ESP_OK &&
+                       nvs_get_str(handle, KEY_PASSWORD, old_password, &password_size) == ESP_OK &&
+                       strcmp(old_ssid, ssid) == 0 && strcmp(old_password, password) == 0;
+  wipe(old_ssid, sizeof(old_ssid));
+  wipe(old_password, sizeof(old_password));
+  return matches;
+}
+
+bool store_record(nvs_handle_t handle)
+{
+  uint8_t record[wifi_credentials::MAX_RECORD_BYTES];
+  size_t record_size = 0;
+  if (!wifi_credentials::encode(ssid, password, record, record_size))
+    return false;
+  const bool stored =
+      nvs_set_blob(handle, KEY_CREDENTIALS, record, record_size) == ESP_OK && nvs_commit(handle) == ESP_OK;
+  wipe(record, sizeof(record));
+  return stored;
+}
+
 void load_credentials()
 {
-  Preferences prefs;
   have_credentials = false;
+  nvs_handle_t handle;
+  if (nvs_open(PREFS_NAMESPACE, NVS_READONLY, &handle) != ESP_OK)
+    return;
+  size_t record_size = 0;
+  const esp_err_t record_status = nvs_get_blob(handle, KEY_CREDENTIALS, nullptr, &record_size);
+  if (record_status != ESP_ERR_NVS_NOT_FOUND)
+  {
+    // A present but unreadable record must not revive older or partly updated credentials.
+    if (record_status == ESP_OK && record_size >= 3 && record_size <= wifi_credentials::MAX_RECORD_BYTES)
+    {
+      uint8_t record[wifi_credentials::MAX_RECORD_BYTES];
+      if (nvs_get_blob(handle, KEY_CREDENTIALS, record, &record_size) == ESP_OK &&
+          wifi_credentials::decode(record, record_size, ssid, password))
+      {
+        have_credentials = true;
+        credentials_legacy_retry_pending = !legacy_credentials_match(handle);
+        next_legacy_attempt_ms = now_ms() + IDLE_WAKE_MS;
+      }
+      wipe(record, sizeof(record));
+    }
+    if (!have_credentials)
+      Serial.println("pixelart: stored network record is unreadable; set up WiFi again over USB");
+    nvs_close(handle);
+    return;
+  }
+  nvs_close(handle);
+  Preferences prefs;
   if (!prefs.begin(PREFS_NAMESPACE, true))
     return;
   if (prefs.isKey(KEY_SSID))
@@ -258,19 +315,59 @@ void load_credentials()
     }
   }
   prefs.end();
+  if (have_credentials)
+  {
+    nvs_handle_t writable;
+    if (nvs_open(PREFS_NAMESPACE, NVS_READWRITE, &writable) == ESP_OK)
+    {
+      if (!store_record(writable))
+        Serial.println("pixelart: stored network could not be migrated to one record");
+      nvs_close(writable);
+    }
+    else
+      Serial.println("pixelart: stored network could not be migrated to one record");
+  }
 }
 
-bool store_credentials()
+enum class CredentialsStored
+{
+  None,
+  RecordOnly,
+  All
+};
+
+bool store_legacy_credentials(nvs_handle_t handle)
+{
+  return nvs_set_str(handle, KEY_SSID, ssid) == ESP_OK && nvs_set_str(handle, KEY_PASSWORD, password) == ESP_OK &&
+         nvs_commit(handle) == ESP_OK;
+}
+
+bool retry_legacy_credentials()
 {
   nvs_handle_t handle;
   if (nvs_open(PREFS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK)
     return false;
-  // Preferences::putString returns zero for both an empty stored password and
-  // a failed write, so use the NVS status when storing an open network.
-  const bool stored = nvs_set_str(handle, KEY_SSID, ssid) == ESP_OK &&
-                      nvs_set_str(handle, KEY_PASSWORD, password) == ESP_OK && nvs_commit(handle) == ESP_OK;
+  const bool stored = store_legacy_credentials(handle);
   nvs_close(handle);
   return stored;
+}
+
+CredentialsStored store_credentials()
+{
+  nvs_handle_t handle;
+  if (nvs_open(PREFS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK)
+    return CredentialsStored::None;
+  // Commit one record first so this firmware never loads a mixed pair. The two
+  // legacy keys remain for a board that rolls back to an older firmware.
+  const bool record_stored = store_record(handle);
+  if (!record_stored)
+  {
+    nvs_close(handle);
+    return CredentialsStored::None;
+  }
+  const bool legacy_stored = store_legacy_credentials(handle);
+  nvs_close(handle);
+  return legacy_stored ? CredentialsStored::All : CredentialsStored::RecordOnly;
 }
 
 bool erase_credentials()
@@ -377,16 +474,29 @@ void handle(Message &m)
   case Message::Type::Provision:
     advance_wifi_generation();
     credentials_erase_pending = false; // a later provision supersedes an earlier forget
+    credentials_legacy_retry_pending = false;
     copy_text(ssid, sizeof(ssid), m.ssid);
     copy_text(password, sizeof(password), m.password);
-    if (!store_credentials())
-      Serial.printf("pixelart: the network could not be stored, it is used until the next restart\n");
+    switch (store_credentials())
+    {
+    case CredentialsStored::None:
+      Serial.println("pixelart: the network could not be stored, it is used until the next restart");
+      break;
+    case CredentialsStored::RecordOnly:
+      Serial.println("pixelart: the network was stored, but the older firmware copy could not be updated");
+      credentials_legacy_retry_pending = true;
+      next_legacy_attempt_ms = now + IDLE_WAKE_MS;
+      break;
+    case CredentialsStored::All:
+      break;
+    }
     have_credentials = true;
     connection.power().reset(); // failures at another network say nothing about this one
     connection.set_credentials(true, now);
     break;
   case Message::Type::Forget:
     advance_wifi_generation();
+    credentials_legacy_retry_pending = false;
     if (!erase_credentials())
     {
       Serial.printf("pixelart: the stored network could not be erased, retrying\n");
@@ -426,6 +536,8 @@ void task_main(void *)
     wait = std::min(wait, update_wait);
     if (credentials_erase_pending)
       wait = std::min(wait, (int32_t)(now - next_erase_attempt_ms) >= 0 ? 0u : next_erase_attempt_ms - now);
+    if (credentials_legacy_retry_pending)
+      wait = std::min(wait, (int32_t)(now - next_legacy_attempt_ms) >= 0 ? 0u : next_legacy_attempt_ms - now);
     Message m;
     if (inbox.receive(m, pdMS_TO_TICKS(wait)))
     {
@@ -441,6 +553,13 @@ void task_main(void *)
         credentials_erase_pending = false;
       else
         next_erase_attempt_ms = now_ms() + IDLE_WAKE_MS;
+    }
+    if (credentials_legacy_retry_pending && (int32_t)(now_ms() - next_legacy_attempt_ms) >= 0)
+    {
+      if (retry_legacy_credentials())
+        credentials_legacy_retry_pending = false;
+      else
+        next_legacy_attempt_ms = now_ms() + IDLE_WAKE_MS;
     }
     run(connection.poll(now_ms()));
     publish();
