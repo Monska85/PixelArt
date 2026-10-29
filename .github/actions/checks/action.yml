@@ -31,8 +31,32 @@ runs:
 
     - name: Run the tests on the simulator
       shell: bash
-      run: pio test -e native_test
+      run: |
+        set +e
+        pio test -e native_test 2>&1 | tee "$RUNNER_TEMP/native-test.log"
+        result=${PIPESTATUS[0]}
+        set -e
+        {
+          echo '### Native firmware tests'
+          echo ''
+          echo '```text'
+          tail -n 15 "$RUNNER_TEMP/native-test.log"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+        exit "$result"
 
     - name: Run the tests of the command line client and the release tool
       shell: bash
-      run: python -m unittest discover -s tools
+      run: |
+        set +e
+        python -m unittest discover -s tools 2>&1 | tee "$RUNNER_TEMP/tools-test.log"
+        result=${PIPESTATUS[0]}
+        set -e
+        {
+          echo '### Python tool tests'
+          echo ''
+          echo '```text'
+          tail -n 25 "$RUNNER_TEMP/tools-test.log"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+        exit "$result"
