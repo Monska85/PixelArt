@@ -170,6 +170,17 @@ describe("readCapped", () => {
     expect(await readCapped(response, 4)).toBeNull();
     expect(cancel).toHaveBeenCalledTimes(1);
   });
+
+  it("rejects a response without a stream without reading its whole body", async () => {
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(100));
+    const response = {
+      headers: new Headers(),
+      body: null,
+      arrayBuffer,
+    } as unknown as Response;
+    expect(await readCapped(response, 4)).toBeNull();
+    expect(arrayBuffer).not.toHaveBeenCalled();
+  });
 });
 
 describe("libraryState", () => {

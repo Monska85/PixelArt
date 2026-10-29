@@ -132,11 +132,8 @@ export async function readCapped(response: Response, limit: number): Promise<Uin
     await response.body?.cancel();
     return null;
   }
-  // Keep supporting response implementations that expose bytes only through arrayBuffer().
-  if (!response.body) {
-    const all = new Uint8Array(await response.arrayBuffer());
-    return all.length > limit ? null : all;
-  }
+  // A response without a stream cannot be read without allocating its full body first.
+  if (!response.body) return null;
   const reader = response.body.getReader();
   const parts: Uint8Array<ArrayBuffer>[] = [];
   let total = 0;
