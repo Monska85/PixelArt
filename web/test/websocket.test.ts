@@ -2,7 +2,12 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_LINE } from "../src/protocol";
-import { WIFI_BROWSER_NOTE, WebSocketTransport, parseBoardAddress } from "../src/protocol/websocket";
+import {
+  CONNECT_TIMEOUT_MS,
+  WIFI_BROWSER_NOTE,
+  WebSocketTransport,
+  parseBoardAddress,
+} from "../src/protocol/websocket";
 
 class FakeSocket {
   static instance: FakeSocket;
@@ -113,6 +118,34 @@ describe("the address of a board over WiFi", () => {
 });
 
 describe("connecting to a board over WiFi", () => {
+  it("times out silent sockets, closes each one, and ignores a late open", async () => {
+    vi.useFakeTimers();
+    const sockets: Array<{ onopen: (() => void) | null; close: ReturnType<typeof vi.fn> }> = [];
+    vi.stubGlobal(
+      "WebSocket",
+      class {
+        onopen: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        onclose: (() => void) | null = null;
+        close = vi.fn();
+        constructor() {
+          sockets.push(this);
+        }
+      },
+    );
+    const parsed = parseBoardAddress("192.168.1.42");
+    if (!parsed.ok) throw new Error("the address is valid");
+    const failure = WebSocketTransport.connectBoard(parsed.address).catch((error: Error) => error);
+    await vi.advanceTimersByTimeAsync(CONNECT_TIMEOUT_MS);
+    expect(sockets[0]?.close).toHaveBeenCalledTimes(1);
+    expect(sockets[0]?.onopen).toBeNull();
+    await vi.advanceTimersByTimeAsync(5 * CONNECT_TIMEOUT_MS + 6200);
+    expect(sockets).toHaveLength(6);
+    expect(await failure).toBeInstanceOf(Error);
+    expect(sockets.every((socket) => socket.close.mock.calls.length === 1)).toBe(true);
+    vi.useRealTimers();
+  });
+
   it("opens ws://<address>/ws", async () => {
     vi.stubGlobal("WebSocket", FakeSocket);
     FakeSocket.urls = [];

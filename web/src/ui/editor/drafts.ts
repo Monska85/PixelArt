@@ -21,6 +21,15 @@ export function parseDraftDocument(json: string): JsonObject | null {
 const DB_NAME = "pixelart-editor";
 const STORE = "drafts";
 const KEY = "current";
+// Opening IndexedDB is asynchronous. Keep writes and deletes in call order even if
+// one open takes longer than the next, so a discarded draft cannot reappear.
+let mutation: Promise<void> = Promise.resolve();
+
+function inOrder(action: () => Promise<void>): Promise<void> {
+  const next = mutation.then(action, action);
+  mutation = next.catch(() => undefined);
+  return next;
+}
 
 /** The view a document was opened from, so the editor can offer a way back, also after a reload. */
 export type DraftOrigin = "board" | "library";
@@ -96,7 +105,7 @@ export async function readDraft(): Promise<Draft | null> {
 /** Stores the draft. Returns false when storage does not work. */
 export async function writeDraft(draft: Draft): Promise<boolean> {
   try {
-    await run("readwrite", (store) => store.put(draft, KEY));
+    await inOrder(() => run("readwrite", (store) => store.put(draft, KEY)).then(() => undefined));
     return true;
   } catch {
     return false;
@@ -105,7 +114,7 @@ export async function writeDraft(draft: Draft): Promise<boolean> {
 
 export async function clearDraft(): Promise<void> {
   try {
-    await run("readwrite", (store) => store.delete(KEY));
+    await inOrder(() => run("readwrite", (store) => store.delete(KEY)).then(() => undefined));
   } catch {
     // Nothing to clear.
   }

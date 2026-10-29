@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useState } from "react";
-import { WIFI_BROWSER_NOTE } from "../../protocol/websocket";
+import { WIFI_BROWSER_NOTE } from "../../protocol/address";
 import { Alert, AlertDescription } from "../components/alert";
 import { Button } from "../components/button";
 import { Input } from "../components/input";

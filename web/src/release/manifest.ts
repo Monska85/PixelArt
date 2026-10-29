@@ -95,14 +95,31 @@ export function parseManifest(text: string): Manifest | null {
 }
 
 const MAX_MANIFEST_BYTES = 1024 * 1024;
+export const FETCH_TIMEOUT_MS = 30_000;
+
+/** Bound both the response headers and body, including a stalled stream. */
+export async function withFetchTimeout<T>(read: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await read(controller.signal);
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("the request timed out", { cause: error });
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /** Reads `./manifest.json`, asking the server whether the copy is current. Any failure means nothing is published. */
 export async function loadManifest(fetchFn: typeof fetch = fetch): Promise<Manifest | null> {
   try {
-    const response = await fetchFn("./manifest.json", { cache: "no-cache" });
-    if (!response.ok) return null;
-    const bytes = await readCapped(response, MAX_MANIFEST_BYTES);
-    return bytes === null ? null : parseManifest(new TextDecoder().decode(bytes));
+    return await withFetchTimeout(async (signal) => {
+      const response = await fetchFn("./manifest.json", { cache: "no-cache", signal });
+      if (!response.ok) return null;
+      const bytes = await readCapped(response, MAX_MANIFEST_BYTES);
+      return bytes === null ? null : parseManifest(new TextDecoder().decode(bytes));
+    });
   } catch {
     return null;
   }
@@ -111,7 +128,11 @@ export async function loadManifest(fetchFn: typeof fetch = fetch): Promise<Manif
 /** The body of a response, or null when it is longer than `limit`. */
 export async function readCapped(response: Response, limit: number): Promise<Uint8Array | null> {
   const declared = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > limit) return null;
+  if (Number.isFinite(declared) && declared > limit) {
+    await response.body?.cancel();
+    return null;
+  }
+  // Keep supporting response implementations that expose bytes only through arrayBuffer().
   if (!response.body) {
     const all = new Uint8Array(await response.arrayBuffer());
     return all.length > limit ? null : all;
