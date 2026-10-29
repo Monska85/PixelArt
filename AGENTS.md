@@ -17,6 +17,7 @@ Read the relevant specifications in `docs/`, the commands and contribution guida
 ## Privacy
 
 - The privacy promise of the web app is a contract with the user. A change that makes any private or sensitive information (animations, settings, WiFi details, the token, drafts, anything the user enters or the board stores) leave the browser or the board, or that adds an outside service, request, analytics, telemetry or third-party script, updates the in-app Privacy view, the footer and the notes where data is entered, `docs/web/web-app-v1.md` and `README.md` in the same change, and is called out to the user for approval. A change that keeps data local needs no update.
+- Before every commit, inspect the staged files and complete diff for secrets, credentials, tokens, real WiFi names, board identifiers, private board or user data, logs, backups, environment files and contributor machine details. Before every push, inspect every outgoing commit for the same information. Use synthetic values in tests and documentation. Remove sensitive material before committing; if it is already in an outgoing commit, stop the push and report it instead of relying on a later deletion.
 
 ## Builds and tests
 

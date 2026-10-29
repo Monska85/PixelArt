@@ -169,13 +169,14 @@ struct Reader::Impl
 
 ReadResult Reader::open(const std::string &path)
 {
-  impl_.reset(new Impl);
+  impl_.reset();
   size_ = 0;
   fs::path file = host_path(path);
   if (!exists(path))
     return ReadResult::Missing;
   if (is_open_for_writing(file) || !file_size(path, size_))
     return ReadResult::Unreadable;
+  impl_.reset(new Impl);
   impl_->in.open(file, std::ios::binary);
   return impl_->in ? ReadResult::Ok : ReadResult::Unreadable;
 }
@@ -229,7 +230,13 @@ void make_parents(const std::string &path)
 }
 } // namespace
 
-bool begin() { return LittleFS.begin(true, MOUNT_POINT); }
+bool begin()
+{
+  if (LittleFS.begin(false, MOUNT_POINT))
+    return true;
+  delay(100);
+  return LittleFS.begin(true, MOUNT_POINT);
+}
 
 // Lists names without opening the files, which costs one open per file.
 std::vector<std::string> list(const std::string &folder)
@@ -313,11 +320,12 @@ struct Reader::Impl
 
 ReadResult Reader::open(const std::string &path)
 {
-  impl_.reset(new Impl);
+  impl_.reset();
   size_ = 0;
   struct stat info;
   if (!probe(path, info) || !S_ISREG(info.st_mode))
     return ReadResult::Missing;
+  impl_.reset(new Impl);
   impl_->file = LittleFS.open(path.c_str(), "r");
   if (!impl_->file || impl_->file.isDirectory())
     return ReadResult::Unreadable;

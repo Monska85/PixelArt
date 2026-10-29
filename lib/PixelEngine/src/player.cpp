@@ -136,12 +136,15 @@ void Player::render(const Animation::Item &item, uint32_t k, Frame &frame) const
 
   // Recolor: every substitution reads the original color, so colors can swap.
   uint8_t recolor[256];
-  for (int i = 0; i < 256; i++)
-    recolor[i] = (uint8_t)i;
-  for (uint32_t i = 0; i < item.recolor_size; i++)
+  if (item.recolor_size)
   {
-    const Animation::Recolor &r = a.recolors_[item.recolor_first + i];
-    recolor[r.from] = r.to;
+    for (int i = 0; i < 256; i++)
+      recolor[i] = (uint8_t)i;
+    for (uint32_t i = 0; i < item.recolor_size; i++)
+    {
+      const Animation::Recolor &r = a.recolors_[item.recolor_first + i];
+      recolor[r.from] = r.to;
+    }
   }
 
   for (uint32_t i = 0; i < item.size; i++)
@@ -152,7 +155,7 @@ void Player::render(const Animation::Item &item, uint32_t k, Frame &frame) const
          [&](int x, int y, uint8_t color)
          {
            if (transform.apply(x, y))
-             frame.pixels[y][x] = a.colors_[recolor[color]];
+             frame.pixels[y][x] = a.colors_[item.recolor_size ? recolor[color] : color];
          });
   }
 }
