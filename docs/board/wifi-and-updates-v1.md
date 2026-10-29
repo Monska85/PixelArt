@@ -42,7 +42,16 @@ For this firmware change, the loop task's minimum free stack was measured on an 
 | Nesting beyond the format limits, within the JSON limit | 5,260 bytes | 5,276 bytes |
 | Nesting beyond the JSON limit                           | 5,260 bytes | 5,276 bytes |
 
-The later credential-record and LittleFS mount-retry change was built without a connected board, so its loop-task stack was not measured on hardware.
+The later credential-record and LittleFS mount-retry change was measured on the same board, using the same four kinds of file and temporary stack logging before and after the change. Each case started from a reset, then uploaded its file and listed every stored file. The numbers are the minimum free loop-task stack since that reset. The board's files and settings matched the saved inventory after normal firmware was restored.
+
+| Test file                                               | Before record and retry | After record and retry |
+| ------------------------------------------------------- | ----------------------: | ---------------------: |
+| Shipped animation                                       |             5,196 bytes |            5,276 bytes |
+| Composite and loop nesting at both format limits        |             5,276 bytes |            5,276 bytes |
+| Nesting beyond the format limits, within the JSON limit |             5,276 bytes |            5,276 bytes |
+| Nesting beyond the JSON limit                           |             5,276 bytes |            5,276 bytes |
+
+The same four resets logged the time from boot to the first loop poll, including normal file-system mounting and other startup work. The median was 133.4 milliseconds before and 130.3 milliseconds after; the ranges were 116.9 to 156.9 and 92.8 to 143.8 milliseconds. The variation is greater than the median difference, so this measurement shows no clear startup-time change. The mount-failure and formatting path was not exercised, to preserve the board's files.
 
 ## WiFi
 
