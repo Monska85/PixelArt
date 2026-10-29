@@ -21,7 +21,7 @@ import { FileListReader, KINDS, NO_LISTS, type FileLists, type ListedKind } from
 import { SerialTransport, serialApi, type SerialPortLike } from "../protocol/serial";
 import type { ImprovLink } from "../protocol/improv";
 import type { Transport } from "../protocol/transport";
-import { DEFAULT_SIMULATOR_URL, WebSocketTransport, parseBoardAddress, type BoardAddress } from "../protocol/websocket";
+import { DEFAULT_SIMULATOR_URL, parseBoardAddress, type BoardAddress } from "../protocol/address";
 import { readStored, removeStored, SIMULATOR_KEY, tokenKey, WIFI_KEY, writeStored } from "./storage";
 
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "lost";
@@ -140,7 +140,9 @@ class Session {
   }
 
   connectSimulator(address: string): Promise<void> {
-    return this.connect("simulator", () => WebSocketTransport.connect(address));
+    return this.connect("simulator", async () =>
+      (await import("../protocol/websocket")).WebSocketTransport.connect(address),
+    );
   }
 
   /** Connects to a board over WiFi. An address that is not one fails at once, with the way to write it. */
@@ -152,7 +154,9 @@ class Session {
     }
     this.wifiAddress = parsed.address;
     writeStored(WIFI_KEY, parsed.address.host);
-    return this.connect("wifi", () => WebSocketTransport.connectBoard(parsed.address));
+    return this.connect("wifi", async () =>
+      (await import("../protocol/websocket")).WebSocketTransport.connectBoard(parsed.address),
+    );
   }
 
   /** Connects again the way the lost connection was made: a board asks for its port again, the others reuse their address. */
@@ -300,6 +304,7 @@ class Session {
         void transport?.close();
       };
       client.onRestart = () => {
+        if (attempt !== this.attempt) return;
         this.set({ restarts: this.snapshot.restarts + 1 });
         void this.refreshFiles(KINDS);
       };
@@ -310,6 +315,7 @@ class Session {
         this.interrupted = false;
         await abortUpload(client);
       }
+      if (attempt !== this.attempt) return;
       this.set({ state: "connected", client, info, message: null, uploadsBlocked: uploadsBlocked(info) });
       void this.refreshFiles(KINDS);
       if (via === "board") void this.rememberWifiAddress(client);

@@ -7,8 +7,8 @@
 
 import { loadAnimation, type Diagnostic } from "../engine";
 import { listFiles, supportsPlayFile, supportsSchedules, type BoardClient } from "../protocol";
-import { downloadPublished } from "../release/library";
-import { loadManifest, type Manifest, type Published } from "../release/manifest";
+import type { downloadPublished } from "../release/library";
+import type { Manifest, Published } from "../release/manifest";
 import {
   checkSpace,
   dedupe,
@@ -82,7 +82,8 @@ async function readBoard(client: BoardClient): Promise<StoredFiles> {
 
 /** The animations that a playlist names and nothing in the queue has, taken from the Library. */
 async function fromLibrary(entries: Published[], deps: RunDeps): Promise<{ files: QueueFile[]; failed: string[] }> {
-  const download = deps.download ?? downloadPublished;
+  if (entries.length === 0) return { files: [], failed: [] };
+  const download = deps.download ?? (await import("../release/library")).downloadPublished;
   const files: QueueFile[] = [];
   const failed: string[] = [];
   for (const entry of entries) {
@@ -126,7 +127,8 @@ export async function runQueue(deps: RunDeps, input: QueueFile[]): Promise<RunRe
 
   let all = unique;
   if (unique.some((f) => f.kind === "playlist")) {
-    const library = deps.manifest === undefined ? await loadManifest() : deps.manifest;
+    const library =
+      deps.manifest === undefined ? await (await import("../release/manifest")).loadManifest() : deps.manifest;
     const resolution = resolveAnimations(unique, stored, library);
     const loaded = await fromLibrary(resolution.fromLibrary, deps);
     const missing = [...resolution.missing];

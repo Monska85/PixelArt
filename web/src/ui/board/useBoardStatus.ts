@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BoardError, getStatus, isUpdateRunning, type BoardClient, type BoardStatus } from "../../protocol";
 
 /**
@@ -32,35 +32,43 @@ export interface BoardStatusPoll extends StatusState {
 export function useBoardStatus(client: BoardClient, restarts: number, paused: boolean): BoardStatusPoll {
   const [state, setState] = useState<StatusState>({ status: null, unsupported: false, failed: false });
   const running = state.status !== null && isUpdateRunning(state.status.update);
+  const unsupportedAt = useRef<{ client: BoardClient; restarts: number } | null>(null);
 
   const read = useCallback(
     async (isCurrent: () => boolean): Promise<void> => {
       try {
         const status = await getStatus(client);
-        if (isCurrent()) setState({ status, unsupported: false, failed: false });
+        if (isCurrent()) {
+          unsupportedAt.current = null;
+          setState({ status, unsupported: false, failed: false });
+        }
       } catch (error) {
         if (!isCurrent()) return;
-        if (error instanceof BoardError && error.code === "unknown_command")
+        if (error instanceof BoardError && error.code === "unknown_command") {
+          unsupportedAt.current = { client, restarts };
           setState({ status: null, unsupported: true, failed: false });
-        else setState((previous) => ({ ...previous, failed: true }));
+        } else setState((previous) => ({ ...previous, failed: true }));
       }
     },
-    [client],
+    [client, restarts],
   );
 
   useEffect(() => {
     if (paused) return;
+    if (unsupportedAt.current?.client === client && unsupportedAt.current.restarts === restarts) return;
     let current = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const poll = (): void => {
-      void read(() => current);
+      void read(() => current).then(() => {
+        if (current) timer = setTimeout(poll, pollIntervalMs(running));
+      });
     };
     poll();
-    const timer = setInterval(poll, pollIntervalMs(running));
     return () => {
       current = false;
-      clearInterval(timer);
+      if (timer !== null) clearTimeout(timer);
     };
-  }, [read, restarts, paused, running]);
+  }, [client, read, restarts, paused, running, state.unsupported]);
 
   return { ...state, refresh: () => void read(() => true) };
 }

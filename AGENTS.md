@@ -7,6 +7,7 @@ Read the relevant specifications in `docs/`, the commands and contribution guida
 - When the engine or the player changes, the simulator's frame output (`make sim`, every animation, `--raw` and timing included) must stay byte-identical unless the change is meant to alter frames. Compare the output before and after the change; a change meant to alter frames says which frames change and why.
 - Every change to a file format or to the command protocol updates its specification in `docs/` and adds conformance cases in `conformance/` in the same change.
 - Conformance expected results are worked out by hand from the specification. Never generate them by running an engine, the firmware or the simulator.
+- When changing a size, count or timing limit, check every place that enforces, advertises or tests it across the firmware, simulator, web app, schemas, release tools, specifications and conformance cases. Keep limits equal where they describe the same contract, and document intentional differences such as a release budget below the board's maximum. Update boundary tests with the change.
 
 ## Loop task stack
 

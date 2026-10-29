@@ -86,12 +86,18 @@ class LimitsTest(unittest.TestCase):
         self.assertEqual(release.MAX_MANIFEST_BYTES, 20 * 1024)
         manifest = self.manifest(10)
         manifest["padding"] = ""
-        manifest["padding"] = "x" * (release.MAX_MANIFEST_BYTES - len(release.json_text(manifest).encode("utf-8")))
-        self.assertEqual(len(release.json_text(manifest).encode("utf-8")), release.MAX_MANIFEST_BYTES)
+        manifest["padding"] = "x" * (release.MAX_MANIFEST_BYTES - len(release.manifest_text(manifest).encode("utf-8")))
+        self.assertEqual(len(release.manifest_text(manifest).encode("utf-8")), release.MAX_MANIFEST_BYTES)
         release.check_manifest_limits(manifest)
         manifest["padding"] += "x"
         with self.assertRaises(release.ReleaseError):
             release.check_manifest_limits(manifest)
+
+    def test_compact_manifest_fits_more_entries_without_raising_the_byte_limit(self):
+        manifest = self.manifest(130)
+        self.assertGreater(len(release.json_text(manifest).encode("utf-8")), release.MAX_MANIFEST_BYTES)
+        self.assertLessEqual(len(release.manifest_text(manifest).encode("utf-8")), release.MAX_MANIFEST_BYTES)
+        release.check_manifest_limits(manifest)
 
     def test_an_application_keeps_64_kib_free_in_its_slot(self):
         slot = 0x180000
@@ -261,6 +267,7 @@ class AssembleTest(unittest.TestCase):
         self.assertEqual(sorted(self.read(out)), ["animations/star.json", "assets/app.js", "firmware/esp32c3/app-1.2.0.bin",
                                                   "firmware/install.json", "index.html", "manifest.json", "playlists/default.json"])
         manifest = self.manifest_of(out)
+        self.assertEqual((out / "manifest.json").read_text(), release.manifest_text(manifest))
         self.assertEqual(list(manifest), ["format", "version", "released", "source", "content_version", "firmware",
                                           "animations", "playlists"])
         self.assertEqual(manifest["version"], "1.2.0")
@@ -628,6 +635,7 @@ class BuildSiteTest(unittest.TestCase):
     def test_a_firmware_release_has_no_animations_playlists_or_file_system(self):
         out = self.build_firmware()
         manifest = json.loads((out / "manifest.json").read_text())
+        self.assertEqual((out / "manifest.json").read_text(), release.manifest_text(manifest))
         self.assertEqual(manifest["animations"], [])
         self.assertEqual(manifest["playlists"], [])
         self.assertNotIn("schedules", manifest)
@@ -708,6 +716,7 @@ class BuildSiteTest(unittest.TestCase):
         out = self.base / "content-site"
         release.build_content_site(out, "1.4.0", self.data(("star", "moon")), False)
         manifest = json.loads((out / "manifest.json").read_text())
+        self.assertEqual((out / "manifest.json").read_text(), release.manifest_text(manifest))
         self.assertEqual(list(manifest), ["format", "version", "released", "source", "content_version", "animations", "playlists",
                                           "schedules"])
         self.assertEqual(manifest["schedules"], [])
