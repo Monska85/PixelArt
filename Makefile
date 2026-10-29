@@ -38,7 +38,7 @@ WS_ARG := $(if $(WS),--ws,)
 
 .DEFAULT_GOAL := help
 .PHONY: help data validate build build-all upload upload-firmware upload-content monitor flash mirror sim-build sim \
-	sim-list sim-play emulate serve sim-open release-firmware release-content release-site test format format-check web-install web-dev web-build web-test \
+	sim-list sim-play emulate serve sim-open release-firmware release-content release-site test tools-test format format-check web-install web-dev web-build web-test \
 	web-e2e web-size web-screenshots web-screenshots-update check clean
 
 help: ## Show this help
@@ -128,6 +128,9 @@ release-site: data ## Build the firmware, the content and the web app into SITE 
 
 test: data ## Run the tests on the simulator
 	$(NICED) pio test -e native_test
+
+tools-test: sim-build ## Run the Python tool tests with the simulator available
+	$(NICED) $(PYTHON) -m unittest discover -s tools
 
 format: ## Format the C++ sources with clang-format
 	@$(NICED) clang-format -i $(CPP_SOURCES)
