@@ -21,6 +21,7 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <esp_mac.h>
+#include <nvs.h>
 
 #include "mailbox.h"
 
@@ -67,9 +68,17 @@ struct Message
   char ssid[MAX_SSID + 1];
   char password[MAX_PASSWORD + 1];
   char power[8];
+  uint32_t sequence;   // WiFi events only: orders a queue overflow against later events
+  uint32_t generation; // ignores events from credentials replaced by Provision or Forget
 };
 
 Mailbox<Message, 8> inbox;
+portMUX_TYPE event_lock = portMUX_INITIALIZER_UNLOCKED;
+Message overflow_event = {};
+bool overflow_pending = false;
+uint32_t event_sequence = 0;
+uint32_t wifi_generation = 0;
+uint32_t last_handled_event = 0; // network task only
 
 SemaphoreHandle_t lock;
 StaticSemaphore_t lock_storage;
@@ -99,6 +108,8 @@ char password[MAX_PASSWORD + 1];
 bool have_credentials = false;
 bool wifi_started = false;
 bool mdns_started = false;
+bool credentials_erase_pending = false;
+uint32_t next_erase_attempt_ms = 0;
 char hostname[HOSTNAME_SIZE];
 
 uint32_t now_ms() { return (uint32_t)(platform::now_us() / 1000); }
@@ -142,7 +153,45 @@ void on_wifi_event(arduino_event_id_t event, arduino_event_info_t info)
   default:
     return;
   }
-  inbox.send(m); // runs on the WiFi event task: never blocks, and a full queue drops the event
+  portENTER_CRITICAL(&event_lock);
+  m.sequence = ++event_sequence;
+  if (!m.sequence)
+    m.sequence = ++event_sequence;
+  m.generation = wifi_generation;
+  portEXIT_CRITICAL(&event_lock);
+  // The event task cannot wait for a scan or update to finish. Keep its latest
+  // event when the inbox is full, then apply it after the queued messages.
+  if (!inbox.send(m))
+  {
+    portENTER_CRITICAL(&event_lock);
+    if (!overflow_pending || (uint32_t)(m.sequence - overflow_event.sequence) < 0x80000000u)
+    {
+      overflow_event = m;
+      overflow_pending = true;
+    }
+    portEXIT_CRITICAL(&event_lock);
+  }
+}
+
+bool take_overflow_event(Message &out)
+{
+  portENTER_CRITICAL(&event_lock);
+  const bool pending = overflow_pending;
+  if (pending)
+  {
+    out = overflow_event;
+    overflow_pending = false;
+  }
+  portEXIT_CRITICAL(&event_lock);
+  return pending;
+}
+
+void advance_wifi_generation()
+{
+  portENTER_CRITICAL(&event_lock);
+  ++wifi_generation;
+  overflow_pending = false;
+  portEXIT_CRITICAL(&event_lock);
 }
 
 void start_wifi()
@@ -213,26 +262,30 @@ void load_credentials()
 
 bool store_credentials()
 {
-  Preferences prefs;
-  if (!prefs.begin(PREFS_NAMESPACE, false))
+  nvs_handle_t handle;
+  if (nvs_open(PREFS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK)
     return false;
-  const bool stored =
-      prefs.putString(KEY_SSID, ssid) == strlen(ssid) && prefs.putString(KEY_PASSWORD, password) == strlen(password);
-  prefs.end();
+  // Preferences::putString returns zero for both an empty stored password and
+  // a failed write, so use the NVS status when storing an open network.
+  const bool stored = nvs_set_str(handle, KEY_SSID, ssid) == ESP_OK &&
+                      nvs_set_str(handle, KEY_PASSWORD, password) == ESP_OK && nvs_commit(handle) == ESP_OK;
+  nvs_close(handle);
   return stored;
 }
 
-void erase_credentials()
+bool erase_credentials()
 {
   Preferences prefs;
+  bool erased = false;
   if (prefs.begin(PREFS_NAMESPACE, false))
   {
-    prefs.clear();
+    erased = prefs.clear();
     prefs.end();
   }
   wipe(ssid, sizeof(ssid));
   wipe(password, sizeof(password));
   have_credentials = false;
+  return erased;
 }
 
 // One scan, then the list is shared with the loop task. The radio is on only for
@@ -241,7 +294,12 @@ void scan()
 {
   const bool was_started = wifi_started;
   start_wifi();
-  Network found[MAX_SCAN_RESULTS];
+  // No result is visible to the loop task until scan_count is published.
+  {
+    Locked guard;
+    scan_count = 0;
+  }
+  Network *found = scan_results;
   size_t count = 0;
   const int16_t n = WiFi.scanNetworks();
   for (int i = 0; i < n; i++)
@@ -268,7 +326,6 @@ void scan()
   if (!was_started && !have_credentials)
     stop_wifi();
   Locked guard;
-  memcpy(scan_results, found, sizeof(found));
   scan_count = count;
   shared_scan = ScanState::Done;
 }
@@ -288,6 +345,22 @@ void run(const Connection::Actions &actions)
 
 void handle(Message &m)
 {
+  bool current_generation = true;
+  if (m.sequence)
+  {
+    portENTER_CRITICAL(&event_lock);
+    current_generation = m.generation == wifi_generation;
+    portEXIT_CRITICAL(&event_lock);
+  }
+  // A later event may have entered the queue while an older event was kept in
+  // the overflow slot. Never let that older event roll the connection back.
+  if (m.sequence && (!current_generation || (uint32_t)(m.sequence - last_handled_event) >= 0x80000000u))
+  {
+    wipe(&m, sizeof(m));
+    return;
+  }
+  if (m.sequence)
+    last_handled_event = m.sequence;
   const uint32_t now = now_ms();
   switch (m.type)
   {
@@ -302,6 +375,8 @@ void handle(Message &m)
     connection.on_disconnected(m.reason, now);
     break;
   case Message::Type::Provision:
+    advance_wifi_generation();
+    credentials_erase_pending = false; // a later provision supersedes an earlier forget
     copy_text(ssid, sizeof(ssid), m.ssid);
     copy_text(password, sizeof(password), m.password);
     if (!store_credentials())
@@ -311,7 +386,15 @@ void handle(Message &m)
     connection.set_credentials(true, now);
     break;
   case Message::Type::Forget:
-    erase_credentials();
+    advance_wifi_generation();
+    if (!erase_credentials())
+    {
+      Serial.printf("pixelart: the stored network could not be erased, retrying\n");
+      credentials_erase_pending = true;
+      next_erase_attempt_ms = now + IDLE_WAKE_MS;
+    }
+    else
+      credentials_erase_pending = false;
     connection.set_credentials(false, now);
     break;
   case Message::Type::SetPower:
@@ -341,12 +424,23 @@ void task_main(void *)
     const bool online = connection.state() == State::Connected;
     wait = std::min(wait, online ? RSSI_REFRESH_MS : IDLE_WAKE_MS);
     wait = std::min(wait, update_wait);
+    if (credentials_erase_pending)
+      wait = std::min(wait, (int32_t)(now - next_erase_attempt_ms) >= 0 ? 0u : next_erase_attempt_ms - now);
     Message m;
     if (inbox.receive(m, pdMS_TO_TICKS(wait)))
     {
       handle(m);
       while (inbox.receive(m, 0))
         handle(m);
+    }
+    if (take_overflow_event(m))
+      handle(m);
+    if (credentials_erase_pending && (int32_t)(now_ms() - next_erase_attempt_ms) >= 0)
+    {
+      if (erase_credentials())
+        credentials_erase_pending = false;
+      else
+        next_erase_attempt_ms = now_ms() + IDLE_WAKE_MS;
     }
     run(connection.poll(now_ms()));
     publish();

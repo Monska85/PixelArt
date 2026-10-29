@@ -169,13 +169,14 @@ struct Reader::Impl
 
 ReadResult Reader::open(const std::string &path)
 {
-  impl_.reset(new Impl);
+  impl_.reset();
   size_ = 0;
   fs::path file = host_path(path);
   if (!exists(path))
     return ReadResult::Missing;
   if (is_open_for_writing(file) || !file_size(path, size_))
     return ReadResult::Unreadable;
+  impl_.reset(new Impl);
   impl_->in.open(file, std::ios::binary);
   return impl_->in ? ReadResult::Ok : ReadResult::Unreadable;
 }
@@ -313,11 +314,12 @@ struct Reader::Impl
 
 ReadResult Reader::open(const std::string &path)
 {
-  impl_.reset(new Impl);
+  impl_.reset();
   size_ = 0;
   struct stat info;
   if (!probe(path, info) || !S_ISREG(info.st_mode))
     return ReadResult::Missing;
+  impl_.reset(new Impl);
   impl_->file = LittleFS.open(path.c_str(), "r");
   if (!impl_->file || impl_->file.isDirectory())
     return ReadResult::Unreadable;

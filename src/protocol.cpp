@@ -545,13 +545,13 @@ Status cmd_list(JsonObjectConst request, JsonDocument &reply)
     if (Status s = check_id(after, "after"); s.code)
       return s;
 
-  std::vector<std::string> ids = install::stored_ids(kind);
-  // Ids sort differently from file names (`a-b.json` before `a.json`), and paging goes by id.
-  std::sort(ids.begin(), ids.end());
   // One lock for the page. An update holding the memory for longer than the wait is `out_of_memory`.
   task_sync::HeapLock lock(task_sync::Owner::Loop);
   if (!lock.held())
     return fail("out_of_memory", "an update holds the memory, try again in a moment");
+  std::vector<std::string> ids = install::stored_ids(kind);
+  // Ids sort differently from file names (`a-b.json` before `a.json`), and paging goes by id.
+  std::sort(ids.begin(), ids.end());
   reply["kind"] = kind_name(kind);
   JsonArray entries = reply["entries"].to<JsonArray>();
   bool more = false;

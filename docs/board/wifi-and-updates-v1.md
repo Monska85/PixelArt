@@ -33,6 +33,15 @@ At most one large allocation exists at a time: a TLS connection (up to about 70 
 
 Every flash write from the network task (a temporary file, a firmware block) happens right after a frame was sent to the LEDs, so a write never overlaps `show()`. Checked by eye on an ESP32-C3 with a 16x16 panel: on WiFi, idle and with protocol traffic, the animations play cleanly; while animations and playlists are written to flash by an update (240 files in 2.5 minutes in the test), a few brief glitches show, judged acceptable; during a firmware installation the download icon and its progress bar show cleanly.
 
+For this firmware change, the loop task's minimum free stack was measured on an ESP32-C3 before and after the code change. Each case started from a reset, uploaded its test file, and listed every stored file. A temporary log in `protocol::poll()` printed the high-water mark once a second; the log code and test files were removed afterward. The board's stored files and settings matched the pre-test backup after normal firmware was restored.
+
+| Test file                                               |      Before |       After |
+| ------------------------------------------------------- | ----------: | ----------: |
+| Shipped animation                                       | 5,260 bytes | 5,276 bytes |
+| Composite and loop nesting at both format limits        | 5,260 bytes | 5,196 bytes |
+| Nesting beyond the format limits, within the JSON limit | 5,260 bytes | 5,276 bytes |
+| Nesting beyond the JSON limit                           | 5,260 bytes | 5,276 bytes |
+
 ## WiFi
 
 ### Setup with Improv

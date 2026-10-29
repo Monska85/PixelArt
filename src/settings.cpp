@@ -13,6 +13,7 @@
 
 #ifndef PIXELART_SIM
 #include <Preferences.h>
+#include <nvs.h>
 #endif
 
 namespace settings
@@ -501,6 +502,24 @@ void load_play(Values &v, const std::string &play, const std::string &playlists_
   }
 }
 
+#ifndef PIXELART_SIM
+// A missing key belongs to boards that have never enabled network login.
+// Any storage error must not turn a previously protected WiFi server into an
+// unauthenticated one. Preferences::getBool() alone defaults on both cases.
+bool load_network_login()
+{
+  nvs_handle_t handle;
+  if (nvs_open(NAMESPACE, NVS_READONLY, &handle) != ESP_OK)
+    return true;
+  uint8_t enabled = 0;
+  const esp_err_t result = nvs_get_u8(handle, key_of(Field::NetworkLogin), &enabled);
+  nvs_close(handle);
+  if (result == ESP_ERR_NVS_NOT_FOUND)
+    return false;
+  return result != ESP_OK || enabled != 0;
+}
+#endif
+
 } // namespace
 
 void begin()
@@ -524,12 +543,14 @@ void begin()
     values.time_sync_hours = stored_number(Field::TimeSyncHours, DEFAULT_TIME_SYNC_HOURS, valid_time_sync_hours);
     values.ntp_server = stored_text(Field::NtpServer, DEFAULT_NTP_SERVER, valid_ntp_server);
     values.animation_source = stored_text(Field::AnimationSource, DEFAULT_ANIMATION_SOURCE, valid_animation_source);
-    values.network_login = prefs.getBool(key_of(Field::NetworkLogin), false);
+    values.network_login = load_network_login();
     values.token = stored_text(Field::Token, "", valid_token);
     // No write here: a board upgraded from a firmware without `play` derives it from `playlist`.
     load_play(values, stored_text(Field::Play, "", valid_play), stored_text(Field::Playlists, "", valid_any));
     values.schedule = stored_text(Field::Schedule, DEFAULT_SCHEDULE, valid_schedule_id);
   }
+  else
+    values.network_login = true;
 #endif
 #ifdef PIXELART_SIM
   if (play_keys_kept)
