@@ -324,6 +324,11 @@ def json_text(document):
     return json.dumps(document, indent=2, ensure_ascii=False) + "\n"
 
 
+def manifest_text(document):
+    """Compact only the published manifest; other JSON written here keeps its existing formatting."""
+    return json.dumps(document, separators=(",", ":"), ensure_ascii=False) + "\n"
+
+
 def write_json(path, document):
     path.write_text(json_text(document), encoding="utf-8")
 
@@ -335,7 +340,7 @@ def check_manifest_limits(manifest):
     if files > MAX_MANIFEST_FILES:
         raise ReleaseError(f"manifest.json lists {files} animations, playlists, schedules and play files, more than the "
                            f"{MAX_MANIFEST_FILES} a board takes")
-    size = len(json_text(manifest).encode("utf-8"))
+    size = len(manifest_text(manifest).encode("utf-8"))
     if size > MAX_MANIFEST_BYTES:
         raise ReleaseError(f"manifest.json takes {size} bytes, more than the {MAX_MANIFEST_BYTES} a board reads over HTTPS")
 
@@ -359,7 +364,7 @@ def write_manifest(site, manifest, use_schema):
     if use_schema:
         validate(manifest)
     check_manifest_limits(manifest)
-    write_json(site / "manifest.json", manifest)
+    (site / "manifest.json").write_text(manifest_text(manifest), encoding="utf-8")
 
 
 def check_replaceable(site):
@@ -644,7 +649,7 @@ def assemble_site(out, firmware, content, web, use_schema=False):
             shutil.copyfile(path / name, target)
         print(f"release: {len(files)} files of the {label} copied to {site}")
     if manifest is not None:
-        write_json(site / "manifest.json", manifest)
+        (site / "manifest.json").write_text(manifest_text(manifest), encoding="utf-8")
         print(f"release: manifest.json written, content version {manifest.get('content_version', 'none')}")
 
 
