@@ -4,7 +4,13 @@
   "title": "PixelArt release manifest, format pixelart-manifest/1",
   "description": "Lists the files of one release with their sizes and SHA-256 checksums. See docs/format/manifest-v1.md.",
   "type": "object",
-  "required": ["format", "version", "released", "animations", "playlists"],
+  "required": [
+    "format",
+    "version",
+    "released",
+    "animations",
+    "playlists"
+  ],
   "additionalProperties": false,
   "properties": {
     "format": {
@@ -51,11 +57,19 @@
         "additionalProperties": false,
         "properties": {
           "board": {
-            "enum": ["esp32c3", "esp32", "esp32s3"]
+            "enum": [
+              "esp32c3",
+              "esp32",
+              "esp32s3"
+            ]
           },
           "chip": {
             "description": "The ESP Web Tools chip family.",
-            "enum": ["ESP32-C3", "ESP32", "ESP32-S3"]
+            "enum": [
+              "ESP32-C3",
+              "ESP32",
+              "ESP32-S3"
+            ]
           },
           "part": {
             "enum": [
@@ -91,7 +105,14 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "name", "version", "file", "size", "sha256"],
+        "required": [
+          "id",
+          "name",
+          "version",
+          "file",
+          "size",
+          "sha256"
+        ],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -124,7 +145,12 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "file", "size", "sha256"],
+        "required": [
+          "id",
+          "file",
+          "size",
+          "sha256"
+        ],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -154,7 +180,12 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "file", "size", "sha256"],
+        "required": [
+          "id",
+          "file",
+          "size",
+          "sha256"
+        ],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -184,7 +215,12 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "file", "size", "sha256"],
+        "required": [
+          "id",
+          "file",
+          "size",
+          "sha256"
+        ],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -200,6 +236,121 @@
           },
           "sha256": {
             "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "content_pages": {
+      "description": "Optional complete per-kind catalogs. A present empty list publishes no files of that kind.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "animations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "file",
+              "size",
+              "sha256"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[A-Za-z0-9._+-]+(?:\\/[A-Za-z0-9._+-]+)*$",
+                "maxLength": 160
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8192
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "playlists": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "file",
+              "size",
+              "sha256"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[A-Za-z0-9._+-]+(?:\\/[A-Za-z0-9._+-]+)*$",
+                "maxLength": 160
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8192
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "schedules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "file",
+              "size",
+              "sha256"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[A-Za-z0-9._+-]+(?:\\/[A-Za-z0-9._+-]+)*$",
+                "maxLength": 160
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8192
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "play": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "file",
+              "size",
+              "sha256"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[A-Za-z0-9._+-]+(?:\\/[A-Za-z0-9._+-]+)*$",
+                "maxLength": 160
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8192
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
           }
         }
       }

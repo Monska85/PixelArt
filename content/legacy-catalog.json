@@ -1,0 +1,61 @@
+{
+  "animations": [
+    "ball",
+    "bats",
+    "bear",
+    "bell",
+    "candle",
+    "candy_cane",
+    "candy_corn_dance",
+    "castle",
+    "cauldron",
+    "christmas_lights",
+    "elf",
+    "fireplace",
+    "friendly_mummy",
+    "ghost",
+    "ghost_witch_hat",
+    "gingerbread_man",
+    "holly",
+    "jack_o_lantern",
+    "jumping_reindeer",
+    "little_vampire",
+    "open_gift",
+    "owl_moon",
+    "panettone",
+    "penguin",
+    "pine_ball",
+    "poinsettia",
+    "potion",
+    "purple_cat",
+    "reindeer",
+    "santa",
+    "santa_bag",
+    "santa_hat",
+    "skeleton_dance",
+    "sleigh",
+    "snow_globe",
+    "snow_trees",
+    "snowflake",
+    "snowman",
+    "spider",
+    "spiderweb",
+    "star",
+    "steaming_mug",
+    "teddy_bear",
+    "witch",
+    "wreath",
+    "xmas_tree"
+  ],
+  "playlists": [
+    "christmas",
+    "default",
+    "halloween"
+  ],
+  "schedules": [
+    "seasons"
+  ],
+  "play": [
+    "default"
+  ]
+}

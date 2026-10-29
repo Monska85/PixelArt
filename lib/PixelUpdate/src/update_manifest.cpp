@@ -44,6 +44,8 @@ void make_filter(JsonDocument &filter)
 {
   filter["format"] = true;
   filter["version"] = true;
+  // Keep this subtree whole so a present but mistyped declaration cannot disappear in the filter.
+  filter["content_pages"] = true;
   for (const char *list : {"animations", "playlists", "schedules", "play"})
   {
     filter[list][0]["id"] = true;
@@ -152,7 +154,8 @@ void firmware_cost(JsonVariantConst list, size_t &total, size_t &block)
                string_cost(text_length(item["sha256"]));
 }
 
-bool read_list(JsonVariantConst list, const char *name, std::vector<FileEntry> &out, std::string &reason)
+bool read_list(JsonVariantConst list, const char *name, std::vector<FileEntry> &out, std::string &reason,
+               size_t maximum = MAX_MANIFEST_FILES)
 {
   if (!list.is<JsonArrayConst>())
     return fail(reason, std::string(name) + " is missing or not a list");
@@ -160,12 +163,12 @@ bool read_list(JsonVariantConst list, const char *name, std::vector<FileEntry> &
   for (JsonVariantConst item : list.as<JsonArrayConst>())
   {
     const std::string where = std::string(name) + "[" + std::to_string(index++) + "]";
-    if (out.size() >= MAX_MANIFEST_FILES)
+    if (out.size() >= maximum)
       return fail(reason, std::string(name) + " lists too many files");
     if (!item.is<JsonObjectConst>() || !item["id"].is<const char *>())
       return fail(reason, where + " has no id");
     if (out.empty())
-      out.reserve(std::min(list.as<JsonArrayConst>().size(), MAX_MANIFEST_FILES)); // one block, never regrown
+      out.reserve(std::min(list.as<JsonArrayConst>().size(), maximum)); // one block, never regrown
     FileEntry entry;
     entry.id = item["id"].as<std::string>();
     if (!pixelart::is_valid_id(entry.id.c_str()))
@@ -256,6 +259,30 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
                        array_size(doc["play"]);
   if (files > MAX_MANIFEST_FILES)
     return fail(reason, "the manifest lists too many files");
+  const char *names[] = {"animations", "playlists", "schedules", "play"};
+  size_t page_count = 0, page_cost = 0, page_block = 0;
+  if (doc.containsKey("content_pages"))
+  {
+    if (!doc["content_pages"].is<JsonObjectConst>())
+      return fail(reason, "content_pages is not an object");
+    JsonObjectConst pages = doc["content_pages"];
+    for (JsonPairConst pair : pages)
+    {
+      size_t kind = 0;
+      while (kind < 4 && strcmp(pair.key().c_str(), names[kind]) != 0)
+        kind++;
+      if (kind == 4 || !pair.value().is<JsonArrayConst>())
+        return fail(reason, "content_pages has an unknown kind or a kind that is not a list");
+      page_count += pair.value().as<JsonArrayConst>().size();
+      if (page_count > MAX_CONTENT_PAGES)
+        return fail(reason, "content_pages lists too many pages");
+      size_t cost, block_size;
+      // The page references have the same three strings as file entries but a smaller vector element.
+      list_cost(pair.value(), cost, block_size);
+      page_cost += cost;
+      page_block = std::max(page_block, pair.value().as<JsonArrayConst>().size() * sizeof(PageEntry));
+    }
+  }
 
   // Everything the manifest is copied into, asked for at once: the version (and the copies its check
   // makes), the lists of files and the `app` entries of the firmware.
@@ -271,6 +298,8 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
   firmware_cost(doc["firmware"], firmware_total, firmware_block);
   total += firmware_total;
   block = std::max(block, firmware_block);
+  total += page_cost;
+  block = std::max(block, page_block);
   if (memory.affordable && !memory.affordable(total, block))
   {
     memory.out_of_memory = true;
@@ -289,6 +318,35 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
     return false;
   if (doc["play"].is<JsonArrayConst>() && !read_list(doc["play"], "play", manifest.play, reason))
     return false;
+  if (doc.containsKey("content_pages"))
+  {
+    JsonObjectConst pages = doc["content_pages"];
+    for (size_t kind = 0; kind < 4; kind++)
+    {
+      if (!pages.containsKey(names[kind]))
+        continue;
+      manifest.paged[kind] = true;
+      JsonArrayConst list = pages[names[kind]].as<JsonArrayConst>();
+      manifest.pages[kind].reserve(list.size());
+      size_t index = 0;
+      for (JsonVariantConst item : list)
+      {
+        const std::string where = std::string("content_pages.") + names[kind] + "[" + std::to_string(index++) + "]";
+        if (!item.is<JsonObjectConst>())
+          return fail(reason, where + " is not an object");
+        PageEntry page;
+        if (!read_file_fields(item.as<JsonObjectConst>(), where, page.file, page.size, page.sha256, reason))
+          return false;
+        if (page.size > MAX_CONTENT_PAGE_SIZE)
+          return fail(reason, where + " is too large");
+        for (size_t previous = 0; previous <= kind; previous++)
+          for (const PageEntry &seen : manifest.pages[previous])
+            if (seen.file == page.file)
+              return fail(reason, where + " repeats a page path");
+        manifest.pages[kind].push_back(std::move(page));
+      }
+    }
+  }
 
   if (doc["firmware"].is<JsonArrayConst>()) // the filter drops a firmware that is not a list
   {
@@ -309,6 +367,81 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
     }
   }
   out = std::move(manifest);
+  return true;
+}
+
+bool parse_content_page(const char *json, size_t length, Kind kind, std::vector<FileEntry> &out, std::string &reason,
+                        ManifestMemory &memory)
+{
+  if (length > MAX_CONTENT_PAGE_SIZE)
+    return fail(reason, "the content page is larger than 8 KiB");
+  const char *strict_reason;
+  size_t offset;
+  if (!pixelart::check_strict_json(json, length, MAX_DEPTH, strict_reason, offset))
+    return fail(reason, std::string("the content page is not strict JSON: ") + strict_reason);
+  memory.out_of_memory = false;
+  LimitedAllocator allocator(memory);
+  JsonDocument doc(&allocator);
+  const DeserializationError error = deserializeJson(doc, json, length, DeserializationOption::NestingLimit(MAX_DEPTH));
+  if (memory.out_of_memory)
+  {
+    memory.out_of_memory = true;
+    return fail(reason, "the content page does not fit in memory");
+  }
+  if (error)
+    return fail(reason, std::string("the content page cannot be read: ") + error.c_str());
+  if (memory.release_input)
+    memory.release_input();
+  const char *names[] = {"animations", "playlists", "schedules", "play"};
+  const size_t index = static_cast<size_t>(kind);
+  if (!doc.is<JsonObject>() || !doc["format"].is<const char *>() ||
+      strcmp(doc["format"].as<const char *>(), CONTENT_PAGE_FORMAT) != 0 || !doc["kind"].is<const char *>() ||
+      strcmp(doc["kind"].as<const char *>(), names[index]) != 0 || !doc["entries"].is<JsonArrayConst>())
+    return fail(reason, "the content page has a wrong format, kind or entries");
+  const size_t count = doc["entries"].as<JsonArrayConst>().size();
+  if (count == 0 || count > MAX_CONTENT_PAGE_ENTRIES)
+    return fail(reason, "the content page lists too many files");
+  for (JsonPairConst pair : doc.as<JsonObjectConst>())
+    if (strcmp(pair.key().c_str(), "format") != 0 && strcmp(pair.key().c_str(), "kind") != 0 &&
+        strcmp(pair.key().c_str(), "entries") != 0)
+      return fail(reason, "the content page has an unknown field");
+  for (JsonVariantConst item : doc["entries"].as<JsonArrayConst>())
+  {
+    if (!item.is<JsonObjectConst>())
+      return fail(reason, "the content page has an entry that is not an object");
+    JsonObjectConst object = item.as<JsonObjectConst>();
+    for (JsonPairConst pair : object)
+    {
+      const char *key = pair.key().c_str();
+      if (strcmp(key, "id") != 0 && strcmp(key, "file") != 0 && strcmp(key, "size") != 0 &&
+          strcmp(key, "sha256") != 0 && !(kind != Kind::Play && strcmp(key, "name") == 0) &&
+          !(kind == Kind::Animation && strcmp(key, "version") == 0))
+        return fail(reason, "the content page has an unknown entry field");
+    }
+    if (kind == Kind::Animation &&
+        (!object["version"].is<uint32_t>() || object["version"].as<uint32_t>() < 1 ||
+         object["version"].as<uint32_t>() > INT32_MAX || !object["name"].is<const char *>() ||
+         !*object["name"].as<const char *>() || pixelart::utf8_code_points(object["name"].as<const char *>()) > 128))
+      return fail(reason, "the content page has an invalid animation name or version");
+    if (kind != Kind::Animation && kind != Kind::Play && object.containsKey("name") &&
+        (!object["name"].is<const char *>() || !*object["name"].as<const char *>() ||
+         pixelart::utf8_code_points(object["name"].as<const char *>()) > 128))
+      return fail(reason, "the content page has an invalid name");
+  }
+  size_t total, block;
+  list_cost(doc["entries"], total, block);
+  if (memory.affordable && !memory.affordable(total, block))
+  {
+    memory.out_of_memory = true;
+    return fail(reason, "the content page does not fit in memory");
+  }
+  std::vector<FileEntry> entries;
+  if (!read_list(doc["entries"], "entries", entries, reason, MAX_CONTENT_PAGE_ENTRIES))
+    return false;
+  for (const FileEntry &entry : entries)
+    if (entry.file != std::string(names[index]) + "/" + entry.id + ".json" || entry.size > size_limit(kind))
+      return fail(reason, "the content page has a file path or size that does not match its kind and id");
+  out = std::move(entries);
   return true;
 }
 

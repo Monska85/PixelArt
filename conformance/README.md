@@ -158,6 +158,8 @@ A field that is present is checked even when its value is `null`, as the format 
 
 ## Protocol cases
 
+The `update_manifest_page_*` cases cover the optional published-content page format: a valid authoritative page, a missing page that fails without falling back to the legacy list, and a declared empty catalog that leaves stored files alone. Their page byte count and SHA-256 are computed independently from the literal page text in each case. The expected update status and stored files follow the [manifest specification](../docs/format/manifest-v1.md#paged-content-catalogs) and the existing update rules.
+
 Files matching `protocol/<case>.json` are test cases for the [command protocol](../docs/protocol/protocol-v1.md). They specify requests and the replies every implementation must give. The Unity test `test/test_protocol` runs them through the real line reader on the simulated serial port (`make test`). Every case starts from a fresh data folder and a fresh boot.
 
 A case is one JSON object:

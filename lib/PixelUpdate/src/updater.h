@@ -249,6 +249,8 @@ private:
   void start_check(bool install_after);
   void run_check(uint64_t now);
   Error read_manifest(const std::string &url, bool allow_http, Manifest &manifest);
+  Error read_content_pages(Manifest &manifest);
+  Error load_page(const PageEntry &page, Kind kind, std::vector<FileEntry> &entries);
   Error check_animations(Manifest &manifest);
   Error check_firmware(const Manifest &manifest);
   bool automatic_firmware() const;
@@ -290,7 +292,22 @@ private:
   std::string firmware_source_; // the manifest URL the firmware entry comes from
   std::vector<PlanItem> plan_;
   std::vector<PlanItem> failed_;
+  struct PageWork
+  {
+    Kind kind = Kind::Animation;
+    PageEntry page;
+    uint32_t pending = 0; // one bit per entry of a validated page
+  };
+  std::vector<PageWork> page_work_;
+  std::vector<PlanItem> active_page_plan_;
+  uint32_t active_page_bits_[MAX_CONTENT_PAGE_ENTRIES] = {};
+  bool preserve_unattempted_ = false;
+  size_t page_work_index_ = 0;
+  size_t page_item_index_ = 0;
+  size_t page_pending_ = 0;
   size_t index_ = 0;
+  size_t attempted_ = 0;
+  size_t initial_total_ = 0;
   Error first_error_ = Error::None;
   uint16_t failed_files_ = 0;
   std::string reason_;
