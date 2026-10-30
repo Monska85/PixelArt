@@ -490,15 +490,16 @@ class PipeTest(unittest.TestCase):
 
 
 @unittest.skipIf(connect is None, "needs the websockets package")
-@unittest.skipUnless(SIMULATOR.is_file() and (ROOT / "data").is_dir(), "needs the simulator and data/ (make sim-build data)")
+@unittest.skipUnless(SIMULATOR.is_file(), "needs the simulator (make sim-build)")
 class SimulatorHarness(unittest.TestCase):
-    """A copy of data/ for a simulator with --ws. One simulator per folder: a second one deletes the first one's upload.tmp as it starts."""
+    """A fixture board for a simulator with --ws. One simulator per folder: a second one deletes the first one's upload.tmp as it starts."""
 
     def setUp(self):
         self.folder = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.folder, True)
         self.data = self.folder / "data"
-        shutil.copytree(ROOT / "data", self.data)
+        shutil.copytree(ROOT / "test" / "fixtures" / "data", self.data)
+        (self.data / "playlists").mkdir()
 
     def start(self, port, env=None, options=()):
         environment = {**os.environ, "PIXELART_PYTHON": sys.executable, **(env or {})}

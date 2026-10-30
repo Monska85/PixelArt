@@ -66,15 +66,14 @@ static size_t content_playlist_items()
 void setUp()
 {
   sim::reset();
-  sim::set_data_dir(REPO_DATA);
-  setup();
+  sim::set_data_dir(FIXTURE_DATA);
 }
 
 void tearDown() {}
 
 void test_stored_animation_frames_and_timing()
 {
-  sim::set_data_dir(FIXTURE_DATA);
+  setup();
   TEST_ASSERT_TRUE(play_stored_animation("tree"));
   const auto &frames = sim::frames();
   TEST_ASSERT_EQUAL(17, frames.size());
@@ -84,7 +83,7 @@ void test_stored_animation_frames_and_timing()
 
 void test_stored_animation_draws_its_sprite_colors_and_leaves_the_corner_off()
 {
-  sim::set_data_dir(FIXTURE_DATA);
+  setup();
   TEST_ASSERT_TRUE(play_stored_animation("tree"));
   const sim::Frame &f = sim::frames()[0];
   uint32_t star = f.at(7, 0);
@@ -95,6 +94,7 @@ void test_stored_animation_draws_its_sprite_colors_and_leaves_the_corner_off()
 
 void test_brightness_scales_led_output()
 {
+  setup();
   matrix.fillScreen(matrix.Color(255, 255, 255));
   matrix.show();
   uint32_t white = sim::frames().back().at(0, 0);
@@ -122,6 +122,7 @@ void test_animation_brightness_lowers_led_output()
 {
   TempData data("animations");
   data.write("animations/a.json", dot_animation("#ffffff", 1, 100, 50));
+  setup();
   play_stored_animation("a");
   TEST_ASSERT_EQUAL(1, sim::frames().size());
   TEST_ASSERT_EQUAL_UINT8(50, red(sim::frames()[0].at(0, 0)));
@@ -133,6 +134,7 @@ void test_animation_brightness_lowers_the_background()
   data.write("animations/a.json",
              R"({"format":"pixelart/1","name":"bg","canvas":{"width":16,"height":16},"brightness":50,)"
              R"("background":"#ffffff","sprites":{"d":{"points":{"#ff0000":[[0,0]]}}},"timeline":[{"show":["d"]}]})");
+  setup();
   play_stored_animation("a");
   TEST_ASSERT_EQUAL(1, sim::frames().size());
   TEST_ASSERT_EQUAL_UINT8(50, red(sim::frames()[0].at(15, 15)));
@@ -143,6 +145,7 @@ void test_no_animations_image_ignores_the_animation_brightness()
 {
   TempData data("animations");
   data.write("animations/a.json", dot_animation("#ffffff", 1, 100, 50));
+  setup();
   play_stored_animation("a");
   TEST_ASSERT_EQUAL_UINT8(50, matrix.getBrightness());
   fs::remove(data.root / "animations" / "a.json");
@@ -153,6 +156,8 @@ void test_no_animations_image_ignores_the_animation_brightness()
 
 void test_repository_playlist_plays_every_animation()
 {
+  sim::set_data_dir(REPO_DATA);
+  setup();
   play_from_storage();
   TEST_ASSERT_EQUAL(content_animation_files(), stored_animations().size());
   // The exact frames are checked by the simulator comparison and the conformance cases.
@@ -169,6 +174,7 @@ void test_playlist_order_and_repeat()
   data.write("playlists/default.json", R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},)"
                                        R"("items":[{"animation":"b","repeat":2},{"animation":"a","enabled":false},)"
                                        R"({"animation":"a"}]})");
+  setup();
   play_from_storage();
   const auto &frames = sim::frames();
   TEST_ASSERT_EQUAL(3, frames.size());
@@ -182,6 +188,7 @@ void test_without_playlist_plays_all_in_alphabetical_order()
   TempData data("animations");
   data.write("animations/b.json", dot_animation("#00ff00"));
   data.write("animations/a.json", dot_animation("#ff0000"));
+  setup();
   play_from_storage();
   const auto &frames = sim::frames();
   TEST_ASSERT_EQUAL(2, frames.size());
@@ -194,6 +201,7 @@ void test_invalid_playlist_falls_back_and_is_reported()
   TempData data("animations");
   data.write("animations/a.json", dot_animation("#ff0000"));
   data.write("playlists/default.json", R"({"format":"pixelart-playlist/1","items":[]})");
+  setup();
   play_from_storage();
   TEST_ASSERT_EQUAL(1, sim::frames().size());
   TEST_ASSERT_NOT_NULL(strstr(serial_text().c_str(), "/playlists/default.json"));
@@ -206,6 +214,7 @@ void test_broken_animation_is_skipped_and_reported_once()
   data.write("animations/bad.json", dot_animation("gren"));
   data.write("playlists/default.json", R"({"format":"pixelart-playlist/1","canvas":{"width":16,"height":16},)"
                                        R"("items":[{"animation":"bad"},{"animation":"a"}]})");
+  setup();
   play_from_storage();
   play_from_storage();
   TEST_ASSERT_EQUAL(2, sim::frames().size());
@@ -218,6 +227,7 @@ void test_broken_animation_is_skipped_and_reported_once()
 void test_empty_storage_shows_the_no_animations_image()
 {
   TempData data("animations");
+  setup();
   play_from_storage();
   const auto &frames = sim::frames();
   TEST_ASSERT_EQUAL(1, frames.size());
