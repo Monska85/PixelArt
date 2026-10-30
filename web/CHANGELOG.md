@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/Monska85/PixelArt/compare/web-v1.2.0...web-v1.3.0) (2026-10-30)
+
+
+### Added
+
+* add paged published content catalogs ([#41](https://github.com/Monska85/PixelArt/issues/41)) ([534fc2a](https://github.com/Monska85/PixelArt/commit/534fc2abd9cb1a9aab96188d6463916897f00f5b))
+* **web:** show app version and schedules with favicon ([#45](https://github.com/Monska85/PixelArt/issues/45)) ([f9e908f](https://github.com/Monska85/PixelArt/commit/f9e908fd7f8ceae16026c1c88de49655f65f74ae))
+
+
+### Fixed
+
+* **web:** harden requests and preserve browser state ([#37](https://github.com/Monska85/PixelArt/issues/37)) ([56141e6](https://github.com/Monska85/PixelArt/commit/56141e6d08f4240fe6f21316c9d1a36f2248f293))
+
 ## [1.2.0](https://github.com/Monska85/PixelArt/compare/web-v1.1.0...web-v1.2.0) (2026-10-29)
 
 
