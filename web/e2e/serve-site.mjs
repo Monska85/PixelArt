@@ -72,6 +72,7 @@ const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml",
   ".json": "application/json",
   ".txt": "text/plain; charset=utf-8", // GitHub Pages serves a .txt file as text, which the browser shows
   ".bin": "application/octet-stream",
