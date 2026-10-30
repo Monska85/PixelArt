@@ -19,12 +19,12 @@ export default defineConfig({
   testDir: "screenshots",
   testMatch: "views.spec.ts",
   snapshotPathTemplate: "{testDir}/baselines/{arg}{ext}",
-  // Every test starts its own simulator on its own port. `make` and `just` set PIXELART_JOBS (JOBS) for the workers.
+  // `make` and `just` set PIXELART_JOBS (JOBS) for the workers.
   workers: workers(process.env.PIXELART_JOBS),
   fullyParallel: true,
   timeout: 60_000,
   reporter: process.env.CI
-    ? [["list"], ["html", { open: "never", outputFolder: "playwright-report-screenshots" }]]
+    ? [["list"], ["github"], ["html", { open: "never", outputFolder: "playwright-report-screenshots" }]]
     : [["list"]],
   outputDir: "test-results-screenshots",
   expect: {

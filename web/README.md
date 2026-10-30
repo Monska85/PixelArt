@@ -43,6 +43,8 @@ Docker is needed. The container is the Playwright image of the pinned `@playwrig
 
 The functional tests in `e2e/` stay separate: `make web-e2e` runs them on the host and does not need Docker.
 
+In CI, Playwright annotates failed functional, layout and screenshot tests on the pull request. The workflow uploads HTML reports and functional and layout traces when a browser test fails. These reports show test results, not a combined code coverage percentage.
+
 ## Layout
 
 - `src/engine/`: the formats in TypeScript (strict JSON reader, loaders, player). No access to the page.
