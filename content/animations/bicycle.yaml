@@ -1,0 +1,77 @@
+format: pixelart/1
+name: Bicycle
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 110
+
+palette:
+  tire: "#c8ccd8"
+  spoke: "#6a7280"
+  frame: "#ff3b30"
+  seat: "#3a3a44"
+  bar: "#c8ccd8"
+  crank: "#ffd23f"
+  road: "#6a6a78"
+
+sprites:
+  bike:
+    points:
+      tire: [
+          [2, 8], [3, 8], [4, 8], [5, 8], [1, 9], [2, 9], [7, 9], [1, 10], [7, 10], [1, 11], [1, 12],
+          [7, 12], [1, 13], [2, 13], [6, 13], [7, 13], [2, 14], [3, 14], [4, 14], [5, 14], [6, 14],
+          [12, 8], [13, 8], [14, 8], [10, 9], [14, 9], [15, 9], [15, 10], [9, 11], [15, 11], [9, 12],
+          [15, 12], [9, 13], [10, 13], [14, 13], [15, 13], [10, 14], [11, 14], [12, 14], [13, 14],
+          [14, 14]
+        ]
+      frame: [
+          [6, 8], [6, 9], [7, 11], [10, 8], [11, 8], [9, 9], [9, 10], [4, 11], [5, 11], [6, 11], [8, 11],
+          [5, 10], [7, 7], [7, 8], [8, 9], [8, 10], [8, 7], [9, 7], [10, 7], [11, 7], [12, 9], [12, 10],
+          [12, 11]
+        ]
+      seat: [[6, 6], [7, 6], [8, 6]]
+      bar: [[11, 6], [12, 5], [11, 5]]
+  sp0:
+    points:
+      spoke: [[2, 11], [4, 13], [4, 9], [14, 11], [12, 13], [12, 9]]
+      crank: [[6, 11], [10, 11]]
+  sp1:
+    points:
+      spoke: [[5, 12], [3, 10], [3, 12], [5, 10], [13, 12], [11, 10], [11, 12], [13, 10]]
+      crank: [[8, 13], [8, 9]]
+  sp2:
+    points:
+      spoke: [[4, 13], [4, 9], [2, 11], [12, 13], [12, 9], [14, 11]]
+      crank: [[6, 11], [10, 11]]
+  sp3:
+    points:
+      spoke: [[3, 12], [5, 10], [3, 10], [5, 12], [11, 12], [13, 10], [11, 10], [13, 12]]
+      crank: [[8, 9], [8, 13]]
+  road:
+    points:
+      road: [[0, 15], [1, 15], [4, 15], [5, 15], [8, 15], [9, 15], [12, 15], [13, 15]]
+
+timeline:
+  - show: [{ sprite: road, at: [0, 0], wrap: true }, sp0, bike]
+  - show: [{ sprite: road, at: [-1, 0], wrap: true }, sp1, bike]
+  - show: [{ sprite: road, at: [-2, 0], wrap: true }, sp2, bike]
+  - show: [{ sprite: road, at: [-3, 0], wrap: true }, sp3, bike]
+  - show: [{ sprite: road, at: [-4, 0], wrap: true }, sp0, bike]
+  - show: [{ sprite: road, at: [-5, 0], wrap: true }, sp1, bike]
+  - show: [{ sprite: road, at: [-6, 0], wrap: true }, sp2, bike]
+  - show: [{ sprite: road, at: [-7, 0], wrap: true }, sp3, bike]
+  - show: [{ sprite: road, at: [-8, 0], wrap: true }, sp0, bike]
+  - show: [{ sprite: road, at: [-9, 0], wrap: true }, sp1, bike]
+  - show: [{ sprite: road, at: [-10, 0], wrap: true }, sp2, bike]
+  - show: [{ sprite: road, at: [-11, 0], wrap: true }, sp3, bike]
+  - show: [{ sprite: road, at: [-12, 0], wrap: true }, sp0, bike]
+  - show: [{ sprite: road, at: [-13, 0], wrap: true }, sp1, bike]
+  - show: [{ sprite: road, at: [-14, 0], wrap: true }, sp2, bike]
+  - show: [{ sprite: road, at: [-15, 0], wrap: true }, sp3, bike]
+  - show: [{ sprite: road, at: [-16, 0], wrap: true }, sp0, bike]
+  - show: [{ sprite: road, at: [-17, 0], wrap: true }, sp1, bike]
+  - show: [{ sprite: road, at: [-18, 0], wrap: true }, sp2, bike]
+  - show: [{ sprite: road, at: [-19, 0], wrap: true }, sp3, bike]
+  - show: [{ sprite: road, at: [-20, 0], wrap: true }, sp0, bike]
+  - show: [{ sprite: road, at: [-21, 0], wrap: true }, sp1, bike]
+  - show: [{ sprite: road, at: [-22, 0], wrap: true }, sp2, bike]
+  - show: [{ sprite: road, at: [-23, 0], wrap: true }, sp3, bike]

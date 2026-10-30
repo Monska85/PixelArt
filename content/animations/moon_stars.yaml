@@ -1,0 +1,72 @@
+format: pixelart/1
+name: Moon and Stars
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 220
+
+palette:
+  moon: "#fff2a8"
+  star: "#ffffff"
+  star_dim: "#6a7090"
+
+sprites:
+  moon:
+    points:
+      moon: [
+          [4, 3], [5, 3], [3, 4], [4, 4], [2, 5], [3, 5], [4, 5], [2, 6], [3, 6], [4, 6], [2, 7], [3, 7],
+          [4, 7], [2, 8], [3, 8], [4, 8], [5, 8], [2, 9], [3, 9], [4, 9], [5, 9], [2, 10], [3, 10],
+          [4, 10], [5, 10], [6, 10], [7, 10], [3, 11], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11],
+          [9, 11], [10, 11], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12]
+        ]
+  big0:
+    points:
+      star: [[13, 2], [12, 2], [14, 2], [13, 1], [13, 3]]
+  dot0:
+    points:
+      star_dim: [[13, 2]]
+  big1:
+    points:
+      star: [[12, 11], [11, 11], [13, 11], [12, 10], [12, 12]]
+  dot1:
+    points:
+      star_dim: [[12, 11]]
+  big2:
+    points:
+      star: [[2, 2], [1, 2], [3, 2], [2, 1], [2, 3]]
+  dot2:
+    points:
+      star_dim: [[2, 2]]
+  big3:
+    points:
+      star: [[14, 14], [13, 14], [15, 14], [14, 13], [14, 15]]
+  dot3:
+    points:
+      star_dim: [[14, 14]]
+  big4:
+    points:
+      star: [[9, 1], [8, 1], [10, 1], [9, 0], [9, 2]]
+  dot4:
+    points:
+      star_dim: [[9, 1]]
+
+timeline:
+  - show: [moon, big0, dot1, dot2, dot3, dot4]
+  - show: [moon, big0, dot1, big2, dot3, dot4]
+  - show: [moon, dot0, dot1, big2, dot3, big4]
+  - show: [moon, dot0, dot1, dot2, dot3, big4]
+  - show: [moon, dot0, big1, dot2, dot3, dot4]
+  - show: [moon, dot0, big1, dot2, big3, dot4]
+  - show: [moon, dot0, dot1, dot2, big3, dot4]
+  - show: [moon, big0, dot1, dot2, dot3, dot4]
+  - show: [moon, big0, dot1, big2, dot3, dot4]
+  - show: [moon, dot0, dot1, big2, dot3, big4]
+  - show: [moon, dot0, dot1, dot2, dot3, big4]
+  - show: [moon, dot0, big1, dot2, dot3, dot4]
+  - show: [moon, dot0, big1, dot2, big3, dot4]
+  - show: [moon, dot0, dot1, dot2, big3, dot4]
+  - show: [moon, big0, dot1, dot2, dot3, dot4]
+  - show: [moon, big0, dot1, big2, dot3, dot4]
+  - show: [moon, dot0, dot1, big2, dot3, big4]
+  - show: [moon, dot0, dot1, dot2, dot3, big4]
+  - show: [moon, dot0, big1, dot2, dot3, dot4]
+  - show: [moon, dot0, big1, dot2, big3, dot4]

@@ -1,0 +1,9 @@
+format: pixelart-playlist/1
+name: Evening
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: sunset
+  - animation: pizza
+  - animation: toast
+  - animation: disco_ball
