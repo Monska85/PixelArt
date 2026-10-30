@@ -12,6 +12,6 @@ export default defineConfig({
   snapshotPathTemplate: undefined,
   outputDir: "test-results-layout",
   reporter: process.env.CI
-    ? [["list"], ["html", { open: "never", outputFolder: "playwright-report-layout" }]]
+    ? [["list"], ["github"], ["html", { open: "never", outputFolder: "playwright-report-layout" }]]
     : [["list"]],
 });

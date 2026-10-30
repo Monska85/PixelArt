@@ -138,8 +138,10 @@ export const states = {
   },
   "board-address-error": async ({ page, check }) => {
     await openConnectCard(page, "ws://127.0.0.1:1");
+    // The functional WiFi test checks the shared WebSocket retry timing in real time.
+    await page.clock.runFor(7_000);
     await expect(page.getByTestId("connection-message")).toContainText("Cannot connect", {
-      timeout: 10_000, // the six tries take about 6.2 seconds
+      timeout: 10_000,
     });
     await expect(page.getByTestId("connection-state")).toHaveText("Not connected");
     await check();
@@ -915,9 +917,45 @@ export const states = {
 
 export type StateName = keyof typeof states;
 
+// These states use a scripted board or no board. They still run every viewport and layout assertion, without
+// starting a simulator and copying board files. Future use of a simulator fails with a clear error.
+const NO_SIMULATOR_STATES = new Set<StateName>([
+  "board-not-connected",
+  "board-simulator-open",
+  "board-address-error",
+  "library-not-connected",
+  "firmware-not-connected",
+  "editor-not-connected",
+  "chip-not-connected",
+  "theme-button",
+  "nav-menu",
+  "board-delete-everything-old-firmware",
+  "board-delete-everything-old-reset",
+  "board-delete-everything-storage-error",
+  "board-queue-no-space",
+  "board-queue-failed",
+  "board-unreadable",
+  "library-unreadable",
+  "library-no-manifest",
+  "firmware-no-manifest",
+  "firmware-no-web-serial",
+  "editor-diagnostics",
+  "editor-downloaded",
+  "editor-same-as-file",
+  "editor-crash",
+]);
+
+function unusedSimulator(name: StateName): Simulator {
+  return new Proxy({} as Simulator, {
+    get: (_target, property) => {
+      throw new Error(`${name} needs a simulator for ${String(property)}; remove it from NO_SIMULATOR_STATES`);
+    },
+  });
+}
+
 /**
- * Defines one test per state and size (and theme, when given), each with the fixed clock, its own simulator, and
- * `check` run where the state calls it. A state that logs console errors on purpose says so with
+ * Defines one test per state and size (and theme, when given), each with the fixed clock and `check` run where the
+ * state calls it. States that need a board get their own simulator. A state that logs console errors on purpose says so with
  * `allowConsoleErrors`, which turns off the fixture's console check for that test only.
  */
 export function describeStates({
@@ -940,7 +978,7 @@ export function describeStates({
         });
         for (const name of names) {
           if (NARROW_ONLY.has(name) && size.width >= 640) continue;
-          base(name, async ({ page, simulator, consoleProblems }) => {
+          const runState = async (page: Page, simulator: Simulator, consoleProblems: string[]) => {
             let expectsConsoleErrors = false;
             await states[name]({
               page,
@@ -949,7 +987,10 @@ export function describeStates({
               allowConsoleErrors: () => (expectsConsoleErrors = true),
             });
             if (expectsConsoleErrors) consoleProblems.length = 0;
-          });
+          };
+          if (NO_SIMULATOR_STATES.has(name))
+            base(name, async ({ page, consoleProblems }) => runState(page, unusedSimulator(name), consoleProblems));
+          else base(name, async ({ page, simulator, consoleProblems }) => runState(page, simulator, consoleProblems));
         }
       });
     }
