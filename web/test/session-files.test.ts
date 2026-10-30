@@ -21,7 +21,22 @@ const leaving = () => boardFilesOf(session.getSnapshot());
 
 describe("the board's animations kept by the session", () => {
   afterEach(async () => {
+    vi.useRealTimers();
     await session.disconnect();
+  });
+
+  it("does not publish a connection after disconnecting during upload cleanup", async () => {
+    vi.useFakeTimers();
+    const board = new FakeBoard();
+    board.fault = (_index, request) => (request.cmd === "put_abort" ? "drop" : undefined);
+    session.markUploadInterrupted();
+    const connecting = session["connect"]("simulator", async () => board);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(board.requests.some((request) => request.cmd === "put_abort")).toBe(true);
+    await session.disconnect();
+    await vi.advanceTimersByTimeAsync(11_000);
+    await connecting;
+    expect(session.getSnapshot().state).toBe("disconnected");
   });
 
   async function savedBall(board: FakeBoard): Promise<EditorStore> {

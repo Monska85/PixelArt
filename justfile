@@ -135,6 +135,10 @@ release-site folder=site: data node-modules
 test: data
     nice -n {{nice}} pio test -e native_test
 
+# Run the Python tool tests with the simulator available
+tools-test: sim-build
+    nice -n {{nice}} {{python}} -m unittest discover -s tools
+
 # Format the C++ sources with clang-format
 format:
     find src include test lib \( -name '*.cpp' -o -name '*.h' \) -exec nice -n {{nice}} clang-format -i {} +

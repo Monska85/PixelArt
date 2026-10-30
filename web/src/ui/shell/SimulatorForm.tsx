@@ -5,7 +5,7 @@ import { Button } from "../components/button";
 import { Input } from "../components/input";
 import { Field } from "../common/Field";
 import { session, useSession } from "../session";
-import { DEFAULT_SIMULATOR_URL } from "../../protocol/websocket";
+import { DEFAULT_SIMULATOR_URL } from "../../protocol/address";
 import { readStored, SIMULATOR_KEY, writeStored } from "../storage";
 
 /** The address of the simulator and the button that connects to it. */

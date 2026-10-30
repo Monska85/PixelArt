@@ -21,10 +21,9 @@ permissions:
   contents: read
 
 jobs:
-  # The quick checks on the commit that release-please would release: a main
-  # that fails them never gets a tag or a GitHub Release. release-please
-  # normally tags this same commit, so the build job runs the checks again only
-  # on a workflow_dispatch run or when the tag points to another commit.
+  # The quick native and web checks run in parallel on the commit that release-please would release. A main that
+  # fails either never gets a tag or a GitHub Release. release-please normally tags this same commit, so the build
+  # jobs run checks again only on a workflow_dispatch run or when a tag points to another commit.
   check:
     if: github.event_name == 'push' || (inputs.dry_run == false && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
@@ -34,16 +33,27 @@ jobs:
         with:
           persist-credentials: false
 
-      # A web release is gated too: type check, lint and unit tests, the conformance suite included
       - uses: ./.github/actions/checks
+
+  web-check:
+    if: github.event_name == 'push' || (inputs.dry_run == false && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
         with:
           node: true
 
+      # A web release is gated too: type check, lint and unit tests, the conformance suite included
       - name: Check the web app
         run: make web-test
 
   release-please:
-    needs: check
+    needs: [check, web-check]
     # One release-please run at a time, so two runs never create the same tag or
     # update the release pull request together. A run waiting behind another is
     # replaced by a newer one: that is safe, because release-please reads the
@@ -180,7 +190,7 @@ jobs:
           path: site/
 
   build-web:
-    needs: [check, release-please]
+    needs: [web-check, release-please]
     # release-please is skipped on a dry run, which must not stop the build
     if: >-
       ${{ !cancelled() && needs.release-please.result != 'failure' &&
@@ -203,13 +213,13 @@ jobs:
         working-directory: web
         run: npm ci
 
-      # The check job already linted this run's commit, which is normally the one release-please tagged. A dry run
-      # skips the check job, and a tag on another commit was never linted: both lint here.
+      # The web-check job already linted this run's commit, which is normally the one release-please tagged. A dry
+      # run skips that job, and a tag on another commit was never linted: both lint here.
       - id: tagged
         run: echo "checked=$([ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - name: Lint
-        if: needs.check.result != 'success' || steps.tagged.outputs.checked != 'true'
+        if: needs['web-check'].result != 'success' || steps.tagged.outputs.checked != 'true'
         working-directory: web
         run: npm run lint
 

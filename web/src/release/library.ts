@@ -3,7 +3,14 @@
 // The animation library: what is published, and how it compares with what a board stores.
 
 import { sameSha, sha256Hex, type Entry } from "../protocol";
-import { MAX_FILE_BYTES, publishedPath, readCapped, type Published, type PublishedKind } from "./manifest";
+import {
+  MAX_FILE_BYTES,
+  publishedPath,
+  readCapped,
+  withFetchTimeout,
+  type Published,
+  type PublishedKind,
+} from "./manifest";
 
 /**
  * - `unknown`: no board is connected.
@@ -29,9 +36,11 @@ export async function downloadPublished(
   const label = `${kind} ${entry.id}`;
   let bytes: Uint8Array | null;
   try {
-    const response = await fetchFn(publishedPath(kind, entry.id), { cache: "no-cache" });
-    if (!response.ok) throw new Error(`the server answered ${response.status}`);
-    bytes = await readCapped(response, Math.min(entry.size, MAX_FILE_BYTES[kind]));
+    bytes = await withFetchTimeout(async (signal) => {
+      const response = await fetchFn(publishedPath(kind, entry.id), { cache: "no-cache", signal });
+      if (!response.ok) throw new Error(`the server answered ${response.status}`);
+      return readCapped(response, Math.min(entry.size, MAX_FILE_BYTES[kind]));
+    });
   } catch (error) {
     throw new Error(`Cannot download ${label}: ${error instanceof Error ? error.message : "the request failed"}.`, {
       cause: error,

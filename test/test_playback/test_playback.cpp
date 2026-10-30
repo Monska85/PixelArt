@@ -28,7 +28,6 @@ using pixelart_test::green;
 using pixelart_test::put_begin;
 using pixelart_test::put_chunk;
 using pixelart_test::red;
-using pixelart_test::REPO_DATA;
 using pixelart_test::request;
 using pixelart_test::TempData;
 
@@ -84,12 +83,7 @@ static size_t protocol_lines()
   return n;
 }
 
-void setUp()
-{
-  sim::reset();
-  sim::set_data_dir(REPO_DATA);
-  setup();
-}
+void setUp() { sim::reset(); }
 
 void tearDown()
 {
@@ -104,9 +98,10 @@ struct Run
   size_t replies;
 };
 
-static Run play_everything(const std::string &traffic)
+static Run play_everything(const fs::path &data, const std::string &traffic)
 {
   sim::reset();
+  sim::set_data_dir(data.string());
   setup();
   sim::serial_input(traffic);
   for (int pass = 0; pass < 2; pass++)
@@ -114,19 +109,24 @@ static Run play_everything(const std::string &traffic)
   return {sim::frames(), logs_without_protocol_lines(), protocol_lines()};
 }
 
-static void test_traffic_leaves_the_repository_animations_unchanged()
+static void test_traffic_leaves_the_stored_animation_unchanged()
 {
-  Run quiet = play_everything("");
+  TempData data("playback");
+  write_abc(data, 2);
+  data.write("playlists/default.json", playlist_of({"a", "b", "c"}));
+  Run quiet = play_everything(data.root, "");
   std::string traffic = request(1, R"("cmd":"info")") + request(2, R"("cmd":"list","kind":"animation")") +
                         request(3, R"("cmd":"settings_get")") + "junk\n" +
                         request(4, R"("cmd":"list","kind":"playlist")") +
-                        request(5, R"("cmd":"get","kind":"animation","id":"star","offset":0,"length":100)") +
+                        request(5, R"("cmd":"get","kind":"animation","id":"a","offset":0,"length":100)") +
                         request(6, R"("cmd":"nothing")");
-  Run busy = play_everything(traffic);
+  Run busy = play_everything(data.root, traffic);
 
   TEST_ASSERT_EQUAL(0, quiet.replies);
   TEST_ASSERT_EQUAL(6, busy.replies);
-  TEST_ASSERT_TRUE(!quiet.frames.empty());
+  // Two frames per animation, three animations per pass, played for two passes.
+  TEST_ASSERT_EQUAL(12, quiet.frames.size());
+  TEST_ASSERT_EQUAL_STRING("aabbccaabbcc", shown().c_str());
   TEST_ASSERT_EQUAL(quiet.frames.size(), busy.frames.size());
   for (size_t i = 0; i < quiet.frames.size(); i++)
   {
@@ -626,7 +626,7 @@ static void test_the_time_is_asked_for_while_a_schedule_plays()
 int main(int, char **)
 {
   UNITY_BEGIN();
-  RUN_TEST(test_traffic_leaves_the_repository_animations_unchanged);
+  RUN_TEST(test_traffic_leaves_the_stored_animation_unchanged);
   RUN_TEST(test_a_slow_command_delays_one_frame_and_the_schedule_holds);
   RUN_TEST(test_brightness_applies_from_the_next_frame);
   RUN_TEST(test_board_brightness_change_applies_to_the_animation_factor_from_the_next_frame);

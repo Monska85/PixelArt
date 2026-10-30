@@ -73,6 +73,30 @@ async function dirtyStore(): Promise<EditorStore> {
 }
 
 describe("discarding a restored draft", () => {
+  it("does not report an old write as saved after a newer edit", async () => {
+    let finish: (saved: boolean) => void = () => undefined;
+    vi.mocked(drafts.writeDraft).mockImplementationOnce(() => new Promise<boolean>((resolve) => (finish = resolve)));
+    const store = await dirtyStore();
+    await vi.advanceTimersByTimeAsync(DRAFT_WAIT);
+    store.edit((doc) => setTopField(doc, "name", "Newest"));
+    finish(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.getSnapshot().draft).toBe("saving");
+    await vi.advanceTimersByTimeAsync(DRAFT_WAIT);
+    expect(store.getSnapshot().draft).toBe("saved");
+  });
+
+  it("does not report an in-flight write as saved after drafting stops", async () => {
+    let finish: (saved: boolean) => void = () => undefined;
+    vi.mocked(drafts.writeDraft).mockImplementationOnce(() => new Promise<boolean>((resolve) => (finish = resolve)));
+    const store = await dirtyStore();
+    await vi.advanceTimersByTimeAsync(DRAFT_WAIT);
+    store.stopDrafting();
+    finish(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.getSnapshot().draft).not.toBe("saved");
+  });
+
   it("drops a pending write once drafting is stopped", async () => {
     vi.mocked(drafts.readDraft).mockResolvedValue(stored("Broken"));
     const store = new EditorStore();

@@ -74,6 +74,7 @@ export class EditorStore {
   private holdDraft = false;
   private drafting = true;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private draftRevision = 0;
 
   subscribe = this.changes.subscribe;
 
@@ -238,6 +239,7 @@ export class EditorStore {
   stopDrafting(): void {
     this.drafting = false;
     this.cancelTimer();
+    this.draftRevision++;
   }
 
   private cancelTimer(): void {
@@ -248,6 +250,7 @@ export class EditorStore {
   /** Throws the stored draft away and starts from the template. */
   discardDraft(): void {
     this.cancelTimer();
+    this.draftRevision++;
     this.holdDraft = false;
     void clearDraft();
     this.openNow({ doc: newAnimation(), id: null, source: "A new animation" });
@@ -256,6 +259,7 @@ export class EditorStore {
   private scheduleDraft(): void {
     if (!this.drafting) return;
     if (this.timer) clearTimeout(this.timer);
+    this.draftRevision++;
     this.set({ draft: "saving" });
     this.timer = setTimeout(() => void this.writeNow(), DRAFT_DELAY_MS);
   }
@@ -263,10 +267,11 @@ export class EditorStore {
   private async writeNow(): Promise<void> {
     this.timer = null;
     if (!this.drafting) return;
+    const revision = this.draftRevision;
     const { doc, id, source, dirty, saves } = this.snapshot.state;
     const { origin } = this.snapshot;
     const ok = await writeDraft({ json: writeJson(doc), id, source, dirty, origin, saves, savedAt: Date.now() });
-    if (this.timer === null) this.set({ draft: ok ? "saved" : "unavailable" });
+    if (this.drafting && revision === this.draftRevision) this.set({ draft: ok ? "saved" : "unavailable" });
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImprovClient, type ImprovLink, type WifiNetwork } from "../../protocol";
+import { ImprovClient, MAX_SCAN_NETWORKS, type ImprovLink, type WifiNetwork } from "../../protocol";
 import { Alert, AlertDescription } from "../components/alert";
 import { Button } from "../components/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/dialog";
@@ -148,6 +148,11 @@ export function WifiSetupDialog({ link, onConnected, onClose }: Props) {
                 </Select>
               )}
             </Field>
+          )}
+          {networks.length === MAX_SCAN_NETWORKS && (
+            <p className="text-sm text-muted-foreground">
+              Showing up to {MAX_SCAN_NETWORKS} networks. Choose Other network to type a name.
+            </p>
           )}
           {choice === OTHER && (
             <Field label="Network name">

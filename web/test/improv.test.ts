@@ -5,6 +5,7 @@ import {
   ImprovClient,
   ImprovError,
   LineSplitter,
+  MAX_SCAN_NETWORKS,
   buildFrame,
   parseResult,
   scanFrame,
@@ -215,6 +216,21 @@ describe("ImprovClient", () => {
   it("gives an empty list when the board sees no network", async () => {
     const link = fakeLink(() => [frameOf(error(0)), frameOf(result(4))]);
     expect(await new ImprovClient(link).scan()).toEqual([]);
+  });
+
+  it("keeps the strongest 16 distinct networks when a scan reports more", async () => {
+    const frames = Array.from({ length: MAX_SCAN_NETWORKS + 20 }, (_, i) =>
+      frameOf(result(4, `Network${i}`, String(-100 + i), "YES")),
+    );
+    const link = fakeLink(() => [frameOf(error(0)), ...frames, frameOf(result(4))]);
+    const networks = await new ImprovClient(link).scan();
+    expect(networks).toHaveLength(MAX_SCAN_NETWORKS);
+    expect(networks[0]).toEqual({
+      ssid: `Network${MAX_SCAN_NETWORKS + 19}`,
+      rssi: -100 + MAX_SCAN_NETWORKS + 19,
+      secure: true,
+    });
+    expect(networks.at(-1)?.ssid).toBe("Network20");
   });
 
   it("sends the network and waits for provisioned", async () => {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { describe, expect, it } from "vitest";
-import { contentVersionOf, loadManifest, parseManifest, readCapped } from "../src/release/manifest";
+import { describe, expect, it, vi } from "vitest";
+import { FETCH_TIMEOUT_MS, contentVersionOf, loadManifest, parseManifest, readCapped } from "../src/release/manifest";
 import { downloadPublished, libraryState } from "../src/release/library";
 import { sha256Hex } from "../src/protocol";
 import type { Entry } from "../src/protocol";
@@ -172,12 +172,65 @@ describe("loadManifest", () => {
       parseManifest(manifest({ content_pages: { animations: [{ ...ref, file: "../outside.json" }] } })),
     ).toBeNull();
   });
+
+  it("ends a request that never answers and aborts it", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const pending = loadManifest(((_url: string, init?: RequestInit) => {
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    }) as typeof fetch);
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS);
+    expect(await pending).toBeNull();
+    expect(signal?.aborted).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("aborts a declared page that never answers", async () => {
+    vi.useFakeTimers();
+    const ref = { file: "content-pages/stalled.json", size: 1, sha256: SHA };
+    let signal: AbortSignal | undefined;
+    const pending = loadManifest((async (url: string, init?: RequestInit) => {
+      if (url === "./manifest.json") return new Response(manifest({ content_pages: { animations: [ref] } }));
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    }) as typeof fetch);
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS);
+    expect(await pending).toBeNull();
+    expect(signal?.aborted).toBe(true);
+    vi.useRealTimers();
+  });
 });
 
 describe("readCapped", () => {
   it("returns the body up to the limit and null above it", async () => {
     expect(await readCapped(new Response("abcd"), 4)).toEqual(new TextEncoder().encode("abcd"));
     expect(await readCapped(new Response("abcde"), 4)).toBeNull();
+  });
+
+  it("cancels a body rejected by its declared length", async () => {
+    const cancel = vi.fn(async () => undefined);
+    const response = {
+      headers: new Headers({ "content-length": "100" }),
+      body: { cancel },
+    } as unknown as Response;
+    expect(await readCapped(response, 4)).toBeNull();
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a response without a stream without reading its whole body", async () => {
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(100));
+    const response = {
+      headers: new Headers(),
+      body: null,
+      arrayBuffer,
+    } as unknown as Response;
+    expect(await readCapped(response, 4)).toBeNull();
+    expect(arrayBuffer).not.toHaveBeenCalled();
   });
 });
 
@@ -243,5 +296,26 @@ describe("downloadPublished", () => {
     await expect(downloadPublished("animation", await make(), serve(body, 404).fake)).rejects.toThrow(
       /Cannot download/,
     );
+  });
+
+  it("ends a download whose body stalls after the headers", async () => {
+    vi.useFakeTimers();
+    const pending = downloadPublished("animation", await make(), ((_url: string, init?: RequestInit) =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              init?.signal?.addEventListener("abort", () =>
+                controller.error(new DOMException("Aborted", "AbortError")),
+              );
+            },
+          }),
+        ),
+      )) as typeof fetch).catch((error: Error) => error);
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS);
+    const result = await pending;
+    expect(result).toBeInstanceOf(Error);
+    if (result instanceof Error) expect(result.message).toContain("timed out");
+    vi.useRealTimers();
   });
 });

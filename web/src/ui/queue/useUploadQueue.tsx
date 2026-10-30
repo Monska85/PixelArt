@@ -6,7 +6,6 @@ import { sha256Hex, supportsSchedules, type BoardClient } from "../../protocol";
 import type { ListedKind } from "../fileLists";
 import { type QueueFile, type QueueSummary } from "../../queue/plan";
 import { runQueue, type Refusal } from "../../queue/run";
-import { downloadPublished } from "../../release/library";
 import { type Manifest, type Published, type PublishedKind } from "../../release/manifest";
 import { useUploadDialogs } from "../common/UploadDialogs";
 import { toast } from "../components/toast";
@@ -244,6 +243,7 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
   ): Promise<QueueOutcome | null> {
     return exclusive(false, async (client, reservation) => {
       const files: QueueFile[] = [];
+      const { downloadPublished } = await import("../../release/library");
       for (const { kind, entry } of items) {
         const where = `Installing ${kind} ${entry.id}`;
         try {

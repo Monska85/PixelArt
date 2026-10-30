@@ -164,6 +164,7 @@ JOBS=8 NICE=0 just check     # or: just jobs=8 nice=0 check
 | Command                       | What it does                                                                                                                 |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `make test`                   | Run the tests in `test/` on the simulator                                                                                    |
+| `make tools-test`             | Build the simulator and run the Python tool tests                                                                            |
 | `make format`                 | Format the C++ sources with `clang-format`                                                                                   |
 | `make format-check`           | Fail if a C++ source is not formatted                                                                                        |
 | `make check`                  | Check formatting and animations, run the C++ and Python unit tests, build every board, type check, lint and test the web app |

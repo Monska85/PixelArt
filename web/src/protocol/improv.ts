@@ -139,6 +139,8 @@ interface Timeouts {
 
 /** The board answers a connection after 30 seconds, and a scan after about 15. */
 const DEFAULT_TIMEOUTS: Timeouts = { scanMs: 20_000, provisionMs: 40_000 };
+// The board sends at most 16; also bound results from an unexpected Improv peer.
+export const MAX_SCAN_NETWORKS = 16;
 
 /** Improv requests, one at a time. */
 export class ImprovClient {
@@ -159,8 +161,17 @@ export class ImprovClient {
       if (result.strings.length === 0) return true; // the empty result ends the list
       const [ssid, rssi, secure] = result.strings;
       const dbm = Number.parseInt(rssi ?? "", 10);
-      if (ssid && Number.isFinite(dbm) && !found.some((n) => n.ssid === ssid))
-        found.push({ ssid, rssi: dbm, secure: secure === "YES" });
+      if (ssid && Number.isFinite(dbm) && !found.some((n) => n.ssid === ssid)) {
+        const network = { ssid, rssi: dbm, secure: secure === "YES" };
+        if (found.length < MAX_SCAN_NETWORKS) found.push(network);
+        else {
+          let weakest = 0;
+          for (let i = 1; i < found.length; i++) {
+            if (found[i]!.rssi < found[weakest]!.rssi) weakest = i;
+          }
+          if (dbm > found[weakest]!.rssi) found[weakest] = network;
+        }
+      }
       return false;
     });
     return found.sort((a, b) => b.rssi - a.rssi);

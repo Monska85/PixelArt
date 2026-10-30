@@ -6,6 +6,7 @@ import { isCount, isRecord } from "../protocol/guards";
 import {
   parseEntries,
   readCapped,
+  withFetchTimeout,
   type ContentKind,
   type Manifest,
   type Published,
@@ -83,9 +84,10 @@ export async function loadContentPages(manifest: Manifest, fetchFn: typeof fetch
     const entries: Published[] = [];
     const seen = new Set<string>();
     for (const ref of refs) {
-      const pageResponse = await fetchFn(`./${ref.file}`, { cache: "no-cache", redirect: "error" });
-      if (!pageResponse.ok) return null;
-      const body = await readCapped(pageResponse, Math.min(ref.size, MAX_PAGE_BYTES));
+      const body = await withFetchTimeout(async (signal) => {
+        const pageResponse = await fetchFn(`./${ref.file}`, { cache: "no-cache", redirect: "error", signal });
+        return pageResponse.ok ? await readCapped(pageResponse, Math.min(ref.size, MAX_PAGE_BYTES)) : null;
+      });
       if (body === null || body.length !== ref.size || (await sha256Hex(body)) !== ref.sha256) return null;
       const parsed = parsePage(new TextDecoder("utf-8", { fatal: true }).decode(body), kind);
       if (parsed === null) return null;
