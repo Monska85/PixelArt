@@ -32,24 +32,31 @@ const library = (page: Page) => page.getByRole("link", { name: "Library", exact:
 const state = (page: Page, id: string) => page.getByTestId(`state-${id}`);
 const sha = (path: string): string => createHash("sha256").update(readFileSync(path)).digest("hex");
 const publishedTable = (page: Page) => page.getByRole("table", { name: "Published animations" });
+const playlistTable = (page: Page) => page.getByRole("table", { name: "Published playlists" });
+const scheduleTable = (page: Page) => page.getByRole("table", { name: "Published schedules" });
+const showSchedules = (page: Page) => page.getByRole("tab", { name: /^Schedules/ }).click();
 
-/** A stored animation that has the ID of a published one but other content. */
-function makeDifferent(simulator: Simulator, id: string): void {
-  const path = stored(simulator, "animations", id);
+/** A stored file that has the ID of a published one but other content. */
+function makeDifferent(simulator: Simulator, id: string, kind: "animations" | "schedules" = "animations"): void {
+  const path = stored(simulator, kind, id);
   const document = JSON.parse(readFileSync(path, "utf8")) as { name: string };
   document.name = `${document.name} (changed)`;
   writeFileSync(path, JSON.stringify(document));
 }
 
-test("lists the published animations and playlists with their state on the board", async ({ page, simulator }) => {
+test("lists published animations, playlists and schedules with their state on the board", async ({
+  page,
+  simulator,
+}) => {
   rmSync(stored(simulator, "animations", MISSING));
   makeDifferent(simulator, DIFFERENT);
   await connectSimulator(page, simulator);
   await library(page).click();
 
-  await expect(page.getByText(/Animations published with/)).toContainText("content release 0.2.0");
+  await expect(page.getByText(/Files published with/)).toContainText("content release 0.2.0");
   await expect(page.getByRole("tab", { name: /^Animations/ })).toContainText(String(published.animations.length));
   await expect(page.getByRole("tab", { name: /^Playlists/ })).toContainText(String(published.playlists.length));
+  await expect(page.getByRole("tab", { name: /^Schedules/ })).toContainText(String(published.schedules.length));
   await expect(state(page, SAME)).toHaveText("Same");
   await expect(state(page, MISSING)).toHaveText("Not on the board");
   await expect(state(page, DIFFERENT)).toHaveText("Different");
@@ -59,7 +66,11 @@ test("lists the published animations and playlists with their state on the board
   await expect(page.getByRole("button", { name: `Install ${MISSING}` })).toBeEnabled();
 
   await showPlaylists(page);
-  await expect(state(page, "default")).toHaveText("Same");
+  await expect(playlistTable(page).getByTestId("state-default")).toHaveText("Same");
+  await showSchedules(page);
+  await expect(scheduleTable(page)).toContainText("Seasons");
+  await expect(scheduleTable(page).getByTestId("state-default")).toHaveText("Same");
+  await expect(page.getByRole("button", { name: "Install default" })).toBeDisabled();
 });
 
 test("without a board the library lists the entries and asks to connect", async ({ page }) => {
@@ -70,6 +81,38 @@ test("without a board the library lists the entries and asks to connect", async 
   await expect(page.getByRole("button", { name: "Install all" })).toBeDisabled();
   await expect(page.getByRole("button", { name: `Install ${MISSING}` })).toBeDisabled();
   await expect(page.getByTestId(`state-${MISSING}`)).toHaveCount(0);
+  await showSchedules(page);
+  await expect(scheduleTable(page)).toContainText("Seasons");
+  await expect(scheduleTable(page).getByTestId("state-default")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Install default" })).toBeDisabled();
+});
+
+test("installs a missing published schedule and updates its board state", async ({ page, simulator }) => {
+  rmSync(stored(simulator, "schedules", "default"));
+  await connectSimulator(page, simulator);
+  await library(page).click();
+  await showSchedules(page);
+  const table = scheduleTable(page);
+  await expect(table.getByTestId("state-default")).toHaveText("Not on the board");
+  await page.getByRole("button", { name: "Install default" }).click();
+  await expect(toastWith(page, "Installed schedule default")).toBeVisible();
+  await expect(table.getByTestId("state-default")).toHaveText("Same");
+  expect(sha(stored(simulator, "schedules", "default"))).toBe(
+    sha(join(fileURLToPath(new URL("./board-files", import.meta.url)), "schedules", "default.json")),
+  );
+});
+
+test("asks before replacing a different published schedule", async ({ page, simulator }) => {
+  makeDifferent(simulator, "default", "schedules");
+  await connectSimulator(page, simulator);
+  await library(page).click();
+  await showSchedules(page);
+  await expect(scheduleTable(page).getByTestId("state-default")).toHaveText("Different");
+  await page.getByRole("button", { name: "Install default" }).click();
+  const dialog = page.getByRole("dialog", { name: "Replace the stored file?" });
+  await expect(dialog.getByTestId("differing-files")).toContainText("default");
+  await dialog.getByRole("button", { name: "Replace them" }).click();
+  await expect(scheduleTable(page).getByTestId("state-default")).toHaveText("Same");
 });
 
 test("previews a published animation", async ({ page }) => {
@@ -168,6 +211,17 @@ test("installs everything but the schedules on a board from before schedules", a
   await connectScripted(page, board);
   await expect(page.getByTestId("connection-state")).toHaveText("Connected");
   await library(page).click();
+  await showSchedules(page);
+  await expect(scheduleTable(page)).toContainText("Seasons");
+  await expect(scheduleTable(page).getByTestId("state-default")).toHaveCount(0);
+  await expect(
+    page.getByText("This board's firmware does not support schedules. Update it to install them."),
+  ).toBeVisible();
+  await expect(page.getByTestId("firmware-link")).toHaveAttribute("href", "#firmware");
+  const installSchedule = page.getByRole("button", { name: "Install default" });
+  await expect(installSchedule).toBeDisabled();
+  await page.getByRole("group", { name: "Update the board's firmware to install schedules" }).hover();
+  await expect(page.getByRole("tooltip")).toHaveText("Update the board's firmware to install schedules");
   await page.getByRole("button", { name: "Install all" }).click();
   await page
     .getByRole("menuitem", { name: `Everything (${published.animations.length + published.playlists.length})` })
@@ -211,7 +265,7 @@ test("treats a manifest of another format as nothing published", async ({ page }
   await expect(page.getByTestId("library-empty")).toContainText("Nothing is published yet");
 });
 
-test("every row the board does not have the same has a visible Install button, for animations and playlists", async ({
+test("every installable row the board does not have the same has a visible Install button", async ({
   page,
   simulator,
 }) => {
@@ -227,7 +281,7 @@ test("every row the board does not have the same has a visible Install button, f
   await expect(page.getByRole("button", { name: `Install ${DIFFERENT}` })).toBeEnabled();
   await expect(page.getByRole("button", { name: `Install ${SAME}` })).toBeDisabled();
   await showPlaylists(page);
-  await expect(state(page, "default")).toHaveText("Not on the board");
+  await expect(playlistTable(page).getByTestId("state-default")).toHaveText("Not on the board");
   const install = page.getByRole("button", { name: "Install default" });
   await expect(install).toBeEnabled();
   await install.hover();
@@ -259,7 +313,10 @@ test("names the firmware release when the manifest has no content version", asyn
     }),
   );
   await page.goto("/#library");
-  await expect(page.getByText(/Animations published with/)).toContainText("Animations published with release 1.2.0.");
+  await expect(page.getByText(/Files published with/)).toContainText("Files published with release 1.2.0.");
+  await showSchedules(page);
+  await expect(page.getByRole("tab", { name: /^Schedules/ })).toContainText("0");
+  await expect(page.getByText("No schedules are published")).toBeVisible();
 });
 
 test("lists the animations of a content release that has no firmware", async ({ page }) => {
@@ -270,6 +327,6 @@ test("lists the animations of a content release that has no firmware", async ({ 
     await route.fulfill({ json: { ...manifest, version: "0.2.0", content_version: "0.2.0" } });
   });
   await page.goto("/#library");
-  await expect(page.getByText(/Animations published with/)).toContainText("content release 0.2.0");
+  await expect(page.getByText(/Files published with/)).toContainText("content release 0.2.0");
   await expect(publishedTable(page)).toContainText("Snowflake");
 });

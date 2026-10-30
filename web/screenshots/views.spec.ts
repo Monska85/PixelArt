@@ -6,13 +6,14 @@
 import { expect } from "../e2e/fixtures";
 import { describeStates, THEMES, type StateName } from "./states";
 
-/** The Board (the Files section closed, and open on both tabs), Library, Firmware and Editor views, the playlist editor,
- * a confirmation dialog and the connection chip's panel: 9 states, 36 images. */
+/** The Board (the Files section closed, and open on both tabs), Library with its schedule list, Firmware and Editor,
+ * the playlist editor, a confirmation dialog and the connection chip's panel: 10 states, 40 images. */
 const CURATED: readonly StateName[] = [
   "board-connected",
   "board-files-open",
   "board-playlists",
   "library-connected",
+  "library-schedules",
   "firmware-up-to-date",
   "editor-from-board",
   "board-playlist-editor",
