@@ -1,0 +1,136 @@
+format: pixelart/1
+name: Scarecrow
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  hat: "#8a5a2a"
+  hat_patch: "#c08a40"
+  band: "#e0262a"
+  straw: "#ffd23f"
+  face: "#e8c888"
+  stitch: "#5a3214"
+  sleeve: "#2f7bff"
+  shirt: "#2f7bff"
+  patch: "#ff5a36"
+  pole: "#a07850"
+  ear: "#ffc93c"
+  wheat: "#d0a030"
+  wheat_dark: "#9a7420"
+  crow: "#5a5a70"
+  wing: "#8a8aa8"
+  crow_eye: "#ffffff"
+  beak: "#ffb020"
+
+sprites:
+  scarecrow:
+    points:
+      hat: [
+          [6, 0], [7, 0], [8, 0], [9, 0], [6, 1], [7, 1], [9, 1], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3],
+          [9, 3], [10, 3], [11, 3]
+        ]
+      hat_patch: [[8, 1]]
+      band: [[6, 2], [7, 2], [8, 2], [9, 2]]
+      straw: [[5, 4], [10, 4], [0, 8], [1, 8], [14, 8], [15, 8], [1, 9], [14, 9], [6, 12], [8, 12], [9, 12]]
+      face: [[6, 4], [7, 4], [8, 4], [9, 4], [7, 5], [8, 5], [6, 6], [7, 6], [8, 6], [9, 6], [6, 7], [9, 7]]
+      stitch: [[6, 5], [9, 5], [7, 7], [8, 7]]
+      sleeve: [[2, 8], [3, 8], [4, 8], [5, 8], [10, 8], [11, 8], [12, 8], [13, 8]]
+      shirt: [
+          [6, 8], [7, 8], [8, 8], [9, 8], [6, 9], [8, 9], [9, 9], [6, 10], [7, 10], [9, 10], [6, 11],
+          [7, 11], [8, 11], [9, 11]
+        ]
+      patch: [[7, 9], [8, 10]]
+      pole: [[7, 13], [8, 13], [7, 14], [8, 14]]
+  wheat_a:
+    points:
+      ear: [[0, 13], [3, 13], [6, 13], [10, 13], [13, 13], [0, 14], [3, 14], [6, 14], [10, 14], [13, 14]]
+      wheat: [
+          [2, 14], [5, 14], [8, 14], [12, 14], [15, 14], [0, 15], [2, 15], [3, 15], [5, 15], [6, 15],
+          [8, 15], [9, 15], [11, 15], [12, 15], [14, 15], [15, 15]
+        ]
+      wheat_dark: [[1, 15], [4, 15], [7, 15], [10, 15], [13, 15]]
+  wheat_b:
+    points:
+      ear: [[1, 13], [4, 13], [7, 13], [11, 13], [14, 13], [0, 14], [3, 14], [6, 14], [10, 14], [13, 14]]
+      wheat: [
+          [2, 14], [5, 14], [8, 14], [12, 14], [15, 14], [0, 15], [2, 15], [3, 15], [5, 15], [6, 15],
+          [8, 15], [9, 15], [11, 15], [12, 15], [14, 15], [15, 15]
+        ]
+      wheat_dark: [[1, 15], [4, 15], [7, 15], [10, 15], [13, 15]]
+  crow:
+    points:
+      crow: [[2, 0], [3, 0], [0, 1], [1, 1], [3, 1], [4, 1], [1, 2], [3, 2]]
+      crow_eye: [[4, 0]]
+      wing: [[2, 1]]
+      beak: [[5, 1]]
+  crow_fly:
+    points:
+      wing: [[0, 0], [4, 0]]
+      crow: [[1, 1], [2, 1], [3, 1]]
+  caw:
+    points:
+      beak: [[5, 0], [6, 1], [5, 2]]
+
+timeline:
+  - show: [scarecrow, wheat_a]
+    ms: 200
+  - show: [scarecrow, wheat_a]
+    ms: 200
+  - show: [scarecrow, wheat_a]
+    ms: 200
+  - show: [scarecrow, wheat_b]
+    ms: 200
+  - show: [scarecrow, wheat_b]
+    ms: 200
+  - show: [scarecrow, wheat_b]
+    ms: 200
+  - show: [scarecrow, wheat_a, { sprite: crow_fly, at: [-5, 1] }]
+    ms: 160
+  - show: [scarecrow, wheat_a, { sprite: crow_fly, at: [-4, 2] }]
+    ms: 160
+  - show: [scarecrow, wheat_a, { sprite: crow_fly, at: [-3, 3] }]
+    ms: 160
+  - show: [scarecrow, wheat_b, { sprite: crow_fly, at: [-2, 4] }]
+    ms: 160
+  - show: [scarecrow, wheat_b, { sprite: crow_fly, at: [-1, 5] }]
+    ms: 160
+  - show: [scarecrow, wheat_b, { sprite: crow, at: [0, 5] }]
+    ms: 220
+  - show: [scarecrow, wheat_a, { sprite: crow, at: [0, 5] }]
+    ms: 220
+  - show: [scarecrow, wheat_a, { sprite: crow, at: [0, 5] }]
+    ms: 220
+  - show: [scarecrow, wheat_a, { sprite: crow, at: [0, 5] }]
+    ms: 220
+  - show: [scarecrow, wheat_b, { sprite: crow, at: [0, 5] }, { sprite: caw, at: [0, 5] }]
+    ms: 250
+  - show: [scarecrow, wheat_b, { sprite: crow, at: [0, 5] }]
+    ms: 400
+  - show: [scarecrow, wheat_b, { sprite: crow, at: [0, 5] }, { sprite: caw, at: [0, 5] }]
+    ms: 250
+  - show: [scarecrow, wheat_a, { sprite: crow, at: [0, 5] }]
+    ms: 400
+  - show: [scarecrow, wheat_a, { sprite: crow, at: [0, 5] }]
+    ms: 220
+  - show: [scarecrow, wheat_a, { sprite: crow, at: [0, 5] }]
+    ms: 220
+  - show: [scarecrow, wheat_b, { sprite: crow, at: [0, 5] }]
+    ms: 220
+  - show: [scarecrow, wheat_b, { sprite: crow_fly, at: [1, 4] }]
+    ms: 140
+  - show: [scarecrow, wheat_b, { sprite: crow_fly, at: [2, 2] }]
+    ms: 140
+  - show: [scarecrow, wheat_a, { sprite: crow_fly, at: [3, 0] }]
+    ms: 140
+  - show: [scarecrow, wheat_a, { sprite: crow_fly, at: [4, -2] }]
+    ms: 140
+  - show: [scarecrow, wheat_a, { sprite: crow_fly, at: [5, -4] }]
+    ms: 140
+  - show: [scarecrow, wheat_b]
+    ms: 200
+  - show: [scarecrow, wheat_b]
+    ms: 200
+  - show: [scarecrow, wheat_b]
+    ms: 200
+  - show: [scarecrow, wheat_a]
+    ms: 200

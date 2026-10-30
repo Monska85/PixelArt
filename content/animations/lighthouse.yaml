@@ -1,0 +1,108 @@
+format: pixelart/1
+name: Lighthouse
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 180
+
+palette:
+  sea: "#1b6fd1"
+  sea_dark: "#0f4c9a"
+  foam: "#d6f0ff"
+  roof: "#e0262a"
+  frame: "#5a5a66"
+  lamp: "#ffe640"
+  lamp_dim: "#a08a20"
+  gallery: "#3a3a44"
+  white: "#f2f2f2"
+  red: "#e0262a"
+  rock: "#4a4a56"
+  beam: "#b8a640"
+  star: "#8a90b0"
+
+sprites:
+  stars:
+    points:
+      star: [[2, 1], [13, 7], [1, 8], [3, 4], [14, 10]]
+  tower:
+    points:
+      roof: [[7, 0], [8, 0], [6, 1], [7, 1], [8, 1], [9, 1]]
+      frame: [[6, 2], [9, 2], [6, 3], [9, 3]]
+      lamp: [[7, 2], [8, 2], [7, 3], [8, 3]]
+      gallery: [[5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4]]
+      white: [
+          [6, 5], [7, 5], [8, 5], [9, 5], [6, 6], [7, 6], [8, 6], [9, 6], [5, 9], [6, 9], [7, 9], [8, 9],
+          [9, 9], [10, 9], [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [10, 10]
+        ]
+      red: [
+          [6, 7], [7, 7], [8, 7], [9, 7], [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [5, 11],
+          [6, 11], [7, 11], [8, 11], [9, 11], [10, 11], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12],
+          [9, 12], [10, 12], [11, 12]
+        ]
+      rock: [
+          [2, 13], [3, 13], [4, 13], [5, 13], [6, 13], [7, 13], [8, 13], [9, 13], [10, 13], [11, 13],
+          [12, 13], [13, 13]
+        ]
+  beam_r:
+    points:
+      beam: [
+          [10, 2], [10, 3], [11, 2], [11, 3], [12, 2], [12, 3], [13, 2], [13, 3], [14, 2], [14, 3],
+          [15, 2], [15, 3], [13, 1], [14, 1], [15, 1], [12, 4], [13, 4], [14, 4], [15, 4], [15, 0]
+        ]
+  beam_l:
+    points:
+      beam: [
+          [5, 2], [5, 3], [4, 2], [4, 3], [3, 2], [3, 3], [2, 2], [2, 3], [1, 2], [1, 3], [0, 2], [0, 3],
+          [2, 1], [1, 1], [0, 1], [3, 4], [2, 4], [1, 4], [0, 4], [0, 0]
+        ]
+  sea:
+    at: [0, 14]
+    points:
+      sea: [
+          [0, 0], [1, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [9, 0], [10, 0], [12, 0],
+          [13, 0], [14, 0], [15, 0], [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [6, 1], [7, 1], [8, 1],
+          [9, 1], [10, 1], [11, 1], [12, 1], [13, 1], [15, 1]
+        ]
+      foam: [[2, 0], [11, 0]]
+      sea_dark: [[5, 1], [14, 1]]
+
+timeline:
+  - show: [stars, beam_r, tower, { sprite: sea, at: [0, 14], wrap: true }]
+  - show: [stars, beam_r, tower, { sprite: sea, at: [0, 14], wrap: true }]
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-1, 14], wrap: true }]
+  - show: [stars, tower, { sprite: sea, at: [-1, 14], wrap: true }]
+    recolor: { lamp: lamp_dim }
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-2, 14], wrap: true }]
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-2, 14], wrap: true }]
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-3, 14], wrap: true }]
+  - show: [stars, tower, { sprite: sea, at: [-3, 14], wrap: true }]
+    recolor: { lamp: lamp_dim }
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-4, 14], wrap: true }]
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-4, 14], wrap: true }]
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-5, 14], wrap: true }]
+  - show: [stars, tower, { sprite: sea, at: [-5, 14], wrap: true }]
+    recolor: { lamp: lamp_dim }
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-6, 14], wrap: true }]
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-6, 14], wrap: true }]
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-7, 14], wrap: true }]
+  - show: [stars, tower, { sprite: sea, at: [-7, 14], wrap: true }]
+    recolor: { lamp: lamp_dim }
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-8, 14], wrap: true }]
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-8, 14], wrap: true }]
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-9, 14], wrap: true }]
+  - show: [stars, tower, { sprite: sea, at: [-9, 14], wrap: true }]
+    recolor: { lamp: lamp_dim }
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-10, 14], wrap: true }]
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-10, 14], wrap: true }]
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-11, 14], wrap: true }]
+  - show: [stars, tower, { sprite: sea, at: [-11, 14], wrap: true }]
+    recolor: { lamp: lamp_dim }
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-12, 14], wrap: true }]
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-12, 14], wrap: true }]
+  - show: [stars, beam_r, tower, { sprite: sea, at: [-13, 14], wrap: true }]
+  - show: [stars, tower, { sprite: sea, at: [-13, 14], wrap: true }]
+    recolor: { lamp: lamp_dim }
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-14, 14], wrap: true }]
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-14, 14], wrap: true }]
+  - show: [stars, beam_l, tower, { sprite: sea, at: [-15, 14], wrap: true }]
+  - show: [stars, tower, { sprite: sea, at: [-15, 14], wrap: true }]
+    recolor: { lamp: lamp_dim }

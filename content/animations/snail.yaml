@@ -1,0 +1,88 @@
+format: pixelart/1
+name: Snail
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 260
+
+palette:
+  grass: "#3fa34d"
+  dark_grass: "#2b7a37"
+  soil: "#6b4226"
+  eye: "#202020"
+  shell: "#d9822b"
+  spiral: "#8a4a14"
+  body: "#d8c39a"
+  flower: "#b07cff"
+
+sprites:
+  ground:
+    points:
+      dark_grass: [[1, 13], [3, 13], [12, 13], [14, 13]]
+      grass: [
+          [0, 14], [1, 14], [2, 14], [3, 14], [4, 14], [5, 14], [6, 14], [7, 14], [8, 14], [9, 14],
+          [10, 14], [11, 14], [12, 14], [13, 14], [14, 14], [15, 14]
+        ]
+      soil: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+  flowers:
+    points:
+      flower: [[3, 12], [12, 12]]
+  snail_a:
+    points:
+      eye: [[9, 0], [11, 0]]
+      shell: [
+          [3, 1], [4, 1], [5, 1], [6, 1], [2, 2], [7, 2], [2, 3], [4, 3], [5, 3], [7, 3], [2, 4], [4, 4],
+          [6, 4], [7, 4], [2, 5], [3, 5], [6, 5], [7, 5]
+        ]
+      body: [
+          [9, 1], [11, 1], [9, 2], [10, 2], [9, 3], [10, 3], [9, 4], [10, 4], [9, 5], [10, 5], [0, 6],
+          [1, 6], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [11, 6]
+        ]
+      spiral: [[3, 2], [4, 2], [5, 2], [6, 2], [3, 3], [6, 3], [3, 4], [5, 4], [4, 5], [5, 5]]
+  snail_b:
+    points:
+      eye: [[8, 0], [11, 0]]
+      shell: [
+          [3, 1], [4, 1], [5, 1], [6, 1], [2, 2], [7, 2], [2, 3], [4, 3], [5, 3], [7, 3], [2, 4], [4, 4],
+          [6, 4], [7, 4], [2, 5], [3, 5], [6, 5], [7, 5]
+        ]
+      body: [
+          [9, 1], [10, 1], [9, 2], [10, 2], [9, 3], [10, 3], [9, 4], [10, 4], [9, 5], [10, 5], [0, 6],
+          [1, 6], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [11, 6]
+        ]
+      spiral: [[3, 2], [4, 2], [5, 2], [6, 2], [3, 3], [6, 3], [3, 4], [5, 4], [4, 5], [5, 5]]
+
+timeline:
+  - show: [ground, flowers]
+    ms: 300
+  - show: [ground, flowers, { sprite: snail_a, at: [-12, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [-11, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [-10, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [-9, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [-8, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [-7, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [-6, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [-5, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [-4, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [-3, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [-2, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [-1, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [0, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [1, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [2, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [3, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [4, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [5, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [6, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [7, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [8, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [9, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [10, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [11, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [12, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [13, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [14, 7] }]
+  - show: [ground, flowers, { sprite: snail_b, at: [15, 7] }]
+  - show: [ground, flowers, { sprite: snail_a, at: [16, 7] }]
