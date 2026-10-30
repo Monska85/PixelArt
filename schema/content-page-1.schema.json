@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Monska85/PixelArt/schema/content-page-1.schema.json",
+  "title": "PixelArt published content page",
+  "type": "object",
+  "required": [
+    "format",
+    "kind",
+    "entries"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "pixelart-content-page/1"
+    },
+    "kind": {
+      "enum": [
+        "animations",
+        "playlists",
+        "schedules",
+        "play"
+      ]
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32
+    }
+  },
+  "$defs": {
+    "id": {
+      "description": "File ID: its file name without extension.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "animations"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "entries": {
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "name",
+                "version",
+                "file",
+                "size",
+                "sha256"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "file": {
+                  "type": "string",
+                  "pattern": "^animations/[a-z0-9][a-z0-9_-]{0,31}\\.json$"
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65536
+                },
+                "sha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "playlists"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "entries": {
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "file",
+                "size",
+                "sha256"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "file": {
+                  "type": "string",
+                  "pattern": "^playlists/[a-z0-9][a-z0-9_-]{0,31}\\.json$"
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 16384
+                },
+                "sha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "schedules"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "entries": {
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "file",
+                "size",
+                "sha256"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "file": {
+                  "type": "string",
+                  "pattern": "^schedules/[a-z0-9][a-z0-9_-]{0,31}\\.json$"
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 16384
+                },
+                "sha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "play"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "entries": {
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "file",
+                "size",
+                "sha256"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/id"
+                },
+                "file": {
+                  "type": "string",
+                  "pattern": "^play/[a-z0-9][a-z0-9_-]{0,31}\\.json$"
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1024
+                },
+                "sha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

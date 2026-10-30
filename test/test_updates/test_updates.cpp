@@ -183,6 +183,37 @@ static void test_a_valid_manifest_is_read()
   TEST_ASSERT_EQUAL(365568, m.firmware[0].size);
 }
 
+static void test_declared_pages_replace_the_legacy_kind_and_are_bounded()
+{
+  const std::string page_ref =
+      "{\"file\":\"content-pages/animations-a.json\",\"size\":10,\"sha256\":\"" + HEX_A + "\"}";
+  const std::string base = manifest(anim_entry("old", "animations/old.json", "10", HEX_A), "");
+  const std::string paged =
+      base.substr(0, base.size() - 1) + ",\"content_pages\":{\"animations\":[" + page_ref + "],\"play\":[]}}";
+  Manifest m;
+  TEST_ASSERT_TRUE(reads(paged, m));
+  TEST_ASSERT_TRUE(m.paged[0]);
+  TEST_ASSERT_TRUE(m.paged[3]);
+  TEST_ASSERT_EQUAL(1, m.pages[0].size());
+  TEST_ASSERT_EQUAL(0, m.pages[3].size());
+  expect_refused(base.substr(0, base.size() - 1) + ",\"content_pages\":null}", "null pages");
+  expect_refused(base.substr(0, base.size() - 1) + ",\"content_pages\":{\"animations\":{}}}", "mistyped page list");
+}
+
+static void test_a_content_page_checks_its_kind_entries_and_limit()
+{
+  const std::string item = anim_entry("new", "animations/new.json", "10", HEX_A);
+  const std::string page =
+      "{\"format\":\"pixelart-content-page/1\",\"kind\":\"animations\",\"entries\":[" + item + "]}";
+  ManifestMemory memory;
+  std::vector<FileEntry> entries;
+  std::string reason;
+  TEST_ASSERT_TRUE(parse_content_page(page.data(), page.size(), Kind::Animation, entries, reason, memory));
+  TEST_ASSERT_EQUAL(1, entries.size());
+  TEST_ASSERT_EQUAL_STRING("new", entries[0].id.c_str());
+  TEST_ASSERT_FALSE(parse_content_page(page.data(), page.size(), Kind::Play, entries, reason, memory));
+}
+
 static void test_a_manifest_needs_no_firmware_and_ignores_fields_it_does_not_know()
 {
   Manifest m;
@@ -964,6 +995,40 @@ static void settle(Updater &u, uint64_t now)
     u.tick(now);
   // A board that is about to restart stays busy, but has nothing more to do.
   TEST_ASSERT_EQUAL_UINT64_MESSAGE(0, u.busy() && u.wait_ms(now) == 0 ? 1 : 0, "still busy");
+}
+
+static void test_paged_check_and_install_retry_keep_the_authoritative_catalog()
+{
+  FakeHost host;
+  serve(host, {{"old", "OLD"}, {"new", "NEW"}}, {{"list", "LIST"}});
+  const std::string page = "{\"format\":\"pixelart-content-page/1\",\"kind\":\"animations\",\"entries\":[" +
+                           anim_entry("new", "animations/new.json", "3", sha256_hex("NEW")) + "]}";
+  const std::string page_url = BASE + "content-pages/animations.json";
+  host.manifests[page_url] = page;
+  host.manifest_text = manifest(anim_entry("old", "animations/old.json", "3", sha256_hex("OLD")),
+                                anim_entry("list", "playlists/list.json", "4", sha256_hex("LIST")));
+  host.manifest_text.pop_back();
+  host.manifest_text += ",\"content_pages\":{\"animations\":[{\"file\":\"content-pages/animations.json\",\"size\":" +
+                        std::to_string(page.size()) + ",\"sha256\":\"" + sha256_hex(page) + "\"}]}}";
+  Updater updater(host);
+  updater.configure(config());
+  TEST_ASSERT_TRUE(updater.request_check());
+  settle(updater, 1000);
+  TEST_ASSERT_EQUAL(2, updater.status().files); // new animation and legacy playlist, not old animation
+  host.manifests[page_url] = "bad";             // a page changed between check and install
+  TEST_ASSERT_TRUE(updater.request_install());
+  settle(updater, 1000);
+  TEST_ASSERT_TRUE(updater.status().result == Error::BadManifest);
+  TEST_ASSERT_EQUAL(2, updater.status().files); // the later legacy playlist remains pending too
+  TEST_ASSERT_EQUAL(0, host.installed.size());
+  host.manifests[page_url] = page;
+  TEST_ASSERT_TRUE(updater.request_install());
+  settle(updater, 1000);
+  TEST_ASSERT_TRUE(updater.status().result == Error::None);
+  TEST_ASSERT_EQUAL(0, updater.status().files);
+  TEST_ASSERT_EQUAL(2, host.installed.size());
+  TEST_ASSERT_EQUAL_STRING("a:new", host.installed[0].c_str());
+  TEST_ASSERT_EQUAL_STRING("p:list", host.installed[1].c_str());
 }
 
 static void test_the_first_check_runs_5_minutes_after_the_first_address()
@@ -3941,6 +4006,9 @@ int main(int, char **)
   RUN_TEST(test_a_release_is_an_update_for_its_development_build);
   RUN_TEST(test_versions_that_are_not_semver_do_not_parse);
   RUN_TEST(test_a_valid_manifest_is_read);
+  RUN_TEST(test_declared_pages_replace_the_legacy_kind_and_are_bounded);
+  RUN_TEST(test_a_content_page_checks_its_kind_entries_and_limit);
+  RUN_TEST(test_paged_check_and_install_retry_keep_the_authoritative_catalog);
   RUN_TEST(test_a_manifest_needs_no_firmware_and_ignores_fields_it_does_not_know);
   RUN_TEST(test_the_manifest_size_limit_is_64_kib);
   RUN_TEST(test_a_manifest_that_is_not_strict_json_is_refused);

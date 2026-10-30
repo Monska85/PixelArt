@@ -180,7 +180,7 @@ describe("what the app can send out of the browser", () => {
   // The modules that may use each of these: the release modules read the site's own files by relative path, and the
   // protocol module opens the WebSocket to the board the user chose.
   const ONLY_IN: Record<string, string[]> = {
-    fetch: ["release/manifest.ts", "release/library.ts"],
+    fetch: ["release/manifest.ts", "release/contentPages.ts", "release/library.ts"],
     // The Privacy view only says that the app opens a WebSocket.
     WebSocket: ["protocol/websocket.ts", "ui/privacy/PrivacyView.tsx"],
   };
@@ -222,7 +222,7 @@ describe("what the app can send out of the browser", () => {
   });
 
   it("calls fetch only with a relative path", () => {
-    for (const file of ["release/manifest.ts", "release/library.ts"]) {
+    for (const file of ["release/manifest.ts", "release/contentPages.ts", "release/library.ts"]) {
       const body = code(join(SRC, file));
       expect(body, file).not.toMatch(/\b(fetch|fetchFn)\(\s*["'`]?https?:/);
       expect(body, file).not.toMatch(/\b(fetch|fetchFn)\(\s*["'`]\/\//);

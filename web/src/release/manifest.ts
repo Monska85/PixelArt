@@ -6,6 +6,16 @@ import { FILE_LIMITS, isValidId } from "../engine";
 import { isCount, isRecord } from "../protocol/guards";
 
 const MANIFEST_FORMAT = "pixelart-manifest/1";
+const MAX_PAGE_BYTES = 8 * 1024;
+const MAX_PAGES = 20;
+const KINDS = ["animations", "playlists", "schedules", "play"] as const;
+export type ContentKind = (typeof KINDS)[number];
+interface PageReference {
+  file: string;
+  size: number;
+  sha256: string;
+}
+type ContentPages = Partial<Record<ContentKind, PageReference[]>>;
 
 export type PublishedKind = "animation" | "playlist" | "schedule" | "play";
 
@@ -30,6 +40,8 @@ export interface Manifest {
   schedules: Published[];
   /** The play file, the release's server choice: empty for a manifest without `play` (older releases). */
   play: Published[];
+  /** Present kinds replace their legacy lists, including when the page list is empty. */
+  contentPages?: ContentPages;
 }
 
 /** The version the animations, playlists and schedules were released with: the content version, else the manifest's own. */
@@ -48,7 +60,7 @@ const FOLDER: Record<PublishedKind, string> = {
 /** Relative to the page, as the manifest's own paths are relative to the manifest. */
 export const publishedPath = (kind: PublishedKind, id: string): string => `./${FOLDER[kind]}/${id}.json`;
 
-function parseEntries(value: unknown, kind: PublishedKind): Published[] {
+export function parseEntries(value: unknown, kind: PublishedKind): Published[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
   const out: Published[] = [];
@@ -83,6 +95,37 @@ export function parseManifest(text: string): Manifest | null {
   if (!isRecord(document) || document.format !== MANIFEST_FORMAT) return null;
   if (typeof document.version !== "string" || document.version.length > 64) return null;
   const { content_version: contentVersion, firmware } = document;
+  let contentPages: ContentPages | undefined;
+  if ("content_pages" in document) {
+    if (!isRecord(document.content_pages)) return null;
+    contentPages = {};
+    const seenPaths = new Set<string>();
+    let count = 0;
+    for (const [kind, raw] of Object.entries(document.content_pages)) {
+      if (!KINDS.includes(kind as ContentKind) || !Array.isArray(raw)) return null;
+      const refs: PageReference[] = [];
+      for (const item of raw) {
+        if (!isRecord(item)) return null;
+        const { file, size, sha256 } = item;
+        if (
+          typeof file !== "string" ||
+          !safePagePath(file) ||
+          seenPaths.has(file) ||
+          typeof size !== "number" ||
+          !Number.isInteger(size) ||
+          size < 1 ||
+          size > MAX_PAGE_BYTES ||
+          typeof sha256 !== "string" ||
+          !/^[0-9a-f]{64}$/.test(sha256)
+        )
+          return null;
+        seenPaths.add(file);
+        refs.push({ file, size, sha256 });
+        if (++count > MAX_PAGES) return null;
+      }
+      contentPages[kind as ContentKind] = refs;
+    }
+  }
   return {
     version: document.version,
     contentVersion: typeof contentVersion === "string" && contentVersion.length <= 64 ? contentVersion : null,
@@ -91,7 +134,16 @@ export function parseManifest(text: string): Manifest | null {
     playlists: parseEntries(document.playlists, "playlist"),
     schedules: parseEntries(document.schedules, "schedule"),
     play: parseEntries(document.play, "play"),
+    ...(contentPages ? { contentPages } : {}),
   };
+}
+
+function safePagePath(path: string): boolean {
+  return (
+    path.length > 0 &&
+    path.length <= 160 &&
+    path.split("/").every((part) => part !== "" && part !== "." && part !== ".." && /^[A-Za-z0-9._+-]+$/.test(part))
+  );
 }
 
 const MAX_MANIFEST_BYTES = 1024 * 1024;
@@ -114,12 +166,15 @@ export async function withFetchTimeout<T>(read: (signal: AbortSignal) => Promise
 /** Reads `./manifest.json`, asking the server whether the copy is current. Any failure means nothing is published. */
 export async function loadManifest(fetchFn: typeof fetch = fetch): Promise<Manifest | null> {
   try {
-    return await withFetchTimeout(async (signal) => {
-      const response = await fetchFn("./manifest.json", { cache: "no-cache", signal });
+    const manifest = await withFetchTimeout(async (signal) => {
+      const response = await fetchFn("./manifest.json", { cache: "no-cache", redirect: "error", signal });
       if (!response.ok) return null;
       const bytes = await readCapped(response, MAX_MANIFEST_BYTES);
-      return bytes === null ? null : parseManifest(new TextDecoder().decode(bytes));
+      return bytes === null ? null : parseManifest(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     });
+    if (!manifest?.contentPages) return manifest;
+    const { loadContentPages } = await import("./contentPages");
+    return await loadContentPages(manifest, fetchFn);
   } catch {
     return null;
   }

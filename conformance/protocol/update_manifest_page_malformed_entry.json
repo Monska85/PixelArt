@@ -1,0 +1,92 @@
+{
+  "description": "a scalar page entry rejects the whole catalog",
+  "settings": {
+    "update_mode": "notify"
+  },
+  "update_source": {
+    "files": {
+      "manifest.json": {
+        "json": {
+          "format": "pixelart-manifest/1",
+          "version": "1.4.0",
+          "released": "2026-11-05",
+          "animations": [],
+          "playlists": [],
+          "content_pages": {
+            "animations": [
+              {
+                "file": "content-pages/animations-test.json",
+                "size": 70,
+                "sha256": "7cb4c197074874cb0469327315e6fd5671c03202ddfa6ee79089024acb0e0a7e"
+              }
+            ]
+          }
+        }
+      },
+      "content-pages/animations-test.json": "{\"format\":\"pixelart-content-page/1\",\"kind\":\"animations\",\"entries\":[5]}"
+    }
+  },
+  "steps": [
+    {
+      "send": "@PR 935d27e0 {\"seq\":1,\"cmd\":\"update_check\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "play": {
+          "mode": "auto",
+          "source": "fallback",
+          "schedule": null,
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null,
+          "server_choice": null
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": 0,
+          "last_result": "bad_manifest",
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 0,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "expect_files": {
+        "animations/red.json": null
+      }
+    }
+  ]
+}

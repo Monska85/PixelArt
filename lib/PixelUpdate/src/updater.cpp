@@ -3,9 +3,11 @@
 #include "updater.h"
 
 #include "update_semver.h"
+#include <pixel_codec.h>
 
 #include <algorithm>
 #include <cstring>
+#include <iterator>
 
 namespace pixelart_update
 {
@@ -114,7 +116,11 @@ void Updater::configure(const Config &config)
   if (!config_.enabled || !config_.animations || source_changed)
   {
     if (phase_ != Phase::Download) // a running installation finishes the files it has
+    {
       plan_.clear();
+      page_work_.clear();
+      page_pending_ = 0;
+    }
     // Only the animation findings are forgotten: a firmware install that waits for the window stays.
     const bool firmware_waits = !firmware_version_.empty() && !firmware_skipped_;
     if (!firmware_waits)
@@ -137,7 +143,7 @@ bool Updater::request_check()
 
 bool Updater::request_install()
 {
-  if (!config_.enabled || !config_.animations || busy() || plan_.empty())
+  if (!config_.enabled || !config_.animations || busy() || (plan_.empty() && page_pending_ == 0))
     return false;
   install_requested_ = true;
   return true;
@@ -162,6 +168,12 @@ void Updater::start_install()
 {
   phase_ = Phase::Download;
   index_ = 0;
+  page_work_index_ = 0;
+  page_item_index_ = 0;
+  active_page_plan_.clear();
+  preserve_unattempted_ = false;
+  attempted_ = 0;
+  initial_total_ = plan_.size() + page_pending_;
   failed_.clear();
   failed_files_ = 0;
   first_error_ = Error::None;
@@ -279,6 +291,108 @@ Error Updater::read_manifest(const std::string &url, bool allow_http, Manifest &
   return Error::None;
 }
 
+Error Updater::load_page(const PageEntry &page, Kind kind, std::vector<FileEntry> &entries)
+{
+  std::string url;
+  const std::string &source = phase_ == Phase::Download ? source_ : config_.animation_source;
+  if (!resolve_file_url(source, page.file, url))
+    return Error::BadManifest;
+  LargeWork large(host_);
+  ByteBuffer bytes(MAX_CONTENT_PAGE_SIZE);
+  if (Error e = host_.fetch_manifest(url, true, bytes); e != Error::None)
+    return e == Error::ManifestNotFound ? Error::BadManifest : e;
+  if (bytes.size() != page.size)
+  {
+    reason_ = "a content page does not match its declared size";
+    return Error::BadManifest;
+  }
+  pixelart::Sha256 hash;
+  hash.update(bytes.data(), bytes.size());
+  if (hash.hex_digest() != page.sha256)
+  {
+    reason_ = "a content page does not match its declared SHA-256";
+    return Error::BadManifest;
+  }
+  ManifestMemory memory;
+  memory.affordable = [this](size_t required, size_t block)
+  {
+    return host_.memory_available(required, block);
+  };
+  memory.release_input = [&bytes]
+  {
+    bytes.clear();
+  };
+  if (!parse_content_page(bytes.data(), bytes.size(), kind, entries, reason_, memory))
+    return memory.out_of_memory ? Error::OutOfMemory : Error::BadManifest;
+  return Error::None;
+}
+
+Error Updater::read_content_pages(Manifest &manifest)
+{
+  std::vector<FileEntry> *lists[] = {&manifest.animations, &manifest.playlists, &manifest.schedules, &manifest.play};
+  std::vector<std::string> seen[4];
+  size_t total = 0;
+  for (size_t kind = 0; kind < 4; kind++)
+    if (manifest.paged[kind])
+      std::vector<FileEntry>().swap(*lists[kind]); // release legacy entries before opening a page connection
+  size_t page_count = 0;
+  for (size_t kind = 0; kind < 4; kind++)
+    page_count += manifest.pages[kind].size();
+  if (!page_count)
+    return Error::None;
+  if (!host_.memory_available(page_count * sizeof(PageWork), page_count * sizeof(PageWork)))
+    return Error::OutOfMemory;
+  page_work_.reserve(page_count);
+  for (size_t kind = 0; kind < 4; kind++)
+  {
+    total += lists[kind]->size();
+    if (total > MAX_PUBLISHED_FILES)
+    {
+      reason_ = "the published catalog lists too many files";
+      return Error::BadManifest;
+    }
+    for (PageEntry &page : manifest.pages[kind])
+    {
+      std::vector<FileEntry> entries;
+      if (Error e = load_page(page, static_cast<Kind>(kind), entries); e != Error::None)
+        return e;
+      if (total + entries.size() > MAX_PUBLISHED_FILES)
+      {
+        reason_ = "the content pages list too many files";
+        return Error::BadManifest;
+      }
+      const size_t next_count = seen[kind].size() + entries.size();
+      if (!host_.memory_available(next_count * sizeof(std::string), next_count * sizeof(std::string)))
+        return Error::OutOfMemory;
+      seen[kind].reserve(next_count);
+      uint32_t pending = 0;
+      size_t index = 0;
+      for (const FileEntry &entry : entries)
+      {
+        if (std::find(seen[kind].begin(), seen[kind].end(), entry.id) != seen[kind].end())
+        {
+          reason_ = "the content pages repeat an id";
+          return Error::BadManifest;
+        }
+        if (!host_.memory_available(sizeof(std::string) + entry.id.size() + 24, sizeof(std::string)))
+          return Error::OutOfMemory;
+        seen[kind].push_back(entry.id);
+        std::string stored;
+        if (!host_.stored_digest(static_cast<Kind>(kind), entry.id, stored) || stored != entry.sha256)
+        {
+          pending |= uint32_t(1) << index;
+          page_pending_++;
+        }
+        index++;
+      }
+      if (pending)
+        page_work_.push_back({static_cast<Kind>(kind), std::move(page), pending});
+      total += entries.size();
+    }
+  }
+  return Error::None;
+}
+
 Error Updater::check_animations(Manifest &manifest)
 {
   plan_.clear();
@@ -330,12 +444,15 @@ bool Updater::automatic_firmware() const
 }
 
 // Whether a check left something an automatic install does: files, or a firmware that is not skipped.
-bool Updater::automatic_work() const { return (config_.animations && !plan_.empty()) || automatic_firmware(); }
+bool Updater::automatic_work() const
+{
+  return (config_.animations && (!plan_.empty() || page_pending_)) || automatic_firmware();
+}
 
 void Updater::start_automatic_install()
 {
   firmware_after_ = automatic_firmware();
-  if (config_.animations && !plan_.empty())
+  if (config_.animations && (!plan_.empty() || page_pending_))
     start_install();
   else if (firmware_after_)
     start_firmware();
@@ -347,6 +464,8 @@ void Updater::run_check(uint64_t now)
   // included, before any manifest is read, and the firmware manifest of another address is read before the
   // animations are planned.
   std::vector<PlanItem>().swap(plan_);
+  std::vector<PageWork>().swap(page_work_);
+  page_pending_ = 0;
   const bool read_firmware = config_.firmware && !config_.firmware_manifest.empty();
   const bool shared_manifest =
       config_.animations && read_firmware && config_.firmware_manifest == config_.animation_source;
@@ -363,7 +482,15 @@ void Updater::run_check(uint64_t now)
   if (config_.animations)
     error = read_manifest(config_.animation_source, true, animations);
   if (error == Error::None && config_.animations)
+    error = read_content_pages(animations);
+  if (error == Error::None && config_.animations)
     error = check_animations(animations);
+  if (error != Error::None)
+  {
+    plan_.clear();
+    page_work_.clear();
+    page_pending_ = 0;
+  }
   if (read_firmware && shared_manifest)
     firmware_error = error == Error::None ? check_firmware(animations) : error;
   // The animations' error is the one reported when both fail.
@@ -428,6 +555,9 @@ void Updater::cancel_install()
 {
   install_requested_ = false;
   plan_.clear();
+  page_work_.clear();
+  active_page_plan_.clear();
+  page_pending_ = 0;
   failed_files_ = 0;
   if (phase_ != Phase::Download)
     return;
@@ -440,36 +570,123 @@ void Updater::cancel_install()
 
 void Updater::run_file()
 {
-  if (index_ < plan_.size())
+  while (page_work_index_ < page_work_.size() && page_work_[page_work_index_].pending == 0)
   {
-    const PlanItem &item = plan_[index_];
-    const Error error = install_file(item);
-    if (error == Error::Cancelled)
-    {
-      cancel_install();
-      return;
-    }
-    if (error != Error::None)
-    {
-      failed_.push_back(item);
-      failed_files_++;
-      if (first_error_ == Error::None)
-        first_error_ = error;
-    }
-    index_++;
+    page_work_index_++;
+    active_page_plan_.clear();
+    page_item_index_ = 0;
   }
-  if (index_ >= plan_.size())
+  const bool has_legacy = index_ < plan_.size();
+  const bool has_page = page_work_index_ < page_work_.size();
+  if (!has_legacy && !has_page)
+  {
+    finish_install();
+    return;
+  }
+  const bool use_legacy = has_legacy && (!has_page || static_cast<int>(plan_[index_].kind) <
+                                                          static_cast<int>(page_work_[page_work_index_].kind));
+  const PlanItem *item = nullptr;
+  if (use_legacy)
+    item = &plan_[index_];
+  else
+  {
+    PageWork &work = page_work_[page_work_index_];
+    if (active_page_plan_.empty())
+    {
+      std::vector<FileEntry> entries;
+      if (Error e = load_page(work.page, work.kind, entries); e != Error::None)
+      {
+        if (first_error_ == Error::None)
+          first_error_ = e;
+        preserve_unattempted_ = true;
+        finish_install();
+        return;
+      }
+      const size_t block = entries.size() * sizeof(PlanItem);
+      if (!host_.memory_available(block, block))
+      {
+        if (first_error_ == Error::None)
+          first_error_ = Error::OutOfMemory;
+        preserve_unattempted_ = true;
+        finish_install();
+        return;
+      }
+      active_page_plan_.reserve(entries.size());
+      size_t slot = 0;
+      for (FileEntry &entry : entries)
+      {
+        if (work.pending & (uint32_t(1) << slot))
+        {
+          std::string digest;
+          const bool stored = host_.stored_digest(work.kind, entry.id, digest);
+          active_page_bits_[active_page_plan_.size()] = uint32_t(1) << slot;
+          active_page_plan_.push_back(
+              {work.kind, std::move(entry.id), std::move(entry.file), entry.size, std::move(entry.sha256), stored});
+        }
+        slot++;
+      }
+      page_item_index_ = 0;
+    }
+    item = &active_page_plan_[page_item_index_];
+  }
+  const Error error = install_file(*item);
+  if (error == Error::Cancelled)
+  {
+    cancel_install();
+    return;
+  }
+  if (error != Error::None)
+  {
+    if (use_legacy)
+      failed_.push_back(*item);
+    failed_files_++;
+    if (first_error_ == Error::None)
+      first_error_ = error;
+  }
+  if (use_legacy)
+    index_++;
+  else
+  {
+    PageWork &work = page_work_[page_work_index_];
+    if (error == Error::None)
+    {
+      work.pending &= ~active_page_bits_[page_item_index_];
+      page_pending_--;
+    }
+    page_item_index_++;
+    if (page_item_index_ >= active_page_plan_.size())
+    {
+      active_page_plan_.clear();
+      page_item_index_ = 0;
+      page_work_index_++;
+    }
+  }
+  attempted_++;
+  if (index_ >= plan_.size() && page_pending_ == 0)
     finish_install();
 }
 
 void Updater::finish_install()
 {
-  plan_ = std::move(failed_);
+  if (preserve_unattempted_)
+  {
+    plan_.erase(plan_.begin(), plan_.begin() + index_);
+    // plan_sync reserved all legacy entries: the remaining and failed entries cannot exceed that capacity.
+    plan_.insert(plan_.end(), std::make_move_iterator(failed_.begin()), std::make_move_iterator(failed_.end()));
+    preserve_unattempted_ = false;
+  }
+  else
+    plan_ = std::move(failed_);
   failed_.clear();
+  active_page_plan_.clear();
+  if (page_pending_ == 0)
+    page_work_.clear();
   has_result_ = true;
   result_ = first_error_;
   phase_ = Phase::Idle;
   index_ = 0;
+  page_work_index_ = 0;
+  page_item_index_ = 0;
   after_install();
 }
 
@@ -544,7 +761,7 @@ Status Updater::status() const
     break;
   case Phase::Download:
     s.state = State::Downloading;
-    s.progress = plan_.empty() ? 0 : (uint8_t)(index_ * 100 / plan_.size());
+    s.progress = initial_total_ == 0 ? 0 : (uint8_t)(attempted_ * 100 / initial_total_);
     break;
   case Phase::Firmware:
     s.state = State::Installing;
@@ -573,7 +790,8 @@ Status Updater::status() const
   s.failed_files = failed_files_;
   s.firmware = firmware_version_;
   s.firmware_skipped = firmware_skipped_;
-  const size_t files = phase_ == Phase::Download ? plan_.size() - index_ + failed_.size() : plan_.size();
+  const size_t files =
+      (phase_ == Phase::Download ? plan_.size() - index_ + failed_.size() : plan_.size()) + page_pending_;
   s.files = (uint16_t)std::min<size_t>(files, UINT16_MAX);
   return s;
 }

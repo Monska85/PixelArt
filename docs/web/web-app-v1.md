@@ -82,7 +82,7 @@ Labels above fields; a hint in muted text under the field; an error replaces the
 - Everything works with the keyboard and shows a visible focus ring; `prefers-reduced-motion` turns off animations.
 - One spacing scale (multiples of 4 px), one card style, `h2` for the page, `h3` for cards; monospace only for IDs, codes and YAML.
 - The content is at most 72 rem wide and centered, with a 16 px margin on phones.
-- **Size budget:** the JavaScript the page loads at start (the entry chunk and the chunks it imports, each gzipped, 1 KB being 1,000 bytes) stays within 190 KB; `npm run size` checks it and CI fails the build above it. Everything else loads on demand: the Library, Firmware, Editor and Privacy views, the WiFi, Updates and Network access cards of the Board view (loaded together when a board connects, since they show only for a connected board), the playlist editor, the YAML reader, the editor's document store (which brings the stored draft back right after the first paint) and ESP Web Tools.
+- **Size budget:** the JavaScript the page loads at start (the entry chunk and the chunks it imports, each gzipped, 1 KB being 1,000 bytes) stays within 192 KB; `npm run size` checks it and CI fails the build above it. Everything else loads on demand: the Library, Firmware, Editor and Privacy views, the WiFi, Updates and Network access cards of the Board view (loaded together when a board connects, since they show only for a connected board), the playlist editor, the YAML reader, the editor's document store (which brings the stored draft back right after the first paint) and ESP Web Tools.
 
 ### How each view applies the rules
 
@@ -364,6 +364,8 @@ The content security policy in `web/index.html` is what makes the claim about re
 
 Lists the animations and playlists published in `./manifest.json` (see [Latest release](#latest-release)), with their name and version, and a preview of each animation. The page description names the content release they come from, the manifest's `content_version` ("Animations published with content release 1.4.0"); a manifest without it, from a firmware release published before the content package, gives its `version` instead ("Animations published with release 1.2.0"). Without a manifest (nothing published yet, or running from `make web-dev`), the view says that nothing is published.
 
+For a kind declared in `content_pages`, the Library uses the complete paged catalog, including a declared empty one, instead of its legacy list. It fetches each bounded page from the same site, checks its exact size and SHA-256, and rejects the entire manifest load if a declared page is missing, malformed or inconsistent. It does not show a partial catalog or fall back to legacy entries. A kind without pages uses its legacy list, so older releases remain available. The same loaded catalog supplies the content installation after a first firmware install, missing-animation actions and the site's schedule preview.
+
 When a board is connected, each entry shows whether the board has it:
 
 - **Not on the board:** no stored file with that ID.
@@ -523,12 +525,12 @@ A Pages deployment replaces the whole site, so every deployment publishes the la
 
 The published site:
 
-| Path                                             | Content                                                         |
-| ------------------------------------------------ | --------------------------------------------------------------- |
-| `index.html`, `assets/`                          | The web app.                                                    |
-| `THIRD_PARTY_NOTICES.txt`                        | The third-party notices of the web app, see below.              |
-| `LICENSE.txt`, `LICENSE-EXCEPTION.txt`           | The repository's `LICENSE` and `LICENSE-EXCEPTION`, see below.  |
-| `manifest.json`, `firmware/`, `animations/`, ... | The firmware and content releases, as the manifest format says. |
+| Path                                                               | Content                                                         |
+| ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `index.html`, `assets/`                                            | The web app.                                                    |
+| `THIRD_PARTY_NOTICES.txt`                                          | The third-party notices of the web app, see below.              |
+| `LICENSE.txt`, `LICENSE-EXCEPTION.txt`                             | The repository's `LICENSE` and `LICENSE-EXCEPTION`, see below.  |
+| `manifest.json`, `content-pages/`, `firmware/`, `animations/`, ... | The firmware and content releases, as the manifest format says. |
 
 `make release-site` builds the three from the working tree into `site/`, the site Pages would show if all three were released from that commit.
 

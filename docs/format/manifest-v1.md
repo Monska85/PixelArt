@@ -10,14 +10,14 @@ Three kinds of manifest use this format:
 - **The content release** publishes one with its animations, playlists, schedules and play file (the `play` list, when the content has a [`play.yaml`](play-v1.md)), and no `firmware`. Its `version` and its `content_version` are both the content version.
 - **The site** (GitHub Pages) serves the merge of the two, as [Assembling the site](#assembling-the-site) describes: `version` is the firmware version and `content_version` the content version.
 
-The JSON Schema in [`schema/manifest-1.schema.json`](../../schema/manifest-1.schema.json) is the source of truth for the structure.
+The JSON Schema in [`schema/manifest-1.schema.json`](../../schema/manifest-1.schema.json) is the source of truth for the manifest structure. The page schema is [`schema/content-page-1.schema.json`](../../schema/content-page-1.schema.json).
 
 ## Where it is published
 
 CI publishes the releases on GitHub Pages, at `https://monska85.github.io/PixelArt/` for the project, or at the site address of a fork or custom domain (the firmware is built for that address, see [Site address](../board/wifi-and-updates-v1.md#site-address)); the paths below are relative to it. Pages holds only the latest firmware release, the latest content release and the latest web release. Every release, older ones included, is also kept as a GitHub Release:
 
 - **A firmware release** (tag `vX.Y.Z`) holds `pixelart-site-<version>.zip`, an archive of its part of the site: its `manifest.json`, `firmware/` with every path of its manifests resolving inside it. It also holds the `factory` image of each board as a separate file named `<board>-factory-<version>.bin`, for `esptool write_flash 0x0`, and the firmware's third-party notices as `THIRD_PARTY_NOTICES.txt`. It holds nothing else.
-- **A content release** (tag `content-vX.Y.Z`) holds `pixelart-content-<version>.zip`, an archive of its part of the site: its `manifest.json`, `animations/`, `playlists/`, `schedules/` and `play/`. It holds nothing else. A copy of this folder served anywhere is an animation source a board can use as it is.
+- **A content release** (tag `content-vX.Y.Z`) holds `pixelart-content-<version>.zip`, an archive of its part of the site: its `manifest.json`, `content-pages/`, `animations/`, `playlists/`, `schedules/` and `play/`. It holds nothing else. A copy of this folder served anywhere is an animation source a board can use as it is.
 - **A web release** (tag `web-vX.Y.Z`) holds the web app, see [Publishing](../web/web-app-v1.md#publishing).
 
 The description of each release ends with a line on the source code and the licenses: the tag, the repository, how to build the release again, and, for the firmware and the web app, where the notices are.
@@ -35,6 +35,7 @@ The site:
 | `playlists/<id>.json`                    | Every playlist of the content release, as stored on a board.               |
 | `schedules/<id>.json`                    | Every schedule of the content release, as stored on a board.               |
 | `play/<id>.json`                         | The play file of the content release, as stored on a board.                |
+| `content-pages/<kind>-<digest>.json`     | A content-addressed page of published files of one kind.                   |
 | `firmware/THIRD_PARTY_NOTICES.txt`       | The third-party notices of the firmware, see [Notices](#notices).          |
 
 The same site also holds the web app at its root (`index.html` and `assets/`), which reads this manifest; see [Publishing](../web/web-app-v1.md#publishing).
@@ -48,7 +49,7 @@ Firmware file names carry the release version. GitHub Pages lets browsers and pr
 A Pages deployment replaces the whole site, so every deployment merges the archives of the latest firmware release, the latest content release and the latest web release (`tools/release.py assemble`):
 
 1. The firmware archive gives `firmware/` and, from its `manifest.json`, `version`, `released`, `source` and `firmware`.
-2. The content archive gives `animations/`, `playlists/`, `schedules/`, `play/` and, from its `manifest.json`, the `animations`, `playlists`, `schedules` and `play` lists, and its `version`, which becomes `content_version`.
+2. The content archive gives `content-pages/`, `animations/`, `playlists/`, `schedules/`, `play/` and, from its `manifest.json`, `content_pages`, the four legacy lists, and its `version`, which becomes `content_version`.
 3. The web archive gives the web app.
 
 The site's `manifest.json` is written from these fields, with `format` `pixelart-manifest/1`. A path that two archives both hold fails the assembly and nothing is written. When there is no content release, the site's manifest is the firmware release's manifest as it is; a firmware release published before the content package carries its own `animations/` and `playlists/`, which are then kept. When there is a content release, those folders and lists of an older firmware archive are left out. When there is no firmware release, the site's manifest is the content release's manifest as it is, with no `firmware`. The assembled manifest must stay within the limits of [How a board reads it](#how-a-board-reads-it), or the assembly fails.
@@ -130,6 +131,16 @@ The site's `manifest.json` is written from these fields, with `format` `pixelart
 Every file entry has `file` (its path), `size` (bytes) and `sha256` (64 lowercase hexadecimal digits). A client checks both before it uses a downloaded file.
 
 Animation entries add `id`, `name` and `version`, read from the file. Playlist and schedule entries add `id`, and `name` when the file has one. Play entries have `id` only. A client compares `sha256` with the one the board reports in [`list`](../protocol/protocol-v1.md#list) to find which files changed.
+
+## Paged content catalogs
+
+`content_pages` is an optional object with optional `animations`, `playlists`, `schedules` and `play` lists. Each list contains page references with `file`, `size` and `sha256`. A referenced JSON file has `format` `pixelart-content-page/1`, `kind` equal to the reference's kind, and `entries` in the same shape as that kind's legacy manifest list. The ordered pages and their ordered entries form that kind's complete catalog. A missing kind uses its legacy list. A present empty list publishes no files of that kind.
+
+A page has 1 to 32 entries and at most 8 KiB of UTF-8 JSON. There are at most 20 page references across the four kinds and at most 320 published entries across paged kinds and the legacy lists of kinds without pages. The main manifest keeps its legacy limits of 200 entries and 20 KiB in a release. Page paths obey the same safe relative-path rule as content files and cannot repeat. They resolve from the original manifest URL.
+
+Readers verify each page's exact byte count and SHA-256 before parsing it, then check its format, kind, entries, IDs and paths. An ID cannot repeat across pages of one kind. A missing, malformed or mismatched declared page rejects the content check or the web Library load without using that kind's legacy list. The board checks all declared pages before offering files for installation. An empty catalog does not delete files already stored on the board.
+
+New content releases publish pages for all four kinds. The legacy lists remain for deployed firmware and web clients. Their IDs are selected by a maintainer in `content/legacy-catalog.json`, in that file's order. The release tool rejects selected IDs absent from the built content and refuses a legacy manifest beyond the old limits. Publishing content through the legacy lists is deprecated, with no removal date. New firmware and web clients use declared pages; an older custom source without pages still works through its legacy lists.
 
 ## `play`
 

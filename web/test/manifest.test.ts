@@ -139,10 +139,61 @@ describe("loadManifest", () => {
     expect(await loadManifest(respond(" ".repeat(1024 * 1024 + 1) + manifest()))).toBeNull();
   });
 
+  it("uses verified pages as the complete catalog and keeps an absent kind on legacy entries", async () => {
+    const page = JSON.stringify({ format: "pixelart-content-page/1", kind: "animations", entries: [entry("moon")] });
+    const bytes = new TextEncoder().encode(page);
+    const ref = { file: "content-pages/animations-test.json", size: bytes.length, sha256: await sha256Hex(bytes) };
+    const urls: string[] = [];
+    const fake = (async (url: string) => {
+      urls.push(url);
+      return new Response(url === "./manifest.json" ? manifest({ content_pages: { animations: [ref] } }) : page);
+    }) as unknown as typeof fetch;
+    const loaded = await loadManifest(fake);
+    expect(loaded?.animations.map((item) => item.id)).toEqual(["moon"]);
+    expect(loaded?.playlists.map((item) => item.id)).toEqual(["default"]);
+    expect(urls).toEqual(["./manifest.json", "./content-pages/animations-test.json"]);
+  });
+
+  it("treats an empty declared kind as empty and refuses missing or mismatched pages", async () => {
+    const empty = await loadManifest(respond(manifest({ content_pages: { animations: [] } })));
+    expect(empty?.animations).toEqual([]);
+    const ref = { file: "content-pages/missing.json", size: 1, sha256: SHA };
+    const fake = (async (url: string) =>
+      url === "./manifest.json"
+        ? new Response(manifest({ content_pages: { animations: [ref] } }))
+        : new Response("", { status: 404 })) as typeof fetch;
+    expect(await loadManifest(fake)).toBeNull();
+    const rejecting = (async (url: string) => {
+      if (url === "./manifest.json") return new Response(manifest({ content_pages: { animations: [ref] } }));
+      throw new TypeError("page fetch failed");
+    }) as typeof fetch;
+    expect(await loadManifest(rejecting)).toBeNull();
+    expect(
+      parseManifest(manifest({ content_pages: { animations: [{ ...ref, file: "../outside.json" }] } })),
+    ).toBeNull();
+  });
+
   it("ends a request that never answers and aborts it", async () => {
     vi.useFakeTimers();
     let signal: AbortSignal | undefined;
     const pending = loadManifest(((_url: string, init?: RequestInit) => {
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    }) as typeof fetch);
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS);
+    expect(await pending).toBeNull();
+    expect(signal?.aborted).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("aborts a declared page that never answers", async () => {
+    vi.useFakeTimers();
+    const ref = { file: "content-pages/stalled.json", size: 1, sha256: SHA };
+    let signal: AbortSignal | undefined;
+    const pending = loadManifest((async (url: string, init?: RequestInit) => {
+      if (url === "./manifest.json") return new Response(manifest({ content_pages: { animations: [ref] } }));
       signal = init?.signal ?? undefined;
       return new Promise<Response>((_resolve, reject) => {
         signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));

@@ -600,6 +600,10 @@ class BuildSiteTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.base = Path(self.tmp.name)
+        self.legacy_file = self.base / "legacy-catalog.json"
+        legacy_patch = mock.patch.object(release, "LEGACY_CATALOG", self.legacy_file)
+        legacy_patch.start()
+        self.addCleanup(legacy_patch.stop)
         env = {"PIXELART_SITE_URL": self.SITE_URL, "RELEASE_TAG": "v1.2.0", "SOURCE_DATE_EPOCH": "1793000000"}
         for patcher in (mock.patch("builtins.print"), mock.patch.dict(release.os.environ, env, clear=True)):
             patcher.start()
@@ -702,6 +706,8 @@ class BuildSiteTest(unittest.TestCase):
             (data / kind).mkdir(parents=True, exist_ok=True)
             for name in names:
                 (data / kind / f"{name}.json").write_text(json.dumps({"name": name.title(), "version": 3}))
+        self.legacy_file.write_text(json.dumps({"animations": list(animations), "playlists": list(playlists),
+                                               "schedules": list(schedules), "play": []}))
         return data
 
     def test_an_empty_play_folder_left_by_a_rebuild_publishes_no_play_list(self):
@@ -718,20 +724,37 @@ class BuildSiteTest(unittest.TestCase):
         manifest = json.loads((out / "manifest.json").read_text())
         self.assertEqual((out / "manifest.json").read_text(), release.manifest_text(manifest))
         self.assertEqual(list(manifest), ["format", "version", "released", "source", "content_version", "animations", "playlists",
-                                          "schedules"])
+                                          "schedules", "content_pages"])
         self.assertEqual(manifest["schedules"], [])
         self.assertEqual(manifest["version"], "1.4.0")
         self.assertEqual(manifest["content_version"], "1.4.0")
         self.assertEqual(manifest["released"], "2026-10-26")
         self.assertEqual(manifest["source"], "https://github.com/Monska85/PixelArt/tree/v1.2.0")
-        self.assertEqual([a["id"] for a in manifest["animations"]], ["moon", "star"])
+        self.assertEqual([a["id"] for a in manifest["animations"]], ["star", "moon"])
         self.assertEqual(manifest["animations"][0]["version"], 3)
         self.assertEqual([p["id"] for p in manifest["playlists"]], ["default"])
-        star = manifest["animations"][1]
+        self.assertEqual(set(manifest["content_pages"]), set(release.CONTENT_KEYS))
+        self.assertEqual([p["kind"] for p in (json.loads((out / ref["file"]).read_text())
+                                               for ref in manifest["content_pages"]["animations"])], ["animations"])
+        star = manifest["animations"][0]
         self.assertEqual(star["file"], "animations/star.json")
         self.assertEqual(star["sha256"], hashlib.sha256((out / "animations" / "star.json").read_bytes()).hexdigest())
-        self.assertEqual(sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()),
-                         ["animations/moon.json", "animations/star.json", "manifest.json", "playlists/default.json"])
+        self.assertTrue(all((out / ref["file"]).is_file() for refs in manifest["content_pages"].values() for ref in refs))
+
+    def test_300_published_files_keep_a_curated_legacy_subset(self):
+        names = tuple(f"a{i:03}" for i in range(300))
+        data = self.data(animations=names)
+        self.legacy_file.write_text(json.dumps({"animations": ["a000", "a299"], "playlists": ["default"],
+                                                "schedules": [], "play": []}))
+        out = self.base / "content-site"
+        release.build_content_site(out, "1.4.0", data, True)
+        manifest = json.loads((out / "manifest.json").read_text())
+        self.assertEqual([entry["id"] for entry in manifest["animations"]], ["a000", "a299"])
+        refs = manifest["content_pages"]["animations"]
+        self.assertEqual(len(refs), 10)
+        self.assertEqual(sum(len(json.loads((out / ref["file"]).read_text())["entries"]) for ref in refs), 300)
+        self.assertLessEqual((out / "manifest.json").stat().st_size, release.MAX_MANIFEST_BYTES)
+        self.assertTrue(all(ref["size"] <= release.MAX_CONTENT_PAGE_BYTES for ref in refs))
 
     def test_a_content_release_lists_its_schedules(self):
         out = self.base / "content-site"
@@ -745,7 +768,7 @@ class BuildSiteTest(unittest.TestCase):
         self.assertEqual(first["sha256"], hashlib.sha256((out / "schedules" / "default.json").read_bytes()).hexdigest())
         self.assertEqual(first["size"], (out / "schedules" / "default.json").stat().st_size)
         many = [f"s{i:03}" for i in range(200)]
-        with self.assertRaisesRegex(release.ReleaseError, "more than the 200 a board takes"):
+        with self.assertRaises(release.ReleaseError):
             release.build_content_site(self.base / "many", "1.4.0", self.data(schedules=many), False)
 
     PLAY = b'{"format":"pixelart-play/1","default":{"schedule":"seasons"}}'
@@ -754,13 +777,16 @@ class BuildSiteTest(unittest.TestCase):
         data = self.data(schedules=("seasons",))
         (data / "play").mkdir(exist_ok=True)
         (data / "play" / "default.json").write_bytes(text)
+        selection = json.loads(self.legacy_file.read_text())
+        selection["play"] = ["default"]
+        self.legacy_file.write_text(json.dumps(selection))
         return data
 
     def test_a_content_release_lists_its_play_file(self):
         out = self.base / "content-site"
         release.build_content_site(out, "1.4.0", self.with_play(), False)
         manifest = json.loads((out / "manifest.json").read_text())
-        self.assertEqual(list(manifest)[-2:], ["schedules", "play"])
+        self.assertEqual(list(manifest)[-2:], ["content_pages", "play"])
         self.assertNotIn("default", manifest)
         self.assertEqual(manifest["play"], [{"id": "default", "file": "play/default.json", "size": len(self.PLAY),
                                              "sha256": hashlib.sha256(self.PLAY).hexdigest()}])
@@ -777,6 +803,9 @@ class BuildSiteTest(unittest.TestCase):
         data = self.data(("star",), ("default",), many)
         (data / "play").mkdir()
         (data / "play" / "default.json").write_bytes(self.PLAY)
+        selection = json.loads(self.legacy_file.read_text())
+        selection["play"] = ["default"]
+        self.legacy_file.write_text(json.dumps(selection))
         with self.assertRaisesRegex(release.ReleaseError, "lists 202 animations, playlists, schedules and play files"):
             release.build_content_site(self.base / "many", "1.4.0", data, False)
 

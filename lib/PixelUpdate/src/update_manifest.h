@@ -19,7 +19,12 @@ constexpr size_t MAX_MANIFEST_SIZE = 64 * 1024;
 constexpr size_t MAX_FILE_PATH = 160;
 // Animations, playlists, schedules and play files a manifest may list. The data partition holds fewer files than this.
 constexpr size_t MAX_MANIFEST_FILES = 200;
+constexpr size_t MAX_CONTENT_PAGE_SIZE = 8 * 1024;
+constexpr size_t MAX_CONTENT_PAGE_ENTRIES = 32;
+constexpr size_t MAX_CONTENT_PAGES = 20;
+constexpr size_t MAX_PUBLISHED_FILES = 320;
 constexpr const char *MANIFEST_FORMAT = "pixelart-manifest/1";
+constexpr const char *CONTENT_PAGE_FORMAT = "pixelart-content-page/1";
 
 enum class Kind
 {
@@ -50,6 +55,13 @@ struct FirmwareEntry
   std::string sha256;
 };
 
+struct PageEntry
+{
+  std::string file;
+  size_t size = 0;
+  std::string sha256;
+};
+
 struct Manifest
 {
   std::string version;
@@ -58,7 +70,16 @@ struct Manifest
   std::vector<FileEntry> schedules;    // optional in the manifest: empty when it has none
   std::vector<FileEntry> play;         // optional in the manifest: empty when it has none
   std::vector<FirmwareEntry> firmware; // entries with part `app`
+  // A present vector, including an empty one, replaces that kind's legacy list.
+  bool paged[4] = {false, false, false, false};
+  std::vector<PageEntry> pages[4];
 };
+
+struct ManifestMemory;
+// Reads a verified page of one kind. The caller checks its declared byte count and SHA-256 first.
+// Entries are appended only after the complete page passes validation.
+bool parse_content_page(const char *json, size_t length, Kind kind, std::vector<FileEntry> &out, std::string &reason,
+                        ManifestMemory &memory);
 
 // Reads a manifest. On failure, returns false and `reason` says why (short plain text, for logs).
 // Refused: more than MAX_MANIFEST_SIZE bytes, text that is not strict JSON, a `format` other than
