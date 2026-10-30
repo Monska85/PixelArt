@@ -128,7 +128,7 @@ interface TabsProps {
   /** `count` is null while the list is not known: the tab shows no number rather than 0. */
   animations: { count: number | null; content: ReactNode };
   playlists: { count: number | null; content: ReactNode };
-  /** A third tab, for a board that stores schedules. */
+  /** A third tab when the view lists schedules. */
   schedules?: { count: number | null; content: ReactNode };
   /** Added to the card look: the Board overrides it to sit flush inside its Files card. */
   className?: string;

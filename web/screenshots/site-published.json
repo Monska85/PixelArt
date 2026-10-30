@@ -1,5 +1,6 @@
 {
   "version": "0.1.0",
   "animations": ["ball", "bear", "star"],
-  "playlists": ["default"]
+  "playlists": ["default"],
+  "schedules": ["default"]
 }

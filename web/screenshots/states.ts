@@ -602,6 +602,17 @@ export const states = {
     await expect(page.getByTestId("state-bear")).toHaveText("Not on the board");
     await check();
   },
+  "library-schedules": async ({ page, simulator, check }) => {
+    rmSync(stored(simulator, "schedules", "default"));
+    await connected(page, simulator);
+    await go(page, "library", "Library");
+    await page.getByRole("tab", { name: /^Schedules/ }).click();
+    await expect(page.getByRole("table", { name: "Published schedules" })).toContainText("Seasons");
+    await expect(page.getByRole("table", { name: "Published schedules" }).getByTestId("state-default")).toHaveText(
+      "Not on the board",
+    );
+    await check();
+  },
   "library-unreadable": async ({ page, check }) => {
     const board = await scriptedBoard(page);
     board.failLists = true;
@@ -646,7 +657,7 @@ export const states = {
     await connected(page, simulator);
     await go(page, "library", "Library");
     await page.getByRole("button", { name: "Install all" }).click();
-    await expect(page.getByRole("menuitem", { name: "Everything (4)" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Everything (5)" })).toBeVisible();
     await check();
   },
   "library-differing-dialog": async ({ page, simulator, check }) => {
@@ -654,7 +665,7 @@ export const states = {
     await connected(page, simulator);
     await go(page, "library", "Library");
     await page.getByRole("button", { name: "Install all" }).click();
-    await page.getByRole("menuitem", { name: "Everything (4)" }).click();
+    await page.getByRole("menuitem", { name: "Everything (5)" }).click();
     await expect(page.getByRole("dialog", { name: "Replace the stored file?" })).toBeVisible();
     await check();
   },
