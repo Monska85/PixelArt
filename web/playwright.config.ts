@@ -7,11 +7,11 @@ const PORT = 4173;
 
 export default defineConfig({
   testDir: "e2e",
-  // Every test starts its own simulator on its own port. `make` and `just` set PIXELART_JOBS (JOBS) for the workers.
+  // `make` and `just` set PIXELART_JOBS (JOBS) for the workers.
   workers: workers(process.env.PIXELART_JOBS),
   fullyParallel: true,
   timeout: 60_000,
-  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
+  reporter: process.env.CI ? [["list"], ["github"], ["html", { open: "never" }]] : [["list"]],
   outputDir: "test-results",
   use: {
     baseURL: `http://localhost:${PORT}`,
