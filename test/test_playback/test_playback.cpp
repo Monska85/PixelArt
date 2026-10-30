@@ -124,7 +124,9 @@ static void test_traffic_leaves_the_stored_animation_unchanged()
 
   TEST_ASSERT_EQUAL(0, quiet.replies);
   TEST_ASSERT_EQUAL(6, busy.replies);
-  TEST_ASSERT_TRUE(!quiet.frames.empty());
+  // Two frames per animation, three animations per pass, played for two passes.
+  TEST_ASSERT_EQUAL(12, quiet.frames.size());
+  TEST_ASSERT_EQUAL_STRING("aabbccaabbcc", shown().c_str());
   TEST_ASSERT_EQUAL(quiet.frames.size(), busy.frames.size());
   for (size_t i = 0; i < quiet.frames.size(); i++)
   {
