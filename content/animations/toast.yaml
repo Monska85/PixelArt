@@ -1,0 +1,74 @@
+format: pixelart/1
+name: Toast
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  glass: "#9fd0e8"
+  wine: "#ffc93c"
+  bubble: "#ffffff"
+  spark: "#ffffff"
+  spark_y: "#ffe066"
+
+sprites:
+  flute:
+    points:
+      glass: [
+          [0, 0], [4, 0], [0, 1], [4, 1], [0, 2], [4, 2], [0, 3], [4, 3], [0, 4], [4, 4], [1, 5], [3, 5],
+          [2, 6], [2, 7], [2, 8], [2, 9], [1, 10], [2, 10], [3, 10]
+        ]
+      wine: [
+          [1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2], [1, 3], [2, 3], [3, 3], [1, 4], [2, 4], [3, 4],
+          [2, 5]
+        ]
+  bub0:
+    points:
+      bubble: [[2, 1], [2, 3], [1, 2]]
+  bub1:
+    points:
+      bubble: [[2, 2], [2, 4], [1, 3]]
+  bub2:
+    points:
+      bubble: [[2, 3], [2, 1], [1, 4]]
+  spark:
+    points:
+      spark: [[8, 0], [7, 1], [9, 1], [8, 2]]
+      spark_y: [[6, 0], [10, 0], [6, 2], [10, 2]]
+
+timeline:
+  - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub0, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub1, at: [11, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub2, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub0, at: [9, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub0, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub1, at: [8, 4] }]
+    ms: 260
+  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub1, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub2, at: [8, 4] }, { sprite: spark, at: [0, 1] }]
+    ms: 260
+  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub2, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub0, at: [8, 4] }]
+    ms: 260
+  - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub0, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub1, at: [9, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub2, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub0, at: [11, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub0, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub1, at: [11, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub2, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub0, at: [9, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub0, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub1, at: [8, 4] }]
+    ms: 260
+  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub1, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub2, at: [8, 4] }, { sprite: spark, at: [0, 1] }]
+    ms: 260
+  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub2, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub0, at: [8, 4] }]
+    ms: 260
+  - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub0, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub1, at: [9, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
+    ms: 200
+  - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub2, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub0, at: [11, 4] }]
+    ms: 200
