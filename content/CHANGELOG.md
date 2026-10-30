@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/Monska85/PixelArt/compare/content-v1.2.0...content-v1.3.0) (2026-10-30)
+
+
+### Added
+
+* add paged published content catalogs ([#41](https://github.com/Monska85/PixelArt/issues/41)) ([534fc2a](https://github.com/Monska85/PixelArt/commit/534fc2abd9cb1a9aab96188d6463916897f00f5b))
+
 ## [1.2.0](https://github.com/Monska85/PixelArt/compare/content-v1.1.0...content-v1.2.0) (2026-10-29)
 
 
