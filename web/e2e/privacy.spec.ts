@@ -16,7 +16,7 @@ const IS_RELEASE = /^\d+\.\d+\.\d+$/.test(APP_VERSION) && APP_VERSION !== "0.0.0
 const FOOTER =
   "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board. The board itself contacts only its update source and its time server.";
 
-test("every view ends with the privacy line, a link to the Privacy view and a link to the source", async ({ page }) => {
+test("every view ends with the privacy line, links and the web app version", async ({ page }) => {
   for (const view of ["board", "library", "firmware", "editor"]) {
     await page.goto(`/#${view}`);
     const footer = page.getByTestId("footer");
@@ -26,6 +26,8 @@ test("every view ends with the privacy line, a link to the Privacy view and a li
     await expect(source).toHaveAttribute("href", REPOSITORY);
     await expect(source).toHaveAttribute("rel", "noopener noreferrer");
     await expect(source).toHaveAttribute("target", "_blank");
+    await expect(footer.getByTestId("footer-version")).toHaveText(`Web app v${APP_VERSION}`);
+    await expect(footer).toContainText(`Privacy · Source · Web app v${APP_VERSION}`);
   }
 });
 
