@@ -55,57 +55,21 @@ sprites:
   sea0:
     points:
       foam: [[1, 12], [7, 12], [13, 12]]
-      sea_l: [
-          [0, 12], [2, 12], [3, 13], [4, 13], [5, 13], [6, 12], [8, 12], [9, 13], [10, 13], [11, 13],
-          [12, 12], [14, 12], [15, 13]
-        ]
-      sea: [
-          [0, 13], [0, 14], [0, 15], [1, 13], [1, 14], [1, 15], [2, 13], [2, 14], [2, 15], [3, 14],
-          [3, 15], [4, 14], [4, 15], [5, 14], [5, 15], [6, 13], [6, 14], [6, 15], [7, 13], [7, 14],
-          [7, 15], [8, 13], [8, 14], [8, 15], [9, 14], [9, 15], [10, 14], [10, 15], [11, 14], [11, 15],
-          [12, 13], [12, 14], [12, 15], [13, 13], [13, 14], [13, 15], [14, 13], [14, 14], [14, 15],
-          [15, 14], [15, 15]
-        ]
+      sea_l: [[2, 12], [5, 13], [8, 12], [11, 13], [14, 12]]
+      sea: [[2, 13], [8, 13], [14, 13]]
   sea1:
     points:
       foam: [[0, 12], [6, 12], [12, 12]]
-      sea_l: [
-          [1, 12], [2, 13], [3, 13], [4, 13], [5, 12], [7, 12], [8, 13], [9, 13], [10, 13], [11, 12],
-          [13, 12], [14, 13], [15, 13]
-        ]
-      sea: [
-          [0, 13], [0, 14], [0, 15], [1, 13], [1, 14], [1, 15], [2, 14], [2, 15], [3, 14], [3, 15],
-          [4, 14], [4, 15], [5, 13], [5, 14], [5, 15], [6, 13], [6, 14], [6, 15], [7, 13], [7, 14],
-          [7, 15], [8, 14], [8, 15], [9, 14], [9, 15], [10, 14], [10, 15], [11, 13], [11, 14], [11, 15],
-          [12, 13], [12, 14], [12, 15], [13, 13], [13, 14], [13, 15], [14, 14], [14, 15], [15, 14],
-          [15, 15]
-        ]
+      sea_l: [[1, 12], [5, 12], [7, 12], [11, 12], [13, 12]]
   sea2:
     points:
       foam: [[5, 12], [11, 12]]
-      sea_l: [
-          [0, 12], [1, 13], [2, 13], [3, 13], [4, 12], [6, 12], [7, 13], [8, 13], [9, 13], [10, 12],
-          [12, 12], [13, 13], [14, 13], [15, 13]
-        ]
-      sea: [
-          [0, 13], [0, 14], [0, 15], [1, 14], [1, 15], [2, 14], [2, 15], [3, 14], [3, 15], [4, 13],
-          [4, 14], [4, 15], [5, 13], [5, 14], [5, 15], [6, 13], [6, 14], [6, 15], [7, 14], [7, 15],
-          [8, 14], [8, 15], [9, 14], [9, 15], [10, 13], [10, 14], [10, 15], [11, 13], [11, 14], [11, 15],
-          [12, 13], [12, 14], [12, 15], [13, 14], [13, 15], [14, 14], [14, 15], [15, 14], [15, 15]
-        ]
+      sea_l: [[4, 12], [10, 12]]
   sea3:
     points:
       foam: [[4, 12], [10, 12]]
-      sea_l: [
-          [0, 13], [1, 13], [2, 13], [3, 12], [5, 12], [6, 13], [7, 13], [8, 13], [9, 12], [11, 12],
-          [12, 13], [13, 13], [14, 13], [15, 12]
-        ]
-      sea: [
-          [0, 14], [0, 15], [1, 14], [1, 15], [2, 14], [2, 15], [3, 13], [3, 14], [3, 15], [4, 13],
-          [4, 14], [4, 15], [5, 13], [5, 14], [5, 15], [6, 14], [6, 15], [7, 14], [7, 15], [8, 14],
-          [8, 15], [9, 13], [9, 14], [9, 15], [10, 13], [10, 14], [10, 15], [11, 13], [11, 14], [11, 15],
-          [12, 14], [12, 15], [13, 14], [13, 15], [14, 14], [14, 15], [15, 13], [15, 14], [15, 15]
-        ]
+      sea_l: [[0, 13], [3, 12], [5, 12], [6, 13], [9, 12], [11, 12], [12, 13], [15, 12]]
+      sea: [[3, 13], [9, 13], [15, 13]]
   splash_a:
     points:
       splash: [[1, 11], [3, 10], [2, 9], [4, 11]]
@@ -115,69 +79,96 @@ sprites:
   fin:
     points:
       fin: [[0, 11], [1, 10], [1, 11]]
+  shared0:
+    points:
+      sea: [
+          [0, 14], [0, 15], [1, 14], [1, 15], [2, 14], [2, 15], [3, 14], [3, 15], [4, 14], [4, 15],
+          [5, 14], [5, 15], [6, 14], [6, 15], [7, 14], [7, 15], [8, 14], [8, 15], [9, 14], [9, 15],
+          [10, 14], [10, 15], [11, 14], [11, 15], [12, 14], [12, 15], [13, 14], [13, 15], [14, 14],
+          [14, 15], [15, 14], [15, 15]
+        ]
+  shared1:
+    points:
+      sea_l: [[3, 13], [9, 13], [15, 13]]
+      sea: [[0, 13], [6, 13], [12, 13]]
+  shared2:
+    points:
+      sea_l: [[2, 13], [8, 13], [14, 13]]
+      sea: [[5, 13], [11, 13]]
+  shared3:
+    points:
+      sea_l: [[4, 13], [10, 13]]
+      sea: [[1, 13], [7, 13], [13, 13]]
+  shared4:
+    points:
+      sea_l: [[1, 13], [7, 13], [13, 13]]
+      sea: [[4, 13], [10, 13]]
+  shared5:
+    points:
+      sea_l: [[0, 12], [6, 12], [12, 12]]
 
 timeline:
-  - show: [sea0]
+  - show: [shared0, shared1, shared3, shared5, sea0]
     ms: 600
-  - show: [{ sprite: up, at: [-6, 12] }, sea0]
+  - show: [{ sprite: up, at: [-6, 12] }, shared0, shared1, shared3, shared5, sea0]
     ms: 130
-  - show: [{ sprite: up, at: [-4, 9] }, sea1, splash_a]
+  - show: [{ sprite: up, at: [-4, 9] }, shared0, shared1, shared2, shared3, sea1, splash_a]
     ms: 130
-  - show: [{ sprite: up, at: [-2, 6] }, sea2, splash_a]
+  - show: [{ sprite: up, at: [-2, 6] }, shared0, shared1, shared2, shared4, shared5, sea2, splash_a]
     ms: 130
-  - show: [{ sprite: up, at: [0, 3] }, sea3]
+  - show: [{ sprite: up, at: [0, 3] }, shared0, shared2, shared4, sea3]
     ms: 130
-  - show: [{ sprite: flat, at: [2, 2] }, sea0]
+  - show: [{ sprite: flat, at: [2, 2] }, shared0, shared1, shared3, shared5, sea0]
     ms: 130
-  - show: [{ sprite: flat, at: [4, 2] }, sea1]
+  - show: [{ sprite: flat, at: [4, 2] }, shared0, shared1, shared2, shared3, sea1]
     ms: 130
-  - show: [{ sprite: down, at: [6, 3] }, sea2]
+  - show: [{ sprite: down, at: [6, 3] }, shared0, shared1, shared2, shared4, shared5, sea2]
     ms: 130
-  - show: [{ sprite: down, at: [8, 6] }, sea3]
+  - show: [{ sprite: down, at: [8, 6] }, shared0, shared2, shared4, sea3]
     ms: 130
-  - show: [{ sprite: down, at: [10, 9] }, sea0, splash_b]
+  - show: [{ sprite: down, at: [10, 9] }, shared0, shared1, shared3, shared5, sea0, splash_b]
     ms: 130
-  - show: [{ sprite: down, at: [12, 12] }, sea1, splash_b]
+  - show: [{ sprite: down, at: [12, 12] }, shared0, shared1, shared2, shared3, sea1, splash_b]
     ms: 130
-  - show: [sea2, splash_b]
+  - show: [shared0, shared1, shared2, shared4, shared5, sea2, splash_b]
     ms: 150
-  - show: [{ sprite: fin, at: [13, 0] }, sea3]
+  - show: [{ sprite: fin, at: [13, 0] }, shared0, shared2, shared4, sea3]
     ms: 150
-  - show: [{ sprite: fin, at: [9, 0] }, sea0]
+  - show: [{ sprite: fin, at: [9, 0] }, shared0, shared1, shared3, shared5, sea0]
     ms: 150
-  - show: [{ sprite: fin, at: [5, 0] }, sea1]
+  - show: [{ sprite: fin, at: [5, 0] }, shared0, shared1, shared2, shared3, sea1]
     ms: 150
-  - show: [{ sprite: fin, at: [1, 0] }, sea2]
+  - show: [{ sprite: fin, at: [1, 0] }, shared0, shared1, shared2, shared4, shared5, sea2]
     ms: 150
-  - show: [{ sprite: fin, at: [-3, 0] }, sea3]
+  - show: [{ sprite: fin, at: [-3, 0] }, shared0, shared2, shared4, sea3]
     ms: 150
-  - show: [{ sprite: up, at: [-6, 12] }, sea0]
+  - show: [{ sprite: up, at: [-6, 12] }, shared0, shared1, shared3, shared5, sea0]
     ms: 130
-  - show: [{ sprite: up, at: [-4, 9] }, sea1, splash_a]
+  - show: [{ sprite: up, at: [-4, 9] }, shared0, shared1, shared2, shared3, sea1, splash_a]
     ms: 130
-  - show: [{ sprite: up, at: [-2, 6] }, sea2, splash_a]
+  - show: [{ sprite: up, at: [-2, 6] }, shared0, shared1, shared2, shared4, shared5, sea2, splash_a]
     ms: 130
-  - show: [{ sprite: up, at: [0, 3] }, sea3]
+  - show: [{ sprite: up, at: [0, 3] }, shared0, shared2, shared4, sea3]
     ms: 130
-  - show: [{ sprite: flat, at: [2, 2] }, sea0]
+  - show: [{ sprite: flat, at: [2, 2] }, shared0, shared1, shared3, shared5, sea0]
     ms: 130
-  - show: [{ sprite: flat, at: [4, 2] }, sea1]
+  - show: [{ sprite: flat, at: [4, 2] }, shared0, shared1, shared2, shared3, sea1]
     ms: 130
-  - show: [{ sprite: down, at: [6, 3] }, sea2]
+  - show: [{ sprite: down, at: [6, 3] }, shared0, shared1, shared2, shared4, shared5, sea2]
     ms: 130
-  - show: [{ sprite: down, at: [8, 6] }, sea3]
+  - show: [{ sprite: down, at: [8, 6] }, shared0, shared2, shared4, sea3]
     ms: 130
-  - show: [{ sprite: down, at: [10, 9] }, sea0, splash_b]
+  - show: [{ sprite: down, at: [10, 9] }, shared0, shared1, shared3, shared5, sea0, splash_b]
     ms: 130
-  - show: [{ sprite: down, at: [12, 12] }, sea1, splash_b]
+  - show: [{ sprite: down, at: [12, 12] }, shared0, shared1, shared2, shared3, sea1, splash_b]
     ms: 130
-  - show: [sea2, splash_b]
+  - show: [shared0, shared1, shared2, shared4, shared5, sea2, splash_b]
     ms: 150
-  - show: [sea3]
+  - show: [shared0, shared2, shared4, sea3]
     ms: 200
-  - show: [sea0]
+  - show: [shared0, shared1, shared3, shared5, sea0]
     ms: 200
-  - show: [sea1]
+  - show: [shared0, shared1, shared2, shared3, sea1]
     ms: 200
-  - show: [sea2]
+  - show: [shared0, shared1, shared2, shared4, shared5, sea2]
     ms: 200

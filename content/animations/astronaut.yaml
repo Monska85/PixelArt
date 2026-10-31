@@ -49,101 +49,69 @@ sprites:
     points:
       suit: [[2, 8], [1, 8], [1, 9], [2, 9], [13, 8], [14, 8], [14, 9], [13, 9]]
       trim: [[1, 10], [2, 10], [14, 10], [13, 10]]
-  sky0:
-    points:
-      star: [[3, 9], [13, 4], [8, 12], [11, 8], [5, 11]]
-      star_d: [[6, 6], [6, 3], [11, 11], [7, 0], [6, 2]]
-  sky1:
-    points:
-      star: [[3, 9], [13, 4], [8, 12], [11, 8], [5, 11]]
-      star_d: [[6, 6], [6, 3], [11, 11], [7, 0], [6, 2]]
-  sky2:
-    points:
-      star: [[2, 9], [12, 4], [7, 12], [10, 8], [4, 11]]
-      star_d: [[5, 6], [5, 3], [10, 11], [6, 0], [5, 2]]
-  sky3:
-    points:
-      star: [[2, 9], [12, 4], [7, 12], [10, 8], [4, 11]]
-      star_d: [[5, 6], [5, 3], [10, 11], [6, 0], [5, 2]]
-  sky4:
-    points:
-      star: [[1, 9], [11, 4], [6, 12], [9, 8], [3, 11]]
-      star_d: [[4, 6], [4, 3], [9, 11], [5, 0], [4, 2]]
-  sky5:
-    points:
-      star: [[1, 9], [11, 4], [6, 12], [9, 8], [3, 11]]
-      star_d: [[4, 6], [4, 3], [9, 11], [5, 0], [4, 2]]
-  sky6:
-    points:
-      star: [[0, 9], [10, 4], [5, 12], [8, 8], [2, 11]]
-      star_d: [[3, 6], [3, 3], [8, 11], [4, 0], [3, 2]]
-  sky7:
-    points:
-      star: [[0, 9], [10, 4], [5, 12], [8, 8], [2, 11]]
-      star_d: [[3, 6], [3, 3], [8, 11], [4, 0], [3, 2]]
-  sky8:
-    points:
-      star: [[15, 9], [9, 4], [4, 12], [7, 8], [1, 11]]
-      star_d: [[2, 6], [2, 3], [7, 11], [3, 0], [2, 2]]
-  sky9:
-    points:
-      star: [[15, 9], [9, 4], [4, 12], [7, 8], [1, 11]]
-      star_d: [[2, 6], [2, 3], [7, 11], [3, 0], [2, 2]]
-  sky10:
-    points:
-      star: [[14, 9], [8, 4], [3, 12], [6, 8], [0, 11]]
-      star_d: [[1, 6], [1, 3], [6, 11], [2, 0], [1, 2]]
-  sky11:
-    points:
-      star: [[14, 9], [8, 4], [3, 12], [6, 8], [0, 11]]
-      star_d: [[1, 6], [1, 3], [6, 11], [2, 0], [1, 2]]
-  sky12:
+  shared0:
     points:
       star: [[13, 9], [7, 4], [2, 12], [5, 8], [15, 11]]
       star_d: [[0, 6], [0, 3], [5, 11], [1, 0], [0, 2]]
-  sky13:
+  shared1:
     points:
-      star: [[13, 9], [7, 4], [2, 12], [5, 8], [15, 11]]
-      star_d: [[0, 6], [0, 3], [5, 11], [1, 0], [0, 2]]
-  sky14:
+      star: [[14, 9], [8, 4], [3, 12], [6, 8], [0, 11]]
+      star_d: [[1, 6], [1, 3], [6, 11], [2, 0], [1, 2]]
+  shared2:
+    points:
+      star: [[2, 9], [12, 4], [7, 12], [10, 8], [4, 11]]
+      star_d: [[5, 6], [5, 3], [10, 11], [6, 0], [5, 2]]
+  shared3:
+    points:
+      star: [[3, 9], [13, 4], [8, 12], [11, 8], [5, 11]]
+      star_d: [[6, 6], [6, 3], [11, 11], [7, 0], [6, 2]]
+  shared4:
+    points:
+      star: [[15, 9], [9, 4], [4, 12], [7, 8], [1, 11]]
+      star_d: [[2, 6], [2, 3], [7, 11], [3, 0], [2, 2]]
+  shared5:
     points:
       star: [[12, 9], [6, 4], [1, 12], [4, 8], [14, 11]]
       star_d: [[15, 6], [15, 3], [4, 11], [0, 0], [15, 2]]
-  sky15:
+  shared6:
     points:
-      star: [[12, 9], [6, 4], [1, 12], [4, 8], [14, 11]]
-      star_d: [[15, 6], [15, 3], [4, 11], [0, 0], [15, 2]]
+      star: [[1, 9], [11, 4], [6, 12], [9, 8], [3, 11]]
+      star_d: [[4, 6], [4, 3], [9, 11], [5, 0], [4, 2]]
+  shared7:
+    points:
+      star: [[0, 9], [10, 4], [5, 12], [8, 8], [2, 11]]
+      star_d: [[3, 6], [3, 3], [8, 11], [4, 0], [3, 2]]
 
 timeline:
-  - show: [sky0, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
+  - show: [shared3, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
     ms: 300
-  - show: [sky1, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
+  - show: [shared3, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
     ms: 300
-  - show: [sky2, { sprite: astro, at: [0, 0] }, { sprite: arms_low, at: [0, 0] }]
+  - show: [shared2, { sprite: astro, at: [0, 0] }, { sprite: arms_low, at: [0, 0] }]
     ms: 300
-  - show: [sky3, { sprite: astro, at: [0, 0] }, { sprite: arms_low, at: [0, 0] }]
+  - show: [shared2, { sprite: astro, at: [0, 0] }, { sprite: arms_low, at: [0, 0] }]
     ms: 300
-  - show: [sky4, { sprite: astro, at: [1, 0] }, { sprite: arms_high, at: [1, 0] }]
+  - show: [shared6, { sprite: astro, at: [1, 0] }, { sprite: arms_high, at: [1, 0] }]
     ms: 300
-  - show: [sky5, { sprite: astro, at: [1, 0] }, { sprite: arms_high, at: [1, 0] }]
+  - show: [shared6, { sprite: astro, at: [1, 0] }, { sprite: arms_high, at: [1, 0] }]
     ms: 300
-  - show: [sky6, { sprite: astro, at: [1, 1] }, { sprite: arms_high, at: [1, 1] }]
+  - show: [shared7, { sprite: astro, at: [1, 1] }, { sprite: arms_high, at: [1, 1] }]
     ms: 300
-  - show: [sky7, { sprite: astro, at: [1, 1] }, { sprite: arms_high, at: [1, 1] }]
+  - show: [shared7, { sprite: astro, at: [1, 1] }, { sprite: arms_high, at: [1, 1] }]
     ms: 300
-  - show: [sky8, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
+  - show: [shared4, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
     ms: 300
-  - show: [sky9, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
+  - show: [shared4, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
     ms: 300
-  - show: [sky10, { sprite: astro, at: [-1, 1] }, { sprite: arms_low, at: [-1, 1] }]
+  - show: [shared1, { sprite: astro, at: [-1, 1] }, { sprite: arms_low, at: [-1, 1] }]
     ms: 300
-  - show: [sky11, { sprite: astro, at: [-1, 1] }, { sprite: arms_low, at: [-1, 1] }]
+  - show: [shared1, { sprite: astro, at: [-1, 1] }, { sprite: arms_low, at: [-1, 1] }]
     ms: 300
-  - show: [sky12, { sprite: astro, at: [-1, 0] }, { sprite: arms_high, at: [-1, 0] }]
+  - show: [shared0, { sprite: astro, at: [-1, 0] }, { sprite: arms_high, at: [-1, 0] }]
     ms: 300
-  - show: [sky13, { sprite: astro, at: [-1, 0] }, { sprite: arms_high, at: [-1, 0] }]
+  - show: [shared0, { sprite: astro, at: [-1, 0] }, { sprite: arms_high, at: [-1, 0] }]
     ms: 300
-  - show: [sky14, { sprite: astro, at: [0, 0] }, { sprite: arms_high, at: [0, 0] }]
+  - show: [shared5, { sprite: astro, at: [0, 0] }, { sprite: arms_high, at: [0, 0] }]
     ms: 300
-  - show: [sky15, { sprite: astro, at: [0, 0] }, { sprite: arms_high, at: [0, 0] }]
+  - show: [shared5, { sprite: astro, at: [0, 0] }, { sprite: arms_high, at: [0, 0] }]
     ms: 300

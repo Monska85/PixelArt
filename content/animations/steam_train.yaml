@@ -53,54 +53,29 @@ sprites:
   wheels0:
     points:
       rod: [[4, 10], [5, 10], [6, 10], [7, 10], [9, 10]]
-      hub: [[3, 10], [8, 10]]
-      spoke: [[2, 10], [3, 11], [3, 9], [8, 11], [8, 9]]
-      rim: [
-          [2, 8], [3, 8], [4, 8], [1, 9], [2, 9], [4, 9], [5, 9], [1, 10], [1, 11], [2, 11], [4, 11],
-          [5, 11], [2, 12], [3, 12], [4, 12], [7, 8], [8, 8], [9, 8], [6, 9], [7, 9], [9, 9], [10, 9],
-          [10, 10], [6, 11], [7, 11], [9, 11], [10, 11], [7, 12], [8, 12], [9, 12], [11, 10], [12, 10],
-          [13, 10], [11, 11], [13, 11], [11, 12], [12, 12], [13, 12]
-        ]
+      spoke: [[3, 11], [8, 11]]
+      rim: [[4, 11], [5, 11], [6, 11], [7, 11]]
   track0:
     points:
       sleeper: [[0, 14], [0, 15], [4, 14], [4, 15], [8, 14], [8, 15], [12, 14], [12, 15]]
   wheels1:
     points:
-      rod: [[4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11]]
-      hub: [[3, 10], [8, 10]]
-      spoke: [[2, 9], [2, 11], [4, 9], [7, 9], [9, 9]]
-      rim: [
-          [2, 8], [3, 8], [4, 8], [1, 9], [5, 9], [1, 10], [5, 10], [1, 11], [2, 12], [3, 12], [4, 12],
-          [7, 8], [8, 8], [9, 8], [6, 9], [10, 9], [6, 10], [10, 10], [10, 11], [7, 12], [8, 12], [9, 12],
-          [11, 10], [12, 10], [13, 10], [11, 11], [13, 11], [11, 12], [12, 12], [13, 12]
-        ]
+      rod: [[8, 11], [9, 11]]
+      spoke: [[2, 11]]
   track1:
     points:
       sleeper: [[3, 14], [3, 15], [7, 14], [7, 15], [11, 14], [11, 15], [15, 14], [15, 15]]
   wheels2:
     points:
-      rod: [[3, 11], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11]]
-      hub: [[3, 10], [8, 10]]
-      spoke: [[3, 9], [2, 10], [4, 10], [8, 9], [7, 10], [9, 10]]
-      rim: [
-          [2, 8], [3, 8], [4, 8], [1, 9], [2, 9], [4, 9], [5, 9], [1, 10], [5, 10], [1, 11], [2, 11],
-          [2, 12], [3, 12], [4, 12], [7, 8], [8, 8], [9, 8], [6, 9], [7, 9], [9, 9], [10, 9], [6, 10],
-          [10, 10], [9, 11], [10, 11], [7, 12], [8, 12], [9, 12], [11, 10], [12, 10], [13, 10], [11, 11],
-          [13, 11], [11, 12], [12, 12], [13, 12]
-        ]
+      rod: [[3, 11], [8, 11]]
+      spoke: [[4, 10], [7, 10], [9, 10]]
   track2:
     points:
       sleeper: [[2, 14], [2, 15], [6, 14], [6, 15], [10, 14], [10, 15], [14, 14], [14, 15]]
   wheels3:
     points:
-      rod: [[2, 11], [3, 11], [4, 11], [5, 11], [6, 11], [7, 11]]
-      hub: [[3, 10], [8, 10]]
-      spoke: [[4, 9], [2, 9], [9, 9], [7, 9], [9, 11]]
-      rim: [
-          [2, 8], [3, 8], [4, 8], [1, 9], [5, 9], [1, 10], [5, 10], [1, 11], [2, 12], [3, 12], [4, 12],
-          [7, 8], [8, 8], [9, 8], [6, 9], [10, 9], [6, 10], [10, 10], [10, 11], [7, 12], [8, 12], [9, 12],
-          [11, 10], [12, 10], [13, 10], [11, 11], [13, 11], [11, 12], [12, 12], [13, 12]
-        ]
+      rod: [[2, 11], [3, 11]]
+      spoke: [[9, 11]]
   track3:
     points:
       sleeper: [[1, 14], [1, 15], [5, 14], [5, 15], [9, 14], [9, 15], [13, 14], [13, 15]]
@@ -128,39 +103,58 @@ sprites:
   smoke7:
     points:
       smoke: [[9, 0], [10, 0], [11, 0], [10, 1]]
+  shared0:
+    points:
+      hub: [[3, 10], [8, 10]]
+      rim: [
+          [2, 8], [3, 8], [4, 8], [1, 9], [5, 9], [1, 10], [1, 11], [2, 12], [3, 12], [4, 12], [7, 8],
+          [8, 8], [9, 8], [6, 9], [10, 9], [10, 10], [10, 11], [7, 12], [8, 12], [9, 12], [11, 10],
+          [12, 10], [13, 10], [11, 11], [13, 11], [11, 12], [12, 12], [13, 12]
+        ]
+  shared1:
+    points:
+      rod: [[4, 11], [5, 11], [6, 11], [7, 11]]
+      rim: [[5, 10], [6, 10]]
+  shared2:
+    points:
+      spoke: [[3, 9], [2, 10], [8, 9]]
+      rim: [[2, 9], [4, 9], [2, 11], [7, 9], [9, 9], [9, 11]]
+  shared3:
+    points:
+      spoke: [[4, 9], [2, 9], [9, 9], [7, 9]]
 
 timeline:
   - loop: 3
     steps:
-      - show: [smoke0, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
+      - show: [smoke0, { sprite: loco, at: [0, -1] }, catcher, shared0, shared2, wheels0, track0, rail]
         ms: 120
-      - show: [smoke1, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
+      - show: [smoke1, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared3, wheels1, track1, rail]
         ms: 120
-      - show: [smoke2, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
+      - show: [smoke2, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared2, wheels2, track2, rail]
         ms: 120
-      - show: [smoke3, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
+      - show: [smoke3, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared3, wheels3, track3, rail]
         ms: 120
-      - show: [smoke4, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
+      - show: [smoke4, { sprite: loco, at: [0, -1] }, catcher, shared0, shared2, wheels0, track0, rail]
         ms: 120
-      - show: [smoke5, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
+      - show: [smoke5, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared3, wheels1, track1, rail]
         ms: 120
-      - show: [smoke6, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
+      - show: [smoke6, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared2, wheels2, track2, rail]
         ms: 120
-      - show: [smoke7, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
+      - show: [smoke7, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared3, wheels3, track3, rail]
         ms: 120
-      - show: [smoke0, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
+      - show: [smoke0, { sprite: loco, at: [0, -1] }, catcher, shared0, shared2, wheels0, track0, rail]
         ms: 120
-      - show: [smoke1, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
+      - show: [smoke1, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared3, wheels1, track1, rail]
         ms: 120
-      - show: [smoke2, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
+      - show: [smoke2, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared2, wheels2, track2, rail]
         ms: 120
-      - show: [smoke3, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
+      - show: [smoke3, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared3, wheels3, track3, rail]
         ms: 120
-      - show: [smoke4, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
+      - show: [smoke4, { sprite: loco, at: [0, -1] }, catcher, shared0, shared2, wheels0, track0, rail]
         ms: 120
-      - show: [smoke5, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
+      - show: [smoke5, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared3, wheels1, track1, rail]
         ms: 120
-      - show: [smoke6, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
+      - show: [smoke6, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared2, wheels2, track2, rail]
         ms: 120
-      - show: [smoke7, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
+      - show: [smoke7, { sprite: loco, at: [0, 0] }, catcher, shared0, shared1, shared3, wheels3, track3, rail]
         ms: 120
