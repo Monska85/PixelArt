@@ -1,0 +1,9 @@
+format: pixelart-playlist/1
+name: Sci-Fi
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: robot
+  - animation: laser_sword
+  - animation: teleport
+  - animation: ufo_cow
