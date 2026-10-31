@@ -22,6 +22,7 @@ void configure(bool needed, bool online, const std::string &timezone, const std:
 
 // The local time as minutes after midnight, false until SNTP has set the clock.
 bool local_minutes(uint16_t &minutes);
+bool local_datetime(pixelart::LocalDate &date, uint16_t &minutes);
 
 // The local date, false until SNTP has set the clock.
 bool local_date(pixelart::LocalDate &date);

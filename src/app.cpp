@@ -46,6 +46,8 @@ struct Choice
   bool dated = false;
   bool date_known = false;
   pixelart::LocalDate date;
+  bool minute_known = false;
+  uint16_t minute = 0;
 };
 
 Choice newest;            // the latest choice, the one `status` reports
@@ -271,6 +273,10 @@ std::string animation_file(const std::string &id) { return std::string(ANIMATION
 std::string playlist_file(const std::string &name) { return std::string(PLAYLISTS_FOLDER) + "/" + name + JSON_SUFFIX; }
 
 std::string schedule_file(const std::string &id) { return std::string(SCHEDULES_FOLDER) + "/" + id + JSON_SUFFIX; }
+std::string schedule_v2_file(const std::string &id)
+{
+  return std::string(SCHEDULES_V2_FOLDER) + "/" + id + JSON_SUFFIX;
+}
 
 std::string play_file(const std::string &id) { return std::string(PLAY_FOLDER) + "/" + id + JSON_SUFFIX; }
 
@@ -279,6 +285,7 @@ std::vector<std::string> stored_animations() { return json_names(ANIMATIONS_FOLD
 std::vector<std::string> stored_playlists() { return json_names(PLAYLISTS_FOLDER); }
 
 std::vector<std::string> stored_schedules() { return json_names(SCHEDULES_FOLDER); }
+std::vector<std::string> stored_schedules_v2() { return json_names(SCHEDULES_V2_FOLDER); }
 
 std::vector<std::string> stored_play_files() { return json_names(PLAY_FOLDER); }
 
@@ -325,8 +332,14 @@ bool same_list(const Choice &a, const Choice &b)
 bool date_moved(const Choice &choice)
 {
   pixelart::LocalDate today;
-  const bool known = updates::local_date(today);
-  return known != choice.date_known || (known && today != choice.date);
+  uint16_t minute = 0;
+  const bool known = updates::local_datetime(today, minute);
+  if (known != choice.date_known || (known && today != choice.date))
+    return true;
+  if (!choice.play.timed)
+    return false;
+  const bool minute_known = known;
+  return minute_known != choice.minute_known || (minute_known && minute != choice.minute);
 }
 
 // A moved date is an event: the board chooses again, and tries the skipped playlists again. The same list keeps
@@ -355,6 +368,14 @@ bool load_failed_busy(const std::string &file, const std::vector<pixelart::Diagn
 bool load_schedule(const std::string &id, pixelart::Schedule &schedule, bool &busy, task_sync::Wait wait)
 {
   std::vector<pixelart::Diagnostic> diagnostics;
+  if (load_stored_schedule_v2(id, schedule, diagnostics, wait))
+    return true;
+  if (load_failed_busy(schedule_v2_file(id), diagnostics))
+  {
+    busy = true;
+    return false;
+  }
+  diagnostics.clear();
   if (load_stored_schedule(id, schedule, diagnostics, wait))
     return true;
   if (load_failed_busy(schedule_file(id), diagnostics))
@@ -421,7 +442,9 @@ bool make_choice(task_sync::Wait wait = task_sync::Wait::Limited)
     return !busy && load_schedule(id, schedule, busy, wait) ? &schedule : nullptr;
   };
   pixelart::LocalDate date;
-  const bool date_known = updates::local_date(date);
+  uint16_t minute = 0;
+  const bool date_known = updates::local_datetime(date, minute);
+  const bool minute_known = date_known;
   // A playlist can come up more than once (in an entry, the fallback and `default`): each is read once.
   std::vector<std::pair<std::string, bool>> seen;
   auto playable = [&](const std::string &id)
@@ -435,7 +458,7 @@ bool make_choice(task_sync::Wait wait = task_sync::Wait::Limited)
     return ok;
   };
   choice.play = pixelart::choose_playlists(choice.mode, values.playlists, values.schedule, choice.server, find_schedule,
-                                           date_known ? &date : nullptr, playable);
+                                           date_known ? &date : nullptr, playable, minute_known ? minute : -1);
   if (busy)
     return false;
   choice.dated = !choice.play.schedule.empty();
@@ -443,6 +466,8 @@ bool make_choice(task_sync::Wait wait = task_sync::Wait::Limited)
   {
     choice.date_known = date_known;
     choice.date = date;
+    choice.minute_known = minute_known;
+    choice.minute = minute;
   }
   newest = std::move(choice);
   choose_again = false;
@@ -497,6 +522,21 @@ bool load_stored_schedule(const std::string &id, pixelart::Schedule &schedule,
   if (!read_for_engine(schedule_file(id), pixelart::MAX_SCHEDULE_FILE_SIZE, buffer, diagnostics))
     return false;
   return schedule.load(buffer.data.get(), buffer.size, diagnostics);
+}
+
+bool load_stored_schedule_v2(const std::string &id, pixelart::Schedule &schedule,
+                             std::vector<pixelart::Diagnostic> &diagnostics, task_sync::Wait wait)
+{
+  task_sync::HeapLock lock(task_sync::Owner::Loop, wait);
+  if (!lock.held())
+  {
+    diagnostics.push_back({pixelart::Severity::Error, BUSY_CODE, "", "an update holds the memory"});
+    return false;
+  }
+  storage::Buffer buffer;
+  if (!read_for_engine(schedule_v2_file(id), pixelart::MAX_SCHEDULE_FILE_SIZE, buffer, diagnostics))
+    return false;
+  return schedule.load(buffer.data.get(), buffer.size, diagnostics, "pixelart-schedule/2");
 }
 
 bool load_stored_play(const std::string &id, pixelart::ServerChoice &choice,
@@ -611,6 +651,7 @@ PlayStatus play_status()
   status.server_choice = newest.server;
   status.source = newest.play.source;
   status.schedule = newest.play.schedule;
+  status.schedule_v2 = newest.play.schedule_v2;
   status.reason = newest.play.reason;
   status.entry = newest.play.entry;
   status.playlists = newest.play.playlists;

@@ -1,0 +1,1 @@
+{"format":"pixelart-schedule/2","fallback":["default"],"entries":[{"from":{"month":3,"day":1},"to":{"month":5,"day":31},"playlists":["spring_rest"],"hours":[{"from":"08:00","to":"12:00","playlists":["spring_morning"]},{"from":"14:00","to":"15:00","playlists":["spring_afternoon"]}]}]}

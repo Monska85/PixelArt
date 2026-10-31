@@ -31,6 +31,7 @@ enum class Kind
   Animation,
   Playlist,
   Schedule,
+  ScheduleV2,
   Play
 };
 
@@ -67,12 +68,13 @@ struct Manifest
   std::string version;
   std::vector<FileEntry> animations;
   std::vector<FileEntry> playlists;
-  std::vector<FileEntry> schedules;    // optional in the manifest: empty when it has none
+  std::vector<FileEntry> schedules; // optional in the manifest: empty when it has none
+  std::vector<FileEntry> schedules_v2;
   std::vector<FileEntry> play;         // optional in the manifest: empty when it has none
   std::vector<FirmwareEntry> firmware; // entries with part `app`
   // A present vector, including an empty one, replaces that kind's legacy list.
-  bool paged[4] = {false, false, false, false};
-  std::vector<PageEntry> pages[4];
+  bool paged[5] = {false, false, false, false, false};
+  std::vector<PageEntry> pages[5];
 };
 
 struct ManifestMemory;

@@ -193,9 +193,9 @@ static void test_declared_pages_replace_the_legacy_kind_and_are_bounded()
   Manifest m;
   TEST_ASSERT_TRUE(reads(paged, m));
   TEST_ASSERT_TRUE(m.paged[0]);
-  TEST_ASSERT_TRUE(m.paged[3]);
+  TEST_ASSERT_TRUE(m.paged[4]);
   TEST_ASSERT_EQUAL(1, m.pages[0].size());
-  TEST_ASSERT_EQUAL(0, m.pages[3].size());
+  TEST_ASSERT_EQUAL(0, m.pages[4].size());
   expect_refused(base.substr(0, base.size() - 1) + ",\"content_pages\":null}", "null pages");
   expect_refused(base.substr(0, base.size() - 1) + ",\"content_pages\":{\"animations\":{}}}", "mistyped page list");
 }

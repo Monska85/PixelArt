@@ -148,6 +148,18 @@ bool local_minutes(uint16_t &minutes)
   return true;
 }
 
+bool local_datetime(pixelart::LocalDate &date, uint16_t &minutes)
+{
+  struct tm local;
+  if (!local_tm(local))
+    return false;
+  date.year = (uint16_t)(local.tm_year + 1900);
+  date.month = (uint8_t)(local.tm_mon + 1);
+  date.day = (uint8_t)local.tm_mday;
+  minutes = (uint16_t)(local.tm_hour * 60 + local.tm_min);
+  return true;
+}
+
 bool local_date(pixelart::LocalDate &date)
 {
   struct tm local;

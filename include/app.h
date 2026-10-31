@@ -19,6 +19,7 @@
 constexpr const char *ANIMATIONS_FOLDER = "/animations";
 constexpr const char *PLAYLISTS_FOLDER = "/playlists";
 constexpr const char *SCHEDULES_FOLDER = "/schedules";
+constexpr const char *SCHEDULES_V2_FOLDER = "/schedules-v2";
 constexpr const char *PLAY_FOLDER = "/play";
 // The only play file the board uses: its `default` is the server choice.
 constexpr const char *SERVER_CHOICE_PLAY_FILE = "default";
@@ -27,6 +28,7 @@ constexpr const char *SERVER_CHOICE_PLAY_FILE = "default";
 std::string animation_file(const std::string &id);
 std::string playlist_file(const std::string &name);
 std::string schedule_file(const std::string &id);
+std::string schedule_v2_file(const std::string &id);
 std::string play_file(const std::string &id);
 
 // IDs of the animation files in /animations, and names of the playlists in
@@ -34,6 +36,7 @@ std::string play_file(const std::string &id);
 std::vector<std::string> stored_animations();
 std::vector<std::string> stored_playlists();
 std::vector<std::string> stored_schedules();
+std::vector<std::string> stored_schedules_v2();
 std::vector<std::string> stored_play_files();
 
 // Read and validate a stored file with the engine. On failure, `diagnostics`
@@ -49,6 +52,9 @@ bool load_stored_playlist(const std::string &name, pixelart::Playlist &playlist,
 bool load_stored_schedule(const std::string &id, pixelart::Schedule &schedule,
                           std::vector<pixelart::Diagnostic> &diagnostics,
                           task_sync::Wait wait = task_sync::Wait::Limited);
+bool load_stored_schedule_v2(const std::string &id, pixelart::Schedule &schedule,
+                             std::vector<pixelart::Diagnostic> &diagnostics,
+                             task_sync::Wait wait = task_sync::Wait::Limited);
 
 // The same for a play file: `choice` is its `default`.
 bool load_stored_play(const std::string &id, pixelart::ServerChoice &choice,
@@ -100,6 +106,7 @@ struct PlayStatus
   const char *mode = settings::PLAY_AUTO; // the `play` setting the list was chosen for
   pixelart::PlaySource source = pixelart::PlaySource::Fallback;
   std::string schedule; // empty: no schedule is used
+  bool schedule_v2 = false;
   pixelart::PlayReason reason = pixelart::PlayReason::NoSchedule;
   int entry = -1;
   std::vector<std::string> playlists;

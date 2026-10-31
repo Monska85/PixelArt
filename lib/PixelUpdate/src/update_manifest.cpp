@@ -46,7 +46,8 @@ void make_filter(JsonDocument &filter)
   filter["version"] = true;
   // Keep this subtree whole so a present but mistyped declaration cannot disappear in the filter.
   filter["content_pages"] = true;
-  for (const char *list : {"animations", "playlists", "schedules", "play"})
+  filter["schedules_v2_pages"] = true;
+  for (const char *list : {"animations", "playlists", "schedules", "schedules_v2", "play"})
   {
     filter[list][0]["id"] = true;
     filter[list][0]["file"] = true;
@@ -194,6 +195,7 @@ size_t size_limit(Kind kind)
   case Kind::Playlist:
     return pixelart::MAX_PLAYLIST_FILE_SIZE;
   case Kind::Schedule:
+  case Kind::ScheduleV2:
     return pixelart::MAX_SCHEDULE_FILE_SIZE;
   case Kind::Play:
     break;
@@ -256,23 +258,29 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
   if (!doc["format"].is<const char *>() || strcmp(doc["format"].as<const char *>(), MANIFEST_FORMAT) != 0)
     return fail(reason, std::string("the format is not ") + MANIFEST_FORMAT);
   const size_t files = array_size(doc["animations"]) + array_size(doc["playlists"]) + array_size(doc["schedules"]) +
-                       array_size(doc["play"]);
+                       array_size(doc["schedules_v2"]) + array_size(doc["play"]);
   if (files > MAX_MANIFEST_FILES)
     return fail(reason, "the manifest lists too many files");
-  const char *names[] = {"animations", "playlists", "schedules", "play"};
+  const char *names[] = {"animations", "playlists", "schedules", "schedules_v2", "play"};
   size_t page_count = 0, page_cost = 0, page_block = 0;
+  const bool direct_v2 = doc.containsKey("schedules_v2");
+  const bool top_v2_pages = doc.containsKey("schedules_v2_pages");
+  bool nested_v2_pages = false;
   if (doc.containsKey("content_pages"))
   {
     if (!doc["content_pages"].is<JsonObjectConst>())
       return fail(reason, "content_pages is not an object");
     JsonObjectConst pages = doc["content_pages"];
+    nested_v2_pages = pages.containsKey("schedules_v2");
     for (JsonPairConst pair : pages)
     {
       size_t kind = 0;
-      while (kind < 4 && strcmp(pair.key().c_str(), names[kind]) != 0)
+      while (kind < 5 && strcmp(pair.key().c_str(), names[kind]) != 0)
         kind++;
-      if (kind == 4 || !pair.value().is<JsonArrayConst>())
-        return fail(reason, "content_pages has an unknown kind or a kind that is not a list");
+      if (kind == 5)
+        continue; // an optional future catalog kind is not used by this firmware
+      if (!pair.value().is<JsonArrayConst>())
+        return fail(reason, "content_pages has a kind that is not a list");
       page_count += pair.value().as<JsonArrayConst>().size();
       if (page_count > MAX_CONTENT_PAGES)
         return fail(reason, "content_pages lists too many pages");
@@ -283,11 +291,26 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
       page_block = std::max(page_block, pair.value().as<JsonArrayConst>().size() * sizeof(PageEntry));
     }
   }
+  if ((direct_v2 ? 1 : 0) + (top_v2_pages ? 1 : 0) + (nested_v2_pages ? 1 : 0) > 1)
+    return fail(reason, "schedules_v2 is declared in more than one catalog");
+  if (top_v2_pages)
+  {
+    if (!doc["schedules_v2_pages"].is<JsonArrayConst>())
+      return fail(reason, "schedules_v2_pages is not a list");
+    JsonArrayConst list = doc["schedules_v2_pages"];
+    page_count += list.size();
+    if (page_count > MAX_CONTENT_PAGES)
+      return fail(reason, "the manifest lists too many content pages");
+    size_t cost, block_size;
+    list_cost(list, cost, block_size);
+    page_cost += cost;
+    page_block = std::max(page_block, list.size() * sizeof(PageEntry));
+  }
 
   // Everything the manifest is copied into, asked for at once: the version (and the copies its check
   // makes), the lists of files and the `app` entries of the firmware.
   size_t total = 4 * string_cost(text_length(doc["version"])), block = 0;
-  for (const char *name : {"animations", "playlists", "schedules", "play"})
+  for (const char *name : {"animations", "playlists", "schedules", "schedules_v2", "play"})
   {
     size_t list_total, list_block;
     list_cost(doc[name], list_total, list_block);
@@ -316,12 +339,14 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
     return false;
   if (doc["schedules"].is<JsonArrayConst>() && !read_list(doc["schedules"], "schedules", manifest.schedules, reason))
     return false;
+  if (direct_v2 && !read_list(doc["schedules_v2"], "schedules_v2", manifest.schedules_v2, reason))
+    return false;
   if (doc["play"].is<JsonArrayConst>() && !read_list(doc["play"], "play", manifest.play, reason))
     return false;
   if (doc.containsKey("content_pages"))
   {
     JsonObjectConst pages = doc["content_pages"];
-    for (size_t kind = 0; kind < 4; kind++)
+    for (size_t kind = 0; kind < 5; kind++)
     {
       if (!pages.containsKey(names[kind]))
         continue;
@@ -345,6 +370,30 @@ bool parse_manifest(const char *json, size_t length, Manifest &out, std::string 
               return fail(reason, where + " repeats a page path");
         manifest.pages[kind].push_back(std::move(page));
       }
+    }
+  }
+  if (top_v2_pages)
+  {
+    constexpr size_t kind = static_cast<size_t>(Kind::ScheduleV2);
+    manifest.paged[kind] = true;
+    JsonArrayConst list = doc["schedules_v2_pages"].as<JsonArrayConst>();
+    manifest.pages[kind].reserve(list.size());
+    size_t index = 0;
+    for (JsonVariantConst item : list)
+    {
+      const std::string where = "schedules_v2_pages[" + std::to_string(index++) + "]";
+      if (!item.is<JsonObjectConst>())
+        return fail(reason, where + " is not an object");
+      PageEntry page;
+      if (!read_file_fields(item.as<JsonObjectConst>(), where, page.file, page.size, page.sha256, reason))
+        return false;
+      if (page.size > MAX_CONTENT_PAGE_SIZE)
+        return fail(reason, where + " is too large");
+      for (size_t previous = 0; previous < 5; previous++)
+        for (const PageEntry &seen : manifest.pages[previous])
+          if (seen.file == page.file)
+            return fail(reason, where + " repeats a page path");
+      manifest.pages[kind].push_back(std::move(page));
     }
   }
 
@@ -392,7 +441,7 @@ bool parse_content_page(const char *json, size_t length, Kind kind, std::vector<
     return fail(reason, std::string("the content page cannot be read: ") + error.c_str());
   if (memory.release_input)
     memory.release_input();
-  const char *names[] = {"animations", "playlists", "schedules", "play"};
+  const char *names[] = {"animations", "playlists", "schedules", "schedules_v2", "play"};
   const size_t index = static_cast<size_t>(kind);
   if (!doc.is<JsonObject>() || !doc["format"].is<const char *>() ||
       strcmp(doc["format"].as<const char *>(), CONTENT_PAGE_FORMAT) != 0 || !doc["kind"].is<const char *>() ||
@@ -401,23 +450,11 @@ bool parse_content_page(const char *json, size_t length, Kind kind, std::vector<
   const size_t count = doc["entries"].as<JsonArrayConst>().size();
   if (count == 0 || count > MAX_CONTENT_PAGE_ENTRIES)
     return fail(reason, "the content page lists too many files");
-  for (JsonPairConst pair : doc.as<JsonObjectConst>())
-    if (strcmp(pair.key().c_str(), "format") != 0 && strcmp(pair.key().c_str(), "kind") != 0 &&
-        strcmp(pair.key().c_str(), "entries") != 0)
-      return fail(reason, "the content page has an unknown field");
   for (JsonVariantConst item : doc["entries"].as<JsonArrayConst>())
   {
     if (!item.is<JsonObjectConst>())
       return fail(reason, "the content page has an entry that is not an object");
     JsonObjectConst object = item.as<JsonObjectConst>();
-    for (JsonPairConst pair : object)
-    {
-      const char *key = pair.key().c_str();
-      if (strcmp(key, "id") != 0 && strcmp(key, "file") != 0 && strcmp(key, "size") != 0 &&
-          strcmp(key, "sha256") != 0 && !(kind != Kind::Play && strcmp(key, "name") == 0) &&
-          !(kind == Kind::Animation && strcmp(key, "version") == 0))
-        return fail(reason, "the content page has an unknown entry field");
-    }
     if (kind == Kind::Animation &&
         (!object["version"].is<uint32_t>() || object["version"].as<uint32_t>() < 1 ||
          object["version"].as<uint32_t>() > INT32_MAX || !object["name"].is<const char *>() ||
@@ -439,7 +476,9 @@ bool parse_content_page(const char *json, size_t length, Kind kind, std::vector<
   if (!read_list(doc["entries"], "entries", entries, reason, MAX_CONTENT_PAGE_ENTRIES))
     return false;
   for (const FileEntry &entry : entries)
-    if (entry.file != std::string(names[index]) + "/" + entry.id + ".json" || entry.size > size_limit(kind))
+    if (entry.file !=
+            std::string(kind == Kind::ScheduleV2 ? "schedules-v2" : names[index]) + "/" + entry.id + ".json" ||
+        entry.size > size_limit(kind))
       return fail(reason, "the content page has a file path or size that does not match its kind and id");
   out = std::move(entries);
   return true;
@@ -516,13 +555,14 @@ template <typename ManifestType> std::vector<PlanItem> plan_entries(ManifestType
 {
   std::vector<PlanItem> plan;
   plan.reserve(manifest.animations.size() + manifest.playlists.size() + manifest.schedules.size() +
-               manifest.play.size()); // one block, never regrown
+               manifest.schedules_v2.size() + manifest.play.size()); // one block, never regrown
   // A playlist finds its animations, a schedule its playlists, and a play file its schedule or playlists.
-  for (Kind kind : {Kind::Animation, Kind::Playlist, Kind::Schedule, Kind::Play})
-    for (auto &entry : kind == Kind::Animation  ? manifest.animations
-                       : kind == Kind::Playlist ? manifest.playlists
-                       : kind == Kind::Schedule ? manifest.schedules
-                                                : manifest.play)
+  for (Kind kind : {Kind::Animation, Kind::Playlist, Kind::Schedule, Kind::ScheduleV2, Kind::Play})
+    for (auto &entry : kind == Kind::Animation    ? manifest.animations
+                       : kind == Kind::Playlist   ? manifest.playlists
+                       : kind == Kind::Schedule   ? manifest.schedules
+                       : kind == Kind::ScheduleV2 ? manifest.schedules_v2
+                                                  : manifest.play)
     {
       std::string have;
       const bool is_stored = stored(kind, entry.id, have);
@@ -563,7 +603,8 @@ std::vector<PlanItem> plan_sync(Manifest &manifest, const StoredDigest &stored)
 
 size_t plan_block(const Manifest &manifest)
 {
-  return (manifest.animations.size() + manifest.playlists.size() + manifest.schedules.size() + manifest.play.size()) *
+  return (manifest.animations.size() + manifest.playlists.size() + manifest.schedules.size() +
+          manifest.schedules_v2.size() + manifest.play.size()) *
          sizeof(PlanItem);
 }
 

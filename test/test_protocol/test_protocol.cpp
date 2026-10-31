@@ -149,10 +149,18 @@ static bool matches(JsonVariantConst want, JsonVariantConst got)
     return got.is<const char *>() && pixelart::utf8_code_points(got.as<const char *>()) <= limit;
   if (want.is<JsonObjectConst>())
   {
-    if (!got.is<JsonObjectConst>() || want.as<JsonObjectConst>().size() != got.as<JsonObjectConst>().size())
+    if (!got.is<JsonObjectConst>() || want.as<JsonObjectConst>().size() > got.as<JsonObjectConst>().size())
       return false;
-    // Equal sizes and every expected key present: the same set of keys.
+    // Older vectors predate these additive response fields. Keep every other field exact.
     JsonObjectConst object = got.as<JsonObjectConst>();
+    for (JsonPairConst pair : object)
+    {
+      JsonVariantConst member;
+      if (!find_member(want.as<JsonObjectConst>(), pair.key().c_str(), member) &&
+          strcmp(pair.key().c_str(), "schedule_v2") && strcmp(pair.key().c_str(), "schedules_v2") &&
+          strcmp(pair.key().c_str(), "schedule_format"))
+        return false;
+    }
     for (JsonPairConst pair : want.as<JsonObjectConst>())
     {
       JsonVariantConst member;

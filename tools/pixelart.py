@@ -115,9 +115,12 @@ def compact_json(document):
 # ---- schedules: the validation and the winner rules of docs/format/schedule-v1.md ----
 
 SCHEDULE_FORMAT = "pixelart-schedule/1"
+SCHEDULE_V2_FORMAT = "pixelart-schedule/2"
 SCHEDULE_MAX_BYTES = 16 * 1024
 SCHEDULE_MAX_ENTRIES = 64
 SCHEDULE_MAX_PLAYLISTS = 8
+SCHEDULE_MAX_WINDOWS_PER_ENTRY = 8
+SCHEDULE_MAX_WINDOWS = 64
 SCHEDULE_MAX_NAME = 128
 SCHEDULE_YEARS = (2000, 2999)
 MAX_DIAGNOSTICS = 32
@@ -287,7 +290,16 @@ def _check_dates(diagnostics, entry, parts, where):
             diagnostics.error("invalid_date", where, "from is after to")
 
 
-def validate_schedule(document, size=None, playlists=None):
+def _check_hour(value, end=False):
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9]{2}:[0-9]{2}", value):
+        return None
+    hour, minute = int(value[:2]), int(value[3:])
+    if minute > 59 or hour > 24 or (hour == 24 and (not end or minute != 0)):
+        return None
+    return hour * 60 + minute
+
+
+def validate_schedule(document, size=None, playlists=None, expected_format=SCHEDULE_FORMAT):
     """The diagnostics of a pixelart-schedule/1 document, its errors and its unknown_playlist warnings.
 
     size is the length of its JSON in bytes, when known. playlists is the set of the playlist IDs the board or the
@@ -299,8 +311,8 @@ def validate_schedule(document, size=None, playlists=None):
     if not isinstance(document, dict):
         diagnostics.error("format_unsupported", "", "a schedule is a JSON object")
         return diagnostics
-    if document.get("format") != SCHEDULE_FORMAT:
-        diagnostics.error("format_unsupported", "format", f"the format is not {SCHEDULE_FORMAT}")
+    if document.get("format") != expected_format:
+        diagnostics.error("format_unsupported", "format", f"the format is not {expected_format}")
         return diagnostics
     for key in document:
         if key not in ("format", "name", "fallback", "entries"):
@@ -317,13 +329,15 @@ def validate_schedule(document, size=None, playlists=None):
         return diagnostics
     if len(entries) > SCHEDULE_MAX_ENTRIES:
         diagnostics.error("limit_exceeded", "entries", f"{len(entries)} entries, more than {SCHEDULE_MAX_ENTRIES}")
+    total_windows = 0
     for i, entry in enumerate(entries):
         where = f"entries[{i}]"
         if not isinstance(entry, dict):
             diagnostics.error("structure", where, "an entry is an object")
             continue
         for key in entry:
-            if key not in ("name", "from", "to", "playlists"):
+            if key not in (("name", "from", "to", "playlists", "hours") if expected_format == SCHEDULE_V2_FORMAT
+                           else ("name", "from", "to", "playlists")):
                 diagnostics.error("structure", f"{where}.{key}", f"unknown field '{key}'")
         if "name" in entry:
             _check_name(diagnostics, entry["name"], f"{where}.name")
@@ -332,6 +346,32 @@ def validate_schedule(document, size=None, playlists=None):
                 diagnostics.error("structure", f"{where}.{key}", f"{key} is required")
         if "playlists" in entry:
             _check_playlists(diagnostics, entry["playlists"], f"{where}.playlists", playlists)
+        if expected_format == SCHEDULE_V2_FORMAT and "hours" in entry:
+            hours = entry["hours"]
+            if not isinstance(hours, list):
+                diagnostics.error("structure", f"{where}.hours", "hours is a list")
+            else:
+                total_windows += len(hours)
+                if len(hours) > SCHEDULE_MAX_WINDOWS_PER_ENTRY or total_windows > SCHEDULE_MAX_WINDOWS:
+                    diagnostics.error("limit_exceeded", f"{where}.hours", "too many daily windows")
+                seen_windows = []
+                for h, window in enumerate(hours):
+                    at = f"{where}.hours[{h}]"
+                    if not isinstance(window, dict):
+                        diagnostics.error("structure", at, "a daily window is an object")
+                        continue
+                    for key in window:
+                        if key not in ("from", "to", "playlists"):
+                            diagnostics.error("structure", f"{at}.{key}", f"unknown field '{key}'")
+                    first = _check_hour(window.get("from"))
+                    last = _check_hour(window.get("to"), True)
+                    if first is None or last is None:
+                        diagnostics.error("structure", at, "from and to are HH:MM daily boundaries")
+                    elif first >= last or any(first < stop and start < last for start, stop in seen_windows):
+                        diagnostics.error("invalid_time", at, "the window is empty, overnight or overlaps another")
+                    else:
+                        seen_windows.append((first, last))
+                    _check_playlists(diagnostics, window.get("playlists"), f"{at}.playlists", playlists)
         (from_parts, from_ok), (to_parts, to_ok) = (
             _check_end(diagnostics, entry[side], f"{where}.{side}") if side in entry else (None, False)
             for side in ("from", "to"))
@@ -509,9 +549,9 @@ def find_schedule_tie(document):
     return None
 
 
-def check_schedule(document, size=None, playlists=None):
+def check_schedule(document, size=None, playlists=None, expected_format=SCHEDULE_FORMAT):
     """validate_schedule() and, when the document has no error, the tie check: every diagnostic of the build tools."""
-    diagnostics = validate_schedule(document, size, playlists)
+    diagnostics = validate_schedule(document, size, playlists, expected_format)
     if not diagnostics.has_errors():
         tie = find_schedule_tie(document)
         if tie is not None:
@@ -605,7 +645,7 @@ def remove_stale_outputs(out, outputs):
     file that is gone or failed, and anything else stored there, such as a file uploaded to the simulator. <out> is
     then exactly the build of the content. Returns how many files it removed."""
     removed = 0
-    for folder in (*KINDS, "play"):
+    for folder in (*KINDS, "schedules-v2", "play"):
         for path in sorted((out / folder).glob("*.json")):
             if f"{folder}/{path.name}" not in outputs:
                 path.unlink()
@@ -623,6 +663,8 @@ def build(source, out, use_schema):
             sys.exit("pixelart: --schema needs the jsonschema package (pip install jsonschema)")
         for kind, schema in KINDS.items():
             validators[kind] = jsonschema.Draft202012Validator(json.loads((ROOT / "schema" / schema).read_text()))
+        validators["schedules-v2"] = jsonschema.Draft202012Validator(
+            json.loads((ROOT / "schema" / "schedule-2.schema.json").read_text()))
         play_validator = jsonschema.Draft202012Validator(json.loads((ROOT / "schema" / PLAY_SCHEMA).read_text()))
 
     errors = 0
@@ -651,8 +693,10 @@ def build(source, out, use_schema):
                 print(f"{path}: {e}", file=sys.stderr)
                 errors += 1
                 continue
-            if kind in validators:
-                problems = sorted(validators[kind].iter_errors(document), key=lambda e: list(e.absolute_path))
+            is_v2 = kind == "schedules" and isinstance(document, dict) and document.get("format") == SCHEDULE_V2_FORMAT
+            validator = validators.get("schedules-v2" if is_v2 else kind)
+            if validator is not None:
+                problems = sorted(validator.iter_errors(document), key=lambda e: list(e.absolute_path))
                 for problem in problems:
                     where = ".".join(str(p) for p in problem.absolute_path) or "(root)"
                     print(f"{path}: {where}: {problem.message}", file=sys.stderr)
@@ -661,7 +705,8 @@ def build(source, out, use_schema):
                     continue
             if kind == "schedules":
                 # Always, with or without --schema: the dates and the ties are beyond the schema
-                diagnostics = check_schedule(document, len(data), set(built.get("playlists", ())))
+                diagnostics = check_schedule(document, len(data), set(built.get("playlists", ())),
+                                             SCHEDULE_V2_FORMAT if is_v2 else SCHEDULE_FORMAT)
                 print_diagnostics(str(path), diagnostics, sys.stderr)
                 if diagnostics.has_errors():
                     errors += 1
@@ -672,6 +717,17 @@ def build(source, out, use_schema):
             built.setdefault(kind, []).append(name)
             outputs.add(f"{kind}/{name}.json")
             written += 1
+            if is_v2:
+                target = out / "schedules-v2" / f"{name}.json"
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+                outputs.add(f"schedules-v2/{name}.json")
+                written += 1
+                legacy = dict(document)
+                legacy["format"] = SCHEDULE_FORMAT
+                legacy["entries"] = [{key: value for key, value in entry.items() if key != "hours"}
+                                     for entry in document.get("entries", [])]
+                (out / kind / f"{name}.json").write_bytes(compact_json(legacy))
     failed, wrote = build_play_file(source, out, built, play_validator)
     errors += failed
     written += wrote
@@ -694,11 +750,13 @@ CONNECT_DELAYS = (0.2, 0.4, 0.8, 1.6, 3.2)  # seconds waited after each refused 
 # A reply line is at most 16 KiB (protocol-v1.md, limits): a line or a fragmented message gets that plus margin.
 MAX_LINE = 64 * 1024
 DEFAULT_CHUNK = 512
-KIND_FOLDERS = {"animations": "animation", "playlists": "playlist", "schedules": "schedule", "play": "play"}
+KIND_FOLDERS = {"animations": "animation", "playlists": "playlist", "schedules": "schedule",
+                "schedules-v2": "schedule_v2", "play": "play"}
 KIND_FORMATS = {"pixelart/1": "animation", "pixelart-playlist/1": "playlist", SCHEDULE_FORMAT: "schedule",
-                PLAY_FORMAT: "play"}
+                SCHEDULE_V2_FORMAT: "schedule_v2", PLAY_FORMAT: "play"}
 # The board's own limits (docs/protocol/protocol-v1.md, limits): the most a client accepts when the board names none.
 FILE_LIMITS = {"animation": 64 * 1024, "playlist": 16 * 1024, "schedule": SCHEDULE_MAX_BYTES,
+               "schedule_v2": SCHEDULE_MAX_BYTES,
                "play": PLAY_MAX_BYTES}
 # Control (Cc), format (Cf, which holds the bidirectional overrides and zero-width marks), line and paragraph
 # separators (Zl, Zp) and lone surrogates (Cs) change what a terminal shows or cannot be printed.
@@ -1026,7 +1084,9 @@ def print_diagnostics(label, diagnostics, stream=sys.stderr):
 
 def infer_kind(path, document):
     """animation, playlist, schedule or play, from the folder the file is in, else from its `format` field."""
-    kind = KIND_FOLDERS.get(path.resolve().parent.name)
+    kind = KIND_FORMATS.get(document.get("format")) if isinstance(document, dict) else None
+    if kind is None:
+        kind = KIND_FOLDERS.get(path.resolve().parent.name)
     if kind is None and isinstance(document, dict):
         kind = KIND_FORMATS.get(document.get("format"))
     return kind
@@ -1174,7 +1234,7 @@ def board_kinds(board):
     """The kinds of file the board stores. A firmware older than schedules or than the play file has no
     formats.schedule or formats.play and answers invalid_kind to that kind."""
     formats = dict_of(board.info.get("formats"))
-    return ["animation", "playlist"] + [kind for kind in ("schedule", "play") if kind in formats]
+    return ["animation", "playlist"] + [kind for kind in ("schedule", "schedule_v2", "play") if kind in formats]
 
 
 def board_ls(board, args):
@@ -1274,11 +1334,11 @@ def board_wipe(board, args):
         raise
     playlists, animations = reply.get("playlists"), reply.get("animations")
     # A firmware older than schedules or than the play file leaves that count out of the reply
-    counts = {name: reply[name] for name in ("play", "schedules") if name in reply}
+    counts = {name: reply[name] for name in ("play", "schedules", "schedules_v2") if name in reply}
     if not (is_count(playlists) and is_count(animations) and all(is_count(n) for n in counts.values())):
         raise BoardError("the board reports invalid counts for delete_all")
-    names = {"play": "play files", "schedules": "schedules"}
-    parts = [f"{counts[name]} {names[name]}" for name in ("play", "schedules") if name in counts]
+    names = {"play": "play files", "schedules": "schedules", "schedules_v2": "format 2 schedules"}
+    parts = [f"{counts[name]} {names[name]}" for name in ("play", "schedules", "schedules_v2") if name in counts]
     print("deleted " + ", ".join(parts + [f"{playlists} playlists"]) + f" and {animations} animations" if parts
           else f"deleted {playlists} playlists and {animations} animations")
     if reset:
@@ -1628,7 +1688,7 @@ def add_board_parser(sub):
     b.add_argument("--token", help="the board's token, for a board over WiFi with network login on "
                                    "(safer: the environment variable PIXELART_TOKEN)")
     commands = b.add_subparsers(dest="board_command", required=True)
-    kinds = ("animation", "playlist", "schedule", "play")
+    kinds = ("animation", "playlist", "schedule", "schedule_v2", "play")
     commands.add_parser("info", help="firmware, storage and limits")
     ls = commands.add_parser("ls", help="list the stored files")
     ls.add_argument("--kind", choices=kinds, help="only this kind (default: every kind the board stores)")

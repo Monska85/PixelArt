@@ -386,7 +386,7 @@ The build computes it with `tools/site_url.py`, the first rule that applies: the
 | Manifest                | 64 KiB (about 26 KB over HTTPS, 20 KiB for a release) |
 | Files in a manifest     | 200 animations, playlists, schedules and play files   |
 | Content page            | 8 KiB and 32 entries                                  |
-| Pages in a manifest     | 20 total across the four kinds                        |
+| Pages in a manifest     | 20 total across the five known kinds                  |
 | Published catalog       | 320 entries across paged and legacy kinds             |
 | File path in a manifest | 160 characters                                        |
 | Redirects               | 3                                                     |
@@ -399,3 +399,7 @@ The build computes it with `tools/site_url.py`, the first rule that applies: the
 | Bands                   | 2.4 GHz only (the ESP32 chips)                        |
 
 For the paged catalog change, the loop task's minimum free stack was measured on an ESP32-C3 with the same temporary one-second diagnostic in baseline and changed firmware. After a reset, each case uploaded an animation and ran the board file list. The shipped animation and a valid animation with four nested loops were accepted; files with five loops and with JSON nesting beyond 32 were rejected. The minimum was 5,276 bytes before and 5,276 bytes after for each of the four cases. The diagnostic was removed and the normal firmware and shipped files were restored afterward.
+
+## Format 2 schedules in content updates
+
+New firmware reads the `schedules_v2_pages` transition catalog, direct `schedules_v2`, or future `content_pages.schedules_v2`, as described in the [manifest](../format/manifest-v1.md#format-2-schedule-catalogs). It installs format 2 schedules after format 1 schedules and before play files. For a selected schedule ID, playback prefers a valid format 2 file and falls back to a valid format 1 file. Both files may be stored at once. Catalog omission does not remove a stored format 2 file. Timed selection uses local wall-clock minutes and the configured time zone; after synchronization, losing the network does not stop the clock. Before time is known, a timed schedule plays its fallback list. The simulator's `--update-time HH:MM` supplies the same minute used by playback, with `--date` supplying the date.

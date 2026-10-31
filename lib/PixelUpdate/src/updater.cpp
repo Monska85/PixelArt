@@ -329,21 +329,22 @@ Error Updater::load_page(const PageEntry &page, Kind kind, std::vector<FileEntry
 
 Error Updater::read_content_pages(Manifest &manifest)
 {
-  std::vector<FileEntry> *lists[] = {&manifest.animations, &manifest.playlists, &manifest.schedules, &manifest.play};
-  std::vector<std::string> seen[4];
+  std::vector<FileEntry> *lists[] = {&manifest.animations, &manifest.playlists, &manifest.schedules,
+                                     &manifest.schedules_v2, &manifest.play};
+  std::vector<std::string> seen[5];
   size_t total = 0;
-  for (size_t kind = 0; kind < 4; kind++)
+  for (size_t kind = 0; kind < 5; kind++)
     if (manifest.paged[kind])
       std::vector<FileEntry>().swap(*lists[kind]); // release legacy entries before opening a page connection
   size_t page_count = 0;
-  for (size_t kind = 0; kind < 4; kind++)
+  for (size_t kind = 0; kind < 5; kind++)
     page_count += manifest.pages[kind].size();
   if (!page_count)
     return Error::None;
   if (!host_.memory_available(page_count * sizeof(PageWork), page_count * sizeof(PageWork)))
     return Error::OutOfMemory;
   page_work_.reserve(page_count);
-  for (size_t kind = 0; kind < 4; kind++)
+  for (size_t kind = 0; kind < 5; kind++)
   {
     total += lists[kind]->size();
     if (total > MAX_PUBLISHED_FILES)

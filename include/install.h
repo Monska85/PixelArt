@@ -19,6 +19,7 @@ enum class Kind
   Animation,
   Playlist,
   Schedule,
+  ScheduleV2,
   Play
 };
 

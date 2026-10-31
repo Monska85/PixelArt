@@ -73,6 +73,8 @@ void set_schedule_needs_time(bool needed);
 // 2 seconds while the board is connected and every 10 seconds otherwise, and again when a download ends. A busy
 // network task, for example with a download or a WiFi scan, publishes it later.
 bool local_date(pixelart::LocalDate &date);
+bool local_minutes(uint16_t &minutes);
+bool local_datetime(pixelart::LocalDate &date, uint16_t &minutes);
 
 // How a request for a check or an installation ends.
 enum class Request
