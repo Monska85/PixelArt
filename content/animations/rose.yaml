@@ -1,0 +1,112 @@
+format: pixelart/1
+name: Rose
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  stem: "#2f8a3e"
+  leaf: "#4caf50"
+  petal: "#e8102a"
+  petal_d: "#8a0818"
+  petal_l: "#ff5a6a"
+  sepal: "#2f8a3e"
+
+sprites:
+  bloom:
+    points:
+      petal_l: [[6, 1], [9, 1], [11, 2]]
+      petal: [
+          [7, 1], [8, 1], [5, 2], [6, 2], [8, 2], [9, 2], [10, 2], [4, 3], [5, 3], [7, 3], [8, 3], [10, 3],
+          [11, 3], [4, 4], [5, 4], [6, 4], [9, 4], [10, 4], [11, 4], [5, 5], [6, 5], [7, 5], [8, 5],
+          [9, 5], [10, 5], [7, 6], [8, 6]
+        ]
+      petal_d: [[7, 2], [6, 3], [9, 3], [7, 4], [8, 4]]
+      sepal: [[6, 6], [9, 6]]
+  half:
+    points:
+      petal_l: [[6, 2], [8, 2]]
+      petal: [
+          [7, 2], [5, 3], [6, 3], [8, 3], [9, 3], [5, 4], [7, 4], [8, 4], [9, 4], [6, 5], [7, 5], [8, 5],
+          [7, 6]
+        ]
+      petal_d: [[7, 3], [6, 4]]
+      sepal: [[6, 6], [8, 6]]
+  bud:
+    points:
+      petal: [[7, 4], [8, 4], [7, 5], [8, 5]]
+      sepal: [[6, 5], [9, 5], [7, 6], [8, 6]]
+  leaves:
+    points:
+      leaf: [[5, 11], [6, 11], [4, 10], [5, 10], [9, 9], [10, 9], [10, 8], [11, 8]]
+  petal:
+    points:
+      petal: [[0, 0], [1, 0]]
+  stem1:
+    points:
+      stem: [[7, 15]]
+  stem2:
+    points:
+      stem: [[7, 15], [7, 14]]
+  stem3:
+    points:
+      stem: [[7, 15], [7, 14], [7, 13]]
+  stem4:
+    points:
+      stem: [[7, 15], [7, 14], [7, 13], [7, 12]]
+  stem5:
+    points:
+      stem: [[7, 15], [7, 14], [7, 13], [7, 12], [7, 11]]
+  stem6:
+    points:
+      stem: [[7, 15], [7, 14], [7, 13], [7, 12], [7, 11], [7, 10]]
+  stem7:
+    points:
+      stem: [[7, 15], [7, 14], [7, 13], [7, 12], [7, 11], [7, 10], [7, 9]]
+  stem8:
+    points:
+      stem: [[7, 15], [7, 14], [7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8]]
+  stem9:
+    points:
+      stem: [[7, 15], [7, 14], [7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8], [7, 7]]
+
+timeline:
+  - show: [stem1]
+    ms: 90
+  - show: [stem2]
+    ms: 90
+  - show: [stem3]
+    ms: 90
+  - show: [stem4]
+    ms: 90
+  - show: [stem5]
+    ms: 90
+  - show: [stem6]
+    ms: 90
+  - show: [stem7, leaves]
+    ms: 90
+  - show: [stem8, leaves]
+    ms: 90
+  - show: [stem9, leaves]
+    ms: 90
+  - show: [stem9, leaves, bud]
+    ms: 450
+  - show: [stem9, leaves, half]
+    ms: 450
+  - show: [stem9, leaves, bloom]
+    ms: 450
+  - show: [stem9, leaves, bloom]
+    ms: 1500
+  - show: [stem9, leaves, bloom, { sprite: petal, at: [10, 6] }]
+    ms: 200
+  - show: [stem9, leaves, bloom, { sprite: petal, at: [11, 8] }]
+    ms: 200
+  - show: [stem9, leaves, bloom, { sprite: petal, at: [10, 10] }]
+    ms: 200
+  - show: [stem9, leaves, bloom, { sprite: petal, at: [11, 12] }]
+    ms: 200
+  - show: [stem9, leaves, bloom, { sprite: petal, at: [10, 14] }]
+    ms: 200
+  - show: [stem9, leaves, bloom, { sprite: petal, at: [10, 15] }]
+    ms: 200
+  - show: [stem9, leaves, bloom, { sprite: petal, at: [10, 15] }]
+    ms: 1200

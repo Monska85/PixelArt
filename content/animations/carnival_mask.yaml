@@ -1,0 +1,106 @@
+format: pixelart/1
+name: Carnival Mask
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  mask: "#8a2ad0"
+  mask_d: "#5a1a8a"
+  gold: "#ffc020"
+  gold_l: "#fff0a0"
+  jewel: "#ff2a4a"
+  stick: "#ffc020"
+  f1: "#2ad0b0"
+  f2: "#ff3a8a"
+  f3: "#ffffff"
+
+sprites:
+  mask:
+    points:
+      gold: [
+          [0, 5], [1, 5], [14, 5], [15, 5], [2, 6], [13, 6], [4, 7], [5, 7], [10, 7], [11, 7], [3, 8],
+          [12, 8], [3, 9], [12, 9], [4, 10], [5, 10], [6, 10], [9, 10], [10, 10], [11, 10]
+        ]
+      mask: [
+          [0, 6], [1, 6], [14, 6], [15, 6], [0, 7], [1, 7], [2, 7], [3, 7], [6, 7], [9, 7], [12, 7],
+          [13, 7], [14, 7], [15, 7], [0, 8], [1, 8], [2, 8], [7, 8], [8, 8], [13, 8], [14, 8], [15, 8],
+          [1, 9], [2, 9], [7, 9], [8, 9], [13, 9], [14, 9], [2, 10], [3, 10], [7, 10], [8, 10], [12, 10],
+          [13, 10], [3, 11], [4, 11], [5, 11], [6, 11], [9, 11], [10, 11], [11, 11], [12, 11], [5, 12],
+          [6, 12], [9, 12], [10, 12]
+        ]
+      jewel: [[7, 7], [8, 7]]
+      mask_d: [[7, 11], [8, 11]]
+  stick:
+    points:
+      stick: [[3, 12], [2, 13], [2, 14], [1, 15]]
+  plume0:
+    points:
+      f3: [[13, 3]]
+      f1: [[11, 0], [12, 2], [12, 3], [13, 4]]
+      f2: [[12, 0], [12, 1], [13, 2], [14, 3], [14, 4], [14, 5]]
+  plume1:
+    points:
+      f3: [[13, 2], [13, 3], [14, 4]]
+      f1: [[12, 0], [12, 1], [12, 2], [12, 3], [13, 4]]
+      f2: [[13, 0], [13, 1], [14, 2], [14, 3], [14, 5]]
+  plume2:
+    points:
+      f3: [[13, 2], [13, 3], [14, 4]]
+      f1: [[12, 0], [12, 1], [12, 2], [12, 3], [13, 4]]
+      f2: [[13, 0], [13, 1], [14, 2], [14, 3], [14, 5]]
+  plume3:
+    points:
+      f3: [[13, 3]]
+      f1: [[11, 0], [12, 2], [12, 3], [13, 4]]
+      f2: [[12, 0], [12, 1], [13, 2], [14, 3], [14, 4], [14, 5]]
+  plume4:
+    points:
+      f3: [[12, 2], [13, 3], [13, 4]]
+      f1: [[10, 0], [11, 1], [11, 2], [12, 3]]
+      f2: [[11, 0], [12, 1], [13, 2], [14, 3], [14, 4], [14, 5]]
+  plume5:
+    points:
+      f3: [[12, 2], [13, 3], [13, 4]]
+      f1: [[10, 0], [11, 1], [11, 2], [12, 3]]
+      f2: [[11, 0], [12, 1], [13, 2], [14, 3], [14, 4], [14, 5]]
+
+timeline:
+  - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+    recolor: { gold: gold_l, jewel: gold_l }
+  - show: [plume3, stick, { sprite: mask, at: [0, 1] }]
+    ms: 170
+  - show: [plume3, stick, { sprite: mask, at: [0, 1] }]
+    ms: 170
+  - show: [plume4, stick, { sprite: mask, at: [0, 1] }]
+    ms: 170
+  - show: [plume4, stick, { sprite: mask, at: [0, 1] }]
+    ms: 170
+  - show: [plume5, stick, { sprite: mask, at: [0, 1] }]
+    ms: 170
+  - show: [plume5, stick, { sprite: mask, at: [0, 1] }]
+    ms: 170
+    recolor: { gold: gold_l, jewel: gold_l }
+  - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+  - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
+    ms: 170
+    recolor: { gold: gold_l, jewel: gold_l }

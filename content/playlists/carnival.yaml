@@ -1,0 +1,8 @@
+format: pixelart-playlist/1
+name: Carnival
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: carnival_mask
+  - animation: confetti
+  - animation: clown_face

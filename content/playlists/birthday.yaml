@@ -1,0 +1,11 @@
+format: pixelart-playlist/1
+name: Birthday
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: birthday_cake
+  - animation: balloons
+  - animation: party_horn
+  - animation: open_gift
+  - animation: confetti
+  - animation: toast
