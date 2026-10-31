@@ -1,0 +1,84 @@
+format: pixelart/1
+name: Cupcake
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  wrap: "#3ad0ff"
+  wrap_d: "#1a8ab0"
+  cream: "#ff8ac0"
+  cream_l: "#ffd0e4"
+  cherry: "#e8102a"
+  cherry_l: "#ff8a9a"
+  stem: "#5a8a2a"
+  s1: "#ffe14a"
+  s2: "#5aff6a"
+  s3: "#ffffff"
+
+sprites:
+  cake:
+    points:
+      s1: [[5, 7], [10, 5]]
+      s2: [[8, 8], [6, 5]]
+      s3: [[11, 8], [4, 9]]
+      cream_l: [[2, 9], [13, 9], [3, 7], [12, 7], [9, 5]]
+      cream: [
+          [1, 9], [3, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [12, 9], [14, 9],
+          [1, 8], [2, 8], [3, 8], [4, 8], [5, 8], [6, 8], [7, 8], [9, 8], [10, 8], [12, 8], [13, 8],
+          [14, 8], [2, 7], [4, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [13, 7], [3, 6],
+          [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [11, 6], [12, 6], [5, 5], [7, 5],
+          [8, 5], [6, 4], [7, 4], [8, 4], [9, 4]
+        ]
+      wrap_d: [
+          [3, 10], [6, 10], [9, 10], [12, 10], [3, 11], [6, 11], [9, 11], [12, 11], [3, 12], [6, 12],
+          [9, 12], [12, 12], [3, 13], [6, 13], [9, 13], [12, 13], [6, 14], [9, 14], [6, 15], [9, 15]
+        ]
+      wrap: [
+          [2, 10], [4, 10], [5, 10], [7, 10], [8, 10], [10, 10], [11, 10], [13, 10], [2, 11], [4, 11],
+          [5, 11], [7, 11], [8, 11], [10, 11], [11, 11], [13, 11], [4, 12], [5, 12], [7, 12], [8, 12],
+          [10, 12], [11, 12], [4, 13], [5, 13], [7, 13], [8, 13], [10, 13], [11, 13], [4, 14], [5, 14],
+          [7, 14], [8, 14], [10, 14], [11, 14], [4, 15], [5, 15], [7, 15], [8, 15], [10, 15], [11, 15]
+        ]
+  cherry:
+    points:
+      cherry_l: [[7, 2]]
+      cherry: [[7, 1], [8, 1], [6, 2], [8, 2], [9, 2], [7, 3], [8, 3]]
+      stem: [[9, 0], [9, 1]]
+
+timeline:
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, -1] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, -2] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, -1] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, -1] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, -2] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, -1] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+    recolor: { s1: s2, s2: s3, s3: s1 }
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+    recolor: { s1: s2, s2: s3, s3: s1 }
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+    recolor: { s1: s2, s2: s3, s3: s1 }
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+  - show: [cake, { sprite: cherry, at: [0, 0] }]
+    ms: 160
+    recolor: { s1: s2, s2: s3, s3: s1 }
