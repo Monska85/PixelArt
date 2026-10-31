@@ -78,37 +78,39 @@ sprites:
       fur: [[7, 9], [8, 9]]
 
 timeline:
-  - show: [bunny]
-    ms: 220
-  - show: [bunny, nose_up]
-    ms: 220
-  - show: [bunny]
-    ms: 220
-  - show: [bunny]
-    ms: 220
-  - show: [bunny]
-    ms: 220
-  - show: [bunny_fold, nose_up]
-    ms: 220
-  - show: [bunny_fold]
-    ms: 220
-  - show: [bunny]
-    ms: 220
-  - show: [bunny]
-    ms: 220
-  - show: [bunny, nose_up]
-    ms: 220
-    recolor: { eye: fur, shine: fur }
-  - show: [bunny]
-    ms: 220
-  - show: [bunny]
-    ms: 220
-  - show: [bunny_fold]
-    ms: 220
-  - show: [bunny, nose_up]
-    ms: 220
-  - show: [bunny]
-    ms: 220
-    recolor: { eye: fur, shine: fur }
-  - show: [bunny]
-    ms: 220
+  - loop: 2
+    steps:
+      - show: [bunny]
+        ms: 220
+      - show: [bunny, nose_up]
+        ms: 220
+      - show: [bunny]
+        ms: 220
+      - show: [bunny]
+        ms: 220
+      - show: [bunny]
+        ms: 220
+      - show: [bunny_fold, nose_up]
+        ms: 220
+      - show: [bunny_fold]
+        ms: 220
+      - show: [bunny]
+        ms: 220
+      - show: [bunny]
+        ms: 220
+      - show: [bunny, nose_up]
+        ms: 220
+        recolor: { eye: fur, shine: fur }
+      - show: [bunny]
+        ms: 220
+      - show: [bunny]
+        ms: 220
+      - show: [bunny_fold]
+        ms: 220
+      - show: [bunny, nose_up]
+        ms: 220
+      - show: [bunny]
+        ms: 220
+        recolor: { eye: fur, shine: fur }
+      - show: [bunny]
+        ms: 220

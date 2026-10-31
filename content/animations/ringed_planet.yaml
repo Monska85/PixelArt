@@ -67,36 +67,38 @@ sprites:
       spot: [[11, 6], [11, 5]]
 
 timeline:
-  - show: [stars, planet, ring]
-    ms: 280
-    recolor: { star: star_d, star_d: star }
-  - show: [stars, planet, ring, spot1]
-    ms: 280
-  - show: [stars, planet, ring, spot2]
-    ms: 280
-  - show: [stars, planet, ring, spot3]
-    ms: 280
-    recolor: { star: star_d, star_d: star }
-  - show: [stars, planet, ring, spot4]
-    ms: 280
-  - show: [stars, planet, ring, spot5]
-    ms: 280
-  - show: [stars, planet, ring, spot6]
-    ms: 280
-    recolor: { star: star_d, star_d: star }
-  - show: [stars, planet, ring, spot7]
-    ms: 280
-  - show: [stars, planet, ring, spot8]
-    ms: 280
-  - show: [stars, planet, ring, spot9]
-    ms: 280
-    recolor: { star: star_d, star_d: star }
-  - show: [stars, planet, ring]
-    ms: 280
-  - show: [stars, planet, ring]
-    ms: 280
-  - show: [stars, planet, ring]
-    ms: 280
-    recolor: { star: star_d, star_d: star }
-  - show: [stars, planet, ring]
-    ms: 280
+  - loop: 2
+    steps:
+      - show: [stars, planet, ring]
+        ms: 280
+        recolor: { star: star_d, star_d: star }
+      - show: [stars, planet, ring, spot1]
+        ms: 280
+      - show: [stars, planet, ring, spot2]
+        ms: 280
+      - show: [stars, planet, ring, spot3]
+        ms: 280
+        recolor: { star: star_d, star_d: star }
+      - show: [stars, planet, ring, spot4]
+        ms: 280
+      - show: [stars, planet, ring, spot5]
+        ms: 280
+      - show: [stars, planet, ring, spot6]
+        ms: 280
+        recolor: { star: star_d, star_d: star }
+      - show: [stars, planet, ring, spot7]
+        ms: 280
+      - show: [stars, planet, ring, spot8]
+        ms: 280
+      - show: [stars, planet, ring, spot9]
+        ms: 280
+        recolor: { star: star_d, star_d: star }
+      - show: [stars, planet, ring]
+        ms: 280
+      - show: [stars, planet, ring]
+        ms: 280
+      - show: [stars, planet, ring]
+        ms: 280
+        recolor: { star: star_d, star_d: star }
+      - show: [stars, planet, ring]
+        ms: 280

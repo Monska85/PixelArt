@@ -61,47 +61,49 @@ sprites:
       club: [[5, 4], [6, 4], [7, 5], [8, 6], [9, 6], [10, 6]]
 
 timeline:
-  - show: [ground, pole, flag0, club_down, { sprite: ball, at: [3, 10] }]
-    ms: 600
-  - show: [ground, pole, flag1, club_back, { sprite: ball, at: [3, 10] }]
-    ms: 400
-  - show: [ground, pole, flag2, club_down, { sprite: ball, at: [3, 10] }]
-    ms: 80
-  - show: [ground, pole, flag3, club_follow, { sprite: ball, at: [4, 10] }]
-    ms: 80
-  - show: [ground, pole, flag0, { sprite: ball, at: [5, 10] }]
-    ms: 90
-  - show: [ground, pole, flag1, { sprite: ball, at: [6, 10] }]
-    ms: 90
-  - show: [ground, pole, flag2, { sprite: ball, at: [7, 10] }]
-    ms: 90
-  - show: [ground, pole, flag3, { sprite: ball, at: [8, 10] }]
-    ms: 90
-  - show: [ground, pole, flag0, { sprite: ball, at: [9, 10] }]
-    ms: 90
-  - show: [ground, pole, flag1, { sprite: ball, at: [9, 10] }]
-    ms: 90
-  - show: [ground, pole, flag2, { sprite: ball, at: [10, 10] }]
-    ms: 90
-  - show: [ground, pole, flag3, { sprite: ball, at: [10, 10] }]
-    ms: 90
-  - show: [ground, pole, flag0, { sprite: ball, at: [11, 10] }]
-    ms: 90
-  - show: [ground, pole, flag1, { sprite: ball, at: [11, 11] }]
-    ms: 150
-  - show: [ground, pole, flag2]
-    ms: 200
-  - show: [ground, pole, flag3]
-    ms: 200
-  - show: [ground, pole, flag0]
-    ms: 200
-  - show: [ground, pole, flag1]
-    ms: 200
-  - show: [ground, pole, flag2]
-    ms: 200
-  - show: [ground, pole, flag3]
-    ms: 200
-  - show: [ground, pole, flag0]
-    ms: 200
-  - show: [ground, pole, flag1]
-    ms: 200
+  - loop: 2
+    steps:
+      - show: [ground, pole, flag0, club_down, { sprite: ball, at: [3, 10] }]
+        ms: 600
+      - show: [ground, pole, flag1, club_back, { sprite: ball, at: [3, 10] }]
+        ms: 400
+      - show: [ground, pole, flag2, club_down, { sprite: ball, at: [3, 10] }]
+        ms: 80
+      - show: [ground, pole, flag3, club_follow, { sprite: ball, at: [4, 10] }]
+        ms: 80
+      - show: [ground, pole, flag0, { sprite: ball, at: [5, 10] }]
+        ms: 90
+      - show: [ground, pole, flag1, { sprite: ball, at: [6, 10] }]
+        ms: 90
+      - show: [ground, pole, flag2, { sprite: ball, at: [7, 10] }]
+        ms: 90
+      - show: [ground, pole, flag3, { sprite: ball, at: [8, 10] }]
+        ms: 90
+      - show: [ground, pole, flag0, { sprite: ball, at: [9, 10] }]
+        ms: 90
+      - show: [ground, pole, flag1, { sprite: ball, at: [9, 10] }]
+        ms: 90
+      - show: [ground, pole, flag2, { sprite: ball, at: [10, 10] }]
+        ms: 90
+      - show: [ground, pole, flag3, { sprite: ball, at: [10, 10] }]
+        ms: 90
+      - show: [ground, pole, flag0, { sprite: ball, at: [11, 10] }]
+        ms: 90
+      - show: [ground, pole, flag1, { sprite: ball, at: [11, 11] }]
+        ms: 150
+      - show: [ground, pole, flag2]
+        ms: 200
+      - show: [ground, pole, flag3]
+        ms: 200
+      - show: [ground, pole, flag0]
+        ms: 200
+      - show: [ground, pole, flag1]
+        ms: 200
+      - show: [ground, pole, flag2]
+        ms: 200
+      - show: [ground, pole, flag3]
+        ms: 200
+      - show: [ground, pole, flag0]
+        ms: 200
+      - show: [ground, pole, flag1]
+        ms: 200

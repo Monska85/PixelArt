@@ -140,51 +140,53 @@ sprites:
       n1: [[11, 9], [12, 9], [11, 10], [12, 10], [12, 8], [12, 7], [12, 6]]
 
 timeline:
-  - show: [staff, clef, mel0]
-    ms: 150
-  - show: [staff, clef, mel1]
-    ms: 150
-  - show: [staff, clef, mel2]
-    ms: 150
-  - show: [staff, clef, mel3]
-    ms: 150
-  - show: [staff, clef, mel4]
-    ms: 150
-  - show: [staff, clef, mel5]
-    ms: 150
-  - show: [staff, clef, mel6]
-    ms: 150
-  - show: [staff, clef, mel7]
-    ms: 150
-  - show: [staff, clef, mel8]
-    ms: 150
-  - show: [staff, clef, mel9]
-    ms: 150
-  - show: [staff, clef, mel10]
-    ms: 150
-  - show: [staff, clef, mel11]
-    ms: 150
-  - show: [staff, clef, mel12]
-    ms: 150
-  - show: [staff, clef, mel13]
-    ms: 150
-  - show: [staff, clef, mel14]
-    ms: 150
-  - show: [staff, clef, mel15]
-    ms: 150
-  - show: [staff, clef, mel16]
-    ms: 150
-  - show: [staff, clef, mel17]
-    ms: 150
-  - show: [staff, clef, mel18]
-    ms: 150
-  - show: [staff, clef, mel19]
-    ms: 150
-  - show: [staff, clef, mel20]
-    ms: 150
-  - show: [staff, clef, mel21]
-    ms: 150
-  - show: [staff, clef, mel22]
-    ms: 150
-  - show: [staff, clef, mel23]
-    ms: 150
+  - loop: 2
+    steps:
+      - show: [staff, clef, mel0]
+        ms: 150
+      - show: [staff, clef, mel1]
+        ms: 150
+      - show: [staff, clef, mel2]
+        ms: 150
+      - show: [staff, clef, mel3]
+        ms: 150
+      - show: [staff, clef, mel4]
+        ms: 150
+      - show: [staff, clef, mel5]
+        ms: 150
+      - show: [staff, clef, mel6]
+        ms: 150
+      - show: [staff, clef, mel7]
+        ms: 150
+      - show: [staff, clef, mel8]
+        ms: 150
+      - show: [staff, clef, mel9]
+        ms: 150
+      - show: [staff, clef, mel10]
+        ms: 150
+      - show: [staff, clef, mel11]
+        ms: 150
+      - show: [staff, clef, mel12]
+        ms: 150
+      - show: [staff, clef, mel13]
+        ms: 150
+      - show: [staff, clef, mel14]
+        ms: 150
+      - show: [staff, clef, mel15]
+        ms: 150
+      - show: [staff, clef, mel16]
+        ms: 150
+      - show: [staff, clef, mel17]
+        ms: 150
+      - show: [staff, clef, mel18]
+        ms: 150
+      - show: [staff, clef, mel19]
+        ms: 150
+      - show: [staff, clef, mel20]
+        ms: 150
+      - show: [staff, clef, mel21]
+        ms: 150
+      - show: [staff, clef, mel22]
+        ms: 150
+      - show: [staff, clef, mel23]
+        ms: 150

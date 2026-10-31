@@ -404,51 +404,53 @@ sprites:
       peak: [[1, 5], [2, 5], [4, 7], [5, 7], [7, 8], [8, 8], [10, 3], [11, 3], [13, 6], [14, 6]]
 
 timeline:
-  - show: [eq0]
-    ms: 110
-  - show: [eq1]
-    ms: 110
-  - show: [eq2]
-    ms: 110
-  - show: [eq3]
-    ms: 110
-  - show: [eq4]
-    ms: 110
-  - show: [eq5]
-    ms: 110
-  - show: [eq6]
-    ms: 110
-  - show: [eq7]
-    ms: 110
-  - show: [eq8]
-    ms: 110
-  - show: [eq9]
-    ms: 110
-  - show: [eq10]
-    ms: 110
-  - show: [eq11]
-    ms: 110
-  - show: [eq12]
-    ms: 110
-  - show: [eq13]
-    ms: 110
-  - show: [eq14]
-    ms: 110
-  - show: [eq15]
-    ms: 110
-  - show: [eq16]
-    ms: 110
-  - show: [eq17]
-    ms: 110
-  - show: [eq18]
-    ms: 110
-  - show: [eq19]
-    ms: 110
-  - show: [eq20]
-    ms: 110
-  - show: [eq21]
-    ms: 110
-  - show: [eq22]
-    ms: 110
-  - show: [eq23]
-    ms: 110
+  - loop: 2
+    steps:
+      - show: [eq0]
+        ms: 110
+      - show: [eq1]
+        ms: 110
+      - show: [eq2]
+        ms: 110
+      - show: [eq3]
+        ms: 110
+      - show: [eq4]
+        ms: 110
+      - show: [eq5]
+        ms: 110
+      - show: [eq6]
+        ms: 110
+      - show: [eq7]
+        ms: 110
+      - show: [eq8]
+        ms: 110
+      - show: [eq9]
+        ms: 110
+      - show: [eq10]
+        ms: 110
+      - show: [eq11]
+        ms: 110
+      - show: [eq12]
+        ms: 110
+      - show: [eq13]
+        ms: 110
+      - show: [eq14]
+        ms: 110
+      - show: [eq15]
+        ms: 110
+      - show: [eq16]
+        ms: 110
+      - show: [eq17]
+        ms: 110
+      - show: [eq18]
+        ms: 110
+      - show: [eq19]
+        ms: 110
+      - show: [eq20]
+        ms: 110
+      - show: [eq21]
+        ms: 110
+      - show: [eq22]
+        ms: 110
+      - show: [eq23]
+        ms: 110

@@ -130,35 +130,37 @@ sprites:
       smoke: [[9, 0], [10, 0], [11, 0], [10, 1]]
 
 timeline:
-  - show: [smoke0, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
-    ms: 120
-  - show: [smoke1, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
-    ms: 120
-  - show: [smoke2, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
-    ms: 120
-  - show: [smoke3, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
-    ms: 120
-  - show: [smoke4, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
-    ms: 120
-  - show: [smoke5, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
-    ms: 120
-  - show: [smoke6, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
-    ms: 120
-  - show: [smoke7, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
-    ms: 120
-  - show: [smoke0, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
-    ms: 120
-  - show: [smoke1, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
-    ms: 120
-  - show: [smoke2, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
-    ms: 120
-  - show: [smoke3, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
-    ms: 120
-  - show: [smoke4, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
-    ms: 120
-  - show: [smoke5, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
-    ms: 120
-  - show: [smoke6, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
-    ms: 120
-  - show: [smoke7, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
-    ms: 120
+  - loop: 3
+    steps:
+      - show: [smoke0, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
+        ms: 120
+      - show: [smoke1, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
+        ms: 120
+      - show: [smoke2, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
+        ms: 120
+      - show: [smoke3, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
+        ms: 120
+      - show: [smoke4, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
+        ms: 120
+      - show: [smoke5, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
+        ms: 120
+      - show: [smoke6, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
+        ms: 120
+      - show: [smoke7, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
+        ms: 120
+      - show: [smoke0, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
+        ms: 120
+      - show: [smoke1, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
+        ms: 120
+      - show: [smoke2, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
+        ms: 120
+      - show: [smoke3, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
+        ms: 120
+      - show: [smoke4, { sprite: loco, at: [0, -1] }, catcher, wheels0, track0, rail]
+        ms: 120
+      - show: [smoke5, { sprite: loco, at: [0, 0] }, catcher, wheels1, track1, rail]
+        ms: 120
+      - show: [smoke6, { sprite: loco, at: [0, 0] }, catcher, wheels2, track2, rail]
+        ms: 120
+      - show: [smoke7, { sprite: loco, at: [0, 0] }, catcher, wheels3, track3, rail]
+        ms: 120

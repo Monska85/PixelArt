@@ -88,47 +88,49 @@ sprites:
       spark: [[3, 6], [12, 5], [2, 11], [13, 12], [8, 2]]
 
 timeline:
-  - show: [coin0]
-    ms: 110
-  - show: [coin1]
-    ms: 110
-  - show: [coin2]
-    ms: 110
-  - show: [coin3]
-    ms: 110
-  - show: [coin4]
-    ms: 110
-  - show: [coin5]
-    ms: 110
-  - show: [coin0]
-    ms: 110
-  - show: [coin1]
-    ms: 110
-  - show: [coin2]
-    ms: 110
-  - show: [coin3]
-    ms: 110
-  - show: [coin4]
-    ms: 110
-  - show: [coin5]
-    ms: 110
-  - show: [{ sprite: coin0, at: [0, -2] }]
-    ms: 90
-  - show: [{ sprite: coin1, at: [0, -4] }]
-    ms: 90
-  - show: [{ sprite: coin2, at: [0, -5] }]
-    ms: 90
-  - show: [spark, { sprite: plus, at: [0, 5] }]
-    ms: 200
-  - show: [{ sprite: plus, at: [0, 4] }]
-    ms: 200
-  - show: [{ sprite: plus, at: [0, 3] }]
-    ms: 200
-  - show: [{ sprite: plus, at: [0, 2] }]
-    ms: 200
-  - show: [{ sprite: plus, at: [0, 2] }]
-    ms: 200
-  - show: [{ sprite: plus, at: [0, 2] }]
-    ms: 200
-  - show: []
-    ms: 400
+  - loop: 2
+    steps:
+      - show: [coin0]
+        ms: 110
+      - show: [coin1]
+        ms: 110
+      - show: [coin2]
+        ms: 110
+      - show: [coin3]
+        ms: 110
+      - show: [coin4]
+        ms: 110
+      - show: [coin5]
+        ms: 110
+      - show: [coin0]
+        ms: 110
+      - show: [coin1]
+        ms: 110
+      - show: [coin2]
+        ms: 110
+      - show: [coin3]
+        ms: 110
+      - show: [coin4]
+        ms: 110
+      - show: [coin5]
+        ms: 110
+      - show: [{ sprite: coin0, at: [0, -2] }]
+        ms: 90
+      - show: [{ sprite: coin1, at: [0, -4] }]
+        ms: 90
+      - show: [{ sprite: coin2, at: [0, -5] }]
+        ms: 90
+      - show: [spark, { sprite: plus, at: [0, 5] }]
+        ms: 200
+      - show: [{ sprite: plus, at: [0, 4] }]
+        ms: 200
+      - show: [{ sprite: plus, at: [0, 3] }]
+        ms: 200
+      - show: [{ sprite: plus, at: [0, 2] }]
+        ms: 200
+      - show: [{ sprite: plus, at: [0, 2] }]
+        ms: 200
+      - show: [{ sprite: plus, at: [0, 2] }]
+        ms: 200
+      - show: []
+        ms: 400

@@ -339,35 +339,37 @@ sprites:
       button: [[14, 13]]
 
 timeline:
-  - show: [deck0, arm]
-    ms: 110
-  - show: [deck1, arm]
-    ms: 110
-  - show: [deck2, arm]
-    ms: 110
-  - show: [deck3, arm]
-    ms: 110
-  - show: [deck4, arm]
-    ms: 110
-  - show: [deck5, arm]
-    ms: 110
-  - show: [deck6, arm]
-    ms: 110
-  - show: [deck7, arm]
-    ms: 110
-  - show: [deck0, arm]
-    ms: 110
-  - show: [deck1, arm]
-    ms: 110
-  - show: [deck2, arm]
-    ms: 110
-  - show: [deck3, arm]
-    ms: 110
-  - show: [deck4, arm]
-    ms: 110
-  - show: [deck5, arm]
-    ms: 110
-  - show: [deck6, arm]
-    ms: 110
-  - show: [deck7, arm]
-    ms: 110
+  - loop: 3
+    steps:
+      - show: [deck0, arm]
+        ms: 110
+      - show: [deck1, arm]
+        ms: 110
+      - show: [deck2, arm]
+        ms: 110
+      - show: [deck3, arm]
+        ms: 110
+      - show: [deck4, arm]
+        ms: 110
+      - show: [deck5, arm]
+        ms: 110
+      - show: [deck6, arm]
+        ms: 110
+      - show: [deck7, arm]
+        ms: 110
+      - show: [deck0, arm]
+        ms: 110
+      - show: [deck1, arm]
+        ms: 110
+      - show: [deck2, arm]
+        ms: 110
+      - show: [deck3, arm]
+        ms: 110
+      - show: [deck4, arm]
+        ms: 110
+      - show: [deck5, arm]
+        ms: 110
+      - show: [deck6, arm]
+        ms: 110
+      - show: [deck7, arm]
+        ms: 110

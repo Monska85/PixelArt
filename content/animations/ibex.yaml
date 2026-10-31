@@ -44,37 +44,39 @@ sprites:
       mouth: [[7, 15], [8, 15]]
 
 timeline:
-  - show: [ibex]
-    ms: 200
-  - show: [ibex]
-    ms: 200
-  - show: [ibex]
-    ms: 200
-  - show: [ibex]
-    ms: 200
-  - show: [ibex]
-    ms: 200
-    recolor: { eye: fur, eye_w: fur }
-  - show: [ibex]
-    ms: 200
-  - show: [ibex]
-    ms: 200
-  - show: [ibex]
-    ms: 200
-  - show: [ibex]
-    ms: 200
-  - show: [ibex, chew]
-    ms: 200
-  - show: [ibex, chew]
-    ms: 200
-  - show: [ibex]
-    ms: 200
-  - show: [ibex]
-    ms: 200
-    recolor: { eye: fur, eye_w: fur }
-  - show: [ibex, chew]
-    ms: 200
-  - show: [ibex, chew]
-    ms: 200
-  - show: [ibex]
-    ms: 200
+  - loop: 2
+    steps:
+      - show: [ibex]
+        ms: 200
+      - show: [ibex]
+        ms: 200
+      - show: [ibex]
+        ms: 200
+      - show: [ibex]
+        ms: 200
+      - show: [ibex]
+        ms: 200
+        recolor: { eye: fur, eye_w: fur }
+      - show: [ibex]
+        ms: 200
+      - show: [ibex]
+        ms: 200
+      - show: [ibex]
+        ms: 200
+      - show: [ibex]
+        ms: 200
+      - show: [ibex, chew]
+        ms: 200
+      - show: [ibex, chew]
+        ms: 200
+      - show: [ibex]
+        ms: 200
+      - show: [ibex]
+        ms: 200
+        recolor: { eye: fur, eye_w: fur }
+      - show: [ibex, chew]
+        ms: 200
+      - show: [ibex, chew]
+        ms: 200
+      - show: [ibex]
+        ms: 200

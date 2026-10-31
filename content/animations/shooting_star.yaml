@@ -164,57 +164,59 @@ sprites:
       tail4: [[15, 7]]
 
 timeline:
-  - show: [sky, hills]
-    ms: 1000
-  - show: [sky, m1, hills]
-    ms: 55
-  - show: [sky, m2, hills]
-    ms: 55
-  - show: [sky, m3, hills]
-    ms: 55
-  - show: [sky, m4, hills]
-    ms: 55
-  - show: [sky, m5, hills]
-    ms: 55
-  - show: [sky, m6, hills]
-    ms: 55
-  - show: [sky, m7, hills]
-    ms: 55
-  - show: [sky, m8, hills]
-    ms: 55
-  - show: [sky, m9, hills]
-    ms: 55
-  - show: [sky, m10, hills]
-    ms: 55
-  - show: [sky, m11, hills]
-    ms: 55
-  - show: [sky, m12, hills]
-    ms: 55
-  - show: [sky, m13, hills]
-    ms: 55
-  - show: [sky, m14, hills]
-    ms: 55
-  - show: [sky, m15, hills]
-    ms: 55
-  - show: [sky, m16, hills]
-    ms: 55
-  - show: [sky, m17, hills]
-    ms: 55
-  - show: [sky, m18, hills]
-    ms: 55
-  - show: [sky, m19, hills]
-    ms: 55
-  - show: [sky, m20, hills]
-    ms: 55
-  - show: [sky, m21, hills]
-    ms: 55
-  - show: [sky, m22, hills]
-    ms: 55
-  - show: [sky, m23, hills]
-    ms: 55
-  - show: [sky, m24, hills]
-    ms: 55
-  - show: [sky, m25, hills]
-    ms: 55
-  - show: [sky, hills]
-    ms: 1600
+  - loop: 2
+    steps:
+      - show: [sky, hills]
+        ms: 1000
+      - show: [sky, m1, hills]
+        ms: 55
+      - show: [sky, m2, hills]
+        ms: 55
+      - show: [sky, m3, hills]
+        ms: 55
+      - show: [sky, m4, hills]
+        ms: 55
+      - show: [sky, m5, hills]
+        ms: 55
+      - show: [sky, m6, hills]
+        ms: 55
+      - show: [sky, m7, hills]
+        ms: 55
+      - show: [sky, m8, hills]
+        ms: 55
+      - show: [sky, m9, hills]
+        ms: 55
+      - show: [sky, m10, hills]
+        ms: 55
+      - show: [sky, m11, hills]
+        ms: 55
+      - show: [sky, m12, hills]
+        ms: 55
+      - show: [sky, m13, hills]
+        ms: 55
+      - show: [sky, m14, hills]
+        ms: 55
+      - show: [sky, m15, hills]
+        ms: 55
+      - show: [sky, m16, hills]
+        ms: 55
+      - show: [sky, m17, hills]
+        ms: 55
+      - show: [sky, m18, hills]
+        ms: 55
+      - show: [sky, m19, hills]
+        ms: 55
+      - show: [sky, m20, hills]
+        ms: 55
+      - show: [sky, m21, hills]
+        ms: 55
+      - show: [sky, m22, hills]
+        ms: 55
+      - show: [sky, m23, hills]
+        ms: 55
+      - show: [sky, m24, hills]
+        ms: 55
+      - show: [sky, m25, hills]
+        ms: 55
+      - show: [sky, hills]
+        ms: 1600
