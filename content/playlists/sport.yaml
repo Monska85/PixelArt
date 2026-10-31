@@ -10,3 +10,7 @@ items:
   - animation: weightlifter
   - animation: checkered_flag
   - animation: trophy
+  - animation: skier
+  - animation: ice_skater
+  - animation: surfer
+  - animation: bicycle
