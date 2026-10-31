@@ -36,3 +36,6 @@ items:
   - animation: peace_dove
   - animation: bats
   - animation: spider
+  - animation: cow
+  - animation: pig
+  - animation: sheep
