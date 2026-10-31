@@ -60,35 +60,37 @@ sprites:
       bubble: [[1, 2], [2, 8], [2, 6], [3, 4], [6, 12], [10, 10]]
 
 timeline:
-  - show: [bub0, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
-    ms: 140
-  - show: [bub1, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
-    ms: 140
-  - show: [bub2, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
-    ms: 140
-  - show: [bub3, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
-    ms: 140
-  - show: [bub4, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
-    ms: 140
-  - show: [bub5, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
-    ms: 140
-  - show: [bub6, { sprite: sub, at: [0, 1] }, { sprite: prop_b, at: [0, 1] }]
-    ms: 140
-  - show: [bub7, { sprite: sub, at: [0, 1] }, { sprite: prop_a, at: [0, 1] }]
-    ms: 140
-  - show: [bub0, { sprite: sub, at: [0, 1] }, { sprite: prop_b, at: [0, 1] }]
-    ms: 140
-  - show: [bub1, { sprite: sub, at: [0, 1] }, { sprite: prop_a, at: [0, 1] }]
-    ms: 140
-  - show: [bub2, { sprite: sub, at: [0, 1] }, { sprite: prop_b, at: [0, 1] }]
-    ms: 140
-  - show: [bub3, { sprite: sub, at: [0, 1] }, { sprite: prop_a, at: [0, 1] }]
-    ms: 140
-  - show: [bub4, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
-    ms: 140
-  - show: [bub5, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
-    ms: 140
-  - show: [bub6, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
-    ms: 140
-  - show: [bub7, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
-    ms: 140
+  - loop: 3
+    steps:
+      - show: [bub0, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
+        ms: 140
+      - show: [bub1, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
+        ms: 140
+      - show: [bub2, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
+        ms: 140
+      - show: [bub3, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
+        ms: 140
+      - show: [bub4, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
+        ms: 140
+      - show: [bub5, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
+        ms: 140
+      - show: [bub6, { sprite: sub, at: [0, 1] }, { sprite: prop_b, at: [0, 1] }]
+        ms: 140
+      - show: [bub7, { sprite: sub, at: [0, 1] }, { sprite: prop_a, at: [0, 1] }]
+        ms: 140
+      - show: [bub0, { sprite: sub, at: [0, 1] }, { sprite: prop_b, at: [0, 1] }]
+        ms: 140
+      - show: [bub1, { sprite: sub, at: [0, 1] }, { sprite: prop_a, at: [0, 1] }]
+        ms: 140
+      - show: [bub2, { sprite: sub, at: [0, 1] }, { sprite: prop_b, at: [0, 1] }]
+        ms: 140
+      - show: [bub3, { sprite: sub, at: [0, 1] }, { sprite: prop_a, at: [0, 1] }]
+        ms: 140
+      - show: [bub4, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
+        ms: 140
+      - show: [bub5, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
+        ms: 140
+      - show: [bub6, { sprite: sub, at: [0, 0] }, { sprite: prop_b, at: [0, 0] }]
+        ms: 140
+      - show: [bub7, { sprite: sub, at: [0, 0] }, { sprite: prop_a, at: [0, 0] }]
+        ms: 140

@@ -72,35 +72,37 @@ sprites:
       exhaust: [[0, 9], [0, 8]]
 
 timeline:
-  - show: [{ sprite: car, at: [0, 0] }, wheels0, road0, exhaust]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels1, road1]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 1] }, wheels0, road2]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels1, road3]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels0, road0, exhaust]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels1, road1]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 1] }, wheels0, road2]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels1, road3]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels0, road0, exhaust]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels1, road1]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 1] }, wheels0, road2]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels1, road3]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels0, road0, exhaust]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels1, road1]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 1] }, wheels0, road2]
-    ms: 110
-  - show: [{ sprite: car, at: [0, 0] }, wheels1, road3]
-    ms: 110
+  - loop: 3
+    steps:
+      - show: [{ sprite: car, at: [0, 0] }, wheels0, road0, exhaust]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels1, road1]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 1] }, wheels0, road2]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels1, road3]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels0, road0, exhaust]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels1, road1]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 1] }, wheels0, road2]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels1, road3]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels0, road0, exhaust]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels1, road1]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 1] }, wheels0, road2]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels1, road3]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels0, road0, exhaust]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels1, road1]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 1] }, wheels0, road2]
+        ms: 110
+      - show: [{ sprite: car, at: [0, 0] }, wheels1, road3]
+        ms: 110

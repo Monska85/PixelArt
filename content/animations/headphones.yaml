@@ -44,47 +44,49 @@ sprites:
       wave: [[6, 6], [7, 6], [6, 7], [7, 7], [7, 5], [7, 4], [8, 4]]
 
 timeline:
-  - show: [{ sprite: hp, at: [0, 1] }, wave0]
-    ms: 150
-  - show: [{ sprite: hp, at: [0, 0] }, wave1]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 0] }, wave2]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 0] }]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 1] }, wave1]
-    ms: 150
-  - show: [{ sprite: hp, at: [0, 0] }, wave2]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 0] }, wave0]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 0] }]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 1] }, wave2]
-    ms: 150
-  - show: [{ sprite: hp, at: [0, 0] }, wave0]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 0] }, wave1]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 0] }]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 1] }, wave0]
-    ms: 150
-  - show: [{ sprite: hp, at: [0, 0] }, wave1]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 0] }, wave2]
-    ms: 150
-    recolor: { led: led_off }
-  - show: [{ sprite: hp, at: [0, 0] }]
-    ms: 150
-    recolor: { led: led_off }
+  - loop: 2
+    steps:
+      - show: [{ sprite: hp, at: [0, 1] }, wave0]
+        ms: 150
+      - show: [{ sprite: hp, at: [0, 0] }, wave1]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 0] }, wave2]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 0] }]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 1] }, wave1]
+        ms: 150
+      - show: [{ sprite: hp, at: [0, 0] }, wave2]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 0] }, wave0]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 0] }]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 1] }, wave2]
+        ms: 150
+      - show: [{ sprite: hp, at: [0, 0] }, wave0]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 0] }, wave1]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 0] }]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 1] }, wave0]
+        ms: 150
+      - show: [{ sprite: hp, at: [0, 0] }, wave1]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 0] }, wave2]
+        ms: 150
+        recolor: { led: led_off }
+      - show: [{ sprite: hp, at: [0, 0] }]
+        ms: 150
+        recolor: { led: led_off }

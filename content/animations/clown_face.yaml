@@ -60,39 +60,41 @@ sprites:
       eye: [[10, 6], [11, 6]]
 
 timeline:
-  - show: [clown, pom]
-    ms: 220
-  - show: [clown, pom]
-    ms: 220
-    recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
-  - show: [clown, pom]
-    ms: 220
-  - show: [clown, pom]
-    ms: 220
-    recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
-  - show: [clown, pom]
-    ms: 220
-    recolor: { nose: nose_l }
-  - show: [clown, pom]
-    ms: 220
-    recolor: { nose: nose_l, h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
-  - show: [clown, pom]
-    ms: 220
-  - show: [clown, pom]
-    ms: 220
-    recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
-  - show: [clown, pom]
-    ms: 220
-  - show: [clown, pom]
-    ms: 220
-    recolor: { nose: nose_l, h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
-  - show: [clown, pom]
-    ms: 220
-  - show: [clown, pom, wink]
-    ms: 220
-    recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
-  - show: [clown, pom, wink]
-    ms: 220
-  - show: [clown, pom]
-    ms: 220
-    recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
+  - loop: 2
+    steps:
+      - show: [clown, pom]
+        ms: 220
+      - show: [clown, pom]
+        ms: 220
+        recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
+      - show: [clown, pom]
+        ms: 220
+      - show: [clown, pom]
+        ms: 220
+        recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
+      - show: [clown, pom]
+        ms: 220
+        recolor: { nose: nose_l }
+      - show: [clown, pom]
+        ms: 220
+        recolor: { nose: nose_l, h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
+      - show: [clown, pom]
+        ms: 220
+      - show: [clown, pom]
+        ms: 220
+        recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
+      - show: [clown, pom]
+        ms: 220
+      - show: [clown, pom]
+        ms: 220
+        recolor: { nose: nose_l, h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
+      - show: [clown, pom]
+        ms: 220
+      - show: [clown, pom, wink]
+        ms: 220
+        recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }
+      - show: [clown, pom, wink]
+        ms: 220
+      - show: [clown, pom]
+        ms: 220
+        recolor: { h0: h1, h1: h2, h2: h3, h3: h0, ruff_a: ruff_b, ruff_b: ruff_a }

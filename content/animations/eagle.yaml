@@ -72,39 +72,41 @@ sprites:
         ]
 
 timeline:
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [1, 0] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [1, 0] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 170
-  - show: [{ sprite: up, at: [0, 0] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [-1, 1] }]
-    ms: 170
-  - show: [{ sprite: down, at: [0, 1] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 170
-  - show: [{ sprite: up, at: [0, 0] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [1, 1] }]
-    ms: 170
-  - show: [{ sprite: down, at: [0, 1] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [-1, 1] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [-1, 1] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [0, 1] }]
-    ms: 170
-  - show: [{ sprite: mid, at: [0, 1] }]
-    ms: 170
+  - loop: 2
+    steps:
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [1, 0] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [1, 0] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 170
+      - show: [{ sprite: up, at: [0, 0] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [-1, 1] }]
+        ms: 170
+      - show: [{ sprite: down, at: [0, 1] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 170
+      - show: [{ sprite: up, at: [0, 0] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [1, 1] }]
+        ms: 170
+      - show: [{ sprite: down, at: [0, 1] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [-1, 1] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [-1, 1] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [0, 1] }]
+        ms: 170
+      - show: [{ sprite: mid, at: [0, 1] }]
+        ms: 170

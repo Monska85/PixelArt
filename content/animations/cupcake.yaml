@@ -46,39 +46,41 @@ sprites:
       stem: [[9, 0], [9, 1]]
 
 timeline:
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, -1] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, -2] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, -1] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, -1] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, -2] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, -1] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-    recolor: { s1: s2, s2: s3, s3: s1 }
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-    recolor: { s1: s2, s2: s3, s3: s1 }
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-    recolor: { s1: s2, s2: s3, s3: s1 }
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-  - show: [cake, { sprite: cherry, at: [0, 0] }]
-    ms: 160
-    recolor: { s1: s2, s2: s3, s3: s1 }
+  - loop: 2
+    steps:
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, -1] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, -2] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, -1] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, -1] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, -2] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, -1] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+        recolor: { s1: s2, s2: s3, s3: s1 }
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+        recolor: { s1: s2, s2: s3, s3: s1 }
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+        recolor: { s1: s2, s2: s3, s3: s1 }
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+      - show: [cake, { sprite: cherry, at: [0, 0] }]
+        ms: 160
+        recolor: { s1: s2, s2: s3, s3: s1 }

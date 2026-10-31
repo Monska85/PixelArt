@@ -71,37 +71,39 @@ sprites:
       smoke: [[5, 0], [10, 0]]
 
 timeline:
-  - show: [cake, candles, flame_b]
-    ms: 160
-  - show: [cake, candles, flame_a]
-    ms: 160
-  - show: [cake, candles, flame_b]
-    ms: 160
-  - show: [cake, candles, flame_a]
-    ms: 160
-  - show: [cake, candles, flame_b]
-    ms: 160
-  - show: [cake, candles, flame_a]
-    ms: 160
-  - show: [cake, candles, flame_b]
-    ms: 160
-  - show: [cake, candles, flame_a]
-    ms: 160
-  - show: [cake, candles, flame_b]
-    ms: 160
-  - show: [cake, candles, flame_a]
-    ms: 160
-  - show: [cake, candles, flame_lean]
-    ms: 180
-  - show: [cake, candles, smoke0]
-    ms: 180
-  - show: [cake, candles, smoke1]
-    ms: 180
-  - show: [cake, candles, smoke2]
-    ms: 180
-  - show: [cake, candles, smoke3]
-    ms: 180
-  - show: [cake, candles, smoke4]
-    ms: 180
-  - show: [cake, candles]
-    ms: 1000
+  - loop: 2
+    steps:
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_lean]
+        ms: 180
+      - show: [cake, candles, smoke0]
+        ms: 180
+      - show: [cake, candles, smoke1]
+        ms: 180
+      - show: [cake, candles, smoke2]
+        ms: 180
+      - show: [cake, candles, smoke3]
+        ms: 180
+      - show: [cake, candles, smoke4]
+        ms: 180
+      - show: [cake, candles]
+        ms: 1000

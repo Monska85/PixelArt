@@ -63,29 +63,31 @@ sprites:
       s4: [[2, 5]]
 
 timeline:
-  - show: [wand_down]
-    ms: 250
-  - show: [wand_up]
-    ms: 250
-  - show: [wand_down]
-    ms: 250
-  - show: [wand_up]
-    ms: 250
-  - show: [wand_down]
-    ms: 250
-  - show: [wand_up]
-    ms: 250
-  - show: [wand_up, burst0]
-    ms: 130
-  - show: [wand_up, burst1]
-    ms: 130
-  - show: [wand_up, burst2]
-    ms: 130
-  - show: [wand_up, burst3]
-    ms: 130
-  - show: [wand_up, burst4]
-    ms: 130
-  - show: [wand_up, burst5]
-    ms: 130
-  - show: [wand_up]
-    ms: 600
+  - loop: 2
+    steps:
+      - show: [wand_down]
+        ms: 250
+      - show: [wand_up]
+        ms: 250
+      - show: [wand_down]
+        ms: 250
+      - show: [wand_up]
+        ms: 250
+      - show: [wand_down]
+        ms: 250
+      - show: [wand_up]
+        ms: 250
+      - show: [wand_up, burst0]
+        ms: 130
+      - show: [wand_up, burst1]
+        ms: 130
+      - show: [wand_up, burst2]
+        ms: 130
+      - show: [wand_up, burst3]
+        ms: 130
+      - show: [wand_up, burst4]
+        ms: 130
+      - show: [wand_up, burst5]
+        ms: 130
+      - show: [wand_up]
+        ms: 600

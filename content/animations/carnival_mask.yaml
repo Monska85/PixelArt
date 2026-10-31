@@ -65,42 +65,44 @@ sprites:
       f2: [[11, 0], [12, 1], [13, 2], [14, 3], [14, 4], [14, 5]]
 
 timeline:
-  - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-    recolor: { gold: gold_l, jewel: gold_l }
-  - show: [plume3, stick, { sprite: mask, at: [0, 1] }]
-    ms: 170
-  - show: [plume3, stick, { sprite: mask, at: [0, 1] }]
-    ms: 170
-  - show: [plume4, stick, { sprite: mask, at: [0, 1] }]
-    ms: 170
-  - show: [plume4, stick, { sprite: mask, at: [0, 1] }]
-    ms: 170
-  - show: [plume5, stick, { sprite: mask, at: [0, 1] }]
-    ms: 170
-  - show: [plume5, stick, { sprite: mask, at: [0, 1] }]
-    ms: 170
-    recolor: { gold: gold_l, jewel: gold_l }
-  - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-  - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
-    ms: 170
-    recolor: { gold: gold_l, jewel: gold_l }
+  - loop: 2
+    steps:
+      - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+        recolor: { gold: gold_l, jewel: gold_l }
+      - show: [plume3, stick, { sprite: mask, at: [0, 1] }]
+        ms: 170
+      - show: [plume3, stick, { sprite: mask, at: [0, 1] }]
+        ms: 170
+      - show: [plume4, stick, { sprite: mask, at: [0, 1] }]
+        ms: 170
+      - show: [plume4, stick, { sprite: mask, at: [0, 1] }]
+        ms: 170
+      - show: [plume5, stick, { sprite: mask, at: [0, 1] }]
+        ms: 170
+      - show: [plume5, stick, { sprite: mask, at: [0, 1] }]
+        ms: 170
+        recolor: { gold: gold_l, jewel: gold_l }
+      - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume0, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume1, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+      - show: [plume2, stick, { sprite: mask, at: [0, 0] }]
+        ms: 170
+        recolor: { gold: gold_l, jewel: gold_l }

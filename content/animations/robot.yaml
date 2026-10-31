@@ -66,46 +66,48 @@ sprites:
       ground: [[1, 15], [5, 15], [9, 15], [13, 15]]
 
 timeline:
-  - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
-    ms: 180
-    recolor: { light: light_off }
-  - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
-    ms: 180
-  - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
-    ms: 180
-    recolor: { antenna: antenna_off }
-  - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
-    ms: 180
-    recolor: { antenna: antenna_off, light: light_off }
-  - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
-    ms: 180
-  - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
-    ms: 180
-  - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
-    ms: 180
-    recolor: { antenna: antenna_off, light: light_off }
-  - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
-    ms: 180
-    recolor: { antenna: antenna_off }
-  - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
-    ms: 180
-  - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
-    ms: 180
-    recolor: { light: light_off, eye: metal }
-  - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
-    ms: 180
-    recolor: { antenna: antenna_off, eye: metal }
-  - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
-    ms: 180
-    recolor: { antenna: antenna_off }
-  - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
-    ms: 180
-    recolor: { light: light_off }
-  - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
-    ms: 180
-  - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
-    ms: 180
-    recolor: { antenna: antenna_off }
-  - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
-    ms: 180
-    recolor: { antenna: antenna_off, light: light_off }
+  - loop: 2
+    steps:
+      - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+        ms: 180
+        recolor: { light: light_off }
+      - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+        ms: 180
+      - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+        ms: 180
+        recolor: { antenna: antenna_off }
+      - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+        ms: 180
+        recolor: { antenna: antenna_off, light: light_off }
+      - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+        ms: 180
+      - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+        ms: 180
+      - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+        ms: 180
+        recolor: { antenna: antenna_off, light: light_off }
+      - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+        ms: 180
+        recolor: { antenna: antenna_off }
+      - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+        ms: 180
+      - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+        ms: 180
+        recolor: { light: light_off, eye: metal }
+      - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+        ms: 180
+        recolor: { antenna: antenna_off, eye: metal }
+      - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+        ms: 180
+        recolor: { antenna: antenna_off }
+      - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+        ms: 180
+        recolor: { light: light_off }
+      - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+        ms: 180
+      - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+        ms: 180
+        recolor: { antenna: antenna_off }
+      - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+        ms: 180
+        recolor: { antenna: antenna_off, light: light_off }

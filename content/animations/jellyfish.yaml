@@ -111,35 +111,37 @@ sprites:
         ]
 
 timeline:
-  - show: [{ sprite: tent0, at: [0, 0] }, { sprite: bell0, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: tent1, at: [0, 0] }, { sprite: bell0, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: tent2, at: [0, 0] }, { sprite: bell1, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: tent3, at: [0, 0] }, { sprite: bell1, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: tent4, at: [0, 1] }, { sprite: bell0, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: tent5, at: [0, 1] }, { sprite: bell0, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: tent6, at: [0, 1] }, { sprite: bell1, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: tent7, at: [0, 1] }, { sprite: bell1, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: tent0, at: [0, 0] }, { sprite: bell0, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: tent1, at: [0, 0] }, { sprite: bell0, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: tent2, at: [0, 0] }, { sprite: bell1, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: tent3, at: [0, 0] }, { sprite: bell1, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: tent4, at: [0, 1] }, { sprite: bell0, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: tent5, at: [0, 1] }, { sprite: bell0, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: tent6, at: [0, 1] }, { sprite: bell1, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: tent7, at: [0, 1] }, { sprite: bell1, at: [0, 1] }]
-    ms: 160
+  - loop: 2
+    steps:
+      - show: [{ sprite: tent0, at: [0, 0] }, { sprite: bell0, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: tent1, at: [0, 0] }, { sprite: bell0, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: tent2, at: [0, 0] }, { sprite: bell1, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: tent3, at: [0, 0] }, { sprite: bell1, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: tent4, at: [0, 1] }, { sprite: bell0, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: tent5, at: [0, 1] }, { sprite: bell0, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: tent6, at: [0, 1] }, { sprite: bell1, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: tent7, at: [0, 1] }, { sprite: bell1, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: tent0, at: [0, 0] }, { sprite: bell0, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: tent1, at: [0, 0] }, { sprite: bell0, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: tent2, at: [0, 0] }, { sprite: bell1, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: tent3, at: [0, 0] }, { sprite: bell1, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: tent4, at: [0, 1] }, { sprite: bell0, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: tent5, at: [0, 1] }, { sprite: bell0, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: tent6, at: [0, 1] }, { sprite: bell1, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: tent7, at: [0, 1] }, { sprite: bell1, at: [0, 1] }]
+        ms: 160

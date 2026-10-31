@@ -285,75 +285,77 @@ sprites:
         ]
 
 timeline:
-  - show: [f0]
-    ms: 110
-  - show: [f1]
-    ms: 110
-  - show: [f2]
-    ms: 110
-  - show: [f3]
-    ms: 110
-  - show: [f4]
-    ms: 110
-  - show: [f5]
-    ms: 110
-  - show: [f6]
-    ms: 110
-  - show: [f7]
-    ms: 110
-  - show: [f8]
-    ms: 110
-  - show: [f9]
-    ms: 110
-  - show: [f10]
-    ms: 110
-  - show: [f11]
-    ms: 110
-  - show: [f12]
-    ms: 110
-  - show: [f13]
-    ms: 110
-  - show: [f14]
-    ms: 110
-  - show: [f15]
-    ms: 110
-  - show: [f16]
-    ms: 110
-  - show: [f17]
-    ms: 110
-  - show: [f18]
-    ms: 110
-  - show: [f19]
-    ms: 110
-  - show: [f20]
-    ms: 110
-  - show: [f21]
-    ms: 110
-  - show: [f22]
-    ms: 110
-  - show: [f23]
-    ms: 110
-  - show: [f24]
-    ms: 110
-  - show: [f25]
-    ms: 110
-  - show: [f26]
-    ms: 110
-  - show: [f27]
-    ms: 110
-  - show: [f28]
-    ms: 110
-  - show: [f29]
-    ms: 110
-  - show: [f30]
-    ms: 110
-  - show: [f31]
-    ms: 110
-  - show: [f32]
-    ms: 110
-  - show: [f33]
-    ms: 110
-  - show: [f34]
-    ms: 110
-  - show: []
-    ms: 110
+  - loop: 2
+    steps:
+      - show: [f0]
+        ms: 110
+      - show: [f1]
+        ms: 110
+      - show: [f2]
+        ms: 110
+      - show: [f3]
+        ms: 110
+      - show: [f4]
+        ms: 110
+      - show: [f5]
+        ms: 110
+      - show: [f6]
+        ms: 110
+      - show: [f7]
+        ms: 110
+      - show: [f8]
+        ms: 110
+      - show: [f9]
+        ms: 110
+      - show: [f10]
+        ms: 110
+      - show: [f11]
+        ms: 110
+      - show: [f12]
+        ms: 110
+      - show: [f13]
+        ms: 110
+      - show: [f14]
+        ms: 110
+      - show: [f15]
+        ms: 110
+      - show: [f16]
+        ms: 110
+      - show: [f17]
+        ms: 110
+      - show: [f18]
+        ms: 110
+      - show: [f19]
+        ms: 110
+      - show: [f20]
+        ms: 110
+      - show: [f21]
+        ms: 110
+      - show: [f22]
+        ms: 110
+      - show: [f23]
+        ms: 110
+      - show: [f24]
+        ms: 110
+      - show: [f25]
+        ms: 110
+      - show: [f26]
+        ms: 110
+      - show: [f27]
+        ms: 110
+      - show: [f28]
+        ms: 110
+      - show: [f29]
+        ms: 110
+      - show: [f30]
+        ms: 110
+      - show: [f31]
+        ms: 110
+      - show: [f32]
+        ms: 110
+      - show: [f33]
+        ms: 110
+      - show: [f34]
+        ms: 110
+      - show: []
+        ms: 110

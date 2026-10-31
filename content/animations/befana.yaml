@@ -71,33 +71,35 @@ sprites:
       star: [[1, 0], [15, 9], [0, 9]]
 
 timeline:
-  - show: [broom, befana, stars_b]
-    ms: 260
-  - show: [broom, befana, stars_a]
-    ms: 260
-  - show: [broom, befana, stars_b]
-    ms: 260
-  - show: [broom, befana, stars_a]
-    ms: 260
-  - show: [broom, befana, stars_b]
-    ms: 260
-  - show: [broom, befana, stars_a]
-    ms: 260
-    recolor: { eye: skin, eye_w: skin }
-  - show: [broom, befana, stars_b]
-    ms: 260
-  - show: [broom, befana, stars_a]
-    ms: 260
-  - show: [broom, befana, stars_b]
-    ms: 260
-  - show: [broom, befana, stars_a]
-    ms: 260
-  - show: [broom, befana, stars_b]
-    ms: 260
-  - show: [broom, befana, stars_a]
-    ms: 260
-    recolor: { eye: skin, eye_w: skin }
-  - show: [broom, befana, stars_b]
-    ms: 260
-  - show: [broom, befana, stars_a]
-    ms: 260
+  - loop: 2
+    steps:
+      - show: [broom, befana, stars_b]
+        ms: 260
+      - show: [broom, befana, stars_a]
+        ms: 260
+      - show: [broom, befana, stars_b]
+        ms: 260
+      - show: [broom, befana, stars_a]
+        ms: 260
+      - show: [broom, befana, stars_b]
+        ms: 260
+      - show: [broom, befana, stars_a]
+        ms: 260
+        recolor: { eye: skin, eye_w: skin }
+      - show: [broom, befana, stars_b]
+        ms: 260
+      - show: [broom, befana, stars_a]
+        ms: 260
+      - show: [broom, befana, stars_b]
+        ms: 260
+      - show: [broom, befana, stars_a]
+        ms: 260
+      - show: [broom, befana, stars_b]
+        ms: 260
+      - show: [broom, befana, stars_a]
+        ms: 260
+        recolor: { eye: skin, eye_w: skin }
+      - show: [broom, befana, stars_b]
+        ms: 260
+      - show: [broom, befana, stars_a]
+        ms: 260
