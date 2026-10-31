@@ -6,7 +6,6 @@ items:
   - animation: snowflake
   - animation: skier
   - animation: cozy_cabin
-  - animation: hot_chocolate
   - animation: snowman
   - animation: melting_snowman
   - animation: penguin
@@ -15,5 +14,6 @@ items:
   - animation: snow_globe
   - animation: shaken_snow_globe
   - animation: snow_trees
+  - animation: snowy_pine
   - animation: steaming_mug
   - animation: fireplace
