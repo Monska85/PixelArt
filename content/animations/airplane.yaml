@@ -268,51 +268,53 @@ sprites:
         ]
 
 timeline:
-  - show: [sky0, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky1, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky2, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky3, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky4, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky5, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky6, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky7, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky8, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky9, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky10, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky11, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky12, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky13, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky14, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky15, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky16, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky17, { sprite: plane, at: [0, 0] }]
-    ms: 120
-  - show: [sky18, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky19, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky20, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky21, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky22, { sprite: plane, at: [0, 1] }]
-    ms: 120
-  - show: [sky23, { sprite: plane, at: [0, 1] }]
-    ms: 120
+  - loop: 2
+    steps:
+      - show: [sky0, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky1, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky2, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky3, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky4, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky5, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky6, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky7, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky8, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky9, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky10, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky11, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky12, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky13, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky14, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky15, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky16, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky17, { sprite: plane, at: [0, 0] }]
+        ms: 120
+      - show: [sky18, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky19, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky20, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky21, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky22, { sprite: plane, at: [0, 1] }]
+        ms: 120
+      - show: [sky23, { sprite: plane, at: [0, 1] }]
+        ms: 120

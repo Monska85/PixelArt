@@ -69,35 +69,37 @@ sprites:
       tip: [[0, 10], [1, 10], [14, 10], [15, 10], [0, 11], [1, 11], [14, 11], [15, 11]]
 
 timeline:
-  - show: [{ sprite: up, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: mid, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: down, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: up, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: mid, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: down, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: up, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: mid, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: down, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: up, at: [0, 0] }]
-    ms: 160
-  - show: [{ sprite: mid, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: down, at: [0, 1] }]
-    ms: 160
-  - show: [{ sprite: mid, at: [0, 0] }]
-    ms: 160
+  - loop: 2
+    steps:
+      - show: [{ sprite: up, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: mid, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: down, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: up, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: mid, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: down, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: up, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: mid, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: down, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: up, at: [0, 0] }]
+        ms: 160
+      - show: [{ sprite: mid, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: down, at: [0, 1] }]
+        ms: 160
+      - show: [{ sprite: mid, at: [0, 0] }]
+        ms: 160

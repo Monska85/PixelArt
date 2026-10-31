@@ -76,39 +76,41 @@ sprites:
       spark: [[15, 10], [15, 11]]
 
 timeline:
-  - show: [trophy, shine0, sp0]
-    ms: 160
-  - show: [trophy, shine1, sp1]
-    ms: 160
-  - show: [trophy, shine2, sp2]
-    ms: 160
-  - show: [trophy, shine3, sp3]
-    ms: 160
-  - show: [trophy, shine4, sp0]
-    ms: 160
-  - show: [trophy, shine5, sp1]
-    ms: 160
-  - show: [trophy, sp2]
-    ms: 160
-  - show: [trophy, sp3]
-    ms: 160
-  - show: [trophy, sp0]
-    ms: 160
-  - show: [trophy, sp1]
-    ms: 160
-  - show: [trophy, sp2]
-    ms: 160
-  - show: [trophy, sp3]
-    ms: 160
-  - show: [trophy, sp0]
-    ms: 160
-  - show: [trophy, sp1]
-    ms: 160
-  - show: [trophy, sp2]
-    ms: 160
-  - show: [trophy, sp3]
-    ms: 160
-  - show: [trophy, sp0]
-    ms: 160
-  - show: [trophy, sp1]
-    ms: 160
+  - loop: 2
+    steps:
+      - show: [trophy, shine0, sp0]
+        ms: 160
+      - show: [trophy, shine1, sp1]
+        ms: 160
+      - show: [trophy, shine2, sp2]
+        ms: 160
+      - show: [trophy, shine3, sp3]
+        ms: 160
+      - show: [trophy, shine4, sp0]
+        ms: 160
+      - show: [trophy, shine5, sp1]
+        ms: 160
+      - show: [trophy, sp2]
+        ms: 160
+      - show: [trophy, sp3]
+        ms: 160
+      - show: [trophy, sp0]
+        ms: 160
+      - show: [trophy, sp1]
+        ms: 160
+      - show: [trophy, sp2]
+        ms: 160
+      - show: [trophy, sp3]
+        ms: 160
+      - show: [trophy, sp0]
+        ms: 160
+      - show: [trophy, sp1]
+        ms: 160
+      - show: [trophy, sp2]
+        ms: 160
+      - show: [trophy, sp3]
+        ms: 160
+      - show: [trophy, sp0]
+        ms: 160
+      - show: [trophy, sp1]
+        ms: 160

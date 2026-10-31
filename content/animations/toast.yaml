@@ -36,39 +36,41 @@ sprites:
       spark_y: [[6, 0], [10, 0], [6, 2], [10, 2]]
 
 timeline:
-  - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub0, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub1, at: [11, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub2, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub0, at: [9, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub0, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub1, at: [8, 4] }]
-    ms: 260
-  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub1, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub2, at: [8, 4] }, { sprite: spark, at: [0, 1] }]
-    ms: 260
-  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub2, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub0, at: [8, 4] }]
-    ms: 260
-  - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub0, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub1, at: [9, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub2, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub0, at: [11, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub0, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub1, at: [11, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub2, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub0, at: [9, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub0, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub1, at: [8, 4] }]
-    ms: 260
-  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub1, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub2, at: [8, 4] }, { sprite: spark, at: [0, 1] }]
-    ms: 260
-  - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub2, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub0, at: [8, 4] }]
-    ms: 260
-  - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub0, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub1, at: [9, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
-    ms: 200
-  - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub2, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub0, at: [11, 4] }]
-    ms: 200
+  - loop: 2
+    steps:
+      - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub0, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub1, at: [11, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub2, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub0, at: [9, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub0, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub1, at: [8, 4] }]
+        ms: 260
+      - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub1, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub2, at: [8, 4] }, { sprite: spark, at: [0, 1] }]
+        ms: 260
+      - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub2, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub0, at: [8, 4] }]
+        ms: 260
+      - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub0, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub1, at: [9, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub2, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub0, at: [11, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub0, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub1, at: [11, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub2, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub0, at: [9, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub0, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub1, at: [8, 4] }]
+        ms: 260
+      - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub1, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub2, at: [8, 4] }, { sprite: spark, at: [0, 1] }]
+        ms: 260
+      - show: [{ sprite: flute, at: [3, 4] }, { sprite: bub2, at: [3, 4] }, { sprite: flute, at: [8, 4] }, { sprite: bub0, at: [8, 4] }]
+        ms: 260
+      - show: [{ sprite: flute, at: [2, 4] }, { sprite: bub0, at: [2, 4] }, { sprite: flute, at: [9, 4] }, { sprite: bub1, at: [9, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [1, 4] }, { sprite: bub1, at: [1, 4] }, { sprite: flute, at: [10, 4] }, { sprite: bub2, at: [10, 4] }]
+        ms: 200
+      - show: [{ sprite: flute, at: [0, 4] }, { sprite: bub2, at: [0, 4] }, { sprite: flute, at: [11, 4] }, { sprite: bub0, at: [11, 4] }]
+        ms: 200

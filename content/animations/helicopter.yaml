@@ -45,35 +45,37 @@ sprites:
       rotor: [[0, 6], [1, 5], [1, 7]]
 
 timeline:
-  - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_b, at: [0, 0] }, { sprite: tail_b, at: [0, 0] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_a, at: [0, 0] }, { sprite: tail_a, at: [0, 0] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_b, at: [0, 0] }, { sprite: tail_b, at: [0, 0] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_a, at: [0, 0] }, { sprite: tail_a, at: [0, 0] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_b, at: [0, 1] }, { sprite: tail_b, at: [0, 1] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_a, at: [0, 1] }, { sprite: tail_a, at: [0, 1] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_b, at: [0, 1] }, { sprite: tail_b, at: [0, 1] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_a, at: [0, 1] }, { sprite: tail_a, at: [0, 1] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_b, at: [0, 0] }, { sprite: tail_b, at: [0, 0] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_a, at: [0, 0] }, { sprite: tail_a, at: [0, 0] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_b, at: [0, 0] }, { sprite: tail_b, at: [0, 0] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_a, at: [0, 0] }, { sprite: tail_a, at: [0, 0] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_b, at: [0, 1] }, { sprite: tail_b, at: [0, 1] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_a, at: [0, 1] }, { sprite: tail_a, at: [0, 1] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_b, at: [0, 1] }, { sprite: tail_b, at: [0, 1] }]
-    ms: 90
-  - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_a, at: [0, 1] }, { sprite: tail_a, at: [0, 1] }]
-    ms: 90
+  - loop: 4
+    steps:
+      - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_b, at: [0, 0] }, { sprite: tail_b, at: [0, 0] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_a, at: [0, 0] }, { sprite: tail_a, at: [0, 0] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_b, at: [0, 0] }, { sprite: tail_b, at: [0, 0] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_a, at: [0, 0] }, { sprite: tail_a, at: [0, 0] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_b, at: [0, 1] }, { sprite: tail_b, at: [0, 1] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_a, at: [0, 1] }, { sprite: tail_a, at: [0, 1] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_b, at: [0, 1] }, { sprite: tail_b, at: [0, 1] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_a, at: [0, 1] }, { sprite: tail_a, at: [0, 1] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_b, at: [0, 0] }, { sprite: tail_b, at: [0, 0] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_a, at: [0, 0] }, { sprite: tail_a, at: [0, 0] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_b, at: [0, 0] }, { sprite: tail_b, at: [0, 0] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 0] }, { sprite: rotor_a, at: [0, 0] }, { sprite: tail_a, at: [0, 0] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_b, at: [0, 1] }, { sprite: tail_b, at: [0, 1] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_a, at: [0, 1] }, { sprite: tail_a, at: [0, 1] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_b, at: [0, 1] }, { sprite: tail_b, at: [0, 1] }]
+        ms: 90
+      - show: [{ sprite: heli, at: [0, 1] }, { sprite: rotor_a, at: [0, 1] }, { sprite: tail_a, at: [0, 1] }]
+        ms: 90

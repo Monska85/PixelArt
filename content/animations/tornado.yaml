@@ -96,51 +96,53 @@ sprites:
         ]
 
 timeline:
-  - show: [tw0, ground]
-    ms: 110
-  - show: [tw1, ground]
-    ms: 110
-  - show: [tw2, ground]
-    ms: 110
-  - show: [tw3, ground]
-    ms: 110
-  - show: [tw0, ground]
-    ms: 110
-  - show: [tw1, ground]
-    ms: 110
-  - show: [tw2, ground]
-    ms: 110
-  - show: [tw3, ground]
-    ms: 110
-  - show: [tw0, ground]
-    ms: 110
-  - show: [tw1, ground]
-    ms: 110
-  - show: [tw2, ground]
-    ms: 110
-  - show: [tw3, ground]
-    ms: 110
-  - show: [tw0, ground]
-    ms: 110
-  - show: [tw1, ground]
-    ms: 110
-  - show: [tw2, ground]
-    ms: 110
-  - show: [tw3, ground]
-    ms: 110
-  - show: [tw0, ground]
-    ms: 110
-  - show: [tw1, ground]
-    ms: 110
-  - show: [tw2, ground]
-    ms: 110
-  - show: [tw3, ground]
-    ms: 110
-  - show: [tw0, ground]
-    ms: 110
-  - show: [tw1, ground]
-    ms: 110
-  - show: [tw2, ground]
-    ms: 110
-  - show: [tw3, ground]
-    ms: 110
+  - loop: 2
+    steps:
+      - show: [tw0, ground]
+        ms: 110
+      - show: [tw1, ground]
+        ms: 110
+      - show: [tw2, ground]
+        ms: 110
+      - show: [tw3, ground]
+        ms: 110
+      - show: [tw0, ground]
+        ms: 110
+      - show: [tw1, ground]
+        ms: 110
+      - show: [tw2, ground]
+        ms: 110
+      - show: [tw3, ground]
+        ms: 110
+      - show: [tw0, ground]
+        ms: 110
+      - show: [tw1, ground]
+        ms: 110
+      - show: [tw2, ground]
+        ms: 110
+      - show: [tw3, ground]
+        ms: 110
+      - show: [tw0, ground]
+        ms: 110
+      - show: [tw1, ground]
+        ms: 110
+      - show: [tw2, ground]
+        ms: 110
+      - show: [tw3, ground]
+        ms: 110
+      - show: [tw0, ground]
+        ms: 110
+      - show: [tw1, ground]
+        ms: 110
+      - show: [tw2, ground]
+        ms: 110
+      - show: [tw3, ground]
+        ms: 110
+      - show: [tw0, ground]
+        ms: 110
+      - show: [tw1, ground]
+        ms: 110
+      - show: [tw2, ground]
+        ms: 110
+      - show: [tw3, ground]
+        ms: 110

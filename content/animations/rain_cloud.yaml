@@ -67,51 +67,53 @@ sprites:
         ]
 
 timeline:
-  - show: [rain0, cloud]
-    ms: 100
-  - show: [rain1, cloud]
-    ms: 100
-  - show: [rain2, cloud]
-    ms: 100
-  - show: [rain3, cloud]
-    ms: 100
-  - show: [rain4, cloud]
-    ms: 100
-  - show: [rain5, cloud]
-    ms: 100
-  - show: [rain6, cloud]
-    ms: 100
-  - show: [rain7, cloud]
-    ms: 100
-  - show: [rain0, cloud]
-    ms: 100
-  - show: [rain1, cloud]
-    ms: 100
-  - show: [rain2, cloud]
-    ms: 100
-  - show: [rain3, cloud]
-    ms: 100
-  - show: [rain4, cloud]
-    ms: 100
-  - show: [rain5, cloud]
-    ms: 100
-  - show: [rain6, cloud]
-    ms: 100
-  - show: [rain7, cloud]
-    ms: 100
-  - show: [rain0, cloud]
-    ms: 100
-  - show: [rain1, cloud]
-    ms: 100
-  - show: [rain2, cloud]
-    ms: 100
-  - show: [rain3, cloud]
-    ms: 100
-  - show: [rain4, cloud]
-    ms: 100
-  - show: [rain5, cloud]
-    ms: 100
-  - show: [rain6, cloud]
-    ms: 100
-  - show: [rain7, cloud]
-    ms: 100
+  - loop: 2
+    steps:
+      - show: [rain0, cloud]
+        ms: 100
+      - show: [rain1, cloud]
+        ms: 100
+      - show: [rain2, cloud]
+        ms: 100
+      - show: [rain3, cloud]
+        ms: 100
+      - show: [rain4, cloud]
+        ms: 100
+      - show: [rain5, cloud]
+        ms: 100
+      - show: [rain6, cloud]
+        ms: 100
+      - show: [rain7, cloud]
+        ms: 100
+      - show: [rain0, cloud]
+        ms: 100
+      - show: [rain1, cloud]
+        ms: 100
+      - show: [rain2, cloud]
+        ms: 100
+      - show: [rain3, cloud]
+        ms: 100
+      - show: [rain4, cloud]
+        ms: 100
+      - show: [rain5, cloud]
+        ms: 100
+      - show: [rain6, cloud]
+        ms: 100
+      - show: [rain7, cloud]
+        ms: 100
+      - show: [rain0, cloud]
+        ms: 100
+      - show: [rain1, cloud]
+        ms: 100
+      - show: [rain2, cloud]
+        ms: 100
+      - show: [rain3, cloud]
+        ms: 100
+      - show: [rain4, cloud]
+        ms: 100
+      - show: [rain5, cloud]
+        ms: 100
+      - show: [rain6, cloud]
+        ms: 100
+      - show: [rain7, cloud]
+        ms: 100

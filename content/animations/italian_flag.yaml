@@ -185,19 +185,21 @@ sprites:
         ]
 
 timeline:
-  - show: [pole, flag0]
-    ms: 140
-  - show: [pole, flag1]
-    ms: 140
-  - show: [pole, flag2]
-    ms: 140
-  - show: [pole, flag3]
-    ms: 140
-  - show: [pole, flag4]
-    ms: 140
-  - show: [pole, flag5]
-    ms: 140
-  - show: [pole, flag6]
-    ms: 140
-  - show: [pole, flag7]
-    ms: 140
+  - loop: 5
+    steps:
+      - show: [pole, flag0]
+        ms: 140
+      - show: [pole, flag1]
+        ms: 140
+      - show: [pole, flag2]
+        ms: 140
+      - show: [pole, flag3]
+        ms: 140
+      - show: [pole, flag4]
+        ms: 140
+      - show: [pole, flag5]
+        ms: 140
+      - show: [pole, flag6]
+        ms: 140
+      - show: [pole, flag7]
+        ms: 140

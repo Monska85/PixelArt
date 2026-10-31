@@ -91,35 +91,37 @@ sprites:
       foam: [[5, 13], [11, 13]]
 
 timeline:
-  - show: [{ sprite: ship, at: [1, 0] }, sea0]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 0] }, sea1]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 0] }, sea2]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 0] }, sea3]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 1] }, sea0]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 1] }, sea1]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 1] }, sea2]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 1] }, sea3]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 0] }, sea0]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 0] }, sea1]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 0] }, sea2]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 0] }, sea3]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 1] }, sea0]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 1] }, sea1]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 1] }, sea2]
-    ms: 220
-  - show: [{ sprite: ship, at: [1, 1] }, sea3]
-    ms: 220
+  - loop: 2
+    steps:
+      - show: [{ sprite: ship, at: [1, 0] }, sea0]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 0] }, sea1]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 0] }, sea2]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 0] }, sea3]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 1] }, sea0]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 1] }, sea1]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 1] }, sea2]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 1] }, sea3]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 0] }, sea0]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 0] }, sea1]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 0] }, sea2]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 0] }, sea3]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 1] }, sea0]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 1] }, sea1]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 1] }, sea2]
+        ms: 220
+      - show: [{ sprite: ship, at: [1, 1] }, sea3]
+        ms: 220

@@ -77,63 +77,65 @@ sprites:
       wind_l: [[11, 0], [10, 1], [3, 12]]
 
 timeline:
-  - show: [gusts, flow0]
-    ms: 110
-  - show: [gusts, flow1]
-    ms: 110
-  - show: [gusts, flow2]
-    ms: 110
-  - show: [gusts, flow3]
-    ms: 110
-  - show: [gusts, flow4]
-    ms: 110
-  - show: [gusts, flow5]
-    ms: 110
-  - show: [gusts, flow6]
-    ms: 110
-  - show: [gusts, flow7]
-    ms: 110
-  - show: [gusts, flow8]
-    ms: 110
-  - show: [gusts, flow9]
-    ms: 110
-  - show: [gusts, flow0]
-    ms: 110
-  - show: [gusts, flow1]
-    ms: 110
-  - show: [gusts, flow2]
-    ms: 110
-  - show: [gusts, flow3]
-    ms: 110
-  - show: [gusts, flow4]
-    ms: 110
-  - show: [gusts, flow5]
-    ms: 110
-  - show: [gusts, flow6]
-    ms: 110
-  - show: [gusts, flow7]
-    ms: 110
-  - show: [gusts, flow8]
-    ms: 110
-  - show: [gusts, flow9]
-    ms: 110
-  - show: [gusts, flow0]
-    ms: 110
-  - show: [gusts, flow1]
-    ms: 110
-  - show: [gusts, flow2]
-    ms: 110
-  - show: [gusts, flow3]
-    ms: 110
-  - show: [gusts, flow4]
-    ms: 110
-  - show: [gusts, flow5]
-    ms: 110
-  - show: [gusts, flow6]
-    ms: 110
-  - show: [gusts, flow7]
-    ms: 110
-  - show: [gusts, flow8]
-    ms: 110
-  - show: [gusts, flow9]
-    ms: 110
+  - loop: 2
+    steps:
+      - show: [gusts, flow0]
+        ms: 110
+      - show: [gusts, flow1]
+        ms: 110
+      - show: [gusts, flow2]
+        ms: 110
+      - show: [gusts, flow3]
+        ms: 110
+      - show: [gusts, flow4]
+        ms: 110
+      - show: [gusts, flow5]
+        ms: 110
+      - show: [gusts, flow6]
+        ms: 110
+      - show: [gusts, flow7]
+        ms: 110
+      - show: [gusts, flow8]
+        ms: 110
+      - show: [gusts, flow9]
+        ms: 110
+      - show: [gusts, flow0]
+        ms: 110
+      - show: [gusts, flow1]
+        ms: 110
+      - show: [gusts, flow2]
+        ms: 110
+      - show: [gusts, flow3]
+        ms: 110
+      - show: [gusts, flow4]
+        ms: 110
+      - show: [gusts, flow5]
+        ms: 110
+      - show: [gusts, flow6]
+        ms: 110
+      - show: [gusts, flow7]
+        ms: 110
+      - show: [gusts, flow8]
+        ms: 110
+      - show: [gusts, flow9]
+        ms: 110
+      - show: [gusts, flow0]
+        ms: 110
+      - show: [gusts, flow1]
+        ms: 110
+      - show: [gusts, flow2]
+        ms: 110
+      - show: [gusts, flow3]
+        ms: 110
+      - show: [gusts, flow4]
+        ms: 110
+      - show: [gusts, flow5]
+        ms: 110
+      - show: [gusts, flow6]
+        ms: 110
+      - show: [gusts, flow7]
+        ms: 110
+      - show: [gusts, flow8]
+        ms: 110
+      - show: [gusts, flow9]
+        ms: 110

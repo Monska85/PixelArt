@@ -67,35 +67,37 @@ sprites:
       glow_d: [[5, 11], [5, 13], [6, 13]]
 
 timeline:
-  - show: [moon, stars_b, tent]
-    ms: 200
-  - show: [moon, stars_b, tent]
-    ms: 200
-  - show: [moon, stars_b, tent]
-    ms: 200
-  - show: [moon, stars_a, tent]
-    ms: 200
-  - show: [moon, stars_a, tent, glow_b]
-    ms: 200
-  - show: [moon, stars_a, tent, glow_a]
-    ms: 200
-  - show: [moon, stars_b, tent, glow_b]
-    ms: 200
-  - show: [moon, stars_b, tent, glow_a]
-    ms: 200
-  - show: [moon, stars_b, tent, glow_b]
-    ms: 200
-  - show: [moon, stars_a, tent, glow_a]
-    ms: 200
-  - show: [moon, stars_a, tent, glow_b]
-    ms: 200
-  - show: [moon, stars_a, tent, glow_a]
-    ms: 200
-  - show: [moon, stars_b, tent, glow_b]
-    ms: 200
-  - show: [moon, stars_b, tent, glow_a]
-    ms: 200
-  - show: [moon, stars_b, tent, glow_b]
-    ms: 200
-  - show: [moon, stars_a, tent, glow_a]
-    ms: 200
+  - loop: 2
+    steps:
+      - show: [moon, stars_b, tent]
+        ms: 200
+      - show: [moon, stars_b, tent]
+        ms: 200
+      - show: [moon, stars_b, tent]
+        ms: 200
+      - show: [moon, stars_a, tent]
+        ms: 200
+      - show: [moon, stars_a, tent, glow_b]
+        ms: 200
+      - show: [moon, stars_a, tent, glow_a]
+        ms: 200
+      - show: [moon, stars_b, tent, glow_b]
+        ms: 200
+      - show: [moon, stars_b, tent, glow_a]
+        ms: 200
+      - show: [moon, stars_b, tent, glow_b]
+        ms: 200
+      - show: [moon, stars_a, tent, glow_a]
+        ms: 200
+      - show: [moon, stars_a, tent, glow_b]
+        ms: 200
+      - show: [moon, stars_a, tent, glow_a]
+        ms: 200
+      - show: [moon, stars_b, tent, glow_b]
+        ms: 200
+      - show: [moon, stars_b, tent, glow_a]
+        ms: 200
+      - show: [moon, stars_b, tent, glow_b]
+        ms: 200
+      - show: [moon, stars_a, tent, glow_a]
+        ms: 200

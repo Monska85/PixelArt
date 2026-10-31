@@ -91,35 +91,37 @@ sprites:
       bubble: [[7, 13], [7, 11], [9, 13]]
 
 timeline:
-  - show: [glass, bub0]
-    ms: 170
-  - show: [glass, bub1]
-    ms: 170
-  - show: [glass, bub2]
-    ms: 170
-  - show: [glass, bub3]
-    ms: 170
-  - show: [glass, bub4]
-    ms: 170
-  - show: [glass, bub5]
-    ms: 170
-  - show: [glass, bub6]
-    ms: 170
-  - show: [glass, bub7]
-    ms: 170
-  - show: [glass, bub8]
-    ms: 170
-  - show: [glass, bub9]
-    ms: 170
-  - show: [glass, bub10]
-    ms: 170
-  - show: [glass, bub11]
-    ms: 170
-  - show: [glass, bub12]
-    ms: 170
-  - show: [glass, bub13]
-    ms: 170
-  - show: [glass, bub14]
-    ms: 170
-  - show: [glass, bub15]
-    ms: 170
+  - loop: 2
+    steps:
+      - show: [glass, bub0]
+        ms: 170
+      - show: [glass, bub1]
+        ms: 170
+      - show: [glass, bub2]
+        ms: 170
+      - show: [glass, bub3]
+        ms: 170
+      - show: [glass, bub4]
+        ms: 170
+      - show: [glass, bub5]
+        ms: 170
+      - show: [glass, bub6]
+        ms: 170
+      - show: [glass, bub7]
+        ms: 170
+      - show: [glass, bub8]
+        ms: 170
+      - show: [glass, bub9]
+        ms: 170
+      - show: [glass, bub10]
+        ms: 170
+      - show: [glass, bub11]
+        ms: 170
+      - show: [glass, bub12]
+        ms: 170
+      - show: [glass, bub13]
+        ms: 170
+      - show: [glass, bub14]
+        ms: 170
+      - show: [glass, bub15]
+        ms: 170

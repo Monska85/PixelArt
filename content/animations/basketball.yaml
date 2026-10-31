@@ -42,35 +42,37 @@ sprites:
         ]
 
 timeline:
-  - show: [floor, board, rim, net, { sprite: ball, at: [0, 12] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [1, 9] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [3, 6] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [5, 3] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [7, 1] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [8, 1] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [9, 2] }]
-    ms: 110
-  - show: [floor, board, { sprite: ball, at: [9, 4] }, rim, net]
-    ms: 110
-  - show: [floor, board, { sprite: ball, at: [9, 6] }, rim, net]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [9, 8] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [9, 10] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [9, 12] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [9, 13] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [9, 12] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [9, 13] }]
-    ms: 110
-  - show: [floor, board, rim, net, { sprite: ball, at: [9, 13] }]
-    ms: 1000
+  - loop: 2
+    steps:
+      - show: [floor, board, rim, net, { sprite: ball, at: [0, 12] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [1, 9] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [3, 6] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [5, 3] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [7, 1] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [8, 1] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 2] }]
+        ms: 110
+      - show: [floor, board, { sprite: ball, at: [9, 4] }, rim, net]
+        ms: 110
+      - show: [floor, board, { sprite: ball, at: [9, 6] }, rim, net]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 8] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 10] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 12] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 13] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 12] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 13] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 13] }]
+        ms: 1000

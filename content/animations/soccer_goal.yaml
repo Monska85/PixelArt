@@ -58,37 +58,39 @@ sprites:
       c4: [[4, 9], [0, 2], [8, 10], [7, 9]]
 
 timeline:
-  - show: [grass, goal, { sprite: ball_a, at: [0, 9] }]
-    ms: 800
-  - show: [grass, goal, { sprite: ball_b, at: [0, 9] }]
-    ms: 90
-  - show: [grass, goal, { sprite: ball_a, at: [2, 7] }]
-    ms: 90
-  - show: [grass, goal, { sprite: ball_b, at: [4, 6] }]
-    ms: 90
-  - show: [grass, goal, { sprite: ball_a, at: [6, 5] }]
-    ms: 90
-  - show: [grass, goal, { sprite: ball_b, at: [8, 5] }]
-    ms: 90
-  - show: [grass, goal, { sprite: ball_a, at: [10, 6] }]
-    ms: 90
-  - show: [grass, goal, { sprite: ball_b, at: [12, 7] }]
-    ms: 90
-  - show: [grass, goal, bulge, { sprite: ball_a, at: [12, 8] }]
-    ms: 400
-  - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 0], wrap: true }]
-    ms: 150
-  - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 1], wrap: true }]
-    ms: 150
-  - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 2], wrap: true }]
-    ms: 150
-  - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 3], wrap: true }]
-    ms: 150
-  - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 4], wrap: true }]
-    ms: 150
-  - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 5], wrap: true }]
-    ms: 150
-  - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 6], wrap: true }]
-    ms: 150
-  - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 7], wrap: true }]
-    ms: 150
+  - loop: 2
+    steps:
+      - show: [grass, goal, { sprite: ball_a, at: [0, 9] }]
+        ms: 800
+      - show: [grass, goal, { sprite: ball_b, at: [0, 9] }]
+        ms: 90
+      - show: [grass, goal, { sprite: ball_a, at: [2, 7] }]
+        ms: 90
+      - show: [grass, goal, { sprite: ball_b, at: [4, 6] }]
+        ms: 90
+      - show: [grass, goal, { sprite: ball_a, at: [6, 5] }]
+        ms: 90
+      - show: [grass, goal, { sprite: ball_b, at: [8, 5] }]
+        ms: 90
+      - show: [grass, goal, { sprite: ball_a, at: [10, 6] }]
+        ms: 90
+      - show: [grass, goal, { sprite: ball_b, at: [12, 7] }]
+        ms: 90
+      - show: [grass, goal, bulge, { sprite: ball_a, at: [12, 8] }]
+        ms: 400
+      - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 0], wrap: true }]
+        ms: 150
+      - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 1], wrap: true }]
+        ms: 150
+      - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 2], wrap: true }]
+        ms: 150
+      - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 3], wrap: true }]
+        ms: 150
+      - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 4], wrap: true }]
+        ms: 150
+      - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 5], wrap: true }]
+        ms: 150
+      - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 6], wrap: true }]
+        ms: 150
+      - show: [grass, goal, { sprite: ball_a, at: [12, 9] }, { sprite: confetti, at: [0, 7], wrap: true }]
+        ms: 150

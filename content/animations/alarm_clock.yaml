@@ -41,39 +41,41 @@ sprites:
       ring: [[0, 2], [1, 1], [0, 6], [1, 7], [15, 2], [14, 1], [15, 6], [14, 7]]
 
 timeline:
-  - show: [clock]
-    ms: 1500
-  - show: [{ sprite: clock, at: [-1, 1] }, ring]
-    ms: 70
-  - show: [{ sprite: clock, at: [1, 1] }, ring]
-    ms: 70
-  - show: [{ sprite: clock, at: [-1, 1] }]
-    ms: 70
-  - show: [{ sprite: clock, at: [1, 1] }]
-    ms: 70
-  - show: [{ sprite: clock, at: [-1, 1] }, ring]
-    ms: 70
-  - show: [{ sprite: clock, at: [1, 1] }, ring]
-    ms: 70
-  - show: [{ sprite: clock, at: [-1, 1] }]
-    ms: 70
-  - show: [{ sprite: clock, at: [1, 1] }]
-    ms: 70
-  - show: [{ sprite: clock, at: [-1, 1] }, ring]
-    ms: 70
-  - show: [{ sprite: clock, at: [1, 1] }, ring]
-    ms: 70
-  - show: [{ sprite: clock, at: [-1, 1] }]
-    ms: 70
-  - show: [{ sprite: clock, at: [1, 1] }]
-    ms: 70
-  - show: [{ sprite: clock, at: [-1, 1] }, ring]
-    ms: 70
-  - show: [{ sprite: clock, at: [1, 1] }, ring]
-    ms: 70
-  - show: [{ sprite: clock, at: [-1, 1] }]
-    ms: 70
-  - show: [{ sprite: clock, at: [1, 1] }]
-    ms: 70
-  - show: [clock]
-    ms: 1200
+  - loop: 2
+    steps:
+      - show: [clock]
+        ms: 1500
+      - show: [{ sprite: clock, at: [-1, 1] }, ring]
+        ms: 70
+      - show: [{ sprite: clock, at: [1, 1] }, ring]
+        ms: 70
+      - show: [{ sprite: clock, at: [-1, 1] }]
+        ms: 70
+      - show: [{ sprite: clock, at: [1, 1] }]
+        ms: 70
+      - show: [{ sprite: clock, at: [-1, 1] }, ring]
+        ms: 70
+      - show: [{ sprite: clock, at: [1, 1] }, ring]
+        ms: 70
+      - show: [{ sprite: clock, at: [-1, 1] }]
+        ms: 70
+      - show: [{ sprite: clock, at: [1, 1] }]
+        ms: 70
+      - show: [{ sprite: clock, at: [-1, 1] }, ring]
+        ms: 70
+      - show: [{ sprite: clock, at: [1, 1] }, ring]
+        ms: 70
+      - show: [{ sprite: clock, at: [-1, 1] }]
+        ms: 70
+      - show: [{ sprite: clock, at: [1, 1] }]
+        ms: 70
+      - show: [{ sprite: clock, at: [-1, 1] }, ring]
+        ms: 70
+      - show: [{ sprite: clock, at: [1, 1] }, ring]
+        ms: 70
+      - show: [{ sprite: clock, at: [-1, 1] }]
+        ms: 70
+      - show: [{ sprite: clock, at: [1, 1] }]
+        ms: 70
+      - show: [clock]
+        ms: 1200

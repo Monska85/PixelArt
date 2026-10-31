@@ -89,27 +89,29 @@ sprites:
       mini: [[1, 3], [14, 7], [13, 8], [14, 8], [13, 9]]
 
 timeline:
-  - show: [glow, big, mini0]
-    ms: 140
-  - show: [small, mini1]
-    ms: 110
-  - show: [big, mini2]
-    ms: 140
-  - show: [small, mini3]
-    ms: 500
-  - show: [glow, big, mini4]
-    ms: 140
-  - show: [small, mini5]
-    ms: 110
-  - show: [big, mini6]
-    ms: 140
-  - show: [small, mini7]
-    ms: 500
-  - show: [glow, big, mini8]
-    ms: 140
-  - show: [small, mini9]
-    ms: 110
-  - show: [big, mini10]
-    ms: 140
-  - show: [small, mini11]
-    ms: 500
+  - loop: 2
+    steps:
+      - show: [glow, big, mini0]
+        ms: 140
+      - show: [small, mini1]
+        ms: 110
+      - show: [big, mini2]
+        ms: 140
+      - show: [small, mini3]
+        ms: 500
+      - show: [glow, big, mini4]
+        ms: 140
+      - show: [small, mini5]
+        ms: 110
+      - show: [big, mini6]
+        ms: 140
+      - show: [small, mini7]
+        ms: 500
+      - show: [glow, big, mini8]
+        ms: 140
+      - show: [small, mini9]
+        ms: 110
+      - show: [big, mini10]
+        ms: 140
+      - show: [small, mini11]
+        ms: 500

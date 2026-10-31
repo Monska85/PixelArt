@@ -57,30 +57,32 @@ sprites:
         ]
 
 timeline:
-  - show: [mic]
-    ms: 600
-    recolor: { onair: onair_off }
-  - show: [mic, wave0]
-    ms: 160
-  - show: [mic, wave0, wave1]
-    ms: 160
-  - show: [mic, wave0, wave1, wave2]
-    ms: 160
-  - show: [mic]
-    ms: 160
-  - show: [mic, wave0]
-    ms: 160
-  - show: [mic, wave0, wave1]
-    ms: 160
-  - show: [mic, wave0, wave1, wave2]
-    ms: 160
-  - show: [mic]
-    ms: 160
-  - show: [mic, wave0]
-    ms: 160
-  - show: [mic, wave0, wave1]
-    ms: 160
-  - show: [mic, wave0, wave1, wave2]
-    ms: 160
-  - show: [mic]
-    ms: 160
+  - loop: 2
+    steps:
+      - show: [mic]
+        ms: 600
+        recolor: { onair: onair_off }
+      - show: [mic, wave0]
+        ms: 160
+      - show: [mic, wave0, wave1]
+        ms: 160
+      - show: [mic, wave0, wave1, wave2]
+        ms: 160
+      - show: [mic]
+        ms: 160
+      - show: [mic, wave0]
+        ms: 160
+      - show: [mic, wave0, wave1]
+        ms: 160
+      - show: [mic, wave0, wave1, wave2]
+        ms: 160
+      - show: [mic]
+        ms: 160
+      - show: [mic, wave0]
+        ms: 160
+      - show: [mic, wave0, wave1]
+        ms: 160
+      - show: [mic, wave0, wave1, wave2]
+        ms: 160
+      - show: [mic]
+        ms: 160

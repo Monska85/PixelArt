@@ -106,37 +106,39 @@ sprites:
       spout_l: [[6, 1], [7, 2], [8, 4]]
 
 timeline:
-  - show: [{ sprite: whale, at: [0, 0] }, sea0]
-    ms: 200
-  - show: [{ sprite: whale, at: [0, 0] }, sea1]
-    ms: 200
-  - show: [{ sprite: whale, at: [0, 0] }, sea2]
-    ms: 200
-  - show: [{ sprite: whale, at: [0, 0] }, sea3]
-    ms: 200
-  - show: [{ sprite: whale, at: [0, 1] }, sea0]
-    ms: 200
-  - show: [{ sprite: whale, at: [0, 1] }, sea1]
-    ms: 200
-  - show: [{ sprite: whale, at: [0, 1] }, sea2]
-    ms: 200
-  - show: [{ sprite: whale, at: [0, 1] }, sea3]
-    ms: 200
-  - show: [spout1, whale, sea1]
-    ms: 150
-  - show: [spout2, whale, sea2]
-    ms: 150
-  - show: [spout3, whale, sea3]
-    ms: 150
-  - show: [spout4, whale, sea0]
-    ms: 150
-  - show: [spout5, whale, sea1]
-    ms: 150
-  - show: [spout4, whale, sea0]
-    ms: 150
-  - show: [spout5, whale, sea1]
-    ms: 150
-  - show: [spout4, whale, sea2]
-    ms: 150
-  - show: [spout5, whale, sea3]
-    ms: 150
+  - loop: 2
+    steps:
+      - show: [{ sprite: whale, at: [0, 0] }, sea0]
+        ms: 200
+      - show: [{ sprite: whale, at: [0, 0] }, sea1]
+        ms: 200
+      - show: [{ sprite: whale, at: [0, 0] }, sea2]
+        ms: 200
+      - show: [{ sprite: whale, at: [0, 0] }, sea3]
+        ms: 200
+      - show: [{ sprite: whale, at: [0, 1] }, sea0]
+        ms: 200
+      - show: [{ sprite: whale, at: [0, 1] }, sea1]
+        ms: 200
+      - show: [{ sprite: whale, at: [0, 1] }, sea2]
+        ms: 200
+      - show: [{ sprite: whale, at: [0, 1] }, sea3]
+        ms: 200
+      - show: [spout1, whale, sea1]
+        ms: 150
+      - show: [spout2, whale, sea2]
+        ms: 150
+      - show: [spout3, whale, sea3]
+        ms: 150
+      - show: [spout4, whale, sea0]
+        ms: 150
+      - show: [spout5, whale, sea1]
+        ms: 150
+      - show: [spout4, whale, sea0]
+        ms: 150
+      - show: [spout5, whale, sea1]
+        ms: 150
+      - show: [spout4, whale, sea2]
+        ms: 150
+      - show: [spout5, whale, sea3]
+        ms: 150
