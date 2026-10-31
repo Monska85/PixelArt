@@ -578,3 +578,7 @@ CI runs these on every pull request and on `main`, see [Continuous integration](
 - Connecting over WiFi is expected to work in Chromium browsers only; a browser test confirms it once the project's Pages site is live.
 - No import of GIF or PNG images.
 - Older firmware releases are installed from their GitHub Release with `esptool`, not from the web app.
+
+## Format 2 schedules
+
+The Library treats format 1 and format 2 copies with one ID as one schedule choice. Installation sends both copies to supporting firmware; a board that does not advertise `schedule_v2` receives only the format 1 copy. My choice shows a format 2 schedule only on supporting firmware and labels the choice timed when it has daily windows, otherwise all day. Automatic retains the schedule ID in the play file: new firmware tries its format 2 copy first, then format 1, while older firmware uses format 1. The app's schedule preview uses the board's configured time zone for its local minute and shows the active list and next change. `status.play.playlists` remains the authoritative report of what the board is playing. Uploading a format 2 file to firmware that lacks support is refused with an update explanation.

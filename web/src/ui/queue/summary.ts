@@ -12,11 +12,17 @@ import { BUSY_MESSAGE } from "../upload";
 
 type Verb = "Uploaded" | "Installed";
 
-const KIND_NAMES = { animation: "animation", playlist: "playlist", schedule: "schedule", play: "play file" } as const;
+const KIND_NAMES = {
+  animation: "animation",
+  playlist: "playlist",
+  schedule: "schedule",
+  schedule_v2: "timed schedule",
+  play: "play file",
+} as const;
 
 /** "3 animations", "1 playlist", "2 animations and 1 playlist", "2 animations, 1 playlist and 1 play file". */
 function describeCounts(files: QueueFile[]): string {
-  const parts = (["animation", "playlist", "schedule", "play"] as const)
+  const parts = (["animation", "playlist", "schedule", "schedule_v2", "play"] as const)
     .map((kind) => [kind, files.filter((f) => f.kind === kind).length] as const)
     .filter(([, n]) => n > 0)
     .map(([kind, n]) => plural(n, KIND_NAMES[kind]));

@@ -4,7 +4,7 @@
 // components so they can be tested.
 
 import type { LocalDate, Schedule, ScheduleEnd, ScheduleEntry, ServerChoice } from "../../engine";
-import { DEFAULT_PLAYLIST_ID, DEFAULT_SCHEDULE_ID, MAX_SCHEDULE_PLAYLISTS } from "../../engine";
+import { DEFAULT_PLAYLIST_ID, DEFAULT_SCHEDULE_ID, MAX_SCHEDULE_PLAYLISTS, playlistsAt } from "../../engine";
 import type { PlayStatus } from "../../protocol";
 import { parseHours } from "./hours";
 
@@ -132,10 +132,10 @@ export function describePlay(play: PlayStatus, schedule: Schedule | null): strin
  * What plays today by the stored schedule, for when the board does not say: `todayEntry` is the entry that wins
  * today, or -1 for the fallback.
  */
-export function describeToday(schedule: Schedule, todayEntry: number): string {
+export function describeToday(schedule: Schedule, todayEntry: number, minute?: number): string {
   const entry = todayEntry >= 0 ? schedule.entries[todayEntry] : undefined;
   const who = entry ? entryLabel(entry, todayEntry) : "The fallback";
-  return `${who} plays today: ${playlistList(entry ? entry.playlists : schedule.fallback)}.`;
+  return `${who} plays ${minute === undefined ? "today" : "now"}: ${playlistList(entry ? (minute === undefined ? entry.playlists : playlistsAt(schedule, todayEntry, minute)) : schedule.fallback)}.`;
 }
 
 /** The rule of a time server: a host name or an IPv4 address (docs/protocol/protocol-v1.md#settings_get-settings_set). */

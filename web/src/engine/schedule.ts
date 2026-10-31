@@ -44,9 +44,11 @@ export interface ScheduleEntry {
   from: ScheduleEnd;
   to: ScheduleEnd;
   playlists: string[];
+  hours?: { from: string; to: string; playlists: string[] }[];
 }
 
 export interface Schedule {
+  format?: "pixelart-schedule/1" | "pixelart-schedule/2";
   name: string | null;
   fallback: string[];
   entries: ScheduleEntry[];
@@ -249,14 +251,42 @@ function checkDates(error: ErrorSink, parts: number, from: ScheduleEnd, to: Sche
 }
 
 // An entry of the file, or null when it is refused or its playlists are.
-function readEntry(error: ErrorSink, value: JsonValue, where: string): ScheduleEntry | null {
+function readEntry(error: ErrorSink, value: JsonValue, where: string, v2: boolean): ScheduleEntry | null {
   if (!isObject(value)) {
     error("structure", where, "must be an object with from, to and playlists");
     return null;
   }
   for (const key of value.keys())
-    if (!["name", "from", "to", "playlists"].includes(key))
+    if (!["name", "from", "to", "playlists", ...(v2 ? ["hours"] : [])].includes(key))
       error("structure", `${where}.${key}`, `unknown field "${key}"`);
+  let hours: ScheduleEntry["hours"];
+  if (v2 && value.has("hours")) {
+    const raw = value.get("hours");
+    if (!isArray(raw)) error("structure", `${where}.hours`, "must be a list");
+    else {
+      if (raw.length > 8) error("limit_exceeded", `${where}.hours`, "more than 8 windows");
+      hours = [];
+      for (const [i, item] of raw.entries()) {
+        const at = `${where}.hours[${i}]`;
+        if (!isObject(item)) {
+          error("structure", at, "must be an object");
+          continue;
+        }
+        for (const key of item.keys())
+          if (!["from", "to", "playlists"].includes(key)) error("structure", `${at}.${key}`, "unknown field");
+        const from = item.get("from"),
+          to = item.get("to");
+        const start = typeof from === "string" ? parseHour(from) : null;
+        const end = typeof to === "string" ? parseHour(to, true) : null;
+        if (start === null || end === null) error("structure", at, "from and to must be HH:MM daily boundaries");
+        else if (start >= end || hours.some((w) => start < parseHour(w.to, true)! && parseHour(w.from)! < end))
+          error("invalid_time", at, "daily windows overlap or are empty");
+        const windowPlaylists = readPlaylists(error, item.get("playlists"), `${at}.playlists`);
+        if (start !== null && end !== null && windowPlaylists)
+          hours.push({ from: from as string, to: to as string, playlists: windowPlaylists });
+      }
+    }
+  }
   const name = readName(error, value.get("name"), `${where}.name`);
   const playlists = readPlaylists(error, value.get("playlists"), `${where}.playlists`);
   const range = { valid: true };
@@ -269,11 +299,26 @@ function readEntry(error: ErrorSink, value: JsonValue, where: string): ScheduleE
   }
   if (!range.valid) return null;
   checkDates(error, fromEnd.parts, fromEnd.end, toEnd.end, where);
-  return playlists ? { name, from: fromEnd.end, to: toEnd.end, playlists } : null;
+  return playlists ? { name, from: fromEnd.end, to: toEnd.end, playlists, ...(hours ? { hours } : {}) } : null;
 }
 
-/** Parses and validates a pixelart-schedule/1 file. */
-export function loadSchedule(bytes: Uint8Array): ScheduleResult {
+export function parseHour(text: string, end = false): number | null {
+  if (end && text === "24:00") return 1440;
+  if (!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(text)) return null;
+  return Number(text.slice(0, 2)) * 60 + Number(text.slice(3));
+}
+
+export function playlistsAt(schedule: Schedule, entry: number, minute: number): string[] {
+  const selected = schedule.entries[entry]!;
+  const window = selected.hours?.find((w) => parseHour(w.from)! <= minute && minute < parseHour(w.to, true)!);
+  return window?.playlists ?? selected.playlists;
+}
+
+/** Parses and validates either schedule format, or one required format when specified. */
+export function loadSchedule(
+  bytes: Uint8Array,
+  expectedFormat?: "pixelart-schedule/1" | "pixelart-schedule/2",
+): ScheduleResult {
   const diagnostics: Diagnostic[] = [];
   let ok = true;
   // Keeps at most MAX_DIAGNOSTICS entries, like the animation and playlist loaders.
@@ -294,7 +339,11 @@ export function loadSchedule(bytes: Uint8Array): ScheduleResult {
   }
   const root: JsonValue = parsed.value;
   const format = isObject(root) ? root.get("format") : undefined;
-  if (!isObject(root) || format !== "pixelart-schedule/1") {
+  if (
+    !isObject(root) ||
+    (format !== "pixelart-schedule/1" && format !== "pixelart-schedule/2") ||
+    (expectedFormat !== undefined && format !== expectedFormat)
+  ) {
     error("format_unsupported", "format", `unsupported format "${typeof format === "string" ? format : ""}"`);
     return rejected();
   }
@@ -312,12 +361,14 @@ export function loadSchedule(bytes: Uint8Array): ScheduleResult {
       error("limit_exceeded", "entries", `more than ${MAX_SCHEDULE_ENTRIES} entries`);
     else
       list.forEach((value, i) => {
-        const entry = readEntry(error, value, `entries[${i}]`);
+        const entry = readEntry(error, value, `entries[${i}]`, format === "pixelart-schedule/2");
         if (entry) entries.push(entry);
       });
   }
+  if (entries.reduce((count, entry) => count + (entry.hours?.length ?? 0), 0) > 64)
+    error("limit_exceeded", "entries", "more than 64 daily windows");
   if (!ok || !fallback) return rejected();
-  return { schedule: { name, fallback, entries }, diagnostics };
+  return { schedule: { format, name, fallback, entries }, diagnostics };
 }
 
 /**
@@ -442,6 +493,7 @@ export interface PlayInputs {
   schedules: ReadonlyMap<string, Schedule>;
   /** The local date, or null while the time is not known. */
   date: LocalDate | null;
+  minute?: number | null;
   /** Whether the board can play a playlist. */
   playable: (id: string) => boolean;
 }
@@ -457,6 +509,7 @@ export function choosePlaylists({
   serverChoice,
   schedules,
   date,
+  minute,
   playable,
 }: PlayInputs): PlayChoice {
   const choice = (
@@ -477,10 +530,18 @@ export function choosePlaylists({
   const fromSchedule = (source: PlaySource, id: string, valid: Schedule): PlayChoice => {
     let reason: PlayReason = "no_time";
     let entry: number | null = null;
-    if (date) {
+    if (date && (minute != null || !valid.entries.some((e) => e.hours?.length))) {
       const winner = scheduleWinner(valid, date);
       if (winner >= 0) {
-        const chosen = choice(source, id, valid.entries[winner]!.playlists, "schedule", winner);
+        const chosen = choice(
+          source,
+          id,
+          minute === undefined || minute === null
+            ? valid.entries[winner]!.playlists
+            : playlistsAt(valid, winner, minute),
+          "schedule",
+          winner,
+        );
         if (chosen.playing !== null) return chosen;
         // Every playlist of the winning entry is skipped: entry still names it.
         entry = winner;
@@ -546,6 +607,36 @@ export function nextScheduleChange(
     const next = scheduledFor(schedule, date);
     if (next.playlists.join(",") !== now)
       return { date, entry: next.entry >= 0 ? next.entry : null, playlists: next.playlists };
+  }
+  return null;
+}
+
+/** First changed list at a local minute boundary or midnight, within the same 366-day horizon. */
+export function nextTimedChange(
+  schedule: Schedule,
+  today: LocalDate,
+  minute: number,
+): { date: LocalDate; minute: number; entry: number | null; playlists: string[] } | null {
+  const at = (date: LocalDate, time: number) => {
+    const entry = scheduleWinner(schedule, date);
+    return { entry, playlists: entry < 0 ? schedule.fallback : playlistsAt(schedule, entry, time) };
+  };
+  const current = at(today, minute).playlists.join(",");
+  let date = today;
+  for (let day = 0; day <= NEXT_CHANGE_DAYS; day++) {
+    if (date.year > MAX_SCHEDULE_YEAR) return null;
+    const entry = scheduleWinner(schedule, date);
+    const boundaries =
+      entry < 0
+        ? []
+        : (schedule.entries[entry]!.hours?.flatMap((w) => [parseHour(w.from)!, parseHour(w.to, true)!]) ?? []);
+    for (const boundary of [...new Set([0, ...boundaries])].sort((a, b) => a - b)) {
+      if (boundary >= 1440 || (day === 0 && boundary <= minute)) continue;
+      const next = at(date, boundary);
+      if (next.playlists.join(",") !== current)
+        return { date, minute: boundary, entry: next.entry < 0 ? null : next.entry, playlists: next.playlists };
+    }
+    date = nextDay(date);
   }
   return null;
 }

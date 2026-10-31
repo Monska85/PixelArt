@@ -166,3 +166,23 @@ export function localDateIn(zone: string | null, now: Date = new Date()): LocalD
   }
   return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
 }
+
+/** The local minute of the day in the same zone used for the schedule date. */
+export function localMinuteIn(zone: string | null, now: Date = new Date()): number {
+  try {
+    if (zone !== null) {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: zone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).formatToParts(now);
+      const hour = Number(parts.find((p) => p.type === "hour")?.value);
+      const minute = Number(parts.find((p) => p.type === "minute")?.value);
+      if (Number.isInteger(hour) && Number.isInteger(minute)) return hour * 60 + minute;
+    }
+  } catch {
+    // Fall back to the browser's zone when it does not recognize the configured zone.
+  }
+  return now.getHours() * 60 + now.getMinutes();
+}

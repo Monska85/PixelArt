@@ -38,6 +38,7 @@ interface Props {
   playlists: ReadonlyMap<string, string | null> | null;
   /** The stored schedules, or null while they are not known. */
   schedules: Entry[] | null;
+  schedulesV2?: Entry[] | null;
   /** `status.play`, or null while it is not known or on a firmware without it. */
   play: PlayStatus | null;
   /**
@@ -64,6 +65,7 @@ export function SettingsPanel({
   settings,
   playlists,
   schedules,
+  schedulesV2,
   play,
   whatToPlay,
   active,
@@ -156,6 +158,7 @@ export function SettingsPanel({
             settings={settings}
             playlists={playlists}
             schedules={schedules}
+            schedulesV2={schedulesV2}
             play={play}
             disabled={disabled}
             change={change}

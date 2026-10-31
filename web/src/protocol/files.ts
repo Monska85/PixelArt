@@ -193,6 +193,7 @@ interface DeleteAllResult {
   play: number | null;
   /** Null for a firmware older than schedules, which leaves the count out. */
   schedules: number | null;
+  schedules_v2: number | null;
   playlists: number;
   animations: number;
   /** The settings after the reset, when the settings were reset. */
@@ -213,12 +214,14 @@ export async function deleteAll(client: BoardClient, { resetSettings = false } =
     !isCount(reply.playlists) ||
     !isCount(reply.animations) ||
     (reply.schedules !== undefined && !isCount(reply.schedules)) ||
+    (reply.schedules_v2 !== undefined && !isCount(reply.schedules_v2)) ||
     (reply.play !== undefined && !isCount(reply.play))
   )
     throw new BoardError("protocol", "the board sent invalid counts for delete_all");
   const removed = {
     play: isCount(reply.play) ? reply.play : null,
     schedules: isCount(reply.schedules) ? reply.schedules : null,
+    schedules_v2: isCount(reply.schedules_v2) ? reply.schedules_v2 : null,
     playlists: reply.playlists,
     animations: reply.animations,
   };

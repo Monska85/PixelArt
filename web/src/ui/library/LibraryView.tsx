@@ -65,7 +65,13 @@ function Connected({ manifest, client, blocked }: ConnectedProps) {
   return (
     <Library
       manifest={manifest}
-      board={{ client, animations: data.animations, playlists: data.playlists, schedules: data.schedules }}
+      board={{
+        client,
+        animations: data.animations,
+        playlists: data.playlists,
+        schedules: data.schedules,
+        schedulesV2: data.schedulesV2,
+      }}
       blocked={blocked}
       errors={errors}
       onError={report}
@@ -80,6 +86,7 @@ interface LibraryBoard {
   animations: BoardFileList;
   playlists: BoardFileList;
   schedules: BoardFileList;
+  schedulesV2: BoardFileList;
 }
 
 interface LibraryProps {
@@ -113,7 +120,14 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
   const { uploadsBlocked, info } = useSession();
   // Everything brings the published schedules too, to a board that knows them: an older one answers invalid_kind.
   const schedulesSupported = board === null || supportsSchedules(info);
-  const installableSchedules = board !== null && schedulesSupported ? manifest.schedules.length : 0;
+  const v2Supported = board === null || !!info?.formats.schedule_v2;
+  const scheduleRows = [
+    ...new Map([
+      ...manifest.schedules.map((entry) => [entry.id, entry] as const),
+      ...(v2Supported ? (manifest.schedules_v2 ?? []).map((entry) => [entry.id, entry] as const) : []),
+    ]).values(),
+  ];
+  const installableSchedules = board !== null && schedulesSupported ? scheduleRows.length : 0;
   const [list, setList] = useState<ListKind>("animation");
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewing, setPreviewing] = useState<string | null>(null);
@@ -125,9 +139,11 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
   });
 
   const stored = (kind: PublishedKind): Entry[] | null => {
-    if (board === null || (kind === "schedule" && !schedulesSupported)) return null;
+    if (board === null || (kind === "schedule" && !schedulesSupported) || (kind === "schedule_v2" && !v2Supported))
+      return null;
     if (kind === "animation") return entriesOf(board.animations);
     if (kind === "playlist") return entriesOf(board.playlists);
+    if (kind === "schedule_v2") return entriesOf(board.schedulesV2);
     return entriesOf(board.schedules);
   };
 
@@ -135,10 +151,20 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
     animation: manifest.animations,
     playlist: manifest.playlists,
     schedule: manifest.schedules,
+    schedule_v2: manifest.schedules_v2 ?? [],
     play: manifest.play,
   };
   const everything = (kinds: PublishedKind[]): Array<{ kind: PublishedKind; entry: Published }> =>
-    kinds.flatMap((kind) => published[kind].map((entry) => ({ kind, entry })));
+    kinds.flatMap<{ kind: PublishedKind; entry: Published }>((kind) =>
+      kind === "schedule"
+        ? [
+            ...manifest.schedules.map((entry) => ({ kind: "schedule" as const, entry })),
+            ...(v2Supported
+              ? (manifest.schedules_v2 ?? []).map((entry) => ({ kind: "schedule_v2" as const, entry }))
+              : []),
+          ]
+        : published[kind].map((entry) => ({ kind, entry })),
+    );
 
   async function showPreview(entry: Published): Promise<void> {
     setPreviewing(entry.id);
@@ -181,7 +207,11 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
         </EmptyList>
       );
     const rows: FileRowData[] = entries.map((entry) => {
-      const state = libraryState(entry, stored(kind));
+      const actualKind: PublishedKind =
+        kind === "schedule" && (manifest.schedules_v2 ?? []).includes(entry) ? "schedule_v2" : kind;
+      const state = libraryState(entry, stored(actualKind));
+      const legacy = kind === "schedule" ? manifest.schedules.find((v) => v.id === entry.id) : undefined;
+      const legacyNeedsInstall = !!legacy && v2Supported && libraryState(legacy, stored("schedule")) !== "same";
       return {
         key: entry.id,
         id: entry.id,
@@ -198,15 +228,36 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
                 installReason ??
                 (kind === "schedule" && !schedulesSupported
                   ? "Update the board's firmware to install schedules"
-                  : state === "same"
+                  : state === "same" && !legacyNeedsInstall
                     ? "The board has this file"
                     : kind === "playlist"
                       ? "Install with its animations"
                       : "Install on the board")
               }
               icon={Download}
-              disabled={installDisabled || state === "same" || (kind === "schedule" && !schedulesSupported)}
-              onClick={() => board && void queue.install([{ kind, entry }], manifest)}
+              disabled={
+                installDisabled ||
+                (state === "same" && !legacyNeedsInstall) ||
+                (kind === "schedule" && !schedulesSupported)
+              }
+              onClick={() =>
+                board &&
+                void queue.install(
+                  kind === "schedule"
+                    ? [
+                        ...manifest.schedules
+                          .filter((v) => v.id === entry.id)
+                          .map((v) => ({ kind: "schedule" as const, entry: v })),
+                        ...(v2Supported
+                          ? (manifest.schedules_v2 ?? [])
+                              .filter((v) => v.id === entry.id)
+                              .map((v) => ({ kind: "schedule_v2" as const, entry: v }))
+                          : []),
+                      ]
+                    : [{ kind, entry }],
+                  manifest,
+                )
+              }
             />
             {kind === "animation" && (
               <IconButton
@@ -277,7 +328,7 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
           animations={{ count: manifest.animations.length, content: table("animation", manifest.animations) }}
           playlists={{ count: manifest.playlists.length, content: table("playlist", manifest.playlists) }}
           schedules={{
-            count: manifest.schedules.length,
+            count: scheduleRows.length,
             content: (
               <>
                 {board && !schedulesSupported && manifest.schedules.length > 0 && (
@@ -286,7 +337,7 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
                     <FirmwareLink />
                   </p>
                 )}
-                {table("schedule", manifest.schedules)}
+                {table("schedule", scheduleRows)}
               </>
             ),
           }}
@@ -299,7 +350,7 @@ function Library({ manifest, board, blocked, errors = [], onError, onDismiss }: 
 
 /** Says why the state column is empty: the board's lists are being read, or could not be. */
 function BoardListsNote({ lists }: { lists: LibraryBoard }) {
-  const statuses = [lists.animations, lists.playlists, lists.schedules];
+  const statuses = [lists.animations, lists.playlists, lists.schedules, lists.schedulesV2];
   if (statuses.some((l) => l.status === "unknown")) return <ListUnreadable />;
   if (statuses.some((l) => l.status === "loading")) return <LoadingNote>Reading the board...</LoadingNote>;
   return null;
