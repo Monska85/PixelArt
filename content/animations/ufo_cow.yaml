@@ -1,0 +1,155 @@
+format: pixelart/1
+name: UFO and Cow
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  dome: "#7fe0ff"
+  dome_shine: "#e0f8ff"
+  alien: "#5aff6a"
+  alien_eye: "#000000"
+  hull: "#a0a8b8"
+  under: "#5a6070"
+  l1: "#ffe14a"
+  l2: "#ff4a8a"
+  l3: "#4aff8a"
+  dim: "#3a3a30"
+  beam_a: "#3a5a20"
+  beam_b: "#5a7a30"
+  cow_w: "#f5f5f5"
+  cow_k: "#202020"
+  snout: "#ff9ab0"
+  grass: "#3fa34d"
+  grass_d: "#2b7a37"
+  star: "#8090c0"
+
+sprites:
+  ufo:
+    points:
+      dome_shine: [[4, 0]]
+      dome: [[5, 0], [6, 0], [7, 0], [3, 1], [4, 1], [7, 1], [8, 1], [2, 2], [3, 2], [8, 2], [9, 2]]
+      alien: [[5, 1], [6, 1], [4, 2], [6, 2]]
+      alien_eye: [[5, 2], [7, 2]]
+      hull: [
+          [1, 3], [2, 3], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [0, 4], [2, 4],
+          [3, 4], [5, 4], [6, 4], [8, 4], [9, 4], [11, 4]
+        ]
+      l1: [[1, 4], [10, 4]]
+      l2: [[4, 4]]
+      l3: [[7, 4]]
+      under: [[1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5]]
+  cow_a:
+    points:
+      cow_k: [[6, 0], [9, 0], [0, 1], [3, 1], [4, 1], [2, 2], [3, 2], [4, 2], [7, 2], [5, 4], [6, 4]]
+      cow_w: [
+          [7, 0], [8, 0], [1, 1], [2, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [1, 2], [5, 2], [6, 2],
+          [8, 2], [9, 2], [1, 3], [2, 3], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [1, 4], [2, 4], [3, 4],
+          [4, 4], [7, 4], [1, 5], [3, 5], [5, 5], [7, 5]
+        ]
+      snout: [[8, 3], [9, 3]]
+  cow_b:
+    points:
+      cow_k: [[6, 0], [9, 0], [0, 1], [3, 1], [4, 1], [2, 2], [3, 2], [4, 2], [7, 2], [5, 4], [6, 4]]
+      cow_w: [
+          [7, 0], [8, 0], [1, 1], [2, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [1, 2], [5, 2], [6, 2],
+          [8, 2], [9, 2], [1, 3], [2, 3], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [1, 4], [2, 4], [3, 4],
+          [4, 4], [7, 4], [0, 5], [3, 5], [6, 5], [8, 5]
+        ]
+      snout: [[8, 3], [9, 3]]
+  grass:
+    points:
+      grass: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+      grass_d: [[1, 14], [5, 14], [12, 14], [14, 14]]
+  stars:
+    points:
+      star: [[1, 1], [14, 2], [10, 0], [2, 8], [15, 9]]
+  beam:
+    points:
+      beam_a: [
+          [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9],
+          [10, 9], [11, 9], [3, 11], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11],
+          [11, 11], [12, 11], [2, 13], [3, 13], [4, 13], [5, 13], [6, 13], [7, 13], [8, 13], [9, 13],
+          [10, 13], [11, 13], [12, 13], [13, 13]
+        ]
+      beam_b: [
+          [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10],
+          [9, 10], [10, 10], [11, 10], [3, 12], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12],
+          [10, 12], [11, 12], [12, 12], [2, 14], [3, 14], [4, 14], [5, 14], [6, 14], [7, 14], [8, 14],
+          [9, 14], [10, 14], [11, 14], [12, 14], [13, 14]
+        ]
+
+timeline:
+  - show: [stars, grass, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [-12, 1] }]
+    ms: 140
+    recolor: { l2: dim, l3: dim }
+  - show: [stars, grass, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [-9, 1] }]
+    ms: 140
+    recolor: { l1: dim, l3: dim }
+  - show: [stars, grass, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [-6, 1] }]
+    ms: 140
+    recolor: { l1: dim, l2: dim }
+  - show: [stars, grass, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [-3, 1] }]
+    ms: 140
+    recolor: { l2: dim, l3: dim }
+  - show: [stars, grass, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [0, 1] }]
+    ms: 140
+    recolor: { l1: dim, l3: dim }
+  - show: [stars, grass, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [2, 1] }]
+    ms: 140
+    recolor: { l1: dim, l2: dim }
+  - show: [stars, grass, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l2: dim, l3: dim }
+  - show: [stars, grass, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l1: dim, l3: dim }
+  - show: [stars, grass, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l1: dim, l2: dim }
+  - show: [stars, grass, beam, { sprite: cow_a, at: [3, 9] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l2: dim, l3: dim }
+  - show: [stars, grass, beam, { sprite: cow_b, at: [3, 9] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l1: dim, l3: dim, beam_a: beam_b, beam_b: beam_a }
+  - show: [stars, grass, beam, { sprite: cow_a, at: [3, 8] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l1: dim, l2: dim }
+  - show: [stars, grass, beam, { sprite: cow_b, at: [3, 7] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l2: dim, l3: dim, beam_a: beam_b, beam_b: beam_a }
+  - show: [stars, grass, beam, { sprite: cow_a, at: [3, 6] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l1: dim, l3: dim }
+  - show: [stars, grass, beam, { sprite: cow_b, at: [3, 5] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l1: dim, l2: dim, beam_a: beam_b, beam_b: beam_a }
+  - show: [stars, grass, beam, { sprite: cow_a, at: [3, 4] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l2: dim, l3: dim }
+  - show: [stars, grass, beam, { sprite: cow_b, at: [3, 3] }, { sprite: ufo, at: [2, 1] }]
+    ms: 260
+    recolor: { l1: dim, l3: dim, beam_a: beam_b, beam_b: beam_a }
+  - show: [stars, grass, beam, { sprite: ufo, at: [2, 1] }]
+    ms: 400
+    recolor: { l1: dim, l2: dim }
+  - show: [stars, grass, { sprite: ufo, at: [2, 1] }]
+    ms: 500
+    recolor: { l2: dim, l3: dim }
+  - show: [stars, grass, { sprite: ufo, at: [4, 0] }]
+    ms: 100
+    recolor: { l1: dim, l3: dim }
+  - show: [stars, grass, { sprite: ufo, at: [7, -1] }]
+    ms: 100
+    recolor: { l1: dim, l2: dim }
+  - show: [stars, grass, { sprite: ufo, at: [11, -2] }]
+    ms: 100
+    recolor: { l2: dim, l3: dim }
+  - show: [stars, grass, { sprite: ufo, at: [16, -3] }]
+    ms: 100
+    recolor: { l1: dim, l3: dim }
+  - show: [stars, grass]
+    ms: 900

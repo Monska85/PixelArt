@@ -1,0 +1,111 @@
+format: pixelart/1
+name: Robot
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  metal: "#a8b0c0"
+  metal_d: "#6a7080"
+  antenna: "#ff3a3a"
+  antenna_off: "#5a2020"
+  eye: "#3ad0ff"
+  mouth: "#3a3a48"
+  body: "#8890a0"
+  light: "#5aff6a"
+  light2: "#ffd23f"
+  light_off: "#3a5a3a"
+  leg: "#6a7080"
+  foot: "#4a4a58"
+  ground: "#3a3a48"
+
+sprites:
+  robot:
+    points:
+      antenna: [[7, 0]]
+      metal_d: [[7, 1]]
+      metal: [
+          [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [4, 3], [6, 3], [7, 3], [8, 3], [10, 3],
+          [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4], [4, 5], [10, 5], [5, 6], [6, 6], [7, 6],
+          [8, 6], [9, 6]
+        ]
+      eye: [[5, 3], [9, 3]]
+      mouth: [[5, 5], [6, 5], [7, 5], [8, 5], [9, 5]]
+      body: [
+          [3, 7], [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [3, 8], [4, 8], [6, 8],
+          [8, 8], [9, 8], [10, 8], [11, 8], [3, 9], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [10, 9],
+          [11, 9], [3, 10], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [10, 10], [11, 10],
+          [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11]
+        ]
+      light: [[5, 8], [9, 9]]
+      light2: [[7, 8]]
+  arms_a:
+    points:
+      metal_d: [[2, 8], [1, 9], [1, 10], [13, 8], [14, 7], [14, 6]]
+  arms_b:
+    points:
+      metal_d: [[2, 8], [1, 7], [1, 6], [13, 8], [14, 9], [14, 10]]
+  legs_a:
+    points:
+      leg: [[5, 12], [5, 13], [10, 12], [10, 13], [10, 14]]
+      foot: [[4, 14], [5, 14], [10, 15], [11, 15]]
+  legs_b:
+    points:
+      leg: [[5, 12], [5, 13], [5, 14], [10, 12], [10, 13]]
+      foot: [[5, 15], [6, 15], [9, 14], [10, 14]]
+  ground0:
+    points:
+      ground: [[0, 15], [4, 15], [8, 15], [12, 15]]
+  ground1:
+    points:
+      ground: [[3, 15], [7, 15], [11, 15], [15, 15]]
+  ground2:
+    points:
+      ground: [[2, 15], [6, 15], [10, 15], [14, 15]]
+  ground3:
+    points:
+      ground: [[1, 15], [5, 15], [9, 15], [13, 15]]
+
+timeline:
+  - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+    ms: 180
+    recolor: { light: light_off }
+  - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+    ms: 180
+  - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+    ms: 180
+    recolor: { antenna: antenna_off }
+  - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+    ms: 180
+    recolor: { antenna: antenna_off, light: light_off }
+  - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+    ms: 180
+  - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+    ms: 180
+  - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+    ms: 180
+    recolor: { antenna: antenna_off, light: light_off }
+  - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+    ms: 180
+    recolor: { antenna: antenna_off }
+  - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+    ms: 180
+  - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+    ms: 180
+    recolor: { light: light_off, eye: metal }
+  - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+    ms: 180
+    recolor: { antenna: antenna_off, eye: metal }
+  - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+    ms: 180
+    recolor: { antenna: antenna_off }
+  - show: [ground0, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+    ms: 180
+    recolor: { light: light_off }
+  - show: [ground1, { sprite: robot, at: [0, 0] }, { sprite: arms_a, at: [0, 0] }, legs_a]
+    ms: 180
+  - show: [ground2, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+    ms: 180
+    recolor: { antenna: antenna_off }
+  - show: [ground3, { sprite: robot, at: [0, 1] }, { sprite: arms_b, at: [0, 1] }, legs_b]
+    ms: 180
+    recolor: { antenna: antenna_off, light: light_off }

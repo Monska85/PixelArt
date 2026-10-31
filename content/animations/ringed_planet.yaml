@@ -1,0 +1,102 @@
+format: pixelart/1
+name: Ringed Planet
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  p1: "#e8a050"
+  p2: "#c87830"
+  p3: "#f5d09a"
+  shade: "#5a2e0e"
+  spot: "#fff4e0"
+  ring: "#ecebe4"
+  ring_d: "#9a9488"
+  star: "#ffffff"
+  star_d: "#506090"
+
+sprites:
+  planet:
+    points:
+      p1: [
+          [5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5],
+          [10, 5], [11, 5], [4, 8], [5, 8], [6, 8], [7, 8], [5, 11], [6, 11], [7, 11], [8, 11]
+        ]
+      p2: [[4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [7, 9], [7, 10], [8, 10], [9, 10]]
+      shade: [
+          [11, 6], [11, 7], [8, 8], [9, 8], [10, 8], [4, 9], [5, 9], [6, 9], [11, 9], [10, 10], [11, 10],
+          [9, 11], [10, 11]
+        ]
+      p3: [[4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7]]
+  ring:
+    points:
+      ring_d: [[13, 7], [11, 8], [2, 9], [8, 9], [13, 6], [2, 8]]
+      ring: [
+          [14, 7], [12, 8], [13, 8], [0, 9], [1, 9], [9, 9], [10, 9], [2, 10], [3, 10], [4, 10], [5, 10],
+          [6, 10], [12, 5], [13, 5], [14, 6], [15, 6], [2, 7], [3, 7], [1, 8]
+        ]
+  stars:
+    points:
+      star: [[13, 9], [15, 4], [12, 12], [10, 2], [14, 5]]
+      star_d: [[8, 13], [2, 15], [4, 15], [11, 4]]
+  spot1:
+    points:
+      spot: [[4, 6]]
+  spot2:
+    points:
+      spot: [[4, 6], [5, 6], [4, 5]]
+  spot3:
+    points:
+      spot: [[5, 6], [6, 6], [5, 5]]
+  spot4:
+    points:
+      spot: [[6, 6], [7, 6], [6, 5]]
+  spot5:
+    points:
+      spot: [[7, 6], [8, 6], [7, 5]]
+  spot6:
+    points:
+      spot: [[8, 6], [9, 6], [8, 5]]
+  spot7:
+    points:
+      spot: [[9, 6], [10, 6], [9, 5]]
+  spot8:
+    points:
+      spot: [[10, 6], [11, 6], [10, 5]]
+  spot9:
+    points:
+      spot: [[11, 6], [11, 5]]
+
+timeline:
+  - show: [stars, planet, ring]
+    ms: 280
+    recolor: { star: star_d, star_d: star }
+  - show: [stars, planet, ring, spot1]
+    ms: 280
+  - show: [stars, planet, ring, spot2]
+    ms: 280
+  - show: [stars, planet, ring, spot3]
+    ms: 280
+    recolor: { star: star_d, star_d: star }
+  - show: [stars, planet, ring, spot4]
+    ms: 280
+  - show: [stars, planet, ring, spot5]
+    ms: 280
+  - show: [stars, planet, ring, spot6]
+    ms: 280
+    recolor: { star: star_d, star_d: star }
+  - show: [stars, planet, ring, spot7]
+    ms: 280
+  - show: [stars, planet, ring, spot8]
+    ms: 280
+  - show: [stars, planet, ring, spot9]
+    ms: 280
+    recolor: { star: star_d, star_d: star }
+  - show: [stars, planet, ring]
+    ms: 280
+  - show: [stars, planet, ring]
+    ms: 280
+  - show: [stars, planet, ring]
+    ms: 280
+    recolor: { star: star_d, star_d: star }
+  - show: [stars, planet, ring]
+    ms: 280
