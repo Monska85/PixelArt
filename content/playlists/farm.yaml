@@ -1,0 +1,11 @@
+format: pixelart-playlist/1
+name: Farm
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: cow
+  - animation: pig
+  - animation: sheep
+  - animation: tractor
+  - animation: rooster
+  - animation: hatching_chick
