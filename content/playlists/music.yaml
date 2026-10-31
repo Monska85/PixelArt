@@ -1,0 +1,11 @@
+format: pixelart-playlist/1
+name: Music
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: vinyl_record
+  - animation: headphones
+  - animation: equalizer
+  - animation: music_notes
+  - animation: microphone
+  - animation: disco_ball
