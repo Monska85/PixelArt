@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/Monska85/PixelArt/compare/v1.3.0...v1.4.0) (2026-10-31)
+
+
+### Added
+
+* add timed schedules ([#47](https://github.com/Monska85/PixelArt/issues/47)) ([584f998](https://github.com/Monska85/PixelArt/commit/584f998bef081eb7be27b13b024c9d1ee0059761))
+
 ## [1.3.0](https://github.com/Monska85/PixelArt/compare/v1.2.0...v1.3.0) (2026-10-30)
 
 
