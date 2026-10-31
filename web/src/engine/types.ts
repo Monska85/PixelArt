@@ -45,6 +45,7 @@ export const FILE_LIMITS = {
   animation: MAX_FILE_SIZE,
   playlist: MAX_PLAYLIST_FILE_SIZE,
   schedule: MAX_SCHEDULE_FILE_SIZE,
+  schedule_v2: MAX_SCHEDULE_FILE_SIZE,
   play: MAX_PLAY_FILE_SIZE,
 } as const;
 

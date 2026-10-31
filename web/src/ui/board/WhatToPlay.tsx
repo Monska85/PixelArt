@@ -44,11 +44,12 @@ import {
   playlistList,
   removeReason,
 } from "./play";
-import { browserTimeZone, localDateIn, zoneOfSetting } from "./timezones";
+import { browserTimeZone, localDateIn, localMinuteIn, zoneOfSetting } from "./timezones";
+import { nextTimedChange } from "./nextTimedChange";
 import { useFocusAfter } from "./useFocusAfter";
 import { usePendingSend } from "./usePendingSend";
 import { useReorder } from "./useReorder";
-import { useScheduleSource, useSiteSchedule, type ScheduleSource } from "./useScheduleSource";
+import { readBoardSchedule, useScheduleSource, useSiteSchedule, type ScheduleSource } from "./useScheduleSource";
 
 export interface WhatToPlayProps {
   client: BoardClient;
@@ -58,6 +59,7 @@ export interface WhatToPlayProps {
   playlists: ReadonlyMap<string, string | null> | null;
   /** The stored schedules, or null while they are not known. */
   schedules: Entry[] | null;
+  schedulesV2?: Entry[] | null;
   /** `status.play`, or null while it is not known. */
   play: PlayStatus | null;
   disabled: boolean;
@@ -76,6 +78,7 @@ const SEGMENTS: ReadonlyArray<{ value: Segment; label: string }> = [
 ];
 
 const segmentLabel = (segment: Segment): string => SEGMENTS.find((s) => s.value === segment)!.label;
+const timedKey = (entry: Entry): string => `${entry.id}:${entry.sha256 ?? ""}:${entry.size}`;
 
 /**
  * "What to play" on a firmware that knows schedules, one card with two choices: Automatic (what the site chose, or the
@@ -88,6 +91,7 @@ export function WhatToPlay({
   settings,
   playlists,
   schedules,
+  schedulesV2 = [],
   play,
   disabled,
   change,
@@ -122,10 +126,36 @@ export function WhatToPlay({
     );
   }
 
-  const scheduleNames = useMemo(() => new Map((schedules ?? []).map((e) => [e.id, e.name])), [schedules]);
-  const noSchedules = schedules !== null && schedules.length === 0;
+  const logicalSchedules = useMemo(() => {
+    const entries = new Map((schedules ?? []).map((e) => [e.id, e]));
+    for (const entry of schedulesV2 ?? []) entries.set(entry.id, entry);
+    return [...entries.values()];
+  }, [schedules, schedulesV2]);
+  const [timed, setTimed] = useState<Map<string, boolean>>(new Map());
+  useEffect(() => {
+    let current = true;
+    void (async () => {
+      for (const entry of schedulesV2 ?? []) {
+        const schedule = await readBoardSchedule(client, entry, "schedule_v2").catch(() => null);
+        if (!current) return;
+        setTimed((before) => new Map(before).set(timedKey(entry), !!schedule?.entries.some((e) => e.hours?.length)));
+      }
+    })();
+    return () => {
+      current = false;
+    };
+  }, [client, schedulesV2]);
+  const scheduleNames = useMemo(() => new Map(logicalSchedules.map((e) => [e.id, e.name ?? e.id])), [logicalSchedules]);
+  const noSchedules = schedules !== null && schedulesV2 !== null && logicalSchedules.length === 0;
   // The board reads its local date in its own time zone: the app does the same.
-  const today = localDateIn(zoneOfSetting(settings.timezone, browserTimeZone()));
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    const interval = window.setInterval(() => setClock(new Date()), 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
+  const zone = zoneOfSetting(settings.timezone, browserTimeZone());
+  const today = localDateIn(zone, clock);
+  const minute = localMinuteIn(zone, clock);
 
   function choose(value: PlayMode, context: string): void {
     setChoosing(value);
@@ -184,7 +214,10 @@ export function WhatToPlay({
           <Automatic
             client={client}
             today={today}
-            schedules={schedules}
+            minute={minute}
+            schedules={logicalSchedules}
+            legacySchedules={schedules}
+            schedulesV2={schedulesV2}
             scheduleNames={scheduleNames}
             playlists={playlists}
             play={play}
@@ -255,8 +288,12 @@ export function WhatToPlay({
                 client={client}
                 id={settings.schedule ?? DEFAULT_SCHEDULE_ID}
                 today={today}
-                schedules={schedules}
+                minute={minute}
+                schedules={logicalSchedules}
+                legacySchedules={schedules}
+                schedulesV2={schedulesV2}
                 scheduleNames={scheduleNames}
+                timed={timed}
                 play={mode === "schedule" ? play : null}
                 automatic={mode === "auto"}
                 library={library}
@@ -274,7 +311,10 @@ export function WhatToPlay({
 function Automatic({
   client,
   today,
+  minute,
   schedules,
+  legacySchedules,
+  schedulesV2,
   scheduleNames,
   playlists,
   play,
@@ -282,7 +322,10 @@ function Automatic({
 }: {
   client: BoardClient;
   today: LocalDate;
+  minute: number;
   schedules: Entry[] | null;
+  legacySchedules: Entry[] | null;
+  schedulesV2: Entry[] | null;
   scheduleNames: ReadonlyMap<string, string | null>;
   playlists: ReadonlyMap<string, string | null> | null;
   /** `status.play`, or null while it is not known. */
@@ -294,7 +337,7 @@ function Automatic({
   // A board that stores no schedule shows the one the site publishes: the schedule its play file names, none when it
   // chooses playlists, else `default`.
   const siteId = useSiteSchedule(library, schedules !== null && schedules.length === 0);
-  const source = useScheduleSource(client, schedules, library, id, siteId);
+  const source = useScheduleSource(client, legacySchedules, schedulesV2, library, id, siteId);
 
   return (
     <div className="flex min-w-0 flex-col gap-2 text-sm sm:pl-7" data-testid="automatic">
@@ -315,6 +358,7 @@ function Automatic({
         id={id ?? siteId}
         source={source}
         today={today}
+        minute={minute}
         status={play?.mode === "auto" ? play : null}
       />
     </div>
@@ -327,6 +371,7 @@ function ScheduleDetails({
   id,
   source,
   today,
+  minute,
   status,
 }: {
   /** The test ids start with it: `<prefix>-now` and `<prefix>-next`. */
@@ -334,6 +379,7 @@ function ScheduleDetails({
   id: string | null;
   source: ScheduleSource;
   today: LocalDate;
+  minute: number;
   /** `status.play` while the choice this card belongs to is the one that plays, else null. */
   status: PlayStatus | null;
 }) {
@@ -345,12 +391,18 @@ function ScheduleDetails({
 
   let now: string | null = null;
   if (status) now = describePlay(status, onBoard);
-  else if (onBoard) now = describeToday(onBoard, todayEntry);
+  else if (onBoard)
+    now = describeToday(onBoard, todayEntry, onBoard.entries.some((e) => e.hours?.length) ? minute : undefined);
   // The status polls render this often: the next change is worked out again only for a new schedule or day.
   const { year, month, day } = today;
   const next = useMemo(
-    () => (onBoard ? nextScheduleChange(onBoard, { year, month, day }) : null),
-    [onBoard, year, month, day],
+    () =>
+      onBoard
+        ? onBoard.entries.some((e) => e.hours?.length)
+          ? nextTimedChange(onBoard, { year, month, day }, minute)
+          : nextScheduleChange(onBoard, { year, month, day })
+        : null,
+    [onBoard, year, month, day, minute],
   );
 
   return (
@@ -372,7 +424,7 @@ function ScheduleDetails({
         <p data-testid={`${prefix}-next`}>
           <span className="font-medium">Next change:</span>{" "}
           {next
-            ? `${formatDate(next.date)}, ${next.entry === null ? "the fallback" : entryLabel(onBoard.entries[next.entry], next.entry)}: ${playlistList(next.playlists)}.`
+            ? `${formatDate(next.date)}${"minute" in next && typeof next.minute === "number" ? ` at ${String(Math.floor(next.minute / 60)).padStart(2, "0")}:${String(next.minute % 60).padStart(2, "0")}` : ""}, ${next.entry === null ? "the fallback" : entryLabel(onBoard.entries[next.entry], next.entry)}: ${playlistList(next.playlists)}.`
             : "none in the next 12 months."}
         </p>
       )}
@@ -440,7 +492,17 @@ function ScheduleView({
               <TableCell className="break-words px-3 py-2">
                 {describeEnd(entry.from)} to {describeEnd(entry.to)}
               </TableCell>
-              <TableCell className="break-words px-3 py-2 font-mono text-xs">{entry.playlists.join(", ")}</TableCell>
+              <TableCell className="break-words px-3 py-2 font-mono text-xs">
+                <div>
+                  {entry.hours?.length ? "Other hours: " : ""}
+                  {entry.playlists.join(", ")}
+                </div>
+                {entry.hours?.map((window) => (
+                  <div key={`${window.from}-${window.to}`}>
+                    {window.from} to {window.to}: {window.playlists.join(", ")}
+                  </div>
+                ))}
+              </TableCell>
             </TableRow>
           ))}
           <TableRow>
@@ -462,8 +524,12 @@ function MySchedule({
   client,
   id,
   today,
+  minute,
   schedules,
+  legacySchedules,
+  schedulesV2,
   scheduleNames,
+  timed,
   play,
   automatic,
   library,
@@ -474,8 +540,12 @@ function MySchedule({
   /** The `schedule` setting. */
   id: string;
   today: LocalDate;
+  minute: number;
   schedules: Entry[] | null;
+  legacySchedules: Entry[] | null;
+  schedulesV2: Entry[] | null;
   scheduleNames: ReadonlyMap<string, string | null>;
+  timed: ReadonlyMap<string, boolean>;
   /** `status.play` while My choice, Schedule plays, else null. */
   play: PlayStatus | null;
   automatic: boolean;
@@ -483,9 +553,10 @@ function MySchedule({
   busy: boolean;
   send: (changes: SettingsChanges, context: string) => Promise<void>;
 }) {
-  const source = useScheduleSource(client, schedules, library, id);
+  const source = useScheduleSource(client, legacySchedules, schedulesV2, library, id);
   const absent = schedules !== null && !scheduleNames.has(id);
-  const label = (entry: Entry): string => (entry.name ? `${entry.id}: ${entry.name}` : entry.id);
+  const label = (entry: Entry): string =>
+    `${entry.name ? `${entry.id}: ${entry.name}` : entry.id} (${timed.get(timedKey(entry)) ? "timed" : "all day"})`;
 
   return (
     <div className="flex min-w-0 flex-col gap-2 text-sm" data-testid="my-schedule">
@@ -525,7 +596,7 @@ function MySchedule({
           </AlertDescription>
         </Alert>
       )}
-      <ScheduleDetails prefix="my-schedule" id={id} source={source} today={today} status={play} />
+      <ScheduleDetails prefix="my-schedule" id={id} source={source} today={today} minute={minute} status={play} />
     </div>
   );
 }

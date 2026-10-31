@@ -159,6 +159,7 @@ struct Shared
   bool busy = false;
   pixelart_update::Status status;
   bool time_known = false;
+  uint16_t minutes = 0;
   // The local date, valid when `time_known`. Written in every build, read only on the board: the loop task reads
   // it here because the network task owns TZ, and localtime_r() on the loop task would race its tzset().
   pixelart::LocalDate date;
@@ -191,12 +192,14 @@ pixelart_update::Config make_config(const settings::Values &v)
 uint64_t now_ms() { return platform::now_us() / 1000; }
 
 // The local date where the clock is kept, false while the time is not known.
-bool clock_date(pixelart::LocalDate &date)
+bool clock_date(pixelart::LocalDate &date, uint16_t &minutes)
 {
 #ifdef PIXELART_SIM
-  return local_date(date);
+  if (!local_date(date))
+    return false;
+  return local_minutes(minutes);
 #else
-  return net_time::local_date(date);
+  return net_time::local_datetime(date, minutes);
 #endif
 }
 
@@ -235,7 +238,8 @@ uint64_t step()
   updater->tick(now);
 
   pixelart::LocalDate date;
-  const bool time_known = clock_date(date);
+  uint16_t minutes = 0;
+  const bool time_known = clock_date(date, minutes);
   const pixelart_update::Status status = updater->status();
   const bool busy = updater->busy();
   {
@@ -243,6 +247,7 @@ uint64_t step()
     shared.status = status;
     shared.time_known = time_known;
     shared.date = date;
+    shared.minutes = minutes;
     shared.busy = busy || shared.check_requested || shared.install_requested || shared.firmware_requested;
   }
   return updater->wait_ms(now);
@@ -386,6 +391,25 @@ bool local_date(pixelart::LocalDate &date)
   if (!shared.time_known)
     return false;
   date = shared.date;
+  return true;
+}
+
+bool local_minutes(uint16_t &minutes)
+{
+  Locked guard;
+  if (!shared.time_known)
+    return false;
+  minutes = shared.minutes;
+  return true;
+}
+
+bool local_datetime(pixelart::LocalDate &date, uint16_t &minutes)
+{
+  Locked guard;
+  if (!shared.time_known)
+    return false;
+  date = shared.date;
+  minutes = shared.minutes;
   return true;
 }
 #endif

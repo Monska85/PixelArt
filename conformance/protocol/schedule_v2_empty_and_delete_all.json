@@ -1,0 +1,31 @@
+{
+  "description": "format 2 schedules have their own file kind and delete-all count",
+  "steps": [
+    {
+      "send": "@PR 0262083e {\"seq\":1,\"cmd\":\"list\",\"kind\":\"schedule_v2\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "kind": "schedule_v2",
+        "entries": [],
+        "more": false
+      }
+    },
+    {
+      "send": "@PR f935d517 {\"seq\":2,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "play": 0,
+        "schedules_v2": 0,
+        "schedules": 0,
+        "playlists": 0,
+        "animations": 0
+      }
+    }
+  ]
+}

@@ -16,7 +16,7 @@ export const TRIES = 5;
 const PROTOCOL_VERSION = 1;
 const DEFAULT_CHUNK = 512;
 
-export type Kind = "animation" | "playlist" | "schedule" | "play";
+export type Kind = "animation" | "playlist" | "schedule" | "schedule_v2" | "play";
 
 export interface WireDiagnostic {
   severity: string;
@@ -51,7 +51,13 @@ export interface BoardInfo {
    * `schedule` is null on a firmware older than schedules, which knows no schedule, `play` or time settings; `play`
    * is null on one older than the play file.
    */
-  formats: { animation: string[]; playlist: string[]; schedule: string[] | null; play: string[] | null };
+  formats: {
+    animation: string[];
+    playlist: string[];
+    schedule: string[] | null;
+    schedule_v2?: string[] | null;
+    play: string[] | null;
+  };
   storage: { total: number; used: number } | null;
   limits: {
     line: number;
@@ -60,6 +66,7 @@ export interface BoardInfo {
     animation: number;
     playlist: number;
     schedule: number;
+    schedule_v2?: number;
     play: number;
   };
 }
@@ -67,6 +74,8 @@ export interface BoardInfo {
 /** Whether the board knows schedules, the `play`, `playlists`, `time_sync_hours` and `ntp_server` settings and `status.play`. */
 export const supportsSchedules = (info: BoardInfo | null | undefined): boolean =>
   (info?.formats.schedule ?? null) !== null;
+export const supportsScheduleV2 = (info: BoardInfo | null | undefined): boolean =>
+  (info?.formats.schedule_v2 ?? null) !== null;
 
 /** Whether the board stores the play file, the server choice of Automatic (`play` kind, `status.play.server_choice`). */
 export const supportsPlayFile = (info: BoardInfo | null | undefined): boolean => (info?.formats.play ?? null) !== null;
@@ -91,6 +100,7 @@ function parseInfo(reply: Body): BoardInfo {
       animation: strings(formats.animation),
       playlist: strings(formats.playlist),
       schedule: Array.isArray(formats.schedule) ? strings(formats.schedule) : null,
+      schedule_v2: Array.isArray(formats.schedule_v2) ? strings(formats.schedule_v2) : null,
       play: Array.isArray(formats.play) ? strings(formats.play) : null,
     },
     storage: total !== null && used !== null ? { total, used } : null,
@@ -101,6 +111,7 @@ function parseInfo(reply: Body): BoardInfo {
       animation: count(limits.animation) ?? FILE_LIMITS.animation,
       playlist: count(limits.playlist) ?? FILE_LIMITS.playlist,
       schedule: count(limits.schedule) ?? FILE_LIMITS.schedule,
+      schedule_v2: count(limits.schedule_v2) ?? FILE_LIMITS.schedule_v2,
       play: count(limits.play) ?? FILE_LIMITS.play,
     },
   };

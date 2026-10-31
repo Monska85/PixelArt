@@ -36,6 +36,7 @@ describe("parseManifest", () => {
       animations: [{ id: "star", name: "STAR", version: 2, size: 100, sha256: SHA }],
       playlists: [{ id: "default", name: "Default", version: null, size: 50, sha256: SHA }],
       schedules: [],
+      schedules_v2: [],
       play: [],
     });
   });
@@ -44,6 +45,19 @@ describe("parseManifest", () => {
     expect(parseManifest(manifest({ source: "https://github.com/Owner/Fork/tree/v1.2.0" }))).toEqual(
       parseManifest(manifest()),
     );
+  });
+
+  it("reads each format 2 catalog location and rejects ambiguous or malformed direct entries", () => {
+    const v2 = { id: "spring", file: "schedules-v2/spring.json", size: 55, sha256: SHA };
+    const ref = { file: "content-pages/spring.json", size: 100, sha256: SHA };
+    expect(parseManifest(manifest({ schedules_v2: [v2] }))?.schedules_v2?.map((e) => e.id)).toEqual(["spring"]);
+    expect(parseManifest(manifest({ schedules_v2_pages: [ref] }))?.contentPages?.schedules_v2).toEqual([ref]);
+    expect(parseManifest(manifest({ content_pages: { schedules_v2: [ref] } }))?.contentPages?.schedules_v2).toEqual([
+      ref,
+    ]);
+    expect(parseManifest(manifest({ schedules_v2: [{ ...v2, file: "schedules-v2/other.json" }] }))).toBeNull();
+    expect(parseManifest(manifest({ schedules_v2: [v2], schedules_v2_pages: [ref] }))).toBeNull();
+    expect(parseManifest(manifest({ content_pages: { unknown_kind: { ignored: true } } }))).not.toBeNull();
   });
 
   it("treats anything that is not a pixelart-manifest/1 as nothing published", () => {

@@ -11,7 +11,7 @@
     "animations",
     "playlists"
   ],
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "format": {
       "const": "pixelart-manifest/1"
@@ -54,7 +54,7 @@
           "size",
           "sha256"
         ],
-        "additionalProperties": false,
+        "additionalProperties": true,
         "properties": {
           "board": {
             "enum": [
@@ -113,7 +113,7 @@
           "size",
           "sha256"
         ],
-        "additionalProperties": false,
+        "additionalProperties": true,
         "properties": {
           "id": {
             "$ref": "#/$defs/id"
@@ -151,7 +151,7 @@
           "size",
           "sha256"
         ],
-        "additionalProperties": false,
+        "additionalProperties": true,
         "properties": {
           "id": {
             "$ref": "#/$defs/id"
@@ -186,7 +186,7 @@
           "size",
           "sha256"
         ],
-        "additionalProperties": false,
+        "additionalProperties": true,
         "properties": {
           "id": {
             "$ref": "#/$defs/id"
@@ -221,7 +221,7 @@
           "size",
           "sha256"
         ],
-        "additionalProperties": false,
+        "additionalProperties": true,
         "properties": {
           "id": {
             "$ref": "#/$defs/id"
@@ -243,7 +243,7 @@
     "content_pages": {
       "description": "Optional complete per-kind catalogs. A present empty list publishes no files of that kind.",
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "animations": {
           "type": "array",
@@ -254,7 +254,7 @@
               "size",
               "sha256"
             ],
-            "additionalProperties": false,
+            "additionalProperties": true,
             "properties": {
               "file": {
                 "type": "string",
@@ -281,7 +281,7 @@
               "size",
               "sha256"
             ],
-            "additionalProperties": false,
+            "additionalProperties": true,
             "properties": {
               "file": {
                 "type": "string",
@@ -308,7 +308,7 @@
               "size",
               "sha256"
             ],
-            "additionalProperties": false,
+            "additionalProperties": true,
             "properties": {
               "file": {
                 "type": "string",
@@ -335,7 +335,34 @@
               "size",
               "sha256"
             ],
-            "additionalProperties": false,
+            "additionalProperties": true,
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[A-Za-z0-9._+-]+(?:\\/[A-Za-z0-9._+-]+)*$",
+                "maxLength": 160
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8192
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "schedules_v2": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "file",
+              "size",
+              "sha256"
+            ],
+            "additionalProperties": true,
             "properties": {
               "file": {
                 "type": "string",
@@ -354,6 +381,68 @@
           }
         }
       }
+    },
+    "schedules_v2": {
+      "description": "Optional direct catalog of format 2 schedules; exclusive with either v2 page catalog.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "file",
+          "size",
+          "sha256"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^schedules-v2/[a-z0-9][a-z0-9_-]{0,31}\\.json$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "schedules_v2_pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "file",
+          "size",
+          "sha256"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "file": {
+            "type": "string",
+            "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[A-Za-z0-9._+-]+(?:\\/[A-Za-z0-9._+-]+)*$",
+            "maxLength": 160
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8192
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -366,5 +455,43 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     }
-  }
+  },
+  "oneOf": [
+    {
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "schedules_v2",
+              "schedules_v2_pages"
+            ]
+          },
+          {
+            "required": [
+              "schedules_v2"
+            ],
+            "properties": {
+              "content_pages": {
+                "required": [
+                  "schedules_v2"
+                ]
+              }
+            }
+          },
+          {
+            "required": [
+              "schedules_v2_pages"
+            ],
+            "properties": {
+              "content_pages": {
+                "required": [
+                  "schedules_v2"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
 }

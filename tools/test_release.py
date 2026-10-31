@@ -340,10 +340,14 @@ class AssembleTest(unittest.TestCase):
         release.assemble_site(self.base / "ok", self.firmware_site(), self.play_content(), None, use_schema=True)
         good = dict(listed("play/default.json"), id="default")
         for entry in (dict(good, file="schedules/default.json"), dict(good, id="Bad"), dict(good, size=0),
-                      dict(good, sha256="x"), dict(good, other=1), dict(good, name="Seasons")):
+                      dict(good, sha256="x")):
             content = self.content_site(content_manifest(play=[entry]), **{"play/default.json": "x", "schedules/default.json": "x"})
             with self.subTest(entry=entry), self.assertRaises(release.ReleaseError):
                 release.assemble_site(self.base / "bad", None, content, None, use_schema=True)
+        for entry in (dict(good, other=1), dict(good, name="Seasons")):
+            content = self.content_site(content_manifest(play=[entry]), **{"play/default.json": "x"})
+            with self.subTest(entry=entry):
+                release.assemble_site(self.base / "extended", None, content, None, use_schema=True)
 
     def test_a_content_release_without_schedules_gives_a_site_without_the_list(self):
         out = self.base / "out"
@@ -770,6 +774,22 @@ class BuildSiteTest(unittest.TestCase):
         many = [f"s{i:03}" for i in range(200)]
         with self.assertRaises(release.ReleaseError):
             release.build_content_site(self.base / "many", "1.4.0", self.data(schedules=many), False)
+
+    def test_format_2_schedules_use_top_level_pages_and_keep_the_legacy_copy(self):
+        data = self.data(schedules=("spring",))
+        (data / "schedules-v2").mkdir()
+        (data / "schedules-v2" / "spring.json").write_text(
+            '{"format":"pixelart-schedule/2","fallback":["default"]}')
+        out = self.base / "content-v2"
+        release.build_content_site(out, "1.4.0", data, True)
+        manifest = json.loads((out / "manifest.json").read_text())
+        self.assertEqual([entry["id"] for entry in manifest["schedules"]], ["spring"])
+        self.assertNotIn("schedules_v2", manifest["content_pages"])
+        self.assertEqual(len(manifest["schedules_v2_pages"]), 1)
+        page = json.loads((out / manifest["schedules_v2_pages"][0]["file"]).read_text())
+        self.assertEqual(page["kind"], "schedules_v2")
+        self.assertEqual(page["entries"][0]["file"], "schedules-v2/spring.json")
+        self.assertTrue((out / "schedules-v2" / "spring.json").is_file())
 
     PLAY = b'{"format":"pixelart-play/1","default":{"schedule":"seasons"}}'
 

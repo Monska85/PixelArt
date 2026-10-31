@@ -26,6 +26,7 @@ export interface StoredFiles {
   playlist: Entry[];
   /** Empty on a board that knows no schedules. */
   schedule: Entry[];
+  schedule_v2?: Entry[];
   /** Empty on a board that knows no play file. */
   play: Entry[];
 }
@@ -58,7 +59,7 @@ export function dedupe(files: QueueFile[]): { files: QueueFile[]; duplicates: Qu
 /** Sorts each file into missing, identical (same SHA-256) or different, against the board's list. */
 export function planAgainstBoard(files: QueueFile[], stored: StoredFiles): PlanEntry[] {
   return files.map((file) => {
-    const entry = stored[file.kind].find((e) => e.id === file.id) ?? null;
+    const entry = stored[file.kind]?.find((e) => e.id === file.id) ?? null;
     if (!entry) return { file, status: "missing", stored: null };
     return { file, status: sameSha(entry, file.sha256) ? "identical" : "different", stored: entry };
   });
@@ -155,7 +156,7 @@ export function checkSpace(sends: PlanEntry[], storage: { total: number; used: n
  */
 export function sendOrder<T extends { file: QueueFile }>(entries: T[]): T[] {
   const of = (kind: Kind): T[] => entries.filter((e) => e.file.kind === kind);
-  return [...of("animation"), ...of("playlist"), ...of("schedule"), ...of("play")];
+  return [...of("animation"), ...of("playlist"), ...of("schedule"), ...of("schedule_v2"), ...of("play")];
 }
 
 export type SendOutcome =

@@ -10,7 +10,7 @@ import {
   type PlayReason,
   type PlaySource,
   type ServerChoice,
-} from "../engine/schedule";
+} from "../engine/scheduleChoice";
 import type { BoardClient } from "./client";
 import type { Body } from "./framing";
 import { isRecord } from "./guards";
@@ -85,6 +85,8 @@ export interface PlayStatus {
   source: PlaySource;
   /** The ID of the schedule the list comes from, or null. */
   schedule: string | null;
+  /** The stored format selected by new firmware; null for no schedule or older firmware. */
+  scheduleFormat?: 1 | 2 | null;
   reason: PlayReason;
   /** The winning entry's 0-based index in the schedule, or null. */
   entry: number | null;
@@ -165,6 +167,9 @@ function parsePlay(value: unknown): PlayStatus | null {
     mode,
     source,
     schedule: text(schedule),
+    ...("schedule_format" in value
+      ? { scheduleFormat: value.schedule_format === 1 || value.schedule_format === 2 ? value.schedule_format : null }
+      : {}),
     reason,
     entry: typeof entry === "number" && Number.isSafeInteger(entry) && entry >= 0 ? entry : null,
     playlists: playlists as string[],

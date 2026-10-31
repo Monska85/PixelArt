@@ -15,7 +15,7 @@ Run them from this folder, or use the `make web-*` targets of the repository roo
 | `npm run lint`         | Run ESLint.                                                          |
 | `npm run format:check` | Check formatting with Prettier (`npm run format` fixes it).          |
 | `npm test`             | Run the unit tests and the conformance suite with Vitest.            |
-| `npm run size`         | Fail when the JavaScript loaded at start is over 190 KB gzip.        |
+| `npm run size`         | Fail when the JavaScript loaded at start is over 193 KB gzip.        |
 | `npm run e2e`          | Run the Playwright tests against the built app and the simulator.    |
 | `npm run screenshots`  | Compare the reference images (only inside the Playwright container). |
 

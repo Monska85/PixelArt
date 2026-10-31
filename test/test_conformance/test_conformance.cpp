@@ -306,6 +306,38 @@ static void test_schedule_invalid_cases()
   }
 }
 
+static void test_schedule_v2_cases()
+{
+  for (const fs::path &file : cases("schedule-v2/valid"))
+  {
+    const std::string json = read_file(file);
+    std::vector<pixelart::Diagnostic> diagnostics;
+    pixelart::Schedule schedule;
+    TEST_ASSERT_TRUE_MESSAGE(schedule.load(json.data(), json.size(), diagnostics, "pixelart-schedule/2"),
+                             (file.string() + ": rejected:" + describe(diagnostics)).c_str());
+    TEST_ASSERT_TRUE(schedule.is_v2());
+    JsonDocument expected;
+    TEST_ASSERT_FALSE(deserializeJson(expected, read_file(expected_path(file))));
+    TEST_ASSERT_TRUE(text_list(expected["fallback"]) == schedule.fallback());
+    TEST_ASSERT_EQUAL(expected["entries"].as<JsonArrayConst>().size(), schedule.entry_count());
+    if (!expected["window_count"].isNull())
+      TEST_ASSERT_EQUAL(expected["window_count"].as<size_t>(), schedule.window_count());
+    for (JsonObjectConst row : expected["minutes"].as<JsonArrayConst>())
+      TEST_ASSERT_TRUE_MESSAGE(text_list(row["playlists"]) == schedule.playlists_at(0, row["at"].as<uint16_t>()),
+                               file.string().c_str());
+  }
+  for (const fs::path &file : cases("schedule-v2/invalid"))
+  {
+    const std::string json = read_file(file);
+    std::vector<pixelart::Diagnostic> diagnostics;
+    pixelart::Schedule schedule;
+    TEST_ASSERT_FALSE(schedule.load(json.data(), json.size(), diagnostics, "pixelart-schedule/2"));
+    JsonDocument expected;
+    TEST_ASSERT_FALSE(deserializeJson(expected, read_file(expected_path(file))));
+    check_rejection(file.stem().string(), expected, diagnostics);
+  }
+}
+
 static void test_play_valid_cases()
 {
   std::vector<fs::path> files = cases("play/valid");
@@ -463,6 +495,7 @@ int main(int, char **)
   RUN_TEST(test_playlist_invalid_cases);
   RUN_TEST(test_schedule_valid_cases);
   RUN_TEST(test_schedule_invalid_cases);
+  RUN_TEST(test_schedule_v2_cases);
   RUN_TEST(test_play_valid_cases);
   RUN_TEST(test_play_invalid_cases);
   RUN_TEST(test_schedule_winner_rows);

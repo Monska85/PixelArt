@@ -101,6 +101,9 @@ export function useContentInstall(manifest: Manifest | null, enabled: boolean) {
       ...(supportsSchedules(client.info)
         ? manifest.schedules.map((entry) => ({ kind: "schedule" as const, entry }))
         : []),
+      ...(client.info?.formats.schedule_v2
+        ? (manifest.schedules_v2 ?? []).map((entry) => ({ kind: "schedule_v2" as const, entry }))
+        : []),
       ...(supportsPlayFile(client.info) ? manifest.play.map((entry) => ({ kind: "play" as const, entry })) : []),
     ];
     void install(items, manifest).finally(() => {

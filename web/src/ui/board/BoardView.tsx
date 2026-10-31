@@ -82,6 +82,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
   const animations = entriesOf(data.animations);
   const playlists = entriesOf(data.playlists);
   const schedules = entriesOf(data.schedules);
+  const schedulesV2 = entriesOf(data.schedulesV2);
   const knowsSchedules = supportsSchedules(info);
   // What to play replaces the Active playlist menu on a firmware that knows schedules and reports `play`: the active
   // playlist, the Settings card and the notes of the lists all follow this one value.
@@ -305,8 +306,19 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
             schedules={
               knowsSchedules
                 ? {
-                    count: schedules?.length ?? null,
-                    content: <FilesList {...listProps} kind="schedule" list={data.schedules} />,
+                    count:
+                      schedules !== null && schedulesV2 !== null
+                        ? new Set([...schedules, ...schedulesV2].map((entry) => entry.id)).size
+                        : null,
+                    content: (
+                      <>
+                        <p className="px-4 py-2 text-xs text-muted-foreground">
+                          Format 2 schedules take precedence. Format 1 copies keep older boards working.
+                        </p>
+                        <FilesList {...listProps} kind="schedule_v2" list={data.schedulesV2} />
+                        <FilesList {...listProps} kind="schedule" list={data.schedules} />
+                      </>
+                    ),
                   }
                 : undefined
             }
@@ -324,6 +336,7 @@ function Connected({ client, restarts, lost, blocked }: ConnectedProps) {
             settings={data.settings}
             playlists={playlistNames}
             schedules={schedules}
+            schedulesV2={schedulesV2}
             play={play}
             whatToPlay={whatToPlay}
             active={active}
