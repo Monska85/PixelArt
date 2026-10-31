@@ -1,0 +1,80 @@
+format: pixelart/1
+name: Brontosaurus
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  skin: "#8a6ab0"
+  skin_d: "#5a4080"
+  belly: "#c8b0e0"
+  spot: "#b090d8"
+  eye: "#000000"
+  eye_w: "#ffffff"
+  smile: "#3a2a5a"
+  leaf: "#4caf50"
+  leaf_d: "#2f7a3a"
+
+sprites:
+  body:
+    points:
+      spot: [[4, 9], [6, 8], [8, 9]]
+      belly: [[3, 12], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12]]
+      skin_d: [
+          [3, 13], [3, 14], [4, 13], [4, 14], [7, 13], [7, 14], [8, 13], [8, 14], [2, 10], [1, 11],
+          [0, 11], [1, 10]
+        ]
+      skin: [
+          [3, 8], [4, 8], [5, 8], [7, 8], [8, 8], [2, 9], [3, 9], [5, 9], [6, 9], [7, 9], [9, 9], [3, 10],
+          [4, 10], [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [10, 10], [2, 11], [3, 11], [4, 11],
+          [5, 11], [6, 11], [7, 11], [8, 11], [9, 11]
+        ]
+  plants:
+    points:
+      leaf: [[13, 15], [14, 14], [15, 15], [12, 14]]
+      leaf_d: [[14, 13], [13, 14]]
+  neck:
+    points:
+      eye: [[13, 2]]
+      eye_w: [[12, 2]]
+      smile: [[14, 4]]
+      skin: [
+          [11, 2], [11, 3], [12, 3], [13, 3], [14, 3], [12, 4], [13, 4], [9, 9], [10, 9], [9, 8], [10, 8],
+          [10, 7], [11, 7], [11, 6], [12, 6], [11, 5], [12, 5], [11, 4]
+        ]
+
+timeline:
+  - loop: 2
+    steps:
+      - show: [plants, { sprite: neck, at: [0, 0] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 0] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 1] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 1] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 2] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 2] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 1] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 1] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 0] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 0] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 1] }, body]
+        ms: 180
+        recolor: { eye: skin, eye_w: skin }
+      - show: [plants, { sprite: neck, at: [0, 1] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 2] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 2] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 1] }, body]
+        ms: 180
+      - show: [plants, { sprite: neck, at: [0, 1] }, body]
+        ms: 180
