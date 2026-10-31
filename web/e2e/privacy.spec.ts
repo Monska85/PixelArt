@@ -26,7 +26,11 @@ test("every view ends with the privacy line, links and the web app version", asy
     await expect(source).toHaveAttribute("href", REPOSITORY);
     await expect(source).toHaveAttribute("rel", "noopener noreferrer");
     await expect(source).toHaveAttribute("target", "_blank");
-    await expect(footer.getByTestId("footer-version")).toHaveText(`Web app v${APP_VERSION}`);
+    const version = footer.getByTestId("footer-version");
+    await expect(version).toHaveText(`Web app v${APP_VERSION}`);
+    await expect(version).toHaveAttribute("href", IS_RELEASE ? `${REPOSITORY}/tree/web-v${APP_VERSION}` : REPOSITORY);
+    await expect(version).toHaveAttribute("target", "_blank");
+    await expect(version).toHaveAttribute("rel", "noopener noreferrer");
     await expect(footer).toContainText(`Privacy · Source · Web app v${APP_VERSION}`);
   }
 });
