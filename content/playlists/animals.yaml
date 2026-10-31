@@ -17,3 +17,6 @@ items:
   - animation: dolphin_jump
   - animation: jellyfish
   - animation: pufferfish
+  - animation: marmot
+  - animation: eagle
+  - animation: ibex
