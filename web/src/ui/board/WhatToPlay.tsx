@@ -13,7 +13,6 @@ import {
 import {
   DEFAULT_SCHEDULE_ID,
   nextScheduleChange,
-  nextTimedChange,
   scheduleWinner,
   type LocalDate,
   type PlayMode,
@@ -46,6 +45,7 @@ import {
   removeReason,
 } from "./play";
 import { browserTimeZone, localDateIn, localMinuteIn, zoneOfSetting } from "./timezones";
+import { nextTimedChange } from "./nextTimedChange";
 import { useFocusAfter } from "./useFocusAfter";
 import { usePendingSend } from "./usePendingSend";
 import { useReorder } from "./useReorder";

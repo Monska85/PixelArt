@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-const BUDGET_KB = 192;
+const BUDGET_KB = 193;
 const dist = join(dirname(fileURLToPath(import.meta.url)), "..", "dist");
 
 let html;

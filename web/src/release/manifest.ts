@@ -2,7 +2,7 @@
 
 // The release manifest (docs/format/manifest-v1.md) as the web app reads it.
 
-import { FILE_LIMITS, isValidId } from "../engine";
+import { FILE_LIMITS, isValidId } from "../engine/types";
 import { isCount, isRecord } from "../protocol/guards";
 
 const MANIFEST_FORMAT = "pixelart-manifest/1";
@@ -100,71 +100,24 @@ export function parseManifest(text: string): Manifest | null {
   const nestedV2 = isRecord(document.content_pages) && "schedules_v2" in document.content_pages;
   const v2Locations = Number("schedules_v2" in document) + Number("schedules_v2_pages" in document) + Number(nestedV2);
   if (v2Locations > 1 || ("schedules_v2" in document && !Array.isArray(document.schedules_v2))) return null;
-  if (
-    ["animations", "playlists", "schedules", "schedules_v2", "play"].reduce(
-      (sum, kind) => sum + (Array.isArray(document[kind]) ? document[kind].length : 0),
-      0,
-    ) > 200
-  )
+  if (KINDS.reduce((sum, kind) => sum + (Array.isArray(document[kind]) ? document[kind].length : 0), 0) > 200)
     return null;
   let contentPages: ContentPages | undefined;
+  const seenPaths = new Set<string>();
   if ("content_pages" in document) {
     if (!isRecord(document.content_pages)) return null;
     contentPages = {};
-    const seenPaths = new Set<string>();
-    let count = 0;
     for (const [kind, raw] of Object.entries(document.content_pages)) {
       if (!KINDS.includes(kind as ContentKind)) continue;
-      if (!Array.isArray(raw)) return null;
-      const refs: PageReference[] = [];
-      for (const item of raw) {
-        if (!isRecord(item)) return null;
-        const { file, size, sha256 } = item;
-        if (
-          typeof file !== "string" ||
-          !safePagePath(file) ||
-          seenPaths.has(file) ||
-          typeof size !== "number" ||
-          !Number.isInteger(size) ||
-          size < 1 ||
-          size > MAX_PAGE_BYTES ||
-          typeof sha256 !== "string" ||
-          !/^[0-9a-f]{64}$/.test(sha256)
-        )
-          return null;
-        seenPaths.add(file);
-        refs.push({ file, size, sha256 });
-        if (++count > MAX_PAGES) return null;
-      }
+      const refs = parsePageRefs(raw, seenPaths);
+      if (!refs) return null;
       contentPages[kind as ContentKind] = refs;
     }
   }
   if ("schedules_v2_pages" in document) {
-    if (!Array.isArray(document.schedules_v2_pages)) return null;
+    const refs = parsePageRefs(document.schedules_v2_pages, seenPaths);
+    if (!refs) return null;
     contentPages ??= {};
-    const seenPaths = new Set(
-      Object.values(contentPages)
-        .flat()
-        .map((ref) => ref.file),
-    );
-    const refs: PageReference[] = [];
-    for (const item of document.schedules_v2_pages) {
-      if (
-        !isRecord(item) ||
-        typeof item.file !== "string" ||
-        !safePagePath(item.file) ||
-        seenPaths.has(item.file) ||
-        !isCount(item.size) ||
-        item.size < 1 ||
-        item.size > MAX_PAGE_BYTES ||
-        typeof item.sha256 !== "string" ||
-        !/^[0-9a-f]{64}$/.test(item.sha256)
-      )
-        return null;
-      seenPaths.add(item.file);
-      refs.push({ file: item.file, size: item.size, sha256: item.sha256 });
-    }
-    if (Object.values(contentPages).reduce((sum, list) => sum + list.length, refs.length) > MAX_PAGES) return null;
     contentPages.schedules_v2 = refs;
   }
   const directV2 = parseEntries(document.schedules_v2, "schedule_v2");
@@ -188,6 +141,30 @@ function safePagePath(path: string): boolean {
     path.length <= 160 &&
     path.split("/").every((part) => part !== "" && part !== "." && part !== ".." && /^[A-Za-z0-9._+-]+$/.test(part))
   );
+}
+
+function parsePageRefs(value: unknown, seenPaths: Set<string>): PageReference[] | null {
+  if (!Array.isArray(value)) return null;
+  const refs: PageReference[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) return null;
+    const { file, size, sha256 } = item;
+    if (
+      typeof file !== "string" ||
+      !safePagePath(file) ||
+      seenPaths.has(file) ||
+      !isCount(size) ||
+      size < 1 ||
+      size > MAX_PAGE_BYTES ||
+      typeof sha256 !== "string" ||
+      !/^[0-9a-f]{64}$/.test(sha256)
+    )
+      return null;
+    seenPaths.add(file);
+    refs.push({ file, size, sha256 });
+    if (seenPaths.size > MAX_PAGES) return null;
+  }
+  return refs;
 }
 
 const MAX_MANIFEST_BYTES = 1024 * 1024;

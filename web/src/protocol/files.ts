@@ -3,7 +3,7 @@
 // What the board stores: listing, download, upload, delete, settings
 // (docs/protocol/protocol-v1.md#commands) with the recovery of tools/pixelart.py.
 
-import { DEFAULT_PLAYLIST_ID, DEFAULT_SCHEDULE_ID, type PlayMode } from "../engine/schedule";
+import { DEFAULT_PLAYLIST_ID, DEFAULT_SCHEDULE_ID, type PlayMode } from "../engine/scheduleChoice";
 import { FILE_LIMITS } from "../engine/types";
 import {
   BoardError,

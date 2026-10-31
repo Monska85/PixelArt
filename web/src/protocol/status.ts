@@ -10,7 +10,7 @@ import {
   type PlayReason,
   type PlaySource,
   type ServerChoice,
-} from "../engine/schedule";
+} from "../engine/scheduleChoice";
 import type { BoardClient } from "./client";
 import type { Body } from "./framing";
 import { isRecord } from "./guards";

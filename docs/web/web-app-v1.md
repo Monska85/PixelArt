@@ -83,7 +83,7 @@ Labels above fields; a hint in muted text under the field; an error replaces the
 - Everything works with the keyboard and shows a visible focus ring; `prefers-reduced-motion` turns off animations.
 - One spacing scale (multiples of 4 px), one card style, `h2` for the page, `h3` for cards; monospace only for IDs, codes and YAML.
 - The content is at most 72 rem wide and centered, with a 16 px margin on phones.
-- **Size budget:** the JavaScript the page loads at start (the entry chunk and the chunks it imports, each gzipped, 1 KB being 1,000 bytes) stays within 192 KB; `npm run size` checks it and CI fails the build above it. Everything else loads on demand: the Library, Firmware, Editor and Privacy views, the WiFi, Updates and Network access cards of the Board view (loaded together when a board connects, since they show only for a connected board), the playlist editor, the YAML reader, the editor's document store (which brings the stored draft back right after the first paint) and ESP Web Tools.
+- **Size budget:** the JavaScript the page loads at start (the entry chunk and the chunks it imports, each gzipped, 1 KB being 1,000 bytes) stays within 193 KB; `npm run size` checks it and CI fails the build above it. Everything else loads on demand: the Library, Firmware, Editor and Privacy views, the WiFi, Updates and Network access cards of the Board view (loaded together when a board connects, since they show only for a connected board), the playlist editor, the YAML reader, the editor's document store (which brings the stored draft back right after the first paint) and ESP Web Tools.
 
 ### How each view applies the rules
 

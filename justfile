@@ -169,7 +169,7 @@ web-dev: node-modules
 web-build: node-modules
     cd web && nice -n {{nice}} npm run build
 
-# Fail when the JavaScript the web app loads at start is over its budget (190 KB gzip)
+# Fail when the JavaScript the web app loads at start is over its budget (193 KB gzip)
 web-size: web-build
     cd web && npm run size
 

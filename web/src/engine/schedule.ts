@@ -22,6 +22,22 @@ import {
   isValidId,
   type Diagnostic,
 } from "./types";
+import {
+  DEFAULT_PLAYLIST_ID,
+  DEFAULT_SCHEDULE_ID,
+  type PlayMode,
+  type PlayReason,
+  type PlaySource,
+  type ServerChoice,
+} from "./scheduleChoice";
+export {
+  DEFAULT_PLAYLIST_ID,
+  DEFAULT_SCHEDULE_ID,
+  PLAY_REASONS,
+  PLAY_SOURCES,
+  parseServerChoice,
+} from "./scheduleChoice";
+export type { PlayMode, PlayReason, PlaySource, ServerChoice } from "./scheduleChoice";
 
 /** A local date of the Gregorian calendar. */
 export interface LocalDate {
@@ -433,18 +449,6 @@ export function scheduleWinner(schedule: Schedule, date: LocalDate): number {
   return best;
 }
 
-/** `play`: Automatic (the server choice), or My choice as a list of playlists or as a schedule. */
-export type PlayMode = "auto" | "playlists" | "schedule";
-/** Why the board plays what it plays, as `status.play.reason` names it. */
-export const PLAY_REASONS = ["playlists", "schedule", "fallback", "no_time", "no_schedule"] as const;
-export type PlayReason = (typeof PLAY_REASONS)[number];
-/** Where the list comes from, as `status.play.source` names it. */
-export const PLAY_SOURCES = ["server", "playlists", "schedule", "fallback"] as const;
-export type PlaySource = (typeof PLAY_SOURCES)[number];
-
-/** What the release says Automatic plays (docs/format/play-v1.md): a schedule or a list of playlists. */
-export type ServerChoice = { schedule: string } | { playlists: string[] };
-
 export interface PlayChoice {
   source: PlaySource;
   /** The ID of the schedule the list comes from, or null. */
@@ -457,30 +461,6 @@ export interface PlayChoice {
   /** The first playable playlist of the list, or null: every animation plays. */
   playing: string | null;
 }
-
-/**
- * The server choice in `value` (the manifest's `default` or `status.play.server_choice`), or null when it is absent or
- * breaks the rules of docs/format/play-v1.md: exactly one of `schedule` (an ID) or `playlists` (1 to 8 IDs, none twice).
- */
-export function parseServerChoice(value: unknown): ServerChoice | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-  const keys = Object.keys(value);
-  if (keys.length !== 1) return null;
-  const { schedule, playlists } = value as { schedule?: unknown; playlists?: unknown };
-  if (keys[0] === "schedule") return typeof schedule === "string" && isValidId(schedule) ? { schedule } : null;
-  if (keys[0] !== "playlists" || !Array.isArray(playlists)) return null;
-  const ok =
-    playlists.length >= 1 &&
-    playlists.length <= MAX_SCHEDULE_PLAYLISTS &&
-    playlists.every((id) => typeof id === "string" && isValidId(id)) &&
-    new Set(playlists).size === playlists.length;
-  return ok ? { playlists: playlists as string[] } : null;
-}
-
-/** The playlist the board plays when no schedule or list gives a playable one: the last fallback. */
-export const DEFAULT_PLAYLIST_ID = "default";
-/** The schedule the board's own rule tries when Automatic or My choice has nothing usable. */
-export const DEFAULT_SCHEDULE_ID = "default";
 
 export interface PlayInputs {
   mode: PlayMode;
@@ -607,36 +587,6 @@ export function nextScheduleChange(
     const next = scheduledFor(schedule, date);
     if (next.playlists.join(",") !== now)
       return { date, entry: next.entry >= 0 ? next.entry : null, playlists: next.playlists };
-  }
-  return null;
-}
-
-/** First changed list at a local minute boundary or midnight, within the same 366-day horizon. */
-export function nextTimedChange(
-  schedule: Schedule,
-  today: LocalDate,
-  minute: number,
-): { date: LocalDate; minute: number; entry: number | null; playlists: string[] } | null {
-  const at = (date: LocalDate, time: number) => {
-    const entry = scheduleWinner(schedule, date);
-    return { entry, playlists: entry < 0 ? schedule.fallback : playlistsAt(schedule, entry, time) };
-  };
-  const current = at(today, minute).playlists.join(",");
-  let date = today;
-  for (let day = 0; day <= NEXT_CHANGE_DAYS; day++) {
-    if (date.year > MAX_SCHEDULE_YEAR) return null;
-    const entry = scheduleWinner(schedule, date);
-    const boundaries =
-      entry < 0
-        ? []
-        : (schedule.entries[entry]!.hours?.flatMap((w) => [parseHour(w.from)!, parseHour(w.to, true)!]) ?? []);
-    for (const boundary of [...new Set([0, ...boundaries])].sort((a, b) => a - b)) {
-      if (boundary >= 1440 || (day === 0 && boundary <= minute)) continue;
-      const next = at(date, boundary);
-      if (next.playlists.join(",") !== current)
-        return { date, minute: boundary, entry: next.entry < 0 ? null : next.entry, playlists: next.playlists };
-    }
-    date = nextDay(date);
   }
   return null;
 }
