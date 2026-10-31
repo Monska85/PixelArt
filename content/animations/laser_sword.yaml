@@ -1,0 +1,348 @@
+format: pixelart/1
+name: Laser Sabers
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  hilt: "#b8c0d0"
+  hilt_d: "#4a4a58"
+  button: "#e8213a"
+  g_core: "#e8ffe8"
+  g: "#3aff5a"
+  g_d: "#1a8a2a"
+  bg_hilt: "#9098a8"
+  bg_grip: "#3a3a44"
+  r_core: "#ff7a6a"
+  r: "#a01818"
+  spark: "#ffe14a"
+  spark_w: "#ffffff"
+
+sprites:
+  fg_hilt:
+    points:
+      hilt: [[11, 11], [12, 11], [11, 13], [12, 13], [11, 15], [12, 15]]
+      hilt_d: [[11, 12], [12, 12], [11, 14], [12, 14]]
+      button: [[13, 13]]
+  fg1:
+    points:
+      g_core: [[11, 10], [12, 10]]
+      g: [[10, 10], [13, 10], [11, 9], [12, 9]]
+  fg2:
+    points:
+      g_core: [[11, 9], [12, 9], [11, 10], [12, 10]]
+      g: [[10, 9], [13, 9], [10, 10], [13, 10], [11, 8], [12, 8]]
+  fg3:
+    points:
+      g_core: [[11, 8], [12, 8], [11, 9], [12, 9], [11, 10], [12, 10]]
+      g: [[10, 8], [13, 8], [10, 9], [13, 9], [10, 10], [13, 10], [11, 7], [12, 7]]
+  fg4:
+    points:
+      g_core: [[11, 7], [12, 7], [11, 8], [12, 8], [11, 9], [12, 9], [11, 10], [12, 10]]
+      g: [[10, 7], [13, 7], [10, 8], [13, 8], [10, 9], [13, 9], [10, 10], [13, 10], [11, 6], [12, 6]]
+  fg5:
+    points:
+      g_core: [[11, 6], [12, 6], [11, 7], [12, 7], [11, 8], [12, 8], [11, 9], [12, 9], [11, 10], [12, 10]]
+      g: [
+          [10, 6], [13, 6], [10, 7], [13, 7], [10, 8], [13, 8], [10, 9], [13, 9], [10, 10], [13, 10],
+          [11, 5], [12, 5]
+        ]
+  fg6:
+    points:
+      g_core: [
+          [11, 5], [12, 5], [11, 6], [12, 6], [11, 7], [12, 7], [11, 8], [12, 8], [11, 9], [12, 9],
+          [11, 10], [12, 10]
+        ]
+      g: [
+          [10, 5], [13, 5], [10, 6], [13, 6], [10, 7], [13, 7], [10, 8], [13, 8], [10, 9], [13, 9],
+          [10, 10], [13, 10], [11, 4], [12, 4]
+        ]
+  fg7:
+    points:
+      g_core: [
+          [11, 4], [12, 4], [11, 5], [12, 5], [11, 6], [12, 6], [11, 7], [12, 7], [11, 8], [12, 8],
+          [11, 9], [12, 9], [11, 10], [12, 10]
+        ]
+      g: [
+          [10, 4], [13, 4], [10, 5], [13, 5], [10, 6], [13, 6], [10, 7], [13, 7], [10, 8], [13, 8],
+          [10, 9], [13, 9], [10, 10], [13, 10], [11, 3], [12, 3]
+        ]
+  fg8:
+    points:
+      g_core: [
+          [11, 3], [12, 3], [11, 4], [12, 4], [11, 5], [12, 5], [11, 6], [12, 6], [11, 7], [12, 7],
+          [11, 8], [12, 8], [11, 9], [12, 9], [11, 10], [12, 10]
+        ]
+      g: [
+          [10, 3], [13, 3], [10, 4], [13, 4], [10, 5], [13, 5], [10, 6], [13, 6], [10, 7], [13, 7],
+          [10, 8], [13, 8], [10, 9], [13, 9], [10, 10], [13, 10], [11, 2], [12, 2]
+        ]
+  fg9:
+    points:
+      g_core: [
+          [11, 2], [12, 2], [11, 3], [12, 3], [11, 4], [12, 4], [11, 5], [12, 5], [11, 6], [12, 6],
+          [11, 7], [12, 7], [11, 8], [12, 8], [11, 9], [12, 9], [11, 10], [12, 10]
+        ]
+      g: [
+          [10, 2], [13, 2], [10, 3], [13, 3], [10, 4], [13, 4], [10, 5], [13, 5], [10, 6], [13, 6],
+          [10, 7], [13, 7], [10, 8], [13, 8], [10, 9], [13, 9], [10, 10], [13, 10], [11, 1], [12, 1]
+        ]
+  fg10:
+    points:
+      g_core: [
+          [11, 1], [12, 1], [11, 2], [12, 2], [11, 3], [12, 3], [11, 4], [12, 4], [11, 5], [12, 5],
+          [11, 6], [12, 6], [11, 7], [12, 7], [11, 8], [12, 8], [11, 9], [12, 9], [11, 10], [12, 10]
+        ]
+      g: [
+          [10, 1], [13, 1], [10, 2], [13, 2], [10, 3], [13, 3], [10, 4], [13, 4], [10, 5], [13, 5],
+          [10, 6], [13, 6], [10, 7], [13, 7], [10, 8], [13, 8], [10, 9], [13, 9], [10, 10], [13, 10],
+          [11, 0], [12, 0]
+        ]
+  bg_off:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+  bg1:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+      r_core: [[3, 11]]
+      r: [[2, 11]]
+  bg2:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+      r_core: [[3, 11], [3, 10]]
+      r: [[2, 11], [2, 10]]
+  bg3:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+      r_core: [[3, 11], [3, 10], [3, 9]]
+      r: [[2, 11], [2, 10], [2, 9]]
+  bg4:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+      r_core: [[3, 11], [3, 10], [3, 9], [3, 8]]
+      r: [[2, 11], [2, 10], [2, 9], [2, 8]]
+  bg5:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+      r_core: [[3, 11], [3, 10], [3, 9], [3, 8], [3, 7]]
+      r: [[2, 11], [2, 10], [2, 9], [2, 8], [2, 7]]
+  bg6:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+      r_core: [[3, 11], [3, 10], [3, 9], [3, 8], [3, 7], [3, 6]]
+      r: [[2, 11], [2, 10], [2, 9], [2, 8], [2, 7], [2, 6]]
+  bg7:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+      r_core: [[3, 11], [3, 10], [3, 9], [3, 8], [3, 7], [3, 6], [3, 5]]
+      r: [[2, 11], [2, 10], [2, 9], [2, 8], [2, 7], [2, 6], [2, 5]]
+  bg8:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+      r_core: [[3, 11], [3, 10], [3, 9], [3, 8], [3, 7], [3, 6], [3, 5], [3, 4]]
+      r: [[2, 11], [2, 10], [2, 9], [2, 8], [2, 7], [2, 6], [2, 5], [2, 4]]
+  bg9:
+    points:
+      bg_hilt: [[3, 12], [3, 14]]
+      bg_grip: [[3, 13], [3, 15]]
+      r_core: [[3, 11], [3, 10], [3, 9], [3, 8], [3, 7], [3, 6], [3, 5], [3, 4], [3, 3]]
+      r: [[2, 11], [2, 10], [2, 9], [2, 8], [2, 7], [2, 6], [2, 5], [2, 4], [2, 3]]
+  bg_swing:
+    points:
+      bg_hilt: [[3, 12], [2, 14]]
+      bg_grip: [[3, 13], [2, 15]]
+      r_core: [[3, 11], [4, 10], [4, 9], [4, 8], [5, 7], [5, 6], [6, 6], [6, 5], [6, 4]]
+      r: [[2, 11], [3, 10], [3, 9], [3, 8], [4, 7], [4, 6], [5, 5], [5, 4]]
+  bg_hit:
+    points:
+      bg_hilt: [[3, 12], [1, 14]]
+      bg_grip: [[2, 13]]
+      r_core: [[4, 11], [5, 10], [6, 9], [6, 8], [7, 8], [8, 7], [8, 6], [9, 5]]
+      r: [[3, 11], [4, 10], [5, 9], [5, 8], [7, 7], [7, 6], [8, 5]]
+  bg_hit2:
+    points:
+      bg_hilt: [[3, 12], [1, 14]]
+      bg_grip: [[2, 13]]
+      r_core: [[4, 11], [5, 10], [6, 9], [7, 9], [7, 8], [8, 7], [9, 7], [10, 6]]
+      r: [[3, 11], [4, 10], [5, 9], [6, 8], [7, 7], [9, 6]]
+  spark:
+    points:
+      spark_w: [[10, 5]]
+      spark: [[9, 5], [10, 4], [10, 6], [8, 3], [8, 7], [9, 4], [9, 6]]
+  spark2:
+    points:
+      spark_w: [[10, 6]]
+      spark: [[9, 6], [10, 5], [10, 7], [8, 4], [8, 8], [9, 5], [9, 7]]
+
+timeline:
+  - show: [fg_hilt]
+    ms: 900
+  - show: [fg_hilt, fg1]
+    ms: 45
+  - show: [fg_hilt, fg2]
+    ms: 45
+  - show: [fg_hilt, fg3]
+    ms: 45
+  - show: [fg_hilt, fg4]
+    ms: 45
+  - show: [fg_hilt, fg5]
+    ms: 45
+  - show: [fg_hilt, fg6]
+    ms: 45
+  - show: [fg_hilt, fg7]
+    ms: 45
+  - show: [fg_hilt, fg8]
+    ms: 45
+  - show: [fg_hilt, fg9]
+    ms: 45
+  - show: [fg_hilt, fg10]
+    ms: 45
+  - show: [fg_hilt, fg10]
+    ms: 150
+  - show: [fg_hilt, fg10]
+    ms: 150
+    recolor: { g: g_d }
+  - show: [fg_hilt, fg10]
+    ms: 150
+  - show: [fg_hilt, fg10]
+    ms: 150
+  - show: [fg_hilt, fg10]
+    ms: 150
+    recolor: { g: g_d }
+  - show: [fg_hilt, fg10]
+    ms: 150
+  - show: [{ sprite: bg_off, at: [-6, 0] }, fg_hilt, fg10]
+    ms: 120
+  - show: [{ sprite: bg_off, at: [-4, 0] }, fg_hilt, fg10]
+    ms: 120
+  - show: [{ sprite: bg_off, at: [-2, 0] }, fg_hilt, fg10]
+    ms: 120
+  - show: [{ sprite: bg_off, at: [-1, 0] }, fg_hilt, fg10]
+    ms: 120
+  - show: [{ sprite: bg_off, at: [0, 0] }, fg_hilt, fg10]
+    ms: 120
+  - show: [bg_off, fg_hilt, fg10]
+    ms: 500
+  - show: [bg1, fg_hilt, fg10]
+    ms: 50
+  - show: [bg2, fg_hilt, fg10]
+    ms: 50
+  - show: [bg3, fg_hilt, fg10]
+    ms: 50
+  - show: [bg4, fg_hilt, fg10]
+    ms: 50
+  - show: [bg5, fg_hilt, fg10]
+    ms: 50
+  - show: [bg6, fg_hilt, fg10]
+    ms: 50
+  - show: [bg7, fg_hilt, fg10]
+    ms: 50
+  - show: [bg8, fg_hilt, fg10]
+    ms: 50
+  - show: [bg9, fg_hilt, fg10]
+    ms: 50
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+    recolor: { g: g_d }
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+    recolor: { g: g_d }
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg_swing, fg_hilt, fg10]
+    ms: 80
+  - show: [bg_hit, fg_hilt, fg10, spark]
+    ms: 120
+  - show: [bg_hit, fg_hilt, fg10, spark]
+    ms: 100
+    recolor: { spark: spark_w }
+  - show: [bg_hit, fg_hilt, fg10]
+    ms: 140
+  - show: [bg_swing, fg_hilt, fg10]
+    ms: 80
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+    recolor: { g: g_d }
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg_swing, fg_hilt, fg10]
+    ms: 80
+  - show: [bg_hit2, fg_hilt, fg10, spark2]
+    ms: 120
+  - show: [bg_hit2, fg_hilt, fg10, spark2]
+    ms: 100
+    recolor: { spark: spark_w }
+  - show: [bg_hit2, fg_hilt, fg10]
+    ms: 140
+  - show: [bg_swing, fg_hilt, fg10]
+    ms: 80
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+    recolor: { g: g_d }
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+    recolor: { g: g_d }
+  - show: [bg9, fg_hilt, fg10]
+    ms: 150
+  - show: [bg9, fg_hilt, fg10]
+    ms: 35
+  - show: [bg8, fg_hilt, fg10]
+    ms: 35
+  - show: [bg7, fg_hilt, fg10]
+    ms: 35
+  - show: [bg6, fg_hilt, fg10]
+    ms: 35
+  - show: [bg5, fg_hilt, fg10]
+    ms: 35
+  - show: [bg4, fg_hilt, fg10]
+    ms: 35
+  - show: [bg3, fg_hilt, fg10]
+    ms: 35
+  - show: [bg2, fg_hilt, fg10]
+    ms: 35
+  - show: [bg1, fg_hilt, fg10]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg10]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg9]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg8]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg7]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg6]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg5]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg4]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg3]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg2]
+    ms: 35
+  - show: [bg_off, fg_hilt, fg1]
+    ms: 35
+  - show: [bg_off, fg_hilt]
+    ms: 900

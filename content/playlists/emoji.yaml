@@ -1,0 +1,15 @@
+format: pixelart-playlist/1
+name: Emoji
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: laughing_face
+  - animation: heart_eyes
+  - animation: winking_face
+  - animation: tears_of_joy
+  - animation: kissing_face
+  - animation: surprised_face
+  - animation: angry_face
+  - animation: star_struck
+  - animation: cool_sun
+  - animation: beating_heart

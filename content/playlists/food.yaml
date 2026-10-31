@@ -1,0 +1,22 @@
+format: pixelart-playlist/1
+name: Food
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: hamburger
+  - animation: sushi
+  - animation: donut
+  - animation: cupcake
+  - animation: apple_worm
+  - animation: pizza
+  - animation: watermelon
+  - animation: popsicle
+  - animation: melting_ice_cream
+  - animation: birthday_cake
+  - animation: chocolate_egg
+  - animation: summer_cocktail
+  - animation: panettone
+  - animation: gingerbread_man
+  - animation: candy_cane
+  - animation: steaming_mug
+  - animation: toast

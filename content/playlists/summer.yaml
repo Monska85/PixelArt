@@ -1,0 +1,20 @@
+format: pixelart-playlist/1
+name: Summer
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: cool_sun
+  - animation: watermelon
+  - animation: melting_ice_cream
+  - animation: surfer
+  - animation: beach_umbrella
+  - animation: crab
+  - animation: sailboat
+  - animation: sandcastle
+  - animation: palm_tree
+  - animation: lighthouse
+  - animation: popsicle
+  - animation: fireworks_sea
+  - animation: summer_cocktail
+  - animation: hot_thermometer
+  - animation: starfish

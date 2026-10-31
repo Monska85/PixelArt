@@ -1,0 +1,88 @@
+format: pixelart/1
+name: Busy Bee
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 110
+
+palette:
+  grass: "#3fa34d"
+  dark_grass: "#2b7a37"
+  soil: "#6b4226"
+  stem: "#4caf50"
+  leaf: "#7bd36b"
+  petal: "#ff6fa8"
+  yellow: "#ffd23f"
+  wing: "#cfefff"
+  bee_yellow: "#ffc400"
+  bee_black: "#2a2a2a"
+
+sprites:
+  ground:
+    points:
+      dark_grass: [[1, 13], [3, 13], [12, 13], [14, 13]]
+      grass: [
+          [0, 14], [1, 14], [2, 14], [3, 14], [4, 14], [5, 14], [6, 14], [7, 14], [8, 14], [9, 14],
+          [10, 14], [11, 14], [12, 14], [13, 14], [14, 14], [15, 14]
+        ]
+      soil: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+  flower:
+    points:
+      petal: [[7, 9], [6, 10], [8, 10], [7, 11]]
+      yellow: [[7, 10]]
+      stem: [[7, 12], [7, 13]]
+      leaf: [[6, 13]]
+  bee_a:
+    points:
+      wing: [[3, 0], [4, 0], [2, 1], [3, 1], [4, 1]]
+      bee_yellow: [[1, 2], [3, 2], [5, 2], [1, 3], [3, 3], [5, 3], [1, 4], [3, 4], [5, 4]]
+      bee_black: [[2, 2], [4, 2], [6, 2], [0, 3], [2, 3], [4, 3], [6, 3], [2, 4], [4, 4]]
+  bee_b:
+    points:
+      wing: [[2, 1], [3, 1], [4, 1]]
+      bee_yellow: [[1, 2], [3, 2], [5, 2], [1, 3], [3, 3], [5, 3], [1, 4], [3, 4], [5, 4]]
+      bee_black: [[2, 2], [4, 2], [6, 2], [0, 3], [2, 3], [4, 3], [6, 3], [2, 4], [4, 4]]
+
+timeline:
+  - show: [ground, flower]
+    ms: 300
+  - show: [ground, flower, { sprite: bee_a, at: [-7, 3] }]
+  - show: [ground, flower, { sprite: bee_b, at: [-6, 5] }]
+  - show: [ground, flower, { sprite: bee_a, at: [-5, 5] }]
+  - show: [ground, flower, { sprite: bee_b, at: [-4, 4] }]
+  - show: [ground, flower, { sprite: bee_a, at: [-3, 2] }]
+  - show: [ground, flower, { sprite: bee_b, at: [-2, 1] }]
+  - show: [ground, flower, { sprite: bee_a, at: [-1, 1] }]
+  - show: [ground, flower, { sprite: bee_b, at: [0, 3] }]
+  - show: [ground, flower, { sprite: bee_a, at: [1, 5] }]
+  - show: [ground, flower, { sprite: bee_b, at: [2, 5] }]
+  - show: [ground, flower, { sprite: bee_a, at: [3, 4] }]
+  - show: [ground, flower, { sprite: bee_b, at: [4, 2] }]
+  - show: [ground, flower, { sprite: bee_a, at: [5, 1] }]
+  - show: [ground, flower, { sprite: bee_b, at: [6, 1] }]
+  - show: [ground, flower, { sprite: bee_a, at: [5, 5] }]
+  - show: [ground, flower, { sprite: bee_b, at: [5, 6] }]
+  - show: [ground, flower, { sprite: bee_a, at: [4, 6] }]
+  - loop: 6
+    steps:
+      - show: [ground, flower, { sprite: bee_a, at: [4, 6] }]
+        ms: 120
+      - show: [ground, flower, { sprite: bee_b, at: [4, 6] }]
+        ms: 120
+  - show: [ground, flower, { sprite: bee_a, at: [5, 5] }]
+  - show: [ground, flower, { sprite: bee_b, at: [6, 5] }]
+  - show: [ground, flower, { sprite: bee_a, at: [7, 4] }]
+  - show: [ground, flower, { sprite: bee_b, at: [8, 4] }]
+  - show: [ground, flower, { sprite: bee_a, at: [9, 3] }]
+  - show: [ground, flower, { sprite: bee_b, at: [10, 3] }]
+  - show: [ground, flower, { sprite: bee_a, at: [11, 2] }]
+  - show: [ground, flower, { sprite: bee_b, at: [12, 2] }]
+  - show: [ground, flower, { sprite: bee_a, at: [13, 1] }]
+  - show: [ground, flower, { sprite: bee_b, at: [14, 1] }]
+  - show: [ground, flower, { sprite: bee_a, at: [15, 0] }]
+  - show: [ground, flower, { sprite: bee_b, at: [16, 0] }]
+  - show: [ground, flower, { sprite: bee_a, at: [17, -1] }]
+  - show: [ground, flower]
+    ms: 500

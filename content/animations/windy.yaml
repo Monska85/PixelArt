@@ -1,0 +1,141 @@
+format: pixelart/1
+name: Windy
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  wind: "#7ac0e0"
+  wind_l: "#ffffff"
+  leaf: "#ff8c1a"
+  leaf2: "#d93a1f"
+  leaf3: "#ffd23f"
+
+sprites:
+  gusts:
+    points:
+      wind: [
+          [1, 4], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4], [11, 4],
+          [12, 3], [13, 2], [13, 1], [12, 0], [11, 0], [10, 1], [0, 8], [1, 8], [2, 8], [3, 8], [4, 8],
+          [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [11, 8], [12, 8], [13, 8], [14, 8], [3, 12],
+          [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12], [10, 12], [11, 13], [12, 14], [11, 15],
+          [10, 15], [9, 14]
+        ]
+  flow0:
+    points:
+      leaf2: [[8, 10]]
+      leaf3: [[4, 3]]
+  flow1:
+    points:
+      leaf: [[1, 7]]
+      leaf2: [[10, 9]]
+      leaf3: [[6, 4]]
+      wind_l: [[1, 4], [2, 4], [0, 8], [1, 8], [3, 12], [4, 12]]
+  flow2:
+    points:
+      leaf: [[3, 8]]
+      leaf2: [[12, 10]]
+      leaf3: [[8, 2]]
+      wind_l: [[2, 4], [3, 4], [4, 4], [1, 8], [2, 8], [4, 12], [5, 12], [6, 12]]
+  flow3:
+    points:
+      leaf: [[5, 6]]
+      leaf2: [[14, 9]]
+      leaf3: [[10, 3]]
+      wind_l: [[4, 4], [5, 4], [6, 4], [3, 8], [4, 8], [5, 8], [6, 12], [7, 12], [8, 12]]
+  flow4:
+    points:
+      leaf: [[7, 7]]
+      leaf3: [[12, 4]]
+      wind_l: [[6, 4], [7, 4], [8, 4], [5, 8], [6, 8], [7, 8], [8, 12], [9, 12], [10, 12]]
+  flow5:
+    points:
+      leaf: [[9, 8]]
+      leaf2: [[0, 9]]
+      leaf3: [[14, 2]]
+      wind_l: [[8, 4], [9, 4], [10, 4], [7, 8], [8, 8], [10, 12], [11, 13], [12, 14]]
+  flow6:
+    points:
+      leaf: [[11, 6]]
+      leaf2: [[2, 10]]
+      wind_l: [[10, 4], [11, 4], [12, 3], [9, 8], [10, 8], [11, 8], [12, 14], [11, 15], [10, 15]]
+  flow7:
+    points:
+      leaf: [[13, 7]]
+      leaf2: [[4, 9]]
+      leaf3: [[0, 4]]
+      wind_l: [[12, 3], [13, 2], [13, 1], [11, 8], [12, 8], [13, 8], [10, 15], [9, 14]]
+  flow8:
+    points:
+      leaf: [[15, 8]]
+      leaf2: [[6, 10]]
+      leaf3: [[2, 2]]
+      wind_l: [[13, 1], [12, 0], [11, 0], [13, 8], [14, 8]]
+  flow9:
+    points:
+      leaf2: [[8, 9]]
+      leaf3: [[4, 3]]
+      wind_l: [[11, 0], [10, 1], [3, 12]]
+
+timeline:
+  - loop: 2
+    steps:
+      - show: [gusts, flow0]
+        ms: 110
+      - show: [gusts, flow1]
+        ms: 110
+      - show: [gusts, flow2]
+        ms: 110
+      - show: [gusts, flow3]
+        ms: 110
+      - show: [gusts, flow4]
+        ms: 110
+      - show: [gusts, flow5]
+        ms: 110
+      - show: [gusts, flow6]
+        ms: 110
+      - show: [gusts, flow7]
+        ms: 110
+      - show: [gusts, flow8]
+        ms: 110
+      - show: [gusts, flow9]
+        ms: 110
+      - show: [gusts, flow0]
+        ms: 110
+      - show: [gusts, flow1]
+        ms: 110
+      - show: [gusts, flow2]
+        ms: 110
+      - show: [gusts, flow3]
+        ms: 110
+      - show: [gusts, flow4]
+        ms: 110
+      - show: [gusts, flow5]
+        ms: 110
+      - show: [gusts, flow6]
+        ms: 110
+      - show: [gusts, flow7]
+        ms: 110
+      - show: [gusts, flow8]
+        ms: 110
+      - show: [gusts, flow9]
+        ms: 110
+      - show: [gusts, flow0]
+        ms: 110
+      - show: [gusts, flow1]
+        ms: 110
+      - show: [gusts, flow2]
+        ms: 110
+      - show: [gusts, flow3]
+        ms: 110
+      - show: [gusts, flow4]
+        ms: 110
+      - show: [gusts, flow5]
+        ms: 110
+      - show: [gusts, flow6]
+        ms: 110
+      - show: [gusts, flow7]
+        ms: 110
+      - show: [gusts, flow8]
+        ms: 110
+      - show: [gusts, flow9]
+        ms: 110

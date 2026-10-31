@@ -1,0 +1,41 @@
+format: pixelart-playlist/1
+name: Animals
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: cat_face
+  - animation: dog_face
+  - animation: lion
+  - animation: panda
+  - animation: frog
+  - animation: octopus
+  - animation: goldfish
+  - animation: penguin
+  - animation: purple_cat
+  - animation: bear
+  - animation: whale
+  - animation: dolphin_jump
+  - animation: jellyfish
+  - animation: pufferfish
+  - animation: marmot
+  - animation: eagle
+  - animation: ibex
+  - animation: fox
+  - animation: squirrel
+  - animation: owl_moon
+  - animation: rooster
+  - animation: bunny_hop
+  - animation: hatching_chick
+  - animation: butterfly
+  - animation: busy_bee
+  - animation: snail
+  - animation: crab
+  - animation: starfish
+  - animation: reindeer
+  - animation: easter_bunny
+  - animation: peace_dove
+  - animation: bats
+  - animation: spider
+  - animation: cow
+  - animation: pig
+  - animation: sheep
