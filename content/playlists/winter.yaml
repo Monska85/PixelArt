@@ -17,3 +17,5 @@ items:
   - animation: snowy_pine
   - animation: steaming_mug
   - animation: fireplace
+  - animation: snow_cloud
+  - animation: cold_thermometer
