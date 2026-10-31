@@ -28,12 +28,8 @@ sprites:
       light: [[4, 14], [8, 14], [11, 14], [4, 1], [7, 1], [11, 1]]
   person:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [9, 4]]
-      skin: [[7, 4], [8, 4], [7, 5], [8, 5], [5, 9], [10, 9]]
-      shirt: [
-          [6, 6], [7, 6], [8, 6], [9, 6], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [5, 8], [7, 8],
-          [8, 8], [10, 8], [7, 9], [8, 9]
-        ]
+      hair: [[7, 2], [8, 2]]
+      skin: [[7, 5], [8, 5]]
       pants: [[7, 10], [8, 10], [7, 11], [9, 11], [7, 12], [9, 12]]
   sparks0:
     points:
@@ -59,129 +55,50 @@ sprites:
     points:
       spark: [[7, 7], [9, 9], [8, 11], [7, 11], [11, 10]]
       spark_b: [[6, 6], [4, 11], [8, 5], [7, 8]]
-  column0:
-    points:
-      column: [
-          [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [4, 4], [5, 4], [6, 4], [7, 4],
-          [8, 4], [9, 4], [10, 4], [11, 4], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5],
-          [11, 5], [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [4, 8], [5, 8],
-          [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [11, 8], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10],
-          [9, 10], [10, 10], [11, 10], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11],
-          [11, 11], [4, 13], [5, 13], [6, 13], [7, 13], [8, 13], [9, 13], [10, 13], [11, 13]
-        ]
-  column1:
-    points:
-      column: [
-          [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [11, 3], [4, 4], [5, 4], [6, 4], [7, 4],
-          [8, 4], [9, 4], [10, 4], [11, 4], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6],
-          [11, 6], [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [4, 9], [5, 9],
-          [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10],
-          [9, 10], [10, 10], [11, 10], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12], [10, 12],
-          [11, 12], [4, 13], [5, 13], [6, 13], [7, 13], [8, 13], [9, 13], [10, 13], [11, 13]
-        ]
-  column2:
-    points:
-      column: [
-          [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [4, 3], [5, 3], [6, 3], [7, 3],
-          [8, 3], [9, 3], [10, 3], [11, 3], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5],
-          [11, 5], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [11, 6], [4, 8], [5, 8],
-          [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [11, 8], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9],
-          [10, 9], [11, 9], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11], [11, 11],
-          [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12], [10, 12], [11, 12]
-        ]
-  column3:
-    points:
-      column: [
-          [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [4, 4], [5, 4], [6, 4], [7, 4],
-          [8, 4], [9, 4], [10, 4], [11, 4], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5],
-          [11, 5], [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [4, 8], [5, 8],
-          [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [11, 8], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10],
-          [9, 10], [10, 10], [11, 10], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11],
-          [11, 11], [4, 13], [5, 13], [6, 13], [7, 13], [8, 13], [9, 13], [10, 13], [11, 13]
-        ]
-  column4:
-    points:
-      column: [
-          [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [11, 3], [4, 4], [5, 4], [6, 4], [7, 4],
-          [8, 4], [9, 4], [10, 4], [11, 4], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6],
-          [11, 6], [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [4, 9], [5, 9],
-          [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10],
-          [9, 10], [10, 10], [11, 10], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12], [10, 12],
-          [11, 12], [4, 13], [5, 13], [6, 13], [7, 13], [8, 13], [9, 13], [10, 13], [11, 13]
-        ]
-  column5:
-    points:
-      column: [
-          [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [4, 3], [5, 3], [6, 3], [7, 3],
-          [8, 3], [9, 3], [10, 3], [11, 3], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5],
-          [11, 5], [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [11, 6], [4, 8], [5, 8],
-          [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [11, 8], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9],
-          [10, 9], [11, 9], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11], [11, 11],
-          [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12], [10, 12], [11, 12]
-        ]
   gone1:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [9, 4]]
-      skin: [[7, 4], [8, 4], [7, 5], [8, 5], [5, 9], [10, 9]]
-      shirt: [
-          [6, 6], [7, 6], [8, 6], [9, 6], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [5, 8], [7, 8],
-          [8, 8], [10, 8], [7, 9], [8, 9]
-        ]
+      hair: [[7, 2], [8, 2]]
+      skin: [[7, 5], [8, 5]]
       pants: [[7, 10], [8, 10], [7, 11], [9, 11]]
       spark: [[7, 12]]
   gone2:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [9, 4]]
-      skin: [[7, 4], [8, 4], [7, 5], [8, 5], [5, 9], [10, 9]]
-      shirt: [
-          [6, 6], [7, 6], [8, 6], [9, 6], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [5, 8], [7, 8],
-          [8, 8], [10, 8], [7, 9], [8, 9]
-        ]
+      hair: [[7, 2], [8, 2]]
+      skin: [[7, 5], [8, 5]]
       pants: [[7, 10], [8, 10]]
       spark: [[7, 11]]
   gone3:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [9, 4]]
-      skin: [[7, 4], [8, 4], [7, 5], [8, 5], [5, 9], [10, 9]]
-      shirt: [
-          [6, 6], [7, 6], [8, 6], [9, 6], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [5, 8], [7, 8],
-          [8, 8], [10, 8], [7, 9], [8, 9]
-        ]
+      hair: [[7, 2], [8, 2]]
+      skin: [[7, 5], [8, 5]]
       spark: [[7, 10]]
   gone4:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [9, 4]]
-      skin: [[7, 4], [8, 4], [7, 5], [8, 5]]
-      shirt: [
-          [6, 6], [7, 6], [8, 6], [9, 6], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [5, 8], [7, 8],
-          [8, 8], [10, 8]
-        ]
+      hair: [[7, 2], [8, 2]]
+      skin: [[7, 5], [8, 5]]
       spark: [[5, 9], [7, 9]]
   gone5:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [9, 4]]
-      skin: [[7, 4], [8, 4], [7, 5], [8, 5]]
-      shirt: [[6, 6], [7, 6], [8, 6], [9, 6], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7]]
+      hair: [[7, 2], [8, 2]]
+      skin: [[7, 5], [8, 5]]
       spark: [[5, 8], [8, 8]]
   gone6:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [9, 4]]
-      skin: [[7, 4], [8, 4], [7, 5], [8, 5]]
-      shirt: [[6, 6], [7, 6], [8, 6], [9, 6]]
+      hair: [[7, 2], [8, 2]]
+      skin: [[7, 5], [8, 5]]
       spark: [[5, 7], [7, 7], [9, 7]]
   gone7:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [9, 4]]
-      skin: [[7, 4], [8, 4], [7, 5], [8, 5]]
+      hair: [[7, 2], [8, 2]]
+      skin: [[7, 5], [8, 5]]
       spark: [[6, 6], [8, 6]]
   gone8:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [9, 4]]
-      skin: [[7, 4], [8, 4]]
+      hair: [[7, 2], [8, 2]]
       spark: [[7, 5]]
   gone9:
     points:
-      hair: [[7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3]]
+      hair: [[7, 2], [8, 2]]
       spark: [[6, 4], [7, 4]]
   gone10:
     points:
@@ -190,90 +107,131 @@ sprites:
   gone11:
     points:
       spark: [[7, 2]]
+  shared0:
+    points:
+      column: [
+          [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [4, 5], [5, 5], [6, 5], [7, 5],
+          [8, 5], [9, 5], [10, 5], [11, 5], [4, 8], [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [10, 8],
+          [11, 8], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11], [11, 11]
+        ]
+  shared1:
+    points:
+      column: [
+          [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [11, 3], [4, 6], [5, 6], [6, 6], [7, 6],
+          [8, 6], [9, 6], [10, 6], [11, 6], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9], [10, 9],
+          [11, 9], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12], [10, 12], [11, 12]
+        ]
+  shared2:
+    points:
+      column: [
+          [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4], [11, 4], [4, 7], [5, 7], [6, 7], [7, 7],
+          [8, 7], [9, 7], [10, 7], [11, 7], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [10, 10],
+          [11, 10], [4, 13], [5, 13], [6, 13], [7, 13], [8, 13], [9, 13], [10, 13], [11, 13]
+        ]
+  shared3:
+    points:
+      hair: [[6, 3], [7, 3], [8, 3], [9, 3]]
+  shared4:
+    points:
+      hair: [[6, 4], [9, 4]]
+      skin: [[7, 4], [8, 4]]
+  shared5:
+    points:
+      shirt: [[5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7]]
+  shared6:
+    points:
+      shirt: [[6, 6], [7, 6], [8, 6], [9, 6]]
+  shared7:
+    points:
+      shirt: [[5, 8], [7, 8], [8, 8], [10, 8]]
+  shared8:
+    points:
+      skin: [[5, 9], [10, 9]]
+      shirt: [[7, 9], [8, 9]]
 
 timeline:
-  - show: [pod, person]
+  - show: [pod, shared3, shared4, shared5, shared6, shared7, shared8, person]
     ms: 1200
     recolor: { light: light_off }
-  - show: [pod, column0, person]
+  - show: [pod, shared0, shared2, shared3, shared4, shared5, shared6, shared7, shared8, person]
     ms: 120
-  - show: [pod, column1, person]
-    ms: 120
-    recolor: { light: light_off }
-  - show: [pod, column2, person]
-    ms: 120
-  - show: [pod, column3, person]
+  - show: [pod, shared1, shared2, shared3, shared4, shared5, shared6, shared7, shared8, person]
     ms: 120
     recolor: { light: light_off }
-  - show: [pod, column1, gone1, sparks1]
-    ms: 110
-  - show: [pod, column2, gone2, sparks2]
-    ms: 110
-  - show: [pod, column3, gone3, sparks3]
-    ms: 110
-  - show: [pod, column4, gone4, sparks4]
-    ms: 110
-  - show: [pod, column5, gone5, sparks5]
-    ms: 110
-  - show: [pod, column0, gone6, sparks0]
-    ms: 110
-  - show: [pod, column1, gone7, sparks1]
-    ms: 110
-  - show: [pod, column2, gone8, sparks2]
-    ms: 110
-  - show: [pod, column3, gone9, sparks3]
-    ms: 110
-  - show: [pod, column4, gone10, sparks4]
-    ms: 110
-  - show: [pod, column5, gone11, sparks5]
-    ms: 110
-  - show: [pod, column0, sparks0]
+  - show: [pod, shared0, shared1, shared3, shared4, shared5, shared6, shared7, shared8, person]
     ms: 120
-  - show: [pod, column1, sparks1]
+  - show: [pod, shared0, shared2, shared3, shared4, shared5, shared6, shared7, shared8, person]
     ms: 120
-  - show: [pod, column2, sparks2]
+    recolor: { light: light_off }
+  - show: [pod, shared1, shared2, shared3, shared4, shared5, shared6, shared7, shared8, gone1, sparks1]
+    ms: 110
+  - show: [pod, shared0, shared1, shared3, shared4, shared5, shared6, shared7, shared8, gone2, sparks2]
+    ms: 110
+  - show: [pod, shared0, shared2, shared3, shared4, shared5, shared6, shared7, shared8, gone3, sparks3]
+    ms: 110
+  - show: [pod, shared1, shared2, shared3, shared4, shared5, shared6, shared7, gone4, sparks4]
+    ms: 110
+  - show: [pod, shared0, shared1, shared3, shared4, shared5, shared6, gone5, sparks5]
+    ms: 110
+  - show: [pod, shared0, shared2, shared3, shared4, shared6, gone6, sparks0]
+    ms: 110
+  - show: [pod, shared1, shared2, shared3, shared4, gone7, sparks1]
+    ms: 110
+  - show: [pod, shared0, shared1, shared3, shared4, gone8, sparks2]
+    ms: 110
+  - show: [pod, shared0, shared2, shared3, gone9, sparks3]
+    ms: 110
+  - show: [pod, shared1, shared2, gone10, sparks4]
+    ms: 110
+  - show: [pod, shared0, shared1, gone11, sparks5]
+    ms: 110
+  - show: [pod, shared0, shared2, sparks0]
     ms: 120
-  - show: [pod, column3, sparks3]
+  - show: [pod, shared1, shared2, sparks1]
     ms: 120
-  - show: [pod, column4, sparks4]
+  - show: [pod, shared0, shared1, sparks2]
     ms: 120
-  - show: [pod, column5, sparks5]
+  - show: [pod, shared0, shared2, sparks3]
+    ms: 120
+  - show: [pod, shared1, shared2, sparks4]
+    ms: 120
+  - show: [pod, shared0, shared1, sparks5]
     ms: 120
   - show: [pod]
     ms: 800
     recolor: { light: light_off }
-  - show: [pod, column0, sparks0]
+  - show: [pod, shared0, shared2, sparks0]
     ms: 120
-  - show: [pod, column1, sparks1]
+  - show: [pod, shared1, shared2, sparks1]
     ms: 120
-  - show: [pod, column2, sparks2]
+  - show: [pod, shared0, shared1, sparks2]
     ms: 120
-  - show: [pod, column3, sparks3]
+  - show: [pod, shared0, shared2, sparks3]
     ms: 120
-  - show: [pod, column5, gone11, sparks5]
+  - show: [pod, shared0, shared1, gone11, sparks5]
     ms: 90
-  - show: [pod, column4, gone10, sparks4]
+  - show: [pod, shared1, shared2, gone10, sparks4]
     ms: 90
-  - show: [pod, column3, gone9, sparks3]
+  - show: [pod, shared0, shared2, shared3, gone9, sparks3]
     ms: 90
-  - show: [pod, column2, gone8, sparks2]
+  - show: [pod, shared0, shared1, shared3, shared4, gone8, sparks2]
     ms: 90
-  - show: [pod, column1, gone7, sparks1]
+  - show: [pod, shared1, shared2, shared3, shared4, gone7, sparks1]
     ms: 90
-  - show: [pod, column0, gone6, sparks0]
+  - show: [pod, shared0, shared2, shared3, shared4, shared6, gone6, sparks0]
     ms: 90
-  - show: [pod, column5, gone5, sparks5]
+  - show: [pod, shared0, shared1, shared3, shared4, shared5, shared6, gone5, sparks5]
     ms: 90
-  - show: [pod, column4, gone4, sparks4]
+  - show: [pod, shared1, shared2, shared3, shared4, shared5, shared6, shared7, gone4, sparks4]
     ms: 90
-  - show: [pod, column3, gone3, sparks3]
+  - show: [pod, shared0, shared2, shared3, shared4, shared5, shared6, shared7, shared8, gone3, sparks3]
     ms: 90
-  - show: [pod, column2, gone2, sparks2]
+  - show: [pod, shared0, shared1, shared3, shared4, shared5, shared6, shared7, shared8, gone2, sparks2]
     ms: 90
-  - show: [pod, column1, gone1, sparks1]
+  - show: [pod, shared1, shared2, shared3, shared4, shared5, shared6, shared7, shared8, gone1, sparks1]
     ms: 90
-  - show: [pod, column0, person]
+  - show: [pod, shared0, shared2, shared3, shared4, shared5, shared6, shared7, shared8, person]
     ms: 200
-  - show: [pod, person]
+  - show: [pod, shared3, shared4, shared5, shared6, shared7, shared8, person]
     ms: 1000
     recolor: { light: light_off }
