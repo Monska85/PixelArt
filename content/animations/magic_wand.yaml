@@ -1,0 +1,91 @@
+format: pixelart/1
+name: Magic Wand
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  wand: "#a06a3a"
+  tip: "#ffffff"
+  star: "#ffe14a"
+  s1: "#ff6ad5"
+  s2: "#6ae0ff"
+  s3: "#ffe14a"
+  s4: "#b080ff"
+
+sprites:
+  wand_up:
+    points:
+      wand: [[2, 13], [3, 12], [4, 11], [5, 10], [6, 9], [6, 8], [7, 7], [8, 6]]
+      star: [
+          [10, 2], [9, 3], [10, 3], [11, 3], [8, 4], [9, 4], [11, 4], [12, 4], [9, 5], [11, 5], [10, 5],
+          [9, 6], [11, 6]
+        ]
+      tip: [[10, 4]]
+  wand_down:
+    points:
+      wand: [[2, 13], [3, 12], [4, 12], [5, 11], [6, 11], [7, 10], [8, 9], [9, 9], [10, 8]]
+      star: [
+          [12, 5], [11, 6], [12, 6], [13, 6], [10, 7], [11, 7], [13, 7], [14, 7], [11, 8], [13, 8],
+          [12, 8], [11, 9], [13, 9]
+        ]
+      tip: [[12, 7]]
+  burst0:
+    points:
+      s1: [[10, 6], [9, 5], [11, 3], [10, 3]]
+      s2: [[9, 6], [13, 4]]
+      s4: [[10, 7], [9, 4], [12, 3]]
+  burst1:
+    points:
+      s1: [[7, 5], [10, 1], [9, 2]]
+      s2: [[8, 8], [9, 8], [8, 7], [14, 3]]
+      s3: [[8, 3], [13, 1]]
+      s4: [[9, 9], [14, 1], [8, 4]]
+  burst2:
+    points:
+      s1: [[5, 5], [10, 0], [8, 1]]
+      s2: [[7, 9], [8, 10], [15, 3], [6, 9]]
+      s3: [[7, 3], [8, 11], [13, 0]]
+      s4: [[6, 4], [9, 11]]
+  burst3:
+    points:
+      s1: [[6, 11], [3, 6], [8, 1]]
+      s2: [[8, 12], [6, 10], [4, 11]]
+      s3: [[6, 3], [7, 14]]
+      s4: [[5, 4], [8, 14]]
+  burst4:
+    points:
+      s2: [[7, 14]]
+      s3: [[4, 3]]
+      s4: [[4, 5]]
+  burst5:
+    points:
+      s3: [[3, 3]]
+      s4: [[2, 5]]
+
+timeline:
+  - show: [wand_down]
+    ms: 250
+  - show: [wand_up]
+    ms: 250
+  - show: [wand_down]
+    ms: 250
+  - show: [wand_up]
+    ms: 250
+  - show: [wand_down]
+    ms: 250
+  - show: [wand_up]
+    ms: 250
+  - show: [wand_up, burst0]
+    ms: 130
+  - show: [wand_up, burst1]
+    ms: 130
+  - show: [wand_up, burst2]
+    ms: 130
+  - show: [wand_up, burst3]
+    ms: 130
+  - show: [wand_up, burst4]
+    ms: 130
+  - show: [wand_up, burst5]
+    ms: 130
+  - show: [wand_up]
+    ms: 600
