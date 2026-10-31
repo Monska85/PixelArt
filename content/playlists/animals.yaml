@@ -13,3 +13,7 @@ items:
   - animation: penguin
   - animation: purple_cat
   - animation: bear
+  - animation: whale
+  - animation: dolphin_jump
+  - animation: jellyfish
+  - animation: pufferfish
