@@ -77,6 +77,7 @@ const KINDS: Record<string, Kind> = {
   "pixelart/1": "animation",
   "pixelart-playlist/1": "playlist",
   "pixelart-schedule/1": "schedule",
+  "pixelart-schedule/2": "schedule_v2",
 };
 
 /** The name of a file the app reads: JSON or YAML. */
@@ -102,7 +103,7 @@ export function detectKind(document: JsonValue): { ok: true; kind: Kind } | { ok
   const described = typeof format === "string" ? `"${format}"` : format === undefined ? "missing" : "not a text";
   return {
     ok: false,
-    message: `The format of this file is ${described}, which is none of "pixelart/1", "pixelart-playlist/1" and "pixelart-schedule/1".`,
+    message: `The format of this file is ${described}, which is not a supported animation, playlist or schedule format.`,
   };
 }
 
@@ -121,7 +122,11 @@ export function validateFile(kind: Kind, bytes: Uint8Array): { ok: boolean; diag
     return { ok: choice !== null, diagnostics };
   }
   const { schedule, diagnostics } = loadSchedule(bytes);
-  return { ok: schedule !== null, diagnostics };
+  return {
+    ok:
+      schedule !== null && schedule.format === (kind === "schedule_v2" ? "pixelart-schedule/2" : "pixelart-schedule/1"),
+    diagnostics,
+  };
 }
 
 type Inspected =

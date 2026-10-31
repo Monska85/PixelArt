@@ -127,6 +127,8 @@ const char *kind_name(Kind kind)
     return "playlist";
   case Kind::Schedule:
     return "schedule";
+  case Kind::ScheduleV2:
+    return "schedule_v2";
   case Kind::Play:
     break;
   }
@@ -276,10 +278,12 @@ Status get_kind(JsonObjectConst request, Kind &kind)
     kind = Kind::Playlist;
   else if (text == "schedule")
     kind = Kind::Schedule;
+  else if (text == "schedule_v2")
+    kind = Kind::ScheduleV2;
   else if (text == "play")
     kind = Kind::Play;
   else
-    return fail("invalid_kind", "kind must be \"animation\", \"playlist\", \"schedule\" or \"play\"");
+    return fail("invalid_kind", "kind must be \"animation\", \"playlist\", \"schedule\", \"schedule_v2\" or \"play\"");
   return {};
 }
 
@@ -407,14 +411,20 @@ void warn_unknown_playlists(const pixelart::Schedule &schedule, std::vector<pixe
   };
   check(schedule.fallback(), "fallback");
   for (size_t e = 0; e < schedule.entry_count(); e++)
+  {
     check(schedule.playlists(e), "entries[" + std::to_string(e) + "].playlists");
+    for (size_t w = 0; w < schedule.window_count(e); w++)
+      check(schedule.window_playlists(e, w),
+            "entries[" + std::to_string(e) + "].hours[" + std::to_string(w) + "].playlists");
+  }
 }
 
 // Adds an `unknown_schedule` or `unknown_playlist` warning for the schedule or each playlist of a play file that is
 // not stored. A play file names at most MAX_SCHEDULE_PLAYLISTS places.
 void warn_unknown_play_targets(const pixelart::ServerChoice &choice, std::vector<pixelart::Diagnostic> &diagnostics)
 {
-  if (!choice.schedule.empty() && !storage::exists(schedule_file(choice.schedule)))
+  if (!choice.schedule.empty() && !storage::exists(schedule_file(choice.schedule)) &&
+      !storage::exists(schedule_v2_file(choice.schedule)))
     diagnostics.push_back({pixelart::Severity::Warning, "unknown_schedule", "default.schedule",
                            "\"" + choice.schedule + "\" is not stored"});
   for (size_t i = 0; i < choice.playlists.size(); i++)
@@ -438,6 +448,7 @@ Status cmd_info(JsonObjectConst request, JsonDocument &reply)
   reply["formats"]["animation"].add("pixelart/1");
   reply["formats"]["playlist"].add("pixelart-playlist/1");
   reply["formats"]["schedule"].add("pixelart-schedule/1");
+  reply["formats"]["schedule_v2"].add("pixelart-schedule/2");
   reply["formats"]["play"].add("pixelart-play/1");
   reply["canvas"]["width"] = pixelart::CANVAS_WIDTH;
   reply["canvas"]["height"] = pixelart::CANVAS_HEIGHT;
@@ -451,6 +462,7 @@ Status cmd_info(JsonObjectConst request, JsonDocument &reply)
   reply["limits"]["animation"] = pixelart::MAX_FILE_SIZE;
   reply["limits"]["playlist"] = pixelart::MAX_PLAYLIST_FILE_SIZE;
   reply["limits"]["schedule"] = pixelart::MAX_SCHEDULE_FILE_SIZE;
+  reply["limits"]["schedule_v2"] = pixelart::MAX_SCHEDULE_FILE_SIZE;
   reply["limits"]["play"] = pixelart::MAX_PLAY_FILE_SIZE;
   return {};
 }
@@ -716,7 +728,7 @@ Status validate_temp_file(Kind kind, size_t size, JsonDocument &reply, std::vect
   case install::Result::Ok:
     if (kind == Kind::Playlist)
       warn_unknown_animations(parsed.playlist, diagnostics);
-    else if (kind == Kind::Schedule)
+    else if (kind == Kind::Schedule || kind == Kind::ScheduleV2)
       warn_unknown_playlists(parsed.schedule, diagnostics);
     else if (kind == Kind::Play)
       warn_unknown_play_targets(parsed.play, diagnostics);
@@ -891,12 +903,13 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
     return fail("busy", "the board could not take the request now; nothing was changed, repeat the command");
   cancel_upload();
   updates::cancel_install(); // before the files go, so an installation does not store them again
-  size_t play = 0, schedules = 0, playlists = 0, animations = 0;
-  bool done = remove_all_files(PLAY_FOLDER, play) && remove_all_files(SCHEDULES_FOLDER, schedules) &&
-              remove_all_files(PLAYLISTS_FOLDER, playlists) && remove_all_files(ANIMATIONS_FOLDER, animations);
+  size_t play = 0, schedules = 0, schedules_v2 = 0, playlists = 0, animations = 0;
+  bool done = remove_all_files(PLAY_FOLDER, play) && remove_all_files(SCHEDULES_V2_FOLDER, schedules_v2) &&
+              remove_all_files(SCHEDULES_FOLDER, schedules) && remove_all_files(PLAYLISTS_FOLDER, playlists) &&
+              remove_all_files(ANIMATIONS_FOLDER, animations);
   if (playlists > 0)
     install::file_changed(Kind::Playlist);
-  else if (schedules > 0)
+  else if (schedules > 0 || schedules_v2 > 0)
     install::file_changed(Kind::Schedule);
   else if (play > 0)
     install::file_changed(Kind::Play);
@@ -914,6 +927,7 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   }
   reply["play"] = play;
   reply["schedules"] = schedules;
+  reply["schedules_v2"] = schedules_v2;
   reply["playlists"] = playlists;
   reply["animations"] = animations;
   return {};
@@ -1122,7 +1136,8 @@ Status cmd_settings_set(JsonObjectConst request, JsonDocument &reply)
       return s;
   if (play.has_playlist && !storage::exists(playlist_file(play.playlist)))
     return fail("not_found", "no such playlist");
-  if (play.has_schedule && !storage::exists(schedule_file(next.schedule)))
+  if (play.has_schedule && !storage::exists(schedule_file(next.schedule)) &&
+      !storage::exists(schedule_v2_file(next.schedule)))
     return fail("not_found", "no such schedule");
   for (const std::string &id : play.playlists)
     if (!storage::exists(playlist_file(id)))
@@ -1188,6 +1203,7 @@ Status cmd_status(JsonObjectConst request, JsonDocument &reply)
     play["schedule"] = nullptr;
   else
     play["schedule"] = p.schedule;
+  play["schedule_format"] = p.schedule.empty() ? 0 : p.schedule_v2 ? 2 : 1;
   play["reason"] = pixelart::play_reason_name(p.reason);
   if (p.entry >= 0)
     play["entry"] = p.entry;

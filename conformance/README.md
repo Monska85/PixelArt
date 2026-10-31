@@ -215,3 +215,9 @@ The rules for format cases apply here too. In addition:
 - A CRC-32 or SHA-256 in a case is computed with an independent tool, on the bytes the case spells out: `python3 -c 'import zlib,sys; print("%08x" % zlib.crc32(sys.argv[1].encode()))' '{"seq":1,"cmd":"info"}'` and `sha256sum` or `hashlib.sha256`. Base64 comes from `base64` or `python3 -m base64`.
 - Keep one idea per case, and name the case after it: `framing_*`, `info_*`, `list_*`, `get_*`, `upload_*`, `delete_*` (`delete_all_*` for `delete_all`), `settings_*`, `status_*`, `token_*`, `cert_*`, `usb_*` (the USB transport next to a WiFi client), `wifi_*` (`wifi_login_*` for the network login), `update_*` (`update_failure_*` for a failed file or check, `update_manifest_*` for a manifest the board refuses, `update_play_*` for the play file).
 - Every change to the protocol comes with new cases.
+
+## Format 2 schedule cases
+
+`schedule-v2/valid/` and `schedule-v2/invalid/` contain hand-worked cases for [format 2](../docs/format/schedule-v2.md). Valid expectations list the fallback and date entries. A `minutes` array, when present, states the active playlists for minute numbers after midnight in the first entry. The `spring` case covers starts and exclusive ends of two windows and the base list between them. The eight-window case reaches the per-entry limit, and the nine-window case exceeds it. Invalid cases also cover overlap, overnight bounds, malformed time text and a null hours field. Both engine implementations must pass these cases, and the content tool validates the same files against the format 2 schema.
+
+The protocol case `schedule_v2_empty_and_delete_all` checks the distinct file kind and delete count. Manifest cases for the transition top-level pages, direct catalog and future nested pages use the updater's checksum and page validation rules.

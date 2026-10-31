@@ -1,0 +1,98 @@
+{
+  "description": "an unknown future page kind is ignored while the known format 2 page is checked",
+  "settings": {
+    "update_mode": "notify"
+  },
+  "update_source": {
+    "files": {
+      "manifest.json": {
+        "json": {
+          "format": "pixelart-manifest/1",
+          "version": "1.4.0",
+          "released": "2026-11-05",
+          "animations": [],
+          "playlists": [],
+          "schedules": [],
+          "content_pages": {
+            "schedules_v2": [
+              {
+                "file": "content-pages/schedules-v2-test.json",
+                "size": 206,
+                "sha256": "32db6b402a5ca2e0c3aeb38c8a8cf9b71330042387875a69ae98c3249c761bb0"
+              }
+            ],
+            "future_kind": {
+              "ignored": "metadata"
+            }
+          }
+        }
+      },
+      "content-pages/schedules-v2-test.json": "{\"format\":\"pixelart-content-page/1\",\"kind\":\"schedules_v2\",\"entries\":[{\"id\":\"spring\",\"file\":\"schedules-v2/spring.json\",\"size\":55,\"sha256\":\"a0217f365e18bd7acca5fe03766b7d480dd3c0acf082c6e6279ef73efdf20c56\"}]}",
+      "schedules-v2/spring.json": "{\"format\":\"pixelart-schedule/2\",\"fallback\":[\"default\"]}"
+    }
+  },
+  "steps": [
+    {
+      "send": "@PR 935d27e0 {\"seq\":1,\"cmd\":\"update_check\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true
+      }
+    },
+    {
+      "run_update": true
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": {
+          "state": "connected",
+          "ip": "127.0.0.1",
+          "rssi": -50,
+          "power": "19.5",
+          "power_reduced": false,
+          "hostname": "pixelart-sim",
+          "ssid": "PixelArt Simulator"
+        },
+        "time": {
+          "known": false
+        },
+        "play": {
+          "mode": "auto",
+          "source": "fallback",
+          "schedule": null,
+          "schedule_format": 0,
+          "reason": "no_schedule",
+          "entry": null,
+          "playlists": [
+            "default"
+          ],
+          "playing": null,
+          "server_choice": null
+        },
+        "update": {
+          "state": "idle",
+          "progress": 0,
+          "last_check": 0,
+          "last_result": "ok",
+          "last_detail": null,
+          "failed_files": 0,
+          "firmware": null,
+          "files": 1,
+          "last_install": null
+        }
+      }
+    },
+    {
+      "expect_files": {
+        "schedules-v2/spring.json": null
+      }
+    }
+  ]
+}

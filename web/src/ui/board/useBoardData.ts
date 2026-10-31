@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getSettings, type BoardClient, type Entry, type Settings } from "../../protocol";
 import { toShownError, type ShownError } from "../errors";
-import type { BoardFileList } from "../fileLists";
+import { NO_LISTS, type BoardFileList } from "../fileLists";
 import { useSession } from "../session";
 import { useLatest } from "../useLatest";
 
@@ -20,7 +20,13 @@ export function useBoardFiles(onError: (error: ShownError) => void) {
   useReportOnce(files.animation, report);
   useReportOnce(files.playlist, report);
   useReportOnce(files.schedule, report);
-  return { animations: files.animation, playlists: files.playlist, schedules: files.schedule };
+  useReportOnce(files.schedule_v2 ?? NO_LISTS.schedule_v2!, report);
+  return {
+    animations: files.animation,
+    playlists: files.playlist,
+    schedules: files.schedule,
+    schedulesV2: files.schedule_v2 ?? NO_LISTS.schedule_v2!,
+  };
 }
 
 /**

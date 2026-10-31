@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Monska85/PixelArt/schema/schedule-2.schema.json",
+  "title": "PixelArt schedule, format pixelart-schedule/2",
+  "description": "Daily minute windows within the existing date entries. See docs/format/schedule-v2.md.",
+  "type": "object",
+  "required": [
+    "format",
+    "fallback"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "pixelart-schedule/2"
+    },
+    "name": {
+      "$ref": "#/$defs/name"
+    },
+    "fallback": {
+      "description": "Played when no entry matches the date, or while the date is not known.",
+      "$ref": "#/$defs/playlists"
+    },
+    "entries": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "$defs": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "playlists": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "description": "Playlist ID: its file name without extension.",
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+      }
+    },
+    "year": {
+      "type": "integer",
+      "minimum": 2000,
+      "maximum": 2999
+    },
+    "month": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12
+    },
+    "day": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 31
+    },
+    "year_month_day": {
+      "type": "object",
+      "required": [
+        "year",
+        "month",
+        "day"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "year": {
+          "$ref": "#/$defs/year"
+        },
+        "month": {
+          "$ref": "#/$defs/month"
+        },
+        "day": {
+          "$ref": "#/$defs/day"
+        }
+      }
+    },
+    "month_day": {
+      "type": "object",
+      "required": [
+        "month",
+        "day"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "month": {
+          "$ref": "#/$defs/month"
+        },
+        "day": {
+          "$ref": "#/$defs/day"
+        }
+      }
+    },
+    "year_month": {
+      "type": "object",
+      "required": [
+        "year",
+        "month"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "year": {
+          "$ref": "#/$defs/year"
+        },
+        "month": {
+          "$ref": "#/$defs/month"
+        }
+      }
+    },
+    "day_only": {
+      "type": "object",
+      "required": [
+        "day"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "$ref": "#/$defs/day"
+        }
+      }
+    },
+    "month_only": {
+      "type": "object",
+      "required": [
+        "month"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "month": {
+          "$ref": "#/$defs/month"
+        }
+      }
+    },
+    "year_only": {
+      "type": "object",
+      "required": [
+        "year"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "year": {
+          "$ref": "#/$defs/year"
+        }
+      }
+    },
+    "entry": {
+      "description": "Both ends use the same part set, one of the six below.",
+      "type": "object",
+      "required": [
+        "from",
+        "to",
+        "playlists"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "from": {
+          "type": "object"
+        },
+        "to": {
+          "type": "object"
+        },
+        "playlists": {
+          "$ref": "#/$defs/playlists"
+        },
+        "hours": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/window"
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/year_month_day"
+            },
+            "to": {
+              "$ref": "#/$defs/year_month_day"
+            }
+          }
+        },
+        {
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/month_day"
+            },
+            "to": {
+              "$ref": "#/$defs/month_day"
+            }
+          }
+        },
+        {
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/year_month"
+            },
+            "to": {
+              "$ref": "#/$defs/year_month"
+            }
+          }
+        },
+        {
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/day_only"
+            },
+            "to": {
+              "$ref": "#/$defs/day_only"
+            }
+          }
+        },
+        {
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/month_only"
+            },
+            "to": {
+              "$ref": "#/$defs/month_only"
+            }
+          }
+        },
+        {
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/year_only"
+            },
+            "to": {
+              "$ref": "#/$defs/year_only"
+            }
+          }
+        }
+      ]
+    },
+    "window": {
+      "type": "object",
+      "required": [
+        "from",
+        "to",
+        "playlists"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$"
+        },
+        "playlists": {
+          "$ref": "#/$defs/playlists"
+        }
+      }
+    }
+  }
+}

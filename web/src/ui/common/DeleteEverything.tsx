@@ -31,6 +31,7 @@ interface Counts {
   playlists: number;
   /** 0 on a board that knows no schedules. */
   schedules: number;
+  schedulesV2: number;
   /** 0 on a board that knows no play file. */
   play: number;
   /** The IDs of the stored animations, to tell whether the editor's only copy is among them. */
@@ -115,11 +116,12 @@ const WORDING = {
 const wording = (reset: boolean) => WORDING[reset ? "reset" : "keep"];
 
 /** "30 animations and 1 playlist", "30 animations, 1 playlist and 1 play file", with the kinds that have none left out. */
-function describe(animations: number, playlists: number, schedules = 0, play = 0): string {
+function describe(animations: number, playlists: number, schedules = 0, play = 0, schedulesV2 = 0): string {
   const parts = [
     animations > 0 && plural(animations, "animation"),
     playlists > 0 && plural(playlists, "playlist"),
     schedules > 0 && plural(schedules, "schedule"),
+    schedulesV2 > 0 && plural(schedulesV2, "format 2 schedule"),
     play > 0 && plural(play, "play file"),
   ].filter((part): part is string => typeof part === "string");
   return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : (parts[0] ?? "");
@@ -177,7 +179,15 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
       );
       const text = wording(reset);
       toast({
-        title: text.done(describe(removed.animations, removed.playlists, removed.schedules ?? 0, removed.play ?? 0)),
+        title: text.done(
+          describe(
+            removed.animations,
+            removed.playlists,
+            removed.schedules ?? 0,
+            removed.play ?? 0,
+            removed.schedules_v2 ?? 0,
+          ),
+        ),
         description: text.doneDetail,
       });
     } catch (error) {
@@ -203,8 +213,9 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
       const playlists = await listFiles(client, "playlist");
       // A firmware older than schedules answers invalid_kind: it stores none.
       const schedules = supportsSchedules(client.info) ? await listFiles(client, "schedule") : [];
+      const schedulesV2 = client.info?.formats.schedule_v2 ? await listFiles(client, "schedule_v2") : [];
       const play = supportsPlayFile(client.info) ? await listFiles(client, "play") : [];
-      const empty = animations.length + playlists.length + schedules.length + play.length === 0;
+      const empty = animations.length + playlists.length + schedules.length + schedulesV2.length + play.length === 0;
       // With nothing to delete, only a settings reset is left to confirm.
       if (empty && (!presetReset || overWifi)) {
         toast({
@@ -221,6 +232,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
         animations: animations.length,
         playlists: playlists.length,
         schedules: schedules.length,
+        schedulesV2: schedulesV2.length,
         play: play.length,
         animationIds: animations.map((e) => e.id),
       });
@@ -231,7 +243,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
     }
   }
 
-  const total = counts ? counts.animations + counts.playlists + counts.schedules + counts.play : 0;
+  const total = counts ? counts.animations + counts.playlists + counts.schedules + counts.schedulesV2 + counts.play : 0;
   const holdsOnlyCopy = counts !== null && held !== null && counts.animationIds.includes(held);
 
   // A board without files reaches the dialog only to reset its settings: the dialog then asks for that alone.
@@ -252,7 +264,7 @@ export function useDeleteEverything({ client, onDone, onFirmwareView = false }: 
   } else if (counts) {
     dialogs = (
       <ConfirmDialog
-        title={`Delete all ${describe(counts.animations, counts.playlists, counts.schedules, counts.play)} from this board?`}
+        title={`Delete all ${describe(counts.animations, counts.playlists, counts.schedules, counts.play, counts.schedulesV2)} from this board?`}
         confirmLabel={`Delete ${plural(total, "file")}${wording(resetSettings).confirm}`}
         destructive
         onCancel={() => setCounts(null)}

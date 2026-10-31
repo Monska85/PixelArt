@@ -8,6 +8,7 @@ Read the relevant specifications in `docs/`, the commands and contribution guida
 - Every change to a file format or to the command protocol updates its specification in `docs/` and adds conformance cases in `conformance/` in the same change.
 - Conformance expected results are worked out by hand from the specification. Never generate them by running an engine, the firmware or the simulator.
 - When changing a size, count or timing limit, check every place that enforces, advertises or tests it across the firmware, simulator, web app, schemas, release tools, specifications and conformance cases. Keep limits equal where they describe the same contract, and document intentional differences such as a release budget below the board's maximum. Update boundary tests with the change.
+- Design published formats and command protocols for portability and future changes. Before adding a field, kind or nesting level, check how deployed readers handle it at every level. Make additive extensions safe for older readers to ignore until an explicitly planned breaking cutover. Readers of distribution catalogs and protocol response objects ignore unknown optional fields and kinds, but still validate every known field and every path, size and checksum they use. Keep published files usable from a copied release and on a board without network access. Document the compatibility path and add conformance cases for ignored extensions and malformed known fields.
 
 ## Loop task stack
 

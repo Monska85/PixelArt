@@ -2,13 +2,13 @@
 
 // The release manifest (docs/format/manifest-v1.md) as the web app reads it.
 
-import { FILE_LIMITS, isValidId } from "../engine";
+import { FILE_LIMITS, isValidId } from "../engine/types";
 import { isCount, isRecord } from "../protocol/guards";
 
 const MANIFEST_FORMAT = "pixelart-manifest/1";
 const MAX_PAGE_BYTES = 8 * 1024;
 const MAX_PAGES = 20;
-const KINDS = ["animations", "playlists", "schedules", "play"] as const;
+const KINDS = ["animations", "playlists", "schedules", "schedules_v2", "play"] as const;
 export type ContentKind = (typeof KINDS)[number];
 interface PageReference {
   file: string;
@@ -17,7 +17,7 @@ interface PageReference {
 }
 type ContentPages = Partial<Record<ContentKind, PageReference[]>>;
 
-export type PublishedKind = "animation" | "playlist" | "schedule" | "play";
+export type PublishedKind = "animation" | "playlist" | "schedule" | "schedule_v2" | "play";
 
 /** An animation, playlist, schedule or play file of the release. Its address is derived from its ID, never taken from the manifest. */
 export interface Published {
@@ -38,6 +38,7 @@ export interface Manifest {
   playlists: Published[];
   /** Empty for a manifest without `schedules` (older releases). */
   schedules: Published[];
+  schedules_v2?: Published[];
   /** The play file, the release's server choice: empty for a manifest without `play` (older releases). */
   play: Published[];
   /** Present kinds replace their legacy lists, including when the page list is empty. */
@@ -54,6 +55,7 @@ const FOLDER: Record<PublishedKind, string> = {
   animation: "animations",
   playlist: "playlists",
   schedule: "schedules",
+  schedule_v2: "schedules-v2",
   play: "play",
 };
 
@@ -95,37 +97,31 @@ export function parseManifest(text: string): Manifest | null {
   if (!isRecord(document) || document.format !== MANIFEST_FORMAT) return null;
   if (typeof document.version !== "string" || document.version.length > 64) return null;
   const { content_version: contentVersion, firmware } = document;
+  const nestedV2 = isRecord(document.content_pages) && "schedules_v2" in document.content_pages;
+  const v2Locations = Number("schedules_v2" in document) + Number("schedules_v2_pages" in document) + Number(nestedV2);
+  if (v2Locations > 1 || ("schedules_v2" in document && !Array.isArray(document.schedules_v2))) return null;
+  if (KINDS.reduce((sum, kind) => sum + (Array.isArray(document[kind]) ? document[kind].length : 0), 0) > 200)
+    return null;
   let contentPages: ContentPages | undefined;
+  const seenPaths = new Set<string>();
   if ("content_pages" in document) {
     if (!isRecord(document.content_pages)) return null;
     contentPages = {};
-    const seenPaths = new Set<string>();
-    let count = 0;
     for (const [kind, raw] of Object.entries(document.content_pages)) {
-      if (!KINDS.includes(kind as ContentKind) || !Array.isArray(raw)) return null;
-      const refs: PageReference[] = [];
-      for (const item of raw) {
-        if (!isRecord(item)) return null;
-        const { file, size, sha256 } = item;
-        if (
-          typeof file !== "string" ||
-          !safePagePath(file) ||
-          seenPaths.has(file) ||
-          typeof size !== "number" ||
-          !Number.isInteger(size) ||
-          size < 1 ||
-          size > MAX_PAGE_BYTES ||
-          typeof sha256 !== "string" ||
-          !/^[0-9a-f]{64}$/.test(sha256)
-        )
-          return null;
-        seenPaths.add(file);
-        refs.push({ file, size, sha256 });
-        if (++count > MAX_PAGES) return null;
-      }
+      if (!KINDS.includes(kind as ContentKind)) continue;
+      const refs = parsePageRefs(raw, seenPaths);
+      if (!refs) return null;
       contentPages[kind as ContentKind] = refs;
     }
   }
+  if ("schedules_v2_pages" in document) {
+    const refs = parsePageRefs(document.schedules_v2_pages, seenPaths);
+    if (!refs) return null;
+    contentPages ??= {};
+    contentPages.schedules_v2 = refs;
+  }
+  const directV2 = parseEntries(document.schedules_v2, "schedule_v2");
+  if ("schedules_v2" in document && directV2.length !== (document.schedules_v2 as unknown[]).length) return null;
   return {
     version: document.version,
     contentVersion: typeof contentVersion === "string" && contentVersion.length <= 64 ? contentVersion : null,
@@ -133,6 +129,7 @@ export function parseManifest(text: string): Manifest | null {
     animations: parseEntries(document.animations, "animation"),
     playlists: parseEntries(document.playlists, "playlist"),
     schedules: parseEntries(document.schedules, "schedule"),
+    schedules_v2: directV2,
     play: parseEntries(document.play, "play"),
     ...(contentPages ? { contentPages } : {}),
   };
@@ -144,6 +141,30 @@ function safePagePath(path: string): boolean {
     path.length <= 160 &&
     path.split("/").every((part) => part !== "" && part !== "." && part !== ".." && /^[A-Za-z0-9._+-]+$/.test(part))
   );
+}
+
+function parsePageRefs(value: unknown, seenPaths: Set<string>): PageReference[] | null {
+  if (!Array.isArray(value)) return null;
+  const refs: PageReference[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) return null;
+    const { file, size, sha256 } = item;
+    if (
+      typeof file !== "string" ||
+      !safePagePath(file) ||
+      seenPaths.has(file) ||
+      !isCount(size) ||
+      size < 1 ||
+      size > MAX_PAGE_BYTES ||
+      typeof sha256 !== "string" ||
+      !/^[0-9a-f]{64}$/.test(sha256)
+    )
+      return null;
+    seenPaths.add(file);
+    refs.push({ file, size, sha256 });
+    if (seenPaths.size > MAX_PAGES) return null;
+  }
+  return refs;
 }
 
 const MAX_MANIFEST_BYTES = 1024 * 1024;

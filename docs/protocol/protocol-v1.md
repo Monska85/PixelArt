@@ -136,10 +136,10 @@ A file has at most 32 diagnostics, as the format specifications require. The boa
 
 Every command that names a file uses two fields:
 
-- `kind`: `animation`, `playlist`, `schedule` or `play`. Any other value is `invalid_kind`. A board whose firmware is older than schedules answers `invalid_kind` to `schedule`, and its `info` has no `formats.schedule`. A board whose firmware is older than the play file answers `invalid_kind` to `play`, and its `info` has no `formats.play`.
+- `kind`: `animation`, `playlist`, `schedule`, `schedule_v2` or `play`. Any other value is `invalid_kind`. A board whose firmware is older than schedules answers `invalid_kind` to `schedule`, and its `info` has no `formats.schedule`. A board whose firmware is older than the play file answers `invalid_kind` to `play`, and its `info` has no `formats.play`. A board without format 2 support answers `invalid_kind` to `schedule_v2` and has no `formats.schedule_v2`.
 - `id`: the file ID, with the rule of the [format](../format/pixelart-v1.md#files): lowercase letters, digits, `_` and `-`, starting with a letter or digit, at most 32 characters. Any other value is `invalid_id`.
 
-The board builds the path itself, `/animations/<id>.json`, `/playlists/<id>.json`, `/schedules/<id>.json` or `/play/<id>.json`. A client never sends a path.
+The board builds the path itself, `/animations/<id>.json`, `/playlists/<id>.json`, `/schedules/<id>.json`, `/schedules-v2/<id>.json` or `/play/<id>.json`. A client never sends a path.
 
 ### `info`
 
@@ -150,17 +150,17 @@ What the board is and what it supports. No fields.
 @PR bd456dde {"seq":1,"ok":true,"protocol":1,"firmware":"1.2.0","board":"esp32c3","boot_id":2864434397,"formats":{"animation":["pixelart/1"],"playlist":["pixelart-playlist/1"],"schedule":["pixelart-schedule/1"],"play":["pixelart-play/1"]},"canvas":{"width":16,"height":16},"storage":{"total":983040,"used":180224},"memory":{"free":182340,"largest":110580},"limits":{"line":1024,"chunk":512,"page":8,"animation":65536,"playlist":16384,"schedule":16384,"play":1024}}
 ```
 
-| Field      | Meaning                                                                                                                                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `protocol` | The protocol version, `1`. A client reads it before anything else, see [Versions](#versions).                                                                                   |
-| `firmware` | The firmware version, see [Firmware version](#firmware-version).                                                                                                                |
-| `board`    | The build: `esp32c3`, `esp32`, `esp32s3`, or `simulator`.                                                                                                                       |
-| `boot_id`  | A random number from 0 to 4,294,967,295, chosen at every start. A change means the board restarted: any upload in progress is gone.                                             |
-| `formats`  | The file format versions the board plays: `animation`, `playlist`, `schedule` and `play`.                                                                                       |
-| `canvas`   | The matrix size.                                                                                                                                                                |
-| `storage`  | `total` and `used` bytes of the file system that holds animations, playlists, schedules and play files.                                                                         |
-| `memory`   | `free` bytes of memory and the `largest` block that can be allocated, for diagnosis. The simulator reports `0` for both, and `0` for both means the memory was not measured.    |
-| `limits`   | `line`: longest line the board reads; `chunk`: most bytes in one chunk; `page`: most entries in one `list` reply; `animation`, `playlist`, `schedule` and `play`: largest file. |
+| Field      | Meaning                                                                                                                                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `protocol` | The protocol version, `1`. A client reads it before anything else, see [Versions](#versions).                                                                                                                 |
+| `firmware` | The firmware version, see [Firmware version](#firmware-version).                                                                                                                                              |
+| `board`    | The build: `esp32c3`, `esp32`, `esp32s3`, or `simulator`.                                                                                                                                                     |
+| `boot_id`  | A random number from 0 to 4,294,967,295, chosen at every start. A change means the board restarted: any upload in progress is gone.                                                                           |
+| `formats`  | The file format versions the board plays: `animation`, `playlist`, `schedule`, `schedule_v2` and `play` when supported.                                                                                       |
+| `canvas`   | The matrix size.                                                                                                                                                                                              |
+| `storage`  | `total` and `used` bytes of the file system that holds animations, playlists, schedules and play files.                                                                                                       |
+| `memory`   | `free` bytes of memory and the `largest` block that can be allocated, for diagnosis. The simulator reports `0` for both, and `0` for both means the memory was not measured.                                  |
+| `limits`   | `line`: longest line the board reads; `chunk`: most bytes in one chunk; `page`: most entries in one `list` reply; `animation`, `playlist`, `schedule`, `schedule_v2` and `play`: largest file when supported. |
 
 Clients take the limits from `info` instead of assuming the values of this document.
 
@@ -168,13 +168,15 @@ Clients take the limits from `info` instead of assuming the values of this docum
 
 `formats.play` and `limits.play` were added with the [play file](../format/play-v1.md), together with the `play` kind and `status.play.server_choice`. A client offers the play file only to a board that reports `formats.play`.
 
+`formats.schedule_v2` and `limits.schedule_v2` advertise [schedule format 2](../format/schedule-v2.md). A client offers the `schedule_v2` kind only to a board that reports it.
+
 ### `list`
 
 The stored files of one kind, sorted by ID in byte order, one page at a time.
 
 | Field   | Required | Meaning                                                             |
 | ------- | -------- | ------------------------------------------------------------------- |
-| `kind`  | yes      | `animation`, `playlist`, `schedule` or `play`.                      |
+| `kind`  | yes      | `animation`, `playlist`, `schedule`, `schedule_v2` or `play`.       |
 | `after` | no       | An ID. The page starts with the first file whose ID sorts after it. |
 
 The reply holds `kind`, `entries` (at most 8) and `more`, which is `true` when files remain after the last entry. The client asks for the next page with `after` set to the last ID it received. `after` does not have to name an existing file, but it must follow the ID rule, and a value that is not text, `null` included, is `bad_request`. While an update holds the memory for more than 2 seconds, the board answers `out_of_memory`, over USB as over WiFi, and the client asks again later.
@@ -200,12 +202,12 @@ Only files whose name is a valid ID followed by `.json` are listed. The `name` i
 
 Reads part of a stored file. Reads are independent of each other, so a client repeats a lost read by sending it again.
 
-| Field    | Required | Meaning                                         |
-| -------- | -------- | ----------------------------------------------- |
-| `kind`   | yes      | `animation`, `playlist`, `schedule` or `play`.  |
-| `id`     | yes      | The file ID.                                    |
-| `offset` | yes      | First byte to read, from 0 to the file size.    |
-| `length` | yes      | Bytes to read, from 1 to the chunk limit (512). |
+| Field    | Required | Meaning                                                       |
+| -------- | -------- | ------------------------------------------------------------- |
+| `kind`   | yes      | `animation`, `playlist`, `schedule`, `schedule_v2` or `play`. |
+| `id`     | yes      | The file ID.                                                  |
+| `offset` | yes      | First byte to read, from 0 to the file size.                  |
+| `length` | yes      | Bytes to read, from 1 to the chunk limit (512).               |
 
 The reply holds `size` (the whole file), `offset`, and `data`: the bytes read, in standard base64 with padding. Fewer bytes than `length` come back at the end of the file, and none (`"data":""`) when `offset` equals the size. An `offset` past the end of the file is `bad_request`.
 
@@ -219,7 +221,7 @@ Upload one animation, playlist, schedule or play file, replacing the stored file
 
 | Field    | Required | Meaning                                                           |
 | -------- | -------- | ----------------------------------------------------------------- |
-| `kind`   | yes      | `animation`, `playlist`, `schedule` or `play`.                    |
+| `kind`   | yes      | `animation`, `playlist`, `schedule`, `schedule_v2` or `play`.     |
 | `id`     | yes      | The file ID.                                                      |
 | `size`   | yes      | Size of the whole file in bytes, from 1 to the limit of its kind. |
 | `sha256` | yes      | SHA-256 of the whole file, 64 lowercase hexadecimal digits.       |
@@ -247,7 +249,7 @@ Deleting a playlist the board plays, or a schedule it uses, is allowed: the boar
 
 ### `delete_all`
 
-Removes every play file, schedule, playlist and animation, and, when asked, puts the settings back to their defaults. It has one optional field, `settings`: `true` or `false`, `false` when it is left out. Any other value, `null` included, is `bad_request`, and nothing changes.
+Removes every play file, format 1 and format 2 schedule, playlist and animation, and, when asked, puts the settings back to their defaults. It has one optional field, `settings`: `true` or `false`, `false` when it is left out. Any other value, `null` included, is `bad_request`, and nothing changes.
 
 With `settings: true`, the board first queues the erase of the WiFi network (see below). Then it cancels an upload in progress, over either transport, and removes its temporary file. It also stops an installation of animations, playlists, schedules and play files that is running or was asked for with `update_install`, so that the files it removes are not stored again: the file being downloaded is discarded, the files not yet stored are skipped, and the files the last check found are forgotten, so `update.files` and `update.failed_files` are 0 and `update.state` is `idle` at once. A stopped installation counts no failure and sets no `last_result`: it stays what it was. A new `update_check` finds the files again. An installation of firmware is not touched. Then it removes every file in `/play`, then every file in `/schedules`, then every file in `/playlists`, then every file in `/animations`, including files whose names are not valid IDs, so a damaged file can always be cleared.
 
@@ -255,9 +257,9 @@ Without `settings` (or with `false`) the settings do not change: `play`, `playli
 
 With `settings: true`, once every file is removed, every setting goes back to its default in the [settings tables](#settings_get-settings_set): brightness `100`, play `auto`, playlists `["default"]`, schedule `default`, playlist `default`, and the defaults of the update, time, power and login settings. The board asks the network task to erase the stored WiFi network, as `wifi_forget` does, before it cancels an upload or removes anything: when it cannot hand that request over, the answer is `busy`, nothing has changed, and the client repeats the command. Once every file is removed, a new token is made as by `token_regenerate` (and a new certificate as by `cert_regenerate`, where it exists). With `settings: true`, `delete_all` works over USB only; over WiFi it is `usb_only` and removes nothing. Without it, `delete_all` works over WiFi too. The playlist settings take their defaults even though no playlist `default` is stored, which `settings_set` refuses. Saving follows the all or nothing rule of `settings_set`.
 
-The reply on success holds `play`, `schedules`, `playlists` and `animations`, the number of files removed from each folder, and with `settings: true` also `settings`, with every setting after the reset, as `settings_get` gives them. When a file cannot be removed, the board stops and replies `storage_error`; the files removed before it stay removed, the settings do not change, and sending `delete_all` again removes the rest. With `settings: true`, the erase of the stored WiFi network has been requested by then, since that request goes first, and may still be pending, as for `wifi_forget`. When every file is removed but the settings cannot be saved, the reply is `storage_error` too: the files stay removed and the settings are as they were, except when the settings memory fails twice, as for `settings_set`, and the message says the settings may be partly changed. Sending `delete_all` with `settings: true` again, as a new request, finishes the reset; the client can also read the settings with `settings_get`.
+The reply on success holds `play`, `schedules_v2`, `schedules`, `playlists` and `animations`, the number of files removed from each folder, and with `settings: true` also `settings`, with every setting after the reset, as `settings_get` gives them. When a file cannot be removed, the board stops and replies `storage_error`; the files removed before it stay removed, the settings do not change, and sending `delete_all` again removes the rest. With `settings: true`, the erase of the stored WiFi network has been requested by then, since that request goes first, and may still be pending, as for `wifi_forget`. When every file is removed but the settings cannot be saved, the reply is `storage_error` too: the files stay removed and the settings are as they were, except when the settings memory fails twice, as for `settings_set`, and the message says the settings may be partly changed. Sending `delete_all` with `settings: true` again, as a new request, finishes the reset; the client can also read the settings with `settings_get`.
 
-A board whose firmware is older than this field answers `bad_request` to `settings`, since a field the command does not define is an error, and removes nothing. A board whose firmware is older than schedules has no `/schedules` and leaves `schedules` out of the reply, and a board older than the play file has no `/play` and leaves `play` out.
+A board whose firmware is older than this field answers `bad_request` to `settings`, since a field the command does not define is an error, and removes nothing. A board whose firmware is older than schedules has no `/schedules` and leaves `schedules` out of the reply, a board older than format 2 has no `/schedules-v2` and leaves `schedules_v2` out, and a board older than the play file has no `/play` and leaves `play` out.
 
 ```text
 > {"seq":12,"cmd":"delete_all"}
@@ -509,7 +511,7 @@ Changes reach the matrix at these times:
 | `bad_frame`          | The line is too long, its CRC is malformed or wrong, or its JSON is broken. The reply has no `seq`.                                                                                                                                                                                                                        |
 | `bad_request`        | A field is missing, unknown, of the wrong type or out of range, or the base64 data is invalid.                                                                                                                                                                                                                             |
 | `unknown_command`    | `cmd` names a command this firmware does not know.                                                                                                                                                                                                                                                                         |
-| `invalid_kind`       | `kind` is not `animation`, `playlist`, `schedule` or `play`.                                                                                                                                                                                                                                                               |
+| `invalid_kind`       | `kind` is not one of the file kinds the board advertises: `animation`, `playlist`, `schedule`, `schedule_v2` or `play`.                                                                                                                                                                                                    |
 | `invalid_id`         | `id`, `after`, the `playlist` setting or an ID of `playlists` does not follow the ID rule.                                                                                                                                                                                                                                 |
 | `not_found`          | The named file is not stored.                                                                                                                                                                                                                                                                                              |
 | `too_large`          | The declared `size` is over the limit of its kind, or a chunk goes past the declared `size`.                                                                                                                                                                                                                               |
@@ -598,3 +600,7 @@ For example, with the token `k3j9x0q7w2m5z8a1` and the nonce below (the HMAC com
 ## Conformance
 
 The cases in `conformance/protocol/` describe exchanges of requests and expected replies, run in CI against the simulator. Every implementation of this protocol passes them. Each change to the protocol comes with new cases. The cases written before schedules keep the requests and the replies an older client sees; they only expect the reply fields added since, such as the new settings, `formats.schedule`, `limits.schedule`, `status.play` and the `schedules` count of `delete_all`. A case can give the board a local date, as [`conformance/README.md`](../../conformance/README.md#protocol-cases) describes.
+
+## Format 2 schedules
+
+Firmware that supports [schedule format 2](../format/schedule-v2.md) advertises `formats.schedule_v2: ["pixelart-schedule/2"]` and its 16384-byte file limit in `info`. The `schedule_v2` file kind accepts the ordinary `list`, `get`, `put_begin`, `put_chunk`, `put_end` and `delete` operations with IDs and checksums as for `schedule`. It stores files under `/schedules-v2/`. The `delete_all` request and result include `schedules_v2`; `settings_set` accepts a schedule ID present only in that folder. `status.play.schedule_format` is 2 when the chosen schedule is format 2, 1 for format 1, and 0 when no schedule is selected. A format 2 upload validates its windows and can warn about unknown playlists in either its base lists or windows. Older firmware rejects the new request kind as `invalid_kind` and does not advertise it. Protocol response readers ignore unknown optional fields and kinds while validating fields they use.

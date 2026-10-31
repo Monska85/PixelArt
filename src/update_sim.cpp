@@ -284,6 +284,14 @@ void sim_clear_failures() { injections.clear(); }
 
 void sim_set_local_minutes(int minutes) { local_time = minutes; }
 
+bool local_minutes(uint16_t &minutes)
+{
+  if (local_time < 0 && local_day.year == 0)
+    return false;
+  minutes = local_time < 0 ? NOON_MINUTES : (uint16_t)local_time;
+  return true;
+}
+
 void sim_set_local_date(const pixelart::LocalDate &date) { local_day = date; }
 
 bool sim_time_needed() { return time_needed; }
@@ -296,6 +304,8 @@ bool local_date(pixelart::LocalDate &date)
   date = local_day.year ? local_day : pixelart::LocalDate{2000, 1, 1};
   return true;
 }
+
+bool local_datetime(pixelart::LocalDate &date, uint16_t &minutes) { return local_date(date) && local_minutes(minutes); }
 
 void sim_reset()
 {

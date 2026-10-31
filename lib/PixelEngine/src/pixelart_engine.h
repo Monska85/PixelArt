@@ -210,6 +210,8 @@ bool is_valid_id(const char *id);
 constexpr size_t MAX_SCHEDULE_FILE_SIZE = 16 * 1024;
 constexpr size_t MAX_SCHEDULE_ENTRIES = 64;
 constexpr size_t MAX_SCHEDULE_PLAYLISTS = 8;
+constexpr size_t MAX_SCHEDULE_WINDOWS_PER_ENTRY = 8;
+constexpr size_t MAX_SCHEDULE_WINDOWS = 64;
 constexpr int MIN_SCHEDULE_YEAR = 2000;
 constexpr int MAX_SCHEDULE_YEAR = 2999;
 // Limit from docs/format/play-v1.md#limits. The playlists of a play file are bounded by MAX_SCHEDULE_PLAYLISTS.
@@ -240,13 +242,14 @@ struct ScheduleEnd
   uint8_t day = 0;
 };
 
-// A pixelart-schedule/1 document (docs/format/schedule-v1.md), parsed into a compact form: each
+// A pixelart-schedule/1 or /2 document, parsed into a compact form: each
 // playlist ID is kept once, and the entries refer to it by index.
 class Schedule
 {
 public:
   // Parses and validates a schedule. Returns false on any error; a failed load leaves the schedule empty.
-  bool load(const char *json, size_t length, std::vector<Diagnostic> &diagnostics);
+  bool load(const char *json, size_t length, std::vector<Diagnostic> &diagnostics,
+            const char *expected_format = "pixelart-schedule/1");
 
   std::vector<std::string> fallback() const { return names(fallback_, fallback_count_); }
   size_t entry_count() const { return entries_.size(); }
@@ -255,6 +258,20 @@ public:
   std::vector<std::string> playlists(size_t entry) const
   {
     return names(entries_[entry].playlists, entries_[entry].count);
+  }
+  std::vector<std::string> playlists_at(size_t entry, uint16_t minute) const;
+  bool timed() const { return !windows_.empty(); }
+  bool is_v2() const { return v2_; }
+  size_t window_count() const { return windows_.size(); }
+  size_t window_count(size_t entry) const { return entries_[entry].window_count; }
+  std::vector<std::string> window_playlists(size_t entry, size_t window) const
+  {
+    return names(windows_[entries_[entry].first_window + window].playlists,
+                 windows_[entries_[entry].first_window + window].count);
+  }
+  std::vector<std::string> window_playlists(size_t window) const
+  {
+    return names(windows_[window].playlists, windows_[window].count);
   }
 
   // Index of the entry that wins on `date` by the rules of docs/format/schedule-v1.md#which-entry-wins,
@@ -267,6 +284,15 @@ private:
     ScheduleEnd from, to;
     uint8_t parts = 0; // PART_* bits, the same on both ends
     uint8_t count = 0;
+    uint8_t first_window = 0;
+    uint8_t window_count = 0;
+    uint16_t playlists[MAX_SCHEDULE_PLAYLISTS] = {};
+  };
+
+  struct Window
+  {
+    uint16_t from = 0, to = 0;
+    uint8_t count = 0;
     uint16_t playlists[MAX_SCHEDULE_PLAYLISTS] = {};
   };
 
@@ -276,6 +302,8 @@ private:
 
   std::vector<std::string> ids_; // every playlist ID the file names, once
   std::vector<Entry> entries_;
+  std::vector<Window> windows_;
+  bool v2_ = false;
   uint8_t fallback_count_ = 0;
   uint16_t fallback_[MAX_SCHEDULE_PLAYLISTS] = {};
 };
@@ -337,6 +365,8 @@ struct PlayChoice
   PlayReason reason = PlayReason::NoSchedule;
   std::string schedule; // the schedule the list comes from, empty when none
   int entry = -1;       // the winning entry, -1 when none won
+  bool schedule_v2 = false;
+  bool timed = false;
   std::vector<std::string> playlists;
   int playing = -1; // index in `playlists` of the first playable playlist, -1: every animation plays
 };
@@ -352,7 +382,7 @@ using ScheduleLookup = std::function<const Schedule *(const std::string &id)>;
 // loops over days or years.
 PlayChoice choose_playlists(PlayMode mode, const std::vector<std::string> &user, const std::string &user_schedule,
                             const ServerChoice &server, const ScheduleLookup &schedule_by_id, const LocalDate *date,
-                            const std::function<bool(const std::string &)> &playable);
+                            const std::function<bool(const std::string &)> &playable, int minute = -1);
 
 // Plays an animation frame by frame. The animation must outlive the player.
 class Player

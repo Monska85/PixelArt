@@ -29,6 +29,8 @@ inline install::Kind install_kind(pixelart_update::Kind kind)
     return install::Kind::Playlist;
   case pixelart_update::Kind::Schedule:
     return install::Kind::Schedule;
+  case pixelart_update::Kind::ScheduleV2:
+    return install::Kind::ScheduleV2;
   case pixelart_update::Kind::Play:
     break;
   }

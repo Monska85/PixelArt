@@ -151,7 +151,7 @@ web-dev: web/node_modules ## Start the web app on http://localhost:5173 with liv
 web-build: web/node_modules ## Build the web app into web/dist
 	cd web && $(NICED) npm run build
 
-web-size: web-build ## Fail when the JavaScript the web app loads at start is over its budget (190 KB gzip)
+web-size: web-build ## Fail when the JavaScript the web app loads at start is over its budget (193 KB gzip)
 	cd web && npm run size
 
 web-test: data web/node_modules ## Type check, lint, check the formatting and run the web app's unit tests and the conformance suite

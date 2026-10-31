@@ -23,20 +23,22 @@ export interface FileLists {
   playlist: BoardFileList;
   /** Known and empty on a board that knows no schedules: it stores none. */
   schedule: BoardFileList;
+  schedule_v2?: BoardFileList;
 }
 
-export const KINDS: ListedKind[] = ["animation", "playlist", "schedule"];
+export const KINDS: ListedKind[] = ["animation", "playlist", "schedule", "schedule_v2"];
 
 export const NO_LISTS: FileLists = {
   animation: { status: "loading" },
   playlist: { status: "loading" },
   schedule: { status: "loading" },
+  schedule_v2: { status: "loading" },
 };
 
 export class FileListReader {
   private lists: FileLists = NO_LISTS;
   /** Counts the reads of each kind: a read that is not the latest one never replaces a newer result. */
-  private sequence: Record<ListedKind, number> = { animation: 0, playlist: 0, schedule: 0 };
+  private sequence: Record<ListedKind, number> = { animation: 0, playlist: 0, schedule: 0, schedule_v2: 0 };
 
   constructor(
     private readonly read: (kind: ListedKind) => Promise<Entry[]>,
@@ -63,7 +65,7 @@ export class FileListReader {
     const mine = ++this.sequence[kind];
     const before = this.lists[kind];
     // An earlier read still running keeps its start: a save between the two starts must still count.
-    if (before.status === "known") this.put(kind, { ...before, staleSince: before.staleSince ?? Date.now() });
+    if (before?.status === "known") this.put(kind, { ...before, staleSince: before.staleSince ?? Date.now() });
     let next: BoardFileList;
     try {
       next = { status: "known", entries: await this.read(kind), staleSince: null };

@@ -14,6 +14,7 @@ import {
   loadPlay,
   loadPlaylist,
   loadSchedule,
+  playlistsAt,
   scheduleWinner,
   type Diagnostic,
   type LocalDate,
@@ -149,8 +150,34 @@ describe("schedules that must be rejected", () => {
   const files = caseFiles(`${SUITE}/schedule/invalid`);
   it("has cases", () => expect(files.length).toBeGreaterThan(0));
   it.each(files.map((f) => [basename(f, ".json"), f]))("%s", (_name, file) => {
-    const result = loadSchedule(readBytes(file as string));
+    const result = loadSchedule(readBytes(file as string), "pixelart-schedule/1");
     expect(result.schedule, "accepted").toBeNull();
+    expectRejection(json(expectedPath(file as string)), result.diagnostics);
+  });
+});
+
+describe("format 2 schedules", () => {
+  const valid = caseFiles(`${SUITE}/schedule-v2/valid`);
+  const invalid = caseFiles(`${SUITE}/schedule-v2/invalid`);
+  it("has valid and invalid cases", () => {
+    expect(valid.length).toBeGreaterThan(0);
+    expect(invalid.length).toBeGreaterThan(0);
+  });
+  it.each(valid.map((f) => [basename(f, ".json"), f]))("accepts %s", (_name, file) => {
+    const result = loadSchedule(readBytes(file as string));
+    expect(result.schedule, describeAll(result.diagnostics)).not.toBeNull();
+    const expected = json(expectedPath(file as string));
+    expect(result.schedule?.fallback).toEqual(expected.fallback);
+    expect(result.schedule?.entries.length).toBe(expected.entries.length);
+    if (expected.window_count !== undefined)
+      expect(result.schedule?.entries.reduce((sum, entry) => sum + (entry.hours?.length ?? 0), 0)).toBe(
+        expected.window_count,
+      );
+    for (const row of expected.minutes ?? []) expect(playlistsAt(result.schedule!, 0, row.at)).toEqual(row.playlists);
+  });
+  it.each(invalid.map((f) => [basename(f, ".json"), f]))("rejects %s", (_name, file) => {
+    const result = loadSchedule(readBytes(file as string));
+    expect(result.schedule).toBeNull();
     expectRejection(json(expectedPath(file as string)), result.diagnostics);
   });
 });

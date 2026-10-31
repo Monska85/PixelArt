@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { isValidId } from "../../engine";
-import { sha256Hex, supportsSchedules, type BoardClient } from "../../protocol";
+import { sha256Hex, supportsSchedules, supportsScheduleV2, type BoardClient } from "../../protocol";
 import type { ListedKind } from "../fileLists";
 import { type QueueFile, type QueueSummary } from "../../queue/plan";
 import { runQueue, type Refusal } from "../../queue/run";
@@ -215,6 +215,16 @@ export function useUploadQueue({ client, onProblem, onFinished }: Hook): UploadQ
         }
         if (inspected.kind === "schedule" && !supportsSchedules(client.info)) {
           onProblem(shownError(`Uploading ${file.name}`, "refused", SCHEDULES_NEED_FIRMWARE));
+          continue;
+        }
+        if (inspected.kind === "schedule_v2" && !supportsScheduleV2(client.info)) {
+          onProblem(
+            shownError(
+              `Uploading ${file.name}`,
+              "refused",
+              "This board's firmware does not support timed schedules. Update its firmware first.",
+            ),
+          );
           continue;
         }
         files.push({

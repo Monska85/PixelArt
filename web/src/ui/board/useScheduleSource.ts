@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { DEFAULT_SCHEDULE_ID, loadPlay, loadSchedule, type Schedule, type ServerChoice } from "../../engine";
 import { downloadFile, type BoardClient, type Entry } from "../../protocol";
 import { downloadPublished } from "../../release/library";
-import type { Published } from "../../release/manifest";
 import type { ManifestState } from "../useManifest";
 
 /**
@@ -22,30 +21,24 @@ export type ScheduleSource =
  * What to read: the stored file by its SHA-256, else the published one by its own. "none" when neither is there, null
  * while the board's list or the release is not known yet.
  */
-function sourceKey(
-  stored: Entry[] | null,
-  entry: Entry | null,
-  library: ManifestState,
-  siteId: string | null,
-  published: Published | null | undefined,
-): string | null {
-  if (stored === null) return null;
-  if (entry) return `board:${entry.id}:${entry.sha256 ?? ""}:${entry.size}`;
-  if (siteId === null) return "none";
-  if (library.status === "loading") return null;
-  if (published) return `site:${published.sha256}`;
-  return "none";
-}
-
 /** The schedules read from the board, by SHA-256, so two cards that show one file read it once. */
 const READS = new Map<string, Promise<Schedule | null>>();
 const MAX_READS = 16;
 
-function readBoardSchedule(client: BoardClient, entry: Entry): Promise<Schedule | null> {
-  const key = entry.sha256 === null ? null : `${entry.sha256}:${entry.size}`;
+export function readBoardSchedule(
+  client: BoardClient,
+  entry: Entry,
+  kind: "schedule" | "schedule_v2",
+): Promise<Schedule | null> {
+  const key = entry.sha256 === null ? null : `${kind}:${entry.sha256}:${entry.size}`;
   const cached = key === null ? undefined : READS.get(key);
   if (cached) return cached;
-  const read = downloadFile(client, "schedule", entry.id, entry).then((bytes) => loadSchedule(bytes).schedule);
+  const read = downloadFile(client, kind, entry.id, entry).then((bytes) => {
+    const schedule = loadSchedule(bytes).schedule;
+    return schedule?.format === (kind === "schedule_v2" ? "pixelart-schedule/2" : "pixelart-schedule/1")
+      ? schedule
+      : null;
+  });
   if (key !== null) {
     if (READS.size >= MAX_READS) READS.delete(READS.keys().next().value as string);
     READS.set(key, read);
@@ -62,14 +55,32 @@ function readBoardSchedule(client: BoardClient, entry: Entry): Promise<Schedule 
 export function useScheduleSource(
   client: BoardClient,
   stored: Entry[] | null,
+  storedV2: Entry[] | null,
   library: ManifestState,
   id: string | null,
   siteId: string | null = null,
 ): ScheduleSource {
-  const entry = (id !== null && stored?.find((e) => e.id === id)) || null;
-  const published =
+  const v2Supported = !!client.info?.formats.schedule_v2;
+  const v1 = (id !== null && stored?.find((e) => e.id === id)) || null;
+  const v2 = (v2Supported && id !== null && storedV2?.find((e) => e.id === id)) || null;
+  const publishedV1 =
     siteId !== null && library.status === "ready" ? library.manifest.schedules.find((e) => e.id === siteId) : null;
-  const key = sourceKey(stored, entry, library, siteId, published);
+  const publishedV2 =
+    v2Supported && siteId !== null && library.status === "ready"
+      ? library.manifest.schedules_v2?.find((e) => e.id === siteId)
+      : null;
+  const key =
+    stored === null || (v2Supported && storedV2 === null)
+      ? null
+      : v2 || v1
+        ? `board:${v2?.sha256 ?? ""}:${v2?.size ?? 0}:${v1?.sha256 ?? ""}:${v1?.size ?? 0}`
+        : siteId === null
+          ? "none"
+          : library.status === "loading"
+            ? null
+            : publishedV2 || publishedV1
+              ? `site:${publishedV2?.sha256 ?? ""}:${publishedV1?.sha256 ?? ""}`
+              : "none";
   const [source, setSource] = useState<{ key: string | null; value: ScheduleSource }>({
     key: null,
     value: { status: "loading" },
@@ -81,14 +92,25 @@ export function useScheduleSource(
     void (async () => {
       let value: ScheduleSource;
       try {
-        if (entry) {
-          value = { status: "board", schedule: await readBoardSchedule(client, entry) };
+        if (v2 || v1) {
+          let schedule: Schedule | null = null;
+          if (v2) schedule = await readBoardSchedule(client, v2, "schedule_v2").catch(() => null);
+          if (!schedule && v1) schedule = await readBoardSchedule(client, v1, "schedule").catch(() => null);
+          value = { status: "board", schedule };
         } else {
-          const schedule = published ? loadSchedule(await downloadPublished("schedule", published)).schedule : null;
+          let schedule: Schedule | null = null;
+          if (publishedV2)
+            schedule = await downloadPublished("schedule_v2", publishedV2)
+              .then((bytes) => loadSchedule(bytes).schedule)
+              .catch(() => null);
+          if (!schedule && publishedV1)
+            schedule = await downloadPublished("schedule", publishedV1)
+              .then((bytes) => loadSchedule(bytes).schedule)
+              .catch(() => null);
           value = schedule ? { status: "site", schedule } : { status: "none" };
         }
       } catch {
-        value = entry ? { status: "board", schedule: null } : { status: "none" };
+        value = v2 || v1 ? { status: "board", schedule: null } : { status: "none" };
       }
       if (current) setSource({ key, value });
     })();

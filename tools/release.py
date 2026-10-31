@@ -13,7 +13,7 @@
       build everything first.
   tools/release.py content [--out site] [--schema]
       Write the content release site from the converted files in data/ (`make data`): animations/, playlists/,
-      schedules/, play/ (the play file `make data` builds from content/play.yaml, when that file exists) and a
+      schedules/, schedules-v2/, play/ (the play file `make data` builds from content/play.yaml, when that file exists) and a
       manifest.json with no firmware. Run `make release-content`.
   tools/release.py check-site URL
       Fail when URL (the address GitHub Pages announces or serves the site at) is not the site address computed
@@ -343,7 +343,7 @@ def write_json(path, document):
 def check_manifest_limits(manifest):
     """Refuses a manifest every board would refuse for its number of files or its size. A manifest of 200 files is over
     the size limit already, so the number is checked first and each limit gives its own message."""
-    files = sum(len(manifest.get(key, [])) for key in CONTENT_KEYS)
+    files = sum(len(manifest.get(key, [])) for key in PUBLISHED_KEYS)
     if files > MAX_MANIFEST_FILES:
         raise ReleaseError(f"manifest.json lists {files} animations, playlists, schedules and play files, more than the "
                            f"{MAX_MANIFEST_FILES} a board takes")
@@ -398,11 +398,11 @@ def legacy_entries(catalog):
 def write_content_pages(site, catalog, use_schema):
     """Content-addressed page names avoid stale Pages caches across content releases."""
     pages = {}
-    total = sum(len(catalog[kind]) for kind in CONTENT_KEYS)
+    total = sum(len(catalog[kind]) for kind in PUBLISHED_KEYS)
     if total > MAX_PUBLISHED_FILES:
         raise ReleaseError(f"the content lists {total} files, more than the {MAX_PUBLISHED_FILES} paged catalog limit")
     count = 0
-    for kind in CONTENT_KEYS:
+    for kind in PUBLISHED_KEYS:
         pages[kind] = []
         for offset in range(0, len(catalog[kind]), MAX_CONTENT_PAGE_ENTRIES):
             document = {"format": PAGE_FORMAT, "kind": kind, "entries": catalog[kind][offset:offset + MAX_CONTENT_PAGE_ENTRIES]}
@@ -525,11 +525,14 @@ def build_content_site(out, version, data, use_schema):
     if not animations or not playlists:
         raise ReleaseError(f"{data} has no animations or no playlists: run make data")
     schedules = collect_documents(Path(data), "schedules", site, False)
+    schedules_v2 = collect_documents(Path(data), "schedules-v2", site, False)
     play = collect_documents(Path(data), "play", site, False)
 
-    catalog = {"animations": animations, "playlists": playlists, "schedules": schedules, "play": play}
+    catalog = {"animations": animations, "playlists": playlists, "schedules": schedules,
+               "schedules_v2": schedules_v2, "play": play}
     legacy = legacy_entries(catalog)
     pages = write_content_pages(site, catalog, use_schema)
+    v2_pages = pages.pop("schedules_v2")
     manifest = {
         "format": FORMAT,
         "version": version,
@@ -544,6 +547,8 @@ def build_content_site(out, version, data, use_schema):
     # A content without a play.yaml has no play file in data/play/ (make data removes an old one) and no list
     if legacy["play"]:
         manifest["play"] = legacy["play"]
+    if v2_pages:
+        manifest["schedules_v2_pages"] = v2_pages
     write_manifest(site, manifest, use_schema)
     print(f"release: content version {version}, {len(animations)} animations, {len(playlists)} playlists, "
           f"{len(schedules)} schedules, {len(play)} play files in {site}")
@@ -583,9 +588,10 @@ def find_conflicts(first, second):
 # What an archive may hold besides its manifest.json. A firmware release published before the content package also
 # carries animations/ and playlists/; no firmware release carries schedules/ or play/.
 FIRMWARE_FOLDERS = ("firmware/", "animations/", "playlists/")
-CONTENT_FOLDERS = ("animations/", "playlists/", "schedules/", "play/", "content-pages/")
+CONTENT_FOLDERS = ("animations/", "playlists/", "schedules/", "schedules-v2/", "play/", "content-pages/")
 # The manifest lists of the content, which the 200-entry limit counts. schedules and play are optional.
 CONTENT_KEYS = ("animations", "playlists", "schedules", "play")
+PUBLISHED_KEYS = ("animations", "playlists", "schedules", "schedules_v2", "play")
 
 
 def read_release_manifest(folder, label, files):
@@ -598,13 +604,14 @@ def read_release_manifest(folder, label, files):
         raise ReleaseError(f"the manifest.json of the {label} folder cannot be read: {e}")
     if not isinstance(manifest, dict) or manifest.get("format") != FORMAT:
         raise ReleaseError(f"the manifest.json of the {label} folder is not a {FORMAT} manifest")
-    for key in (*CONTENT_KEYS, "firmware"):
+    for key in (*PUBLISHED_KEYS, "schedules_v2_pages", "firmware"):
         if key in manifest and not (isinstance(manifest[key], list) and all(isinstance(e, dict) for e in manifest[key])):
             raise ReleaseError(f"the manifest.json of the {label} folder has a bad {key} list")
     if "content_pages" in manifest:
         pages = manifest["content_pages"]
-        if not isinstance(pages, dict) or any(k not in CONTENT_KEYS or not isinstance(v, list) or
-                                               any(not isinstance(p, dict) for p in v) for k, v in pages.items()):
+        if not isinstance(pages, dict) or any(k in PUBLISHED_KEYS and
+                                               (not isinstance(v, list) or any(not isinstance(p, dict) for p in v))
+                                               for k, v in pages.items()):
             raise ReleaseError(f"the manifest.json of the {label} folder has bad content_pages")
     return manifest
 
@@ -641,12 +648,15 @@ def merged_manifest(firmware, content):
         manifest["play"] = content["play"]
     if "content_pages" in content:
         manifest["content_pages"] = content["content_pages"]
+    for key in ("schedules_v2", "schedules_v2_pages"):
+        if key in content:
+            manifest[key] = content[key]
     return manifest
 
 
 def check_listed_files(manifest, copied):
     """Every file the manifest names must be in the site, or a board and the web app would meet a missing file."""
-    entries = [e for key in ("firmware", *CONTENT_KEYS) for e in manifest.get(key, [])]
+    entries = [e for key in ("firmware", *PUBLISHED_KEYS) for e in manifest.get(key, [])]
     for entry in entries:
         name = entry.get("file")
         if not isinstance(name, str) or name not in copied:
@@ -656,25 +666,36 @@ def check_listed_files(manifest, copied):
             name = page.get("file")
             if not isinstance(name, str) or name not in copied:
                 raise ReleaseError(f"the manifest lists page {name!r}, which the assembled site does not hold")
+    for page in manifest.get("schedules_v2_pages", []):
+        name = page.get("file")
+        if not isinstance(name, str) or name not in copied:
+            raise ReleaseError(f"the manifest lists page {name!r}, which the assembled site does not hold")
 
 
 def check_content_pages(manifest, folder, copied, use_schema):
     """Check the referenced bytes and every published path before assembling a release archive."""
-    pages = manifest.get("content_pages", {})
+    pages = dict(manifest.get("content_pages", {}))
+    locations = sum(("schedules_v2" in manifest, "schedules_v2_pages" in manifest,
+                     "schedules_v2" in pages))
+    if locations > 1:
+        raise ReleaseError("schedules_v2 is declared in more than one catalog")
+    if "schedules_v2_pages" in manifest:
+        pages["schedules_v2"] = manifest["schedules_v2_pages"]
     if not pages:
         return
-    if not isinstance(pages, dict) or any(kind not in CONTENT_KEYS or not isinstance(refs, list) for kind, refs in pages.items()):
+    if not isinstance(pages, dict) or any(kind in PUBLISHED_KEYS and not isinstance(refs, list)
+                                        for kind, refs in pages.items()):
         raise ReleaseError("the content manifest has invalid page lists")
-    if sum(len(refs) for refs in pages.values()) > MAX_CONTENT_PAGES:
+    if sum(len(refs) for kind, refs in pages.items() if kind in PUBLISHED_KEYS) > MAX_CONTENT_PAGES:
         raise ReleaseError("the content manifest lists too many pages")
     seen_paths = set()
-    total = sum(len(manifest.get(kind, [])) for kind in CONTENT_KEYS if kind not in pages)
+    total = sum(len(manifest.get(kind, [])) for kind in PUBLISHED_KEYS if kind not in pages)
     for kind, refs in pages.items():
-        if kind not in CONTENT_KEYS or not isinstance(refs, list):
-            raise ReleaseError("the content manifest has an invalid page kind")
+        if kind not in PUBLISHED_KEYS:
+            continue
         seen_ids = set()
         for ref in refs:
-            if not isinstance(ref, dict) or set(ref) != {"file", "size", "sha256"}:
+            if not isinstance(ref, dict):
                 raise ReleaseError("the content manifest has an invalid page reference")
             name, size, digest = ref.get("file"), ref.get("size"), ref.get("sha256")
             if (not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)*", name)
@@ -696,26 +717,19 @@ def check_content_pages(manifest, folder, copied, use_schema):
                 raise ReleaseError(f"content page {name!r} cannot be read: {e}") from e
             if (not isinstance(document, dict) or document.get("format") != PAGE_FORMAT or
                     document.get("kind") != kind or not isinstance(document.get("entries"), list) or
-                    not 1 <= len(document["entries"]) <= MAX_CONTENT_PAGE_ENTRIES or
-                    set(document) != {"format", "kind", "entries"}):
+                    not 1 <= len(document["entries"]) <= MAX_CONTENT_PAGE_ENTRIES):
                 raise ReleaseError(f"content page {name!r} has the wrong format, kind or count")
             if use_schema:
                 validate_page(document)
             for entry in document["entries"]:
                 if not isinstance(entry, dict) or not isinstance(entry.get("id"), str):
                     raise ReleaseError(f"content page {name!r} has an invalid entry")
-                allowed = {"id", "file", "size", "sha256"}
-                if kind in ("animations", "playlists", "schedules"):
-                    allowed.add("name")
-                if kind == "animations":
-                    allowed.add("version")
-                if set(entry) - allowed:
-                    raise ReleaseError(f"content page {name!r} has an unknown entry field")
                 item_id = entry["id"]
                 item_path = entry.get("file")
-                expected_path = f"{kind}/{item_id}.json"
+                expected_path = f"{('schedules-v2' if kind == 'schedules_v2' else kind)}/{item_id}.json"
                 item_size, item_sha = entry.get("size"), entry.get("sha256")
-                limit = {"animations": 65536, "playlists": 16384, "schedules": 16384, "play": 1024}[kind]
+                limit = {"animations": 65536, "playlists": 16384, "schedules": 16384,
+                         "schedules_v2": 16384, "play": 1024}[kind]
                 if (item_id in seen_ids or not ID_PATTERN.fullmatch(item_id) or item_path != expected_path or
                         item_path not in copied or type(item_size) is not int or item_size < 1 or
                         item_size > limit or not isinstance(item_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", item_sha)):
@@ -725,7 +739,7 @@ def check_content_pages(manifest, folder, copied, use_schema):
                         (not isinstance(name_value, str) or not 1 <= len(name_value) <= 128 or
                          type(entry.get("version")) is not int or not 1 <= entry["version"] <= 2147483647)):
                     raise ReleaseError(f"content page {name!r} has invalid animation metadata")
-                if (kind in ("playlists", "schedules") and "name" in entry and
+                if (kind in ("playlists", "schedules", "schedules_v2") and "name" in entry and
                         (not isinstance(name_value, str) or not 1 <= len(name_value) <= 128)):
                     raise ReleaseError(f"content page {name!r} has invalid name")
                 item_file = folder / item_path

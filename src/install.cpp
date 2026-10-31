@@ -38,6 +38,7 @@ size_t size_limit(Kind kind)
   case Kind::Playlist:
     return pixelart::MAX_PLAYLIST_FILE_SIZE;
   case Kind::Schedule:
+  case Kind::ScheduleV2:
     return pixelart::MAX_SCHEDULE_FILE_SIZE;
   case Kind::Play:
     break;
@@ -55,6 +56,8 @@ std::string file_path(Kind kind, const std::string &id)
     return playlist_file(id);
   case Kind::Schedule:
     return schedule_file(id);
+  case Kind::ScheduleV2:
+    return schedule_v2_file(id);
   case Kind::Play:
     break;
   }
@@ -71,6 +74,8 @@ std::vector<std::string> stored_ids(Kind kind)
     return stored_playlists();
   case Kind::Schedule:
     return stored_schedules();
+  case Kind::ScheduleV2:
+    return stored_schedules_v2();
   case Kind::Play:
     break;
   }
@@ -118,11 +123,12 @@ Result validate(Kind kind, const std::string &path, std::vector<pixelart::Diagno
     pixelart::Playlist &target = parsed ? parsed->playlist : local;
     valid = target.load(buffer.data.get(), buffer.size, diagnostics);
   }
-  else if (kind == Kind::Schedule)
+  else if (kind == Kind::Schedule || kind == Kind::ScheduleV2)
   {
     pixelart::Schedule local;
     pixelart::Schedule &target = parsed ? parsed->schedule : local;
-    valid = target.load(buffer.data.get(), buffer.size, diagnostics);
+    valid = target.load(buffer.data.get(), buffer.size, diagnostics,
+                        kind == Kind::ScheduleV2 ? "pixelart-schedule/2" : "pixelart-schedule/1");
   }
   else
   {
@@ -156,7 +162,7 @@ void file_changed(Kind kind)
 {
   if (kind == Kind::Playlist)
     request_choice_and_restart();
-  else if (kind == Kind::Schedule || kind == Kind::Play)
+  else if (kind == Kind::Schedule || kind == Kind::ScheduleV2 || kind == Kind::Play)
     request_choice();
 }
 

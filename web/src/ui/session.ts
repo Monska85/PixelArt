@@ -106,6 +106,7 @@ class Session {
       if (!client) throw new Error("No board is connected.");
       // A firmware older than schedules answers invalid_kind: it stores none, and is not asked.
       if (kind === "schedule" && !supportsSchedules(client.info)) return Promise.resolve([]);
+      if (kind === "schedule_v2" && !client.info?.formats.schedule_v2) return Promise.resolve([]);
       return listFiles(client, kind);
     },
     (files) => this.set({ files }),

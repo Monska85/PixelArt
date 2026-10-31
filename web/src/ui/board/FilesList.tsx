@@ -54,6 +54,7 @@ const LIST_LABEL: Record<ListedKind, string> = {
   animation: "Animations",
   playlist: "Playlists",
   schedule: "Schedules",
+  schedule_v2: "Format 2 schedules",
 };
 
 /** One list of the Board view: its table, the actions of each row, and the empty state. */
@@ -128,9 +129,9 @@ export function FilesList({
       </div>
     );
   const entries = list.entries;
-  if (entries.length === 0 && kind === "schedule")
+  if (entries.length === 0 && (kind === "schedule" || kind === "schedule_v2"))
     return (
-      <EmptyList title="No schedules on this board">
+      <EmptyList title={kind === "schedule_v2" ? "No timed schedules on this board" : "No schedules on this board"}>
         A schedule chooses the playlists the board plays in each season. The published one comes with Install all in the
         Library, with the update over WiFi (Install animations, when Animation updates is on) and with Install from
         scratch. Upload your own YAML or JSON schedule with Upload files.
@@ -178,7 +179,9 @@ export function FilesList({
       badge: (
         <>
           {((kind === "playlist" && entry.id === activePlaylist) ||
-            (kind === "schedule" && entry.id === play?.schedule)) && (
+            ((kind === "schedule" || kind === "schedule_v2") &&
+              entry.id === play?.schedule &&
+              (kind === "schedule_v2" ? play.scheduleFormat === 2 : play.scheduleFormat !== 2))) && (
             <Badge variant="success" data-testid={`active-${entry.id}`}>
               Active
             </Badge>
@@ -266,7 +269,10 @@ export function FilesList({
                 : "The board plays this playlist now: it will then skip it, and play every animation when no other playlist of its list can play."}
             </p>
           )}
-          {kind === "schedule" && play && confirm.id === play.schedule && (
+          {kind === "schedule_v2" && play && confirm.id === play.schedule && (
+            <p>If a format 1 copy of this schedule is stored, the board will use it after this deletion.</p>
+          )}
+          {kind === "schedule" && play && play.scheduleFormat !== 2 && confirm.id === play.schedule && (
             <p>{describeScheduleDeletion(play, new Set(entries.map((e) => e.id).filter((id) => id !== confirm.id)))}</p>
           )}
           {kind === "animation" && held === confirm.id && (

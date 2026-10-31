@@ -12,6 +12,7 @@ import {
   connectSimulator,
   expect,
   file,
+  pick,
   showBoardPlaylists,
   showBoardSchedules,
   stored,
@@ -68,6 +69,20 @@ test.describe("on a date of the schedule", () => {
     const playlists = page.getByRole("table", { name: "Playlists on the board" });
     await expect(playlists.getByTestId("active-holiday")).toHaveText("Active");
     await expect(playlists.getByTestId("active-default")).toHaveCount(0);
+  });
+});
+
+test.describe("with a format 2 schedule", () => {
+  test.use({ simulatorArgs: ["--date", "2026-02-10", "--update-time", "09:00"], timezoneId: "UTC" });
+
+  test("Automatic uses its minute window and My choice labels the timed file", async ({ page, simulator }) => {
+    await page.clock.setFixedTime(new Date("2026-02-10T09:00:00Z"));
+    await connectSimulator(page, simulator);
+    await pick(page, file("default.json"));
+    await expect(automatic(page).getByTestId("play-now")).toContainText("default");
+    await expect(automatic(page).getByTestId("play-next")).toContainText("10:00");
+    await segment(page, "Schedule").check();
+    await expect(page.getByRole("combobox", { name: "Schedule", exact: true })).toContainText("Seasons (timed)");
   });
 });
 

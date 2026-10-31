@@ -9,6 +9,7 @@ import argparse
 import contextlib
 import hashlib
 import io
+import json
 import socket
 import sys
 import tempfile
@@ -1190,6 +1191,28 @@ class PlayChoiceTest(unittest.TestCase):
 class BuildStaleOutputTest(unittest.TestCase):
     PLAYLIST = "format: pixelart-playlist/1\ncanvas: { width: 16, height: 16 }\nitems:\n  - animation: dot\n"
     SCHEDULE = "format: pixelart-schedule/1\nfallback: [keep]\n"
+
+    def test_format_2_source_builds_both_copies_and_removes_stale_v2(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source, out = Path(folder) / "src", Path(folder) / "out"
+            (source / "schedules").mkdir(parents=True)
+            (source / "playlists").mkdir()
+            for name in ("default", "rest", "morning"):
+                (source / "playlists" / f"{name}.yaml").write_text(self.PLAYLIST)
+            schedule = source / "schedules" / "spring.yaml"
+            schedule.write_text("format: pixelart-schedule/2\nfallback: [default]\nentries:\n"
+                                "  - from: {month: 3}\n    to: {month: 5}\n    playlists: [rest]\n"
+                                "    hours:\n      - {from: '08:00', to: '12:00', playlists: [morning]}\n")
+            self.assertEqual(self.run_build(source, out)[0], 0)
+            v1 = json.loads((out / "schedules" / "spring.json").read_text())
+            v2 = json.loads((out / "schedules-v2" / "spring.json").read_text())
+            self.assertEqual(v1["format"], "pixelart-schedule/1")
+            self.assertNotIn("hours", v1["entries"][0])
+            self.assertEqual(v1["entries"][0]["playlists"], ["rest"])
+            self.assertEqual(v2["entries"][0]["hours"][0]["playlists"], ["morning"])
+            schedule.write_text(self.SCHEDULE)
+            self.assertEqual(self.run_build(source, out)[0], 0)
+            self.assertFalse((out / "schedules-v2" / "spring.json").exists())
 
     def run_build(self, source, out):
         err = io.StringIO()
