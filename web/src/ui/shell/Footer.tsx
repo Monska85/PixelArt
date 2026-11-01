@@ -20,7 +20,7 @@ export function Footer() {
         </a>
         {" · "}
         <a
-          className={`${link} whitespace-nowrap`}
+          className="whitespace-nowrap underline-offset-2 hover:text-foreground hover:underline focus-visible:underline"
           href={versionSource.url}
           target="_blank"
           rel="noopener noreferrer"
