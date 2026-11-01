@@ -1,0 +1,221 @@
+format: pixelart/1
+name: Rubber Duck
+version: 1
+description: A rubber duck floats on the water until a light bulb goes on
+canvas: { width: 16, height: 16 }
+frame_ms: 120
+
+palette:
+  duck: "#ffd21f"
+  wing: "#e0a800"
+  eye: "#202020"
+  beak: "#ff8a1f"
+  water: "#2a6ad0"
+  foam: "#8ac8ff"
+  bulb_off: "#6a7080"
+  bulb: "#fff0a0"
+  bulb_hot: "#ffffff"
+  socket: "#9aa4b0"
+  ray: "#fff0a0"
+
+sprites:
+  f0:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[0, 14], [10, 14], [15, 14]]
+  f1:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[14, 14]]
+  f2:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[13, 14]]
+  f3:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[2, 14], [12, 14]]
+  f4:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[1, 14], [11, 14]]
+  f5:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[0, 14], [15, 14]]
+  f6:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[14, 14]]
+  f7:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[13, 14]]
+  f8:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[2, 14], [12, 14]]
+  f9:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[1, 14], [11, 14]]
+  f10:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[0, 14], [15, 14]]
+  f11:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[14, 14]]
+  f12:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[13, 14]]
+  f13:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[12, 14]]
+  f14:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8], [9, 10], [10, 10]]
+      foam: [[1, 14], [11, 14]]
+  f15:
+    points:
+      beak: [[11, 7], [9, 9], [10, 9]]
+      foam: [[0, 14], [10, 14], [15, 14]]
+  f16:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[14, 14]]
+  f17:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[13, 14]]
+  f18:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8], [9, 10], [10, 10]]
+      foam: [[12, 14]]
+  f19:
+    points:
+      beak: [[11, 7], [9, 9], [10, 9]]
+      foam: [[1, 14], [11, 14]]
+  f20:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[0, 14], [10, 14], [15, 14]]
+  f21:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[14, 14]]
+  f22:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[13, 14]]
+  f23:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[2, 14], [12, 14]]
+  f24:
+    points:
+      beak: [[9, 8], [10, 8], [11, 8]]
+      foam: [[1, 14], [11, 14]]
+  f25:
+    points:
+      beak: [[9, 8], [10, 8], [9, 9], [10, 9], [11, 9]]
+      foam: [[0, 14], [15, 14]]
+  shared0:
+    points:
+      duck: [
+          [4, 6], [5, 6], [6, 6], [7, 6], [3, 7], [4, 7], [6, 7], [7, 7], [8, 7], [3, 8], [4, 8], [6, 8],
+          [7, 8], [8, 8], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [4, 10], [5, 10], [6, 10], [7, 10],
+          [8, 10], [1, 11], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [1, 12], [2, 12],
+          [3, 12], [4, 12], [5, 12], [8, 12], [9, 12], [10, 12], [11, 12], [2, 13], [3, 13], [4, 13],
+          [5, 13], [8, 13], [9, 13], [10, 13], [3, 14], [4, 14], [5, 14], [6, 14], [7, 14], [8, 14],
+          [9, 14]
+        ]
+      water: [[0, 15], [1, 15], [2, 15], [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]]
+  shared1:
+    points:
+      duck: [
+          [4, 5], [5, 5], [6, 5], [7, 5], [3, 6], [8, 6], [5, 8], [1, 10], [9, 10], [2, 11], [3, 11],
+          [10, 11], [11, 11], [6, 13], [7, 13]
+        ]
+      eye: [[5, 7]]
+      beak: [[9, 7], [10, 7]]
+      wing: [[6, 12], [7, 12]]
+      water: [[3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15]]
+  shared2:
+    points:
+      duck: [
+          [5, 7], [3, 9], [6, 12], [7, 12], [1, 13], [11, 13], [2, 14], [10, 14], [3, 15], [4, 15],
+          [5, 15], [6, 15], [7, 15], [8, 15], [9, 15]
+        ]
+      eye: [[5, 8]]
+      wing: [[6, 13], [7, 13]]
+  shared3:
+    points:
+      bulb: [[11, 0], [12, 0], [13, 0], [10, 1], [14, 1], [10, 2], [14, 2], [11, 3], [13, 3]]
+      bulb_hot: [[11, 1], [12, 1], [13, 1], [11, 2], [12, 2], [13, 2], [12, 3]]
+  shared4:
+    points:
+      socket: [[11, 4], [12, 4], [13, 4], [12, 5]]
+  shared5:
+    points:
+      ray: [[9, 0], [8, 2], [15, 0], [15, 3], [9, 4]]
+  shared6:
+    points:
+      bulb_off: [[11, 0], [12, 0], [13, 0], [10, 1], [14, 1], [10, 2], [14, 2], [11, 3], [13, 3]]
+
+timeline:
+  - show: [shared0, shared1, f0]
+    ms: 250
+  - show: [shared0, shared2, f1]
+    ms: 250
+  - show: [shared0, shared2, f2]
+    ms: 250
+  - show: [shared0, shared1, f3]
+    ms: 250
+  - show: [shared0, shared1, f4]
+    ms: 250
+  - show: [shared0, shared2, f5]
+    ms: 250
+  - show: [shared0, shared2, f6]
+    ms: 250
+  - show: [shared0, shared1, f7]
+    ms: 250
+  - show: [shared0, shared1, shared4, shared6, f8]
+    ms: 250
+  - show: [shared0, shared2, shared4, shared6, f9]
+    ms: 250
+  - show: [shared0, shared2, shared3, shared4, f10]
+    ms: 250
+  - show: [shared0, shared1, shared4, shared6, f11]
+    ms: 250
+  - show: [shared0, shared1, shared3, shared4, shared5, f12]
+    ms: 250
+  - show: [shared0, shared2, shared3, shared4, f13]
+    ms: 250
+  - show: [shared0, shared2, shared3, shared4, shared5, f14]
+    ms: 250
+  - show: [shared0, shared1, shared3, shared4, f15]
+    ms: 250
+  - show: [shared0, shared1, shared3, shared4, shared5, f16]
+    ms: 250
+  - show: [shared0, shared2, shared3, shared4, f17]
+    ms: 250
+  - show: [shared0, shared2, shared3, shared4, shared5, f18]
+    ms: 250
+  - show: [shared0, shared1, shared3, shared4, f19]
+    ms: 250
+  - show: [shared0, shared1, shared3, shared4, shared5, f20]
+    ms: 250
+  - show: [shared0, shared2, shared3, shared4, f21]
+    ms: 250
+  - show: [shared0, shared2, f22]
+    ms: 250
+  - show: [shared0, shared1, f23]
+    ms: 250
+  - show: [shared0, shared1, f24]
+    ms: 250
+  - show: [shared0, shared2, f25]
+    ms: 250
