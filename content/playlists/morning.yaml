@@ -1,0 +1,10 @@
+format: pixelart-playlist/1
+name: Morning
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: sunrise
+  - animation: alarm_clock
+  - animation: moka_pot
+  - animation: rooster
+  - animation: mountain_sunrise

@@ -1,0 +1,13 @@
+format: pixelart-playlist/1
+name: Easter
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: easter_bunny
+  - animation: chocolate_egg
+  - animation: peace_dove
+  - animation: hatching_chick
+  - animation: bunny_hop
+  - animation: butterfly
+  - animation: blooming_flower
+  - animation: cherry_blossom

@@ -1,0 +1,150 @@
+format: pixelart/1
+name: Dragon
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  scale: "#2f9e3e"
+  belly: "#e8d070"
+  horn: "#f0e8d0"
+  eye: "#ffd23f"
+  eye_glow: "#ff3a1a"
+  pupil: "#000000"
+  nostril: "#103a18"
+  spike: "#b040d0"
+  tooth: "#ffffff"
+  mouth: "#801020"
+  fire_r: "#e8301a"
+  fire_o: "#ff8c1a"
+  fire_y: "#ffe14a"
+  fire_w: "#fff8e0"
+  smoke: "#6a6a74"
+
+sprites:
+  closed:
+    points:
+      scale: [[5, 8], [7, 8], [9, 8], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10]]
+      belly: [[4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9]]
+  open:
+    points:
+      tooth: [[5, 8], [7, 8], [9, 8], [4, 10], [6, 10], [8, 10]]
+      mouth: [[4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9], [5, 10], [7, 10]]
+      belly: [[6, 11], [7, 11], [8, 11]]
+  smoke_a:
+    points:
+      smoke: [[10, 6], [11, 5]]
+  smoke_b:
+    points:
+      smoke: [[11, 4], [12, 3], [12, 5]]
+  fire0:
+    points:
+      fire_w: [[11, 10], [12, 10]]
+      fire_y: [[14, 10], [15, 8], [15, 10]]
+      fire_o: [[12, 11], [13, 8], [15, 7], [12, 8], [13, 12]]
+  fire1:
+    points:
+      fire_y: [[12, 9], [12, 10], [14, 10]]
+      fire_o: [[11, 10], [15, 8], [12, 6], [14, 6]]
+      fire_r: [[13, 8], [12, 8], [12, 11], [14, 12], [15, 7]]
+  fire2:
+    points:
+      fire_y: [[10, 9]]
+      fire_o: [[12, 8], [12, 10], [13, 8], [15, 8], [15, 12], [13, 6]]
+      fire_r: [[14, 12], [15, 7]]
+  fire3:
+    points:
+      fire_w: [[12, 10]]
+      fire_y: [[14, 10], [15, 11]]
+      fire_o: [[15, 10], [12, 11], [15, 8], [15, 12], [15, 6]]
+      fire_r: [[15, 7], [10, 9], [10, 10], [13, 8]]
+  shared0:
+    points:
+      horn: [[0, 0], [1, 1], [2, 1], [2, 2], [3, 2], [4, 2]]
+      scale: [
+          [2, 3], [3, 3], [4, 3], [5, 3], [6, 3], [1, 4], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4], [7, 4],
+          [8, 4], [1, 5], [2, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [1, 6], [2, 6], [3, 6], [4, 6],
+          [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7], [7, 7],
+          [9, 7], [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [6, 8], [8, 8], [1, 9], [2, 9], [3, 9], [0, 10],
+          [1, 10], [2, 10], [3, 10], [1, 11], [2, 11], [3, 11], [0, 12], [1, 12], [2, 12], [3, 12],
+          [1, 13], [2, 13], [3, 13], [4, 13], [0, 14], [1, 14], [2, 14], [3, 14], [4, 14], [1, 15],
+          [2, 15], [3, 15], [4, 15], [5, 15]
+        ]
+      eye: [[3, 5]]
+      pupil: [[4, 5]]
+      spike: [[0, 6], [0, 7], [0, 9], [0, 11], [0, 13], [0, 15]]
+      nostril: [[8, 7]]
+      belly: [[4, 11], [5, 11], [4, 12], [5, 12], [5, 13], [6, 13], [5, 14], [6, 14], [6, 15], [7, 15]]
+  shared1:
+    points:
+      fire_y: [[13, 10], [14, 9]]
+      fire_o: [[11, 9], [13, 11], [14, 8], [14, 11]]
+  shared2:
+    points:
+      fire_y: [[13, 9], [15, 9]]
+      fire_o: [[12, 9]]
+  shared3:
+    points:
+      fire_y: [[10, 10]]
+      fire_o: [[15, 11]]
+      fire_r: [[14, 7], [15, 12]]
+
+timeline:
+  - show: [shared0, closed]
+    ms: 1200
+  - show: [shared0, closed]
+    ms: 140
+    recolor: { eye: scale, pupil: scale }
+  - show: [shared0, closed]
+    ms: 600
+  - show: [shared0, closed, smoke_a]
+    ms: 220
+  - show: [shared0, closed, smoke_b]
+    ms: 220
+  - show: [shared0, closed]
+    ms: 300
+    recolor: { eye: eye_glow }
+  - show: [shared0, open]
+    ms: 200
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared2, shared3, fire0]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared3, fire1]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared2, fire2]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared2, fire3]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared2, shared3, fire0]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared3, fire1]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared2, fire2]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared2, fire3]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared2, shared3, fire0]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared3, fire1]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared2, fire2]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, shared1, shared2, fire3]
+    ms: 100
+    recolor: { eye: eye_glow }
+  - show: [shared0, open, smoke_b]
+    ms: 250
+  - show: [shared0, closed, smoke_a]
+    ms: 250
+  - show: [shared0, closed]
+    ms: 800

@@ -1,0 +1,83 @@
+format: pixelart/1
+name: Blooming Flower
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 450
+
+palette:
+  grass: "#3fa34d"
+  dark_grass: "#2b7a37"
+  soil: "#6b4226"
+  stem: "#4caf50"
+  leaf: "#7bd36b"
+  petal: "#ff6fa8"
+  petal_tip: "#c2407a"
+  yellow: "#ffd23f"
+  orange: "#ff9a1f"
+
+sprites:
+  ground:
+    points:
+      dark_grass: [[1, 13], [3, 13], [12, 13], [14, 13]]
+      grass: [
+          [0, 14], [1, 14], [2, 14], [3, 14], [4, 14], [5, 14], [6, 14], [7, 14], [8, 14], [9, 14],
+          [10, 14], [11, 14], [12, 14], [13, 14], [14, 14], [15, 14]
+        ]
+      soil: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+  sprout:
+    points:
+      leaf: [[6, 11], [8, 11]]
+      stem: [[7, 12], [7, 13]]
+  stem_mid:
+    points:
+      stem: [[7, 9], [7, 10], [7, 11], [7, 12], [7, 13]]
+      leaf: [[5, 10], [6, 11]]
+  stem:
+    points:
+      stem: [[7, 8], [7, 9], [7, 10], [7, 11], [7, 12], [7, 13]]
+      leaf: [[4, 9], [5, 9], [5, 10], [6, 10], [8, 11], [9, 11], [8, 12], [9, 12]]
+  bud:
+    points:
+      petal_tip: [[7, 5], [6, 6], [8, 6]]
+      petal: [[7, 6], [7, 7]]
+      leaf: [[6, 7], [8, 7], [7, 8]]
+  bloom_small:
+    points:
+      petal_tip: [[7, 2], [6, 3], [8, 3], [5, 4], [9, 4], [6, 5], [8, 5]]
+      petal: [[7, 3], [6, 4], [8, 4], [7, 5]]
+      yellow: [[7, 4]]
+      leaf: [[7, 6], [6, 7], [8, 7]]
+  bloom:
+    points:
+      petal_tip: [
+          [6, 1], [8, 1], [2, 2], [3, 2], [11, 2], [12, 2], [2, 3], [12, 3], [2, 5], [12, 5], [2, 6],
+          [3, 6], [11, 6], [12, 6], [6, 7], [8, 7]
+        ]
+      petal: [
+          [7, 1], [6, 2], [7, 2], [8, 2], [3, 3], [4, 3], [5, 3], [9, 3], [10, 3], [11, 3], [3, 4], [4, 4],
+          [5, 4], [9, 4], [10, 4], [11, 4], [3, 5], [4, 5], [5, 5], [9, 5], [10, 5], [11, 5], [6, 6],
+          [7, 6], [8, 6], [7, 7]
+        ]
+      yellow: [[6, 3], [7, 3], [8, 3], [6, 4], [8, 4], [6, 5], [7, 5], [8, 5]]
+      orange: [[7, 4]]
+
+timeline:
+  - show: [ground]
+    ms: 600
+  - show: [ground, sprout]
+  - show: [ground, stem_mid]
+  - show: [ground, stem, bud]
+    ms: 700
+  - show: [ground, stem, bloom_small]
+  - show: [ground, stem, bloom]
+    ms: 800
+  - loop: 4
+    steps:
+      - show: [ground, stem, bloom]
+      - show: [ground, stem, bloom]
+        recolor: { yellow: orange, orange: yellow }
+  - show: [ground, stem, bloom]
+    ms: 1000

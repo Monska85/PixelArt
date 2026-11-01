@@ -1,0 +1,78 @@
+format: pixelart/1
+name: Basketball
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  board: "#e8ecf2"
+  square: "#ff3b30"
+  rim: "#ff7a1a"
+  net: "#f5f5f5"
+  ball: "#ff8a1a"
+  seam: "#8a3a10"
+  floor: "#8a5a2a"
+
+sprites:
+  board:
+    points:
+      board: [
+          [5, 0], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5],
+          [7, 0], [7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [8, 0], [8, 1], [8, 2], [8, 3], [8, 4], [8, 5],
+          [9, 0], [9, 1], [9, 5], [10, 0], [10, 1], [10, 3], [10, 4], [10, 5], [11, 0], [11, 1], [11, 3],
+          [11, 4], [11, 5], [12, 0], [12, 1], [12, 5], [13, 0], [13, 1], [13, 2], [13, 3], [13, 4],
+          [13, 5], [14, 0], [14, 1], [14, 2], [14, 3], [14, 4], [14, 5], [15, 0], [15, 1], [15, 2],
+          [15, 3], [15, 4], [15, 5]
+        ]
+      square: [[9, 2], [9, 3], [9, 4], [10, 2], [11, 2], [12, 2], [12, 3], [12, 4]]
+  rim:
+    points:
+      rim: [[7, 6], [8, 6], [9, 6], [10, 6], [11, 6], [12, 6]]
+  net:
+    points:
+      net: [[7, 7], [9, 7], [11, 7], [8, 8], [10, 8], [12, 7], [9, 9], [11, 9]]
+  ball:
+    points:
+      ball: [[0, 0], [1, 0], [2, 0], [0, 1], [2, 1], [0, 2], [1, 2]]
+      seam: [[1, 1], [2, 2]]
+  floor:
+    points:
+      floor: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+
+timeline:
+  - loop: 2
+    steps:
+      - show: [floor, board, rim, net, { sprite: ball, at: [0, 12] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [1, 9] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [3, 6] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [5, 3] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [7, 1] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [8, 1] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 2] }]
+        ms: 110
+      - show: [floor, board, { sprite: ball, at: [9, 4] }, rim, net]
+        ms: 110
+      - show: [floor, board, { sprite: ball, at: [9, 6] }, rim, net]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 8] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 10] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 12] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 13] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 12] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 13] }]
+        ms: 110
+      - show: [floor, board, rim, net, { sprite: ball, at: [9, 13] }]
+        ms: 1000

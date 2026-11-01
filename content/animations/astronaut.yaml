@@ -1,0 +1,117 @@
+format: pixelart/1
+name: Astronaut
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  suit: "#f0f0f0"
+  visor: "#1a3a7a"
+  visor_shine: "#8ac8ff"
+  visor_star: "#ffe14a"
+  panel_b: "#2f7bff"
+  panel_r: "#e8213a"
+  trim: "#8a8a96"
+  pack: "#b8b8c4"
+  star: "#ffffff"
+  star_d: "#506090"
+
+sprites:
+  astro:
+    points:
+      trim: [
+          [6, 0], [7, 0], [8, 0], [9, 0], [4, 1], [11, 1], [3, 2], [12, 2], [4, 7], [11, 7], [4, 11],
+          [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11], [11, 11], [4, 14], [5, 14], [6, 14],
+          [9, 14], [10, 14], [11, 14]
+        ]
+      suit: [
+          [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2],
+          [10, 2], [11, 2], [3, 3], [4, 3], [11, 3], [12, 3], [3, 4], [12, 4], [3, 5], [12, 5], [3, 6],
+          [4, 6], [11, 6], [12, 6], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [4, 8], [5, 8],
+          [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [11, 8], [4, 9], [5, 9], [10, 9], [11, 9], [4, 10],
+          [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [10, 10], [11, 10], [4, 12], [5, 12], [6, 12],
+          [9, 12], [10, 12], [11, 12], [4, 13], [5, 13], [6, 13], [9, 13], [10, 13], [11, 13]
+        ]
+      visor: [
+          [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [4, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4],
+          [11, 4], [4, 5], [5, 5], [7, 5], [8, 5], [9, 5], [11, 5], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6],
+          [10, 6]
+        ]
+      visor_shine: [[5, 4], [6, 5]]
+      visor_star: [[10, 5]]
+      pack: [[3, 8], [12, 8], [3, 9], [12, 9], [3, 10], [12, 10]]
+      panel_b: [[6, 9], [7, 9]]
+      panel_r: [[8, 9], [9, 9]]
+  arms_low:
+    points:
+      suit: [[2, 8], [2, 9], [1, 9], [1, 10], [2, 10], [13, 8], [13, 9], [14, 9], [14, 10], [13, 10]]
+      trim: [[1, 11], [2, 11], [14, 11], [13, 11]]
+  arms_high:
+    points:
+      suit: [[2, 8], [1, 8], [1, 9], [2, 9], [13, 8], [14, 8], [14, 9], [13, 9]]
+      trim: [[1, 10], [2, 10], [14, 10], [13, 10]]
+  shared0:
+    points:
+      star: [[13, 9], [7, 4], [2, 12], [5, 8], [15, 11]]
+      star_d: [[0, 6], [0, 3], [5, 11], [1, 0], [0, 2]]
+  shared1:
+    points:
+      star: [[14, 9], [8, 4], [3, 12], [6, 8], [0, 11]]
+      star_d: [[1, 6], [1, 3], [6, 11], [2, 0], [1, 2]]
+  shared2:
+    points:
+      star: [[2, 9], [12, 4], [7, 12], [10, 8], [4, 11]]
+      star_d: [[5, 6], [5, 3], [10, 11], [6, 0], [5, 2]]
+  shared3:
+    points:
+      star: [[3, 9], [13, 4], [8, 12], [11, 8], [5, 11]]
+      star_d: [[6, 6], [6, 3], [11, 11], [7, 0], [6, 2]]
+  shared4:
+    points:
+      star: [[15, 9], [9, 4], [4, 12], [7, 8], [1, 11]]
+      star_d: [[2, 6], [2, 3], [7, 11], [3, 0], [2, 2]]
+  shared5:
+    points:
+      star: [[12, 9], [6, 4], [1, 12], [4, 8], [14, 11]]
+      star_d: [[15, 6], [15, 3], [4, 11], [0, 0], [15, 2]]
+  shared6:
+    points:
+      star: [[1, 9], [11, 4], [6, 12], [9, 8], [3, 11]]
+      star_d: [[4, 6], [4, 3], [9, 11], [5, 0], [4, 2]]
+  shared7:
+    points:
+      star: [[0, 9], [10, 4], [5, 12], [8, 8], [2, 11]]
+      star_d: [[3, 6], [3, 3], [8, 11], [4, 0], [3, 2]]
+
+timeline:
+  - show: [shared3, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
+    ms: 300
+  - show: [shared3, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
+    ms: 300
+  - show: [shared2, { sprite: astro, at: [0, 0] }, { sprite: arms_low, at: [0, 0] }]
+    ms: 300
+  - show: [shared2, { sprite: astro, at: [0, 0] }, { sprite: arms_low, at: [0, 0] }]
+    ms: 300
+  - show: [shared6, { sprite: astro, at: [1, 0] }, { sprite: arms_high, at: [1, 0] }]
+    ms: 300
+  - show: [shared6, { sprite: astro, at: [1, 0] }, { sprite: arms_high, at: [1, 0] }]
+    ms: 300
+  - show: [shared7, { sprite: astro, at: [1, 1] }, { sprite: arms_high, at: [1, 1] }]
+    ms: 300
+  - show: [shared7, { sprite: astro, at: [1, 1] }, { sprite: arms_high, at: [1, 1] }]
+    ms: 300
+  - show: [shared4, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
+    ms: 300
+  - show: [shared4, { sprite: astro, at: [0, 1] }, { sprite: arms_low, at: [0, 1] }]
+    ms: 300
+  - show: [shared1, { sprite: astro, at: [-1, 1] }, { sprite: arms_low, at: [-1, 1] }]
+    ms: 300
+  - show: [shared1, { sprite: astro, at: [-1, 1] }, { sprite: arms_low, at: [-1, 1] }]
+    ms: 300
+  - show: [shared0, { sprite: astro, at: [-1, 0] }, { sprite: arms_high, at: [-1, 0] }]
+    ms: 300
+  - show: [shared0, { sprite: astro, at: [-1, 0] }, { sprite: arms_high, at: [-1, 0] }]
+    ms: 300
+  - show: [shared5, { sprite: astro, at: [0, 0] }, { sprite: arms_high, at: [0, 0] }]
+    ms: 300
+  - show: [shared5, { sprite: astro, at: [0, 0] }, { sprite: arms_high, at: [0, 0] }]
+    ms: 300

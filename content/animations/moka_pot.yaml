@@ -1,0 +1,113 @@
+format: pixelart/1
+name: Moka Pot
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  knob: "#3a3a44"
+  metal: "#b8c0cc"
+  metal_light: "#e8ecf2"
+  metal_dark: "#6a7280"
+  handle: "#5a5a66"
+  spout: "#b8c0cc"
+  grate: "#4a4a56"
+  flame: "#2f7bff"
+  flame_light: "#8fd0ff"
+  steam: "#c8ccd8"
+
+sprites:
+  moka:
+    at: [1, 2]
+    points:
+      knob: [[6, 0], [7, 0]]
+      metal_light: [
+          [5, 1], [3, 2], [4, 2], [3, 3], [4, 3], [4, 4], [4, 5], [5, 6], [4, 7], [3, 8], [4, 8], [3, 9],
+          [4, 9], [3, 10], [4, 10], [3, 11], [4, 11]
+        ]
+      metal: [
+          [6, 1], [7, 1], [5, 2], [6, 2], [7, 2], [8, 2], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [5, 4],
+          [6, 4], [7, 4], [8, 4], [5, 5], [6, 5], [7, 5], [8, 5], [6, 6], [7, 6], [5, 7], [6, 7], [7, 7],
+          [8, 7], [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9], [5, 10],
+          [6, 10], [7, 10], [8, 10], [9, 10], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11]
+        ]
+      metal_dark: [[8, 1], [9, 2], [10, 3], [9, 4], [9, 5], [8, 6], [9, 7], [10, 8], [10, 9], [10, 10], [10, 11]]
+      spout: [[2, 2]]
+      handle: [[11, 3], [12, 3], [12, 4], [11, 5]]
+      grate: [
+          [1, 12], [2, 12], [3, 12], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12], [9, 12], [10, 12],
+          [11, 12], [12, 12]
+        ]
+  flame_a:
+    points:
+      flame: [[5, 15], [7, 15], [9, 15], [11, 15]]
+      flame_light: [[6, 15], [8, 15], [10, 15]]
+  flame_b:
+    points:
+      flame_light: [[5, 15], [7, 15], [9, 15], [11, 15]]
+      flame: [[6, 15], [8, 15], [10, 15]]
+  steam0:
+    points:
+      steam: [[3, 3], [2, 2]]
+  steam1:
+    points:
+      steam: [[3, 3], [1, 0]]
+  steam2:
+    points:
+      steam: [[2, 1], [1, 0]]
+  steam3:
+    points:
+      steam: [[2, 2], [2, 1]]
+
+timeline:
+  - show: [moka, flame_a]
+    ms: 600
+  - show: [moka, flame_b]
+    ms: 600
+  - show: [steam0, moka, flame_b]
+    ms: 180
+  - show: [steam1, moka, flame_a]
+    ms: 180
+  - show: [steam2, moka, flame_b]
+    ms: 180
+  - show: [steam3, moka, flame_a]
+    ms: 180
+  - show: [steam0, moka, flame_b]
+    ms: 180
+  - show: [steam1, moka, flame_a]
+    ms: 180
+  - show: [steam2, moka, flame_b]
+    ms: 180
+  - show: [steam3, moka, flame_a]
+    ms: 180
+  - show: [steam0, moka, flame_b]
+    ms: 180
+  - show: [steam1, moka, flame_a]
+    ms: 180
+  - show: [steam2, moka, flame_b]
+    ms: 180
+  - show: [steam3, moka, flame_a]
+    ms: 180
+  - show: [steam0, moka, flame_b]
+    ms: 180
+  - show: [steam1, moka, flame_a]
+    ms: 180
+  - show: [steam2, moka, flame_b]
+    ms: 180
+  - show: [steam3, moka, flame_a]
+    ms: 180
+  - show: [steam0, moka, flame_b]
+    ms: 180
+  - show: [steam1, moka, flame_a]
+    ms: 180
+  - show: [steam2, moka, flame_b]
+    ms: 180
+  - show: [steam3, moka, flame_a]
+    ms: 180
+  - show: [steam0, moka, flame_b]
+    ms: 180
+  - show: [steam1, moka, flame_a]
+    ms: 180
+  - show: [steam2, moka, flame_b]
+    ms: 180
+  - show: [steam3, moka, flame_a]
+    ms: 180

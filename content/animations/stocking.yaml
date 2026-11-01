@@ -1,0 +1,137 @@
+format: pixelart/1
+name: Befana Stocking
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  cuff: "#ffffff"
+  cuff_d: "#d0d4dc"
+  sock: "#e8213a"
+  stripe: "#2f8a3e"
+  star: "#ffd23f"
+  heel: "#ffffff"
+  nail: "#a0a0aa"
+  loop: "#c8a060"
+  k1: "#ffd23f"
+  k1e: "#fff6c0"
+  k2: "#3ad0ff"
+  k2e: "#c0f0ff"
+  k3: "#ff6ad5"
+  k3e: "#ffd0f0"
+  lolly: "#ff3a5a"
+  lolly_w: "#ffffff"
+  stick: "#f0f0f0"
+  coal: "#2a2a30"
+  coal_l: "#5a5a64"
+  dust: "#5a5a64"
+
+sprites:
+  stocking:
+    points:
+      cuff: [[3, 4], [5, 4], [7, 4], [9, 4], [4, 5], [6, 5], [8, 5], [10, 5]]
+      cuff_d: [[4, 4], [6, 4], [8, 4], [10, 4], [3, 5], [5, 5], [7, 5], [9, 5]]
+      sock: [
+          [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [4, 8], [5, 8], [7, 8], [8, 8], [9, 8], [4, 9],
+          [5, 9], [6, 9], [7, 9], [9, 9], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11], [6, 12],
+          [7, 12], [8, 12], [9, 12], [10, 12], [11, 12], [5, 13], [6, 13], [7, 13], [8, 13], [9, 13],
+          [10, 13], [5, 14], [6, 14], [7, 14], [8, 14], [9, 14], [10, 14], [11, 14], [6, 15], [7, 15],
+          [8, 15], [9, 15], [10, 15], [11, 15]
+        ]
+      stripe: [
+          [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10],
+          [9, 10]
+        ]
+      star: [[6, 8], [8, 9]]
+      heel: [[4, 11], [4, 12], [5, 12], [12, 12], [4, 13], [11, 13], [12, 13], [12, 14]]
+  nail:
+    points:
+      nail: [[2, 1]]
+      loop: [[3, 2], [3, 3], [2, 2]]
+  sweet0:
+    points:
+      k1: [[5, 2]]
+      k1e: [[4, 2], [6, 2]]
+  sweet1:
+    points:
+      k2: [[9, 2]]
+      k2e: [[8, 2], [10, 2]]
+  sweet2:
+    points:
+      lolly: [[7, 0], [8, 1]]
+      lolly_w: [[8, 0], [7, 1]]
+      stick: [[7, 2], [7, 3]]
+  sweet3:
+    points:
+      k3: [[6, 2]]
+      k3e: [[5, 2], [7, 2]]
+  coal:
+    points:
+      coal: [[0, 0], [1, 0], [1, 1]]
+      coal_l: [[0, 1]]
+  dust:
+    points:
+      dust: [[4, 2], [10, 2], [5, 1], [9, 1]]
+
+timeline:
+  - show: [nail, stocking]
+    ms: 900
+  - show: [nail, { sprite: sweet0, at: [0, -4] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, -3] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, -2] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, -1] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, stocking]
+    ms: 300
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, -4] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, -3] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, -2] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, -1] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, stocking]
+    ms: 300
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, -4] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, -3] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, -2] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, -1] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, stocking]
+    ms: 300
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, -4] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, -3] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, -2] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, -1] }, stocking]
+    ms: 80
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, stocking]
+    ms: 300
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, -1] }, stocking]
+    ms: 110
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, 0] }, stocking]
+    ms: 110
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, 1] }, stocking]
+    ms: 110
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, 2] }, stocking]
+    ms: 110
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, 2] }, stocking, dust]
+    ms: 250
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, 2] }, { sprite: stocking, at: [0, 0] }]
+    ms: 200
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, 2] }, { sprite: stocking, at: [0, 1] }]
+    ms: 200
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, 2] }, { sprite: stocking, at: [0, 0] }]
+    ms: 200
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, 2] }, { sprite: stocking, at: [0, 1] }]
+    ms: 200
+  - show: [nail, { sprite: sweet0, at: [0, 0] }, { sprite: sweet1, at: [0, 0] }, { sprite: sweet2, at: [0, 0] }, { sprite: sweet3, at: [0, 0] }, { sprite: coal, at: [7, 2] }, stocking]
+    ms: 1000
