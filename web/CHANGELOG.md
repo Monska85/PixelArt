@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/Monska85/PixelArt/compare/web-v1.3.0...web-v1.4.0) (2026-11-01)
+
+
+### Added
+
+* add timed schedules ([#47](https://github.com/Monska85/PixelArt/issues/47)) ([584f998](https://github.com/Monska85/PixelArt/commit/584f998bef081eb7be27b13b024c9d1ee0059761))
+* **web:** link footer version to source tag ([#51](https://github.com/Monska85/PixelArt/issues/51)) ([543483a](https://github.com/Monska85/PixelArt/commit/543483a5cb57b6ad4b71c85f483bec0b6bd05da0))
+
 ## [1.3.0](https://github.com/Monska85/PixelArt/compare/web-v1.2.0...web-v1.3.0) (2026-10-30)
 
 
