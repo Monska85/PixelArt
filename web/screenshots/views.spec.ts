@@ -21,10 +21,16 @@ const CURATED: readonly StateName[] = [
   "chip-connected",
 ];
 
+// Release PRs change the real version. The browser tests check that value and its source link; images use a fixed label.
+const SCREENSHOT_VERSION = "Web app v1.3.0";
+
 describeStates({
   names: CURATED,
   themes: THEMES,
   check: async (page, image) => {
+    await page.getByTestId("footer-version").evaluate((element, label) => {
+      element.textContent = label;
+    }, SCREENSHOT_VERSION);
     // Fonts loaded and two frames drawn, so a dialog that has just opened has settled.
     await page.evaluate(() =>
       document.fonts.ready.then(
