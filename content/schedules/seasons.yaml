@@ -1,6 +1,6 @@
 format: pixelart-schedule/2
 name: Seasons
-fallback: [animals, space, sea, food, music, sport, vehicles, mountain]
+fallback: [default]
 entries:
   - name: Spring
     from: { month: 3, day: 21 }
