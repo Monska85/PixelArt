@@ -200,6 +200,7 @@ export const states = {
     await connected(page, simulator);
     await showFiles(page);
     await expect(animations(page)).toBeVisible();
+    await page.mouse.move(0, 0);
     await check();
   },
   "board-updates-failed": async ({ page, simulator, check }) => {
