@@ -1,0 +1,124 @@
+format: pixelart/1
+name: Party Horn
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  mouth: "#ffffff"
+  ring: "#ffc020"
+  h1: "#ff3a5a"
+  h2: "#ffd23f"
+  fringe: "#3ad0ff"
+  wave: "#ffffff"
+  c1: "#ff6ad5"
+  c2: "#3ad0ff"
+  c3: "#5aff6a"
+
+sprites:
+  mouthpiece:
+    points:
+      mouth: [[0, 6], [1, 6], [0, 7], [1, 7], [0, 8], [1, 8]]
+      ring: [[2, 6], [2, 7], [2, 8]]
+  horn0:
+    points:
+      h1: [[4, 4], [6, 4], [3, 6], [6, 6], [4, 8]]
+      h2: [[5, 4], [3, 5], [7, 5], [5, 6], [7, 6], [3, 7], [5, 8]]
+  horn3:
+    points:
+      h1: [[3, 6], [3, 7], [4, 6], [5, 8], [7, 4], [9, 4], [6, 6], [9, 6], [7, 8]]
+      h2: [[3, 8], [4, 7], [4, 8], [5, 6], [5, 7], [8, 4], [6, 5], [10, 5], [8, 6], [10, 6], [6, 7], [8, 8]]
+  horn6:
+    points:
+      h1: [
+          [3, 6], [3, 7], [4, 6], [5, 8], [6, 7], [6, 8], [7, 6], [7, 7], [8, 6], [10, 4], [12, 4], [9, 6],
+          [12, 6], [10, 8]
+        ]
+      h2: [
+          [3, 8], [4, 7], [4, 8], [5, 6], [5, 7], [6, 6], [7, 8], [8, 7], [8, 8], [11, 4], [9, 5], [13, 5],
+          [11, 6], [13, 6], [9, 7], [11, 8]
+        ]
+  horn9:
+    points:
+      h1: [
+          [3, 6], [3, 7], [4, 6], [5, 8], [6, 7], [6, 8], [7, 6], [7, 7], [8, 6], [9, 8], [10, 7], [10, 8],
+          [11, 6], [11, 7], [13, 4], [15, 4], [12, 6], [15, 6], [13, 8]
+        ]
+      h2: [
+          [3, 8], [4, 7], [4, 8], [5, 6], [5, 7], [6, 6], [7, 8], [8, 7], [8, 8], [9, 6], [9, 7], [10, 6],
+          [11, 8], [14, 4], [12, 5], [14, 6], [12, 7], [14, 8]
+        ]
+  horn12:
+    points:
+      h1: [
+          [3, 6], [3, 7], [4, 6], [5, 8], [6, 7], [6, 8], [7, 6], [7, 7], [8, 6], [9, 8], [10, 7], [10, 8],
+          [11, 6], [11, 7], [12, 6], [13, 8], [14, 7], [14, 8]
+        ]
+      h2: [
+          [3, 8], [4, 7], [4, 8], [5, 6], [5, 7], [6, 6], [7, 8], [8, 7], [8, 8], [9, 6], [9, 7], [10, 6],
+          [11, 8], [12, 7], [12, 8], [13, 6], [13, 7], [14, 6]
+        ]
+      fringe: [[15, 5], [15, 9], [14, 5], [14, 9], [15, 4], [15, 10]]
+  waves:
+    points:
+      wave: [[13, 2], [14, 1], [13, 12], [14, 13]]
+      c1: [[5, 2], [9, 13]]
+      c2: [[8, 1], [4, 12]]
+      c3: [[11, 3], [6, 14]]
+  waves2:
+    points:
+      wave: [[14, 2], [15, 1], [14, 12], [15, 13]]
+      c1: [[6, 1], [10, 14]]
+      c2: [[9, 2], [5, 13]]
+      c3: [[12, 2], [7, 13]]
+
+timeline:
+  - show: [mouthpiece, horn0]
+    ms: 900
+  - show: [mouthpiece, horn3]
+    ms: 70
+  - show: [mouthpiece, horn6]
+    ms: 70
+  - show: [mouthpiece, horn9]
+    ms: 70
+  - show: [mouthpiece, horn12]
+    ms: 70
+  - show: [mouthpiece, horn12, waves2]
+    ms: 160
+  - show: [mouthpiece, horn12, waves]
+    ms: 160
+  - show: [mouthpiece, horn12, waves2]
+    ms: 160
+  - show: [mouthpiece, horn12, waves]
+    ms: 160
+  - show: [mouthpiece, horn12, waves2]
+    ms: 160
+  - show: [mouthpiece, horn12, waves]
+    ms: 160
+  - show: [mouthpiece, horn9]
+    ms: 80
+  - show: [mouthpiece, horn6]
+    ms: 80
+  - show: [mouthpiece, horn3]
+    ms: 80
+  - show: [mouthpiece, horn0]
+    ms: 80
+  - show: [mouthpiece, horn0]
+    ms: 600
+  - show: [mouthpiece, horn3]
+    ms: 60
+  - show: [mouthpiece, horn6]
+    ms: 60
+  - show: [mouthpiece, horn9]
+    ms: 60
+  - show: [mouthpiece, horn12, waves]
+    ms: 60
+  - show: [mouthpiece, horn9]
+    ms: 60
+  - show: [mouthpiece, horn6]
+    ms: 60
+  - show: [mouthpiece, horn3]
+    ms: 60
+  - show: [mouthpiece, horn0]
+    ms: 60
+  - show: [mouthpiece, horn0]
+    ms: 700

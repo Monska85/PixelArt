@@ -1,0 +1,79 @@
+format: pixelart/1
+name: Hot Air Balloon
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 160
+
+palette:
+  red: "#ff3b30"
+  yellow: "#ffd23f"
+  blue: "#2f7bff"
+  rope: "#c8c8d0"
+  basket: "#a0602a"
+  flame: "#ff9a1a"
+  cloud: "#5a6a80"
+
+sprites:
+  clouds:
+    points:
+      cloud: [
+          [1, 1], [2, 1], [3, 1], [4, 1], [0, 2], [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [11, 3], [12, 3],
+          [13, 3], [10, 4], [11, 4], [12, 4], [13, 4], [14, 4], [4, 8], [5, 8], [6, 8], [3, 9], [4, 9],
+          [5, 9], [6, 9], [7, 9], [12, 12], [13, 12], [11, 13], [12, 13], [13, 13], [14, 13]
+        ]
+  balloon:
+    points:
+      red: [
+          [5, 0], [10, 0], [4, 1], [11, 1], [3, 2], [12, 2], [3, 3], [12, 3], [2, 4], [3, 4], [12, 4],
+          [13, 4]
+        ]
+      yellow: [
+          [6, 0], [9, 0], [5, 1], [6, 1], [9, 1], [10, 1], [4, 2], [5, 2], [6, 2], [9, 2], [10, 2],
+          [11, 2], [4, 3], [5, 3], [10, 3], [11, 3], [4, 4], [5, 4], [10, 4], [11, 4], [3, 5], [4, 5],
+          [5, 5], [10, 5], [11, 5], [12, 5], [4, 6], [5, 6], [10, 6], [11, 6], [5, 7], [10, 7], [6, 8],
+          [9, 8]
+        ]
+      blue: [
+          [7, 0], [8, 0], [7, 1], [8, 1], [7, 2], [8, 2], [6, 3], [7, 3], [8, 3], [9, 3], [6, 4], [7, 4],
+          [8, 4], [9, 4], [6, 5], [7, 5], [8, 5], [9, 5], [6, 6], [7, 6], [8, 6], [9, 6], [6, 7], [7, 7],
+          [8, 7], [9, 7], [7, 8], [8, 8], [7, 9], [8, 9]
+        ]
+      rope: [[6, 11], [9, 11]]
+      basket: [[6, 12], [6, 13], [7, 12], [7, 13], [8, 12], [8, 13], [9, 12], [9, 13]]
+  flame:
+    points:
+      flame: [[7, 11], [8, 11]]
+
+timeline:
+  - show: [{ sprite: clouds, at: [0, 0], wrap: true }, { sprite: balloon, at: [0, 1] }, { sprite: flame, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 0], wrap: true }, { sprite: balloon, at: [0, 1] }, { sprite: flame, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 1], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 1], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 2], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 2], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 3], wrap: true }, { sprite: balloon, at: [0, 2] }, { sprite: flame, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 3], wrap: true }, { sprite: balloon, at: [0, 2] }, { sprite: flame, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 4], wrap: true }, { sprite: balloon, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 4], wrap: true }, { sprite: balloon, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 5], wrap: true }, { sprite: balloon, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 5], wrap: true }, { sprite: balloon, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 6], wrap: true }, { sprite: balloon, at: [0, 1] }, { sprite: flame, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 6], wrap: true }, { sprite: balloon, at: [0, 1] }, { sprite: flame, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 7], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 7], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 8], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 8], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 9], wrap: true }, { sprite: balloon, at: [0, 2] }, { sprite: flame, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 9], wrap: true }, { sprite: balloon, at: [0, 2] }, { sprite: flame, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 10], wrap: true }, { sprite: balloon, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 10], wrap: true }, { sprite: balloon, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 11], wrap: true }, { sprite: balloon, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 11], wrap: true }, { sprite: balloon, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 12], wrap: true }, { sprite: balloon, at: [0, 1] }, { sprite: flame, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 12], wrap: true }, { sprite: balloon, at: [0, 1] }, { sprite: flame, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 13], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 13], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 14], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 14], wrap: true }, { sprite: balloon, at: [0, 1] }]
+  - show: [{ sprite: clouds, at: [0, 15], wrap: true }, { sprite: balloon, at: [0, 2] }, { sprite: flame, at: [0, 2] }]
+  - show: [{ sprite: clouds, at: [0, 15], wrap: true }, { sprite: balloon, at: [0, 2] }, { sprite: flame, at: [0, 2] }]

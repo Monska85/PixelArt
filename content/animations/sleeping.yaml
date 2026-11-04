@@ -1,0 +1,86 @@
+format: pixelart/1
+name: Sleeping
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 260
+
+palette:
+  bed: "#8a5a2a"
+  pillow: "#f5f5f5"
+  cap: "#e0262a"
+  cap_stripe: "#ffffff"
+  pompom: "#ffffff"
+  face: "#f2c29b"
+  eye: "#6a3a14"
+  blanket: "#2f7bff"
+  star: "#ffd23f"
+  frame: "#8a8a96"
+  moon: "#fff2a8"
+  z: "#c8d8ff"
+
+sprites:
+  window:
+    points:
+      frame: [
+          [10, 0], [11, 0], [12, 0], [13, 0], [14, 0], [15, 0], [10, 1], [15, 1], [10, 2], [15, 2],
+          [10, 3], [11, 3], [12, 3], [13, 3], [14, 3], [15, 3]
+        ]
+      moon: [[12, 1], [13, 1], [12, 2], [13, 2]]
+  bed:
+    at: [0, 6]
+    points:
+      bed: [
+          [0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2], [0, 3], [1, 3], [0, 4], [1, 4], [0, 5], [1, 5],
+          [15, 5], [0, 6], [1, 6], [15, 6], [0, 7], [1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7], [7, 7],
+          [8, 7], [9, 7], [10, 7], [11, 7], [12, 7], [13, 7], [14, 7], [15, 7], [0, 8], [14, 8]
+        ]
+      cap: [[2, 1], [3, 1], [4, 1], [2, 2], [4, 2], [5, 2]]
+      cap_stripe: [[3, 2]]
+      pompom: [[6, 2]]
+      pillow: [[2, 3], [3, 3], [2, 4], [3, 4]]
+      face: [[4, 3], [5, 3], [4, 4]]
+      eye: [[5, 4]]
+      blanket: [
+          [6, 4], [7, 4], [8, 4], [9, 4], [10, 4], [11, 4], [12, 4], [13, 4], [14, 4], [15, 4], [2, 5],
+          [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [9, 5], [10, 5], [11, 5], [12, 5], [14, 5], [2, 6],
+          [3, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [12, 6], [13, 6], [14, 6]
+        ]
+      star: [[8, 5], [13, 5], [4, 6], [11, 6]]
+  breath:
+    points:
+      blanket: [[8, 9], [9, 9], [10, 9], [11, 9]]
+  z_small:
+    points:
+      z: [[0, 0], [1, 0], [2, 0], [2, 1], [1, 2], [0, 3], [1, 3], [2, 3]]
+  z_big:
+    points:
+      z: [
+          [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [3, 1], [2, 2], [1, 3], [0, 4], [1, 4], [2, 4], [3, 4],
+          [4, 4]
+        ]
+
+timeline:
+  - show: [window, bed, { sprite: z_small, at: [6, 6] }]
+  - show: [window, bed, { sprite: z_small, at: [6, 6] }]
+  - show: [window, bed, { sprite: z_small, at: [6, 5] }]
+  - show: [window, bed, breath, { sprite: z_small, at: [7, 5] }]
+  - show: [window, bed, breath, { sprite: z_small, at: [7, 4] }]
+  - show: [window, bed, breath, { sprite: z_small, at: [7, 4] }, { sprite: z_big, at: [9, 4] }]
+  - show: [window, bed, { sprite: z_small, at: [8, 3] }, { sprite: z_big, at: [9, 4] }]
+  - show: [window, bed, { sprite: z_small, at: [8, 3] }, { sprite: z_big, at: [9, 3] }]
+  - show: [window, bed, { sprite: z_small, at: [8, 2] }, { sprite: z_big, at: [10, 3] }]
+  - show: [window, bed, breath, { sprite: z_big, at: [10, 2] }]
+  - show: [window, bed, breath, { sprite: z_big, at: [10, 2] }]
+  - show: [window, bed, breath, { sprite: z_big, at: [11, 1] }]
+  - show: [window, bed, { sprite: z_small, at: [6, 6] }]
+  - show: [window, bed, { sprite: z_small, at: [6, 6] }]
+  - show: [window, bed, { sprite: z_small, at: [6, 5] }]
+  - show: [window, bed, breath, { sprite: z_small, at: [7, 5] }]
+  - show: [window, bed, breath, { sprite: z_small, at: [7, 4] }]
+  - show: [window, bed, breath, { sprite: z_small, at: [7, 4] }, { sprite: z_big, at: [9, 4] }]
+  - show: [window, bed, { sprite: z_small, at: [8, 3] }, { sprite: z_big, at: [9, 4] }]
+  - show: [window, bed, { sprite: z_small, at: [8, 3] }, { sprite: z_big, at: [9, 3] }]
+  - show: [window, bed, { sprite: z_small, at: [8, 2] }, { sprite: z_big, at: [10, 3] }]
+  - show: [window, bed, breath, { sprite: z_big, at: [10, 2] }]
+  - show: [window, bed, breath, { sprite: z_big, at: [10, 2] }]
+  - show: [window, bed, breath, { sprite: z_big, at: [11, 1] }]

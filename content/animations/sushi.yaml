@@ -1,0 +1,121 @@
+format: pixelart/1
+name: Sushi
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  plate: "#2a2a34"
+  plate_l: "#4a4a58"
+  nori: "#1a3a2a"
+  rice: "#f5f5f0"
+  salmon: "#ff8a4a"
+  salmon_l: "#ffc8a0"
+  cucumber: "#5ad04a"
+  stick: "#e0c090"
+  stick_d: "#a08050"
+
+sprites:
+  plate:
+    points:
+      plate_l: [
+          [0, 13], [1, 13], [2, 13], [3, 13], [4, 13], [5, 13], [6, 13], [7, 13], [8, 13], [9, 13],
+          [10, 13], [11, 13], [12, 13], [13, 13], [14, 13], [15, 13]
+        ]
+      plate: [
+          [1, 14], [2, 14], [3, 14], [4, 14], [5, 14], [6, 14], [7, 14], [8, 14], [9, 14], [10, 14],
+          [11, 14], [12, 14], [13, 14], [14, 14]
+        ]
+  maki:
+    points:
+      salmon: [[4, 9], [4, 10]]
+      cucumber: [[5, 9]]
+      rice: [
+          [3, 7], [4, 7], [5, 7], [2, 8], [3, 8], [4, 8], [5, 8], [6, 8], [2, 9], [3, 9], [6, 9], [2, 10],
+          [3, 10], [5, 10], [6, 10], [3, 11], [4, 11], [5, 11]
+        ]
+      nori: [
+          [3, 6], [4, 6], [5, 6], [2, 7], [6, 7], [1, 8], [7, 8], [1, 9], [7, 9], [1, 10], [7, 10],
+          [2, 11], [6, 11], [3, 12], [4, 12], [5, 12]
+        ]
+  nigiri:
+    points:
+      salmon_l: [[10, 7], [12, 7], [11, 8], [13, 8]]
+      salmon: [[9, 7], [11, 7], [13, 7], [14, 7], [9, 8], [10, 8], [12, 8], [14, 8]]
+      rice: [
+          [9, 9], [10, 9], [11, 9], [12, 9], [13, 9], [14, 9], [9, 10], [10, 10], [11, 10], [12, 10],
+          [13, 10], [14, 10], [9, 11], [10, 11], [11, 11], [12, 11], [13, 11], [14, 11], [9, 12], [10, 12],
+          [11, 12], [12, 12], [13, 12], [14, 12]
+        ]
+  sticks_r:
+    points:
+      stick_d: [[15, 0], [15, 1]]
+      stick: [
+          [14, 1], [13, 2], [12, 3], [12, 4], [11, 5], [10, 6], [15, 2], [14, 3], [14, 4], [13, 5],
+          [13, 6], [12, 7]
+        ]
+  sticks_l:
+    points:
+      stick_d: [[10, 0], [10, 1]]
+      stick: [[9, 1], [8, 2], [7, 3], [6, 4], [5, 5], [4, 6], [10, 2], [9, 3], [8, 4], [8, 5], [7, 6], [6, 7]]
+
+timeline:
+  - show: [plate, maki, nigiri]
+    ms: 1000
+  - show: [plate, maki, nigiri, { sprite: sticks_r, at: [0, -7] }]
+    ms: 100
+  - show: [plate, maki, nigiri, { sprite: sticks_r, at: [0, -5] }]
+    ms: 100
+  - show: [plate, maki, nigiri, { sprite: sticks_r, at: [0, -3] }]
+    ms: 100
+  - show: [plate, maki, nigiri, { sprite: sticks_r, at: [0, -1] }]
+    ms: 100
+  - show: [plate, maki, nigiri, { sprite: sticks_r, at: [0, 0] }]
+    ms: 100
+  - show: [plate, maki, nigiri, sticks_r]
+    ms: 350
+  - show: [plate, maki, { sprite: nigiri, at: [0, -1] }, { sprite: sticks_r, at: [0, -1] }]
+    ms: 90
+  - show: [plate, maki, { sprite: nigiri, at: [0, -2] }, { sprite: sticks_r, at: [0, -2] }]
+    ms: 90
+  - show: [plate, maki, { sprite: nigiri, at: [0, -4] }, { sprite: sticks_r, at: [0, -4] }]
+    ms: 90
+  - show: [plate, maki, { sprite: nigiri, at: [0, -6] }, { sprite: sticks_r, at: [0, -6] }]
+    ms: 90
+  - show: [plate, maki, { sprite: nigiri, at: [0, -9] }, { sprite: sticks_r, at: [0, -9] }]
+    ms: 90
+  - show: [plate, maki, { sprite: nigiri, at: [0, -12] }, { sprite: sticks_r, at: [0, -12] }]
+    ms: 90
+  - show: [plate, maki, { sprite: nigiri, at: [0, -15] }, { sprite: sticks_r, at: [0, -15] }]
+    ms: 90
+  - show: [plate, maki]
+    ms: 600
+  - show: [plate, maki, { sprite: sticks_l, at: [0, -7] }]
+    ms: 100
+  - show: [plate, maki, { sprite: sticks_l, at: [0, -5] }]
+    ms: 100
+  - show: [plate, maki, { sprite: sticks_l, at: [0, -3] }]
+    ms: 100
+  - show: [plate, maki, { sprite: sticks_l, at: [0, -1] }]
+    ms: 100
+  - show: [plate, maki, { sprite: sticks_l, at: [0, 0] }]
+    ms: 100
+  - show: [plate, maki, sticks_l]
+    ms: 350
+  - show: [plate, { sprite: maki, at: [0, -1] }, { sprite: sticks_l, at: [0, -1] }]
+    ms: 90
+  - show: [plate, { sprite: maki, at: [0, -2] }, { sprite: sticks_l, at: [0, -2] }]
+    ms: 90
+  - show: [plate, { sprite: maki, at: [0, -4] }, { sprite: sticks_l, at: [0, -4] }]
+    ms: 90
+  - show: [plate, { sprite: maki, at: [0, -6] }, { sprite: sticks_l, at: [0, -6] }]
+    ms: 90
+  - show: [plate, { sprite: maki, at: [0, -9] }, { sprite: sticks_l, at: [0, -9] }]
+    ms: 90
+  - show: [plate, { sprite: maki, at: [0, -12] }, { sprite: sticks_l, at: [0, -12] }]
+    ms: 90
+  - show: [plate, { sprite: maki, at: [0, -15] }, { sprite: sticks_l, at: [0, -15] }]
+    ms: 90
+  - show: [plate]
+    ms: 600
+  - show: [plate]
+    ms: 900

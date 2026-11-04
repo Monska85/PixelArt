@@ -1,0 +1,175 @@
+format: pixelart/1
+name: Tennis
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  frame: "#ff3b30"
+  strings: "#c8ccd8"
+  handle: "#ffd23f"
+  frame_b: "#2f7bff"
+  ball: "#d8ff3a"
+  court: "#2f8a4a"
+  net: "#f5f5f5"
+
+sprites:
+  r:
+    points:
+      frame: [
+          [1, 0], [2, 0], [3, 0], [0, 1], [4, 1], [0, 2], [4, 2], [0, 3], [4, 3], [0, 4], [4, 4], [1, 5],
+          [2, 5], [3, 5]
+        ]
+      strings: [[1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2], [1, 3], [2, 3], [3, 3], [1, 4], [2, 4], [3, 4]]
+      handle: [[2, 6], [2, 7], [2, 8]]
+  rb:
+    points:
+      frame_b: [
+          [1, 0], [2, 0], [3, 0], [0, 1], [4, 1], [0, 2], [4, 2], [0, 3], [4, 3], [0, 4], [4, 4], [1, 5],
+          [2, 5], [3, 5]
+        ]
+      strings: [[1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2], [1, 3], [2, 3], [3, 3], [1, 4], [2, 4], [3, 4]]
+      handle: [[2, 6], [2, 7], [2, 8]]
+  court:
+    points:
+      court: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+      net: [[7, 12], [7, 13], [7, 14], [8, 12], [8, 13], [8, 14]]
+  ball:
+    points:
+      ball: [[0, 0], [1, 0], [0, 1], [1, 1]]
+
+timeline:
+  - show: [court, { sprite: r, at: [0, 6] }, { sprite: rb, at: [12, 6] }, { sprite: ball, at: [4, 10] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 5] }, { sprite: rb, at: [12, 5] }, { sprite: ball, at: [5, 7] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 4] }, { sprite: rb, at: [12, 4] }, { sprite: ball, at: [6, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 2] }, { sprite: ball, at: [7, 4] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 1] }, { sprite: ball, at: [8, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 1] }, { sprite: ball, at: [9, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 1] }, { sprite: ball, at: [10, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 2] }, { sprite: ball, at: [11, 4] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 4] }, { sprite: ball, at: [12, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 5] }, { sprite: ball, at: [13, 7] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [11, 6] }, { sprite: ball, at: [14, 10] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 6] }, { sprite: rb, at: [11, 6] }, { sprite: ball, at: [10, 10] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 5] }, { sprite: rb, at: [12, 5] }, { sprite: ball, at: [9, 7] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 4] }, { sprite: rb, at: [12, 4] }, { sprite: ball, at: [8, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 2] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [7, 4] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 1] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [6, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 1] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [5, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 1] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [4, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 2] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [3, 4] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 4] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [2, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 5] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [1, 7] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [0, 6] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [0, 10] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [0, 6] }, { sprite: rb, at: [12, 6] }, { sprite: ball, at: [4, 12] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 6] }, { sprite: rb, at: [12, 6] }, { sprite: ball, at: [5, 9] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 6] }, { sprite: rb, at: [12, 6] }, { sprite: ball, at: [6, 8] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 4] }, { sprite: ball, at: [7, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [8, 5] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [9, 5] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [10, 5] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 4] }, { sprite: ball, at: [11, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 6] }, { sprite: ball, at: [12, 8] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 6] }, { sprite: ball, at: [13, 9] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [11, 6] }, { sprite: ball, at: [14, 12] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 6] }, { sprite: rb, at: [11, 6] }, { sprite: ball, at: [10, 12] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 6] }, { sprite: rb, at: [12, 6] }, { sprite: ball, at: [9, 9] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 6] }, { sprite: rb, at: [12, 6] }, { sprite: ball, at: [8, 8] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 4] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [7, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [6, 5] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [5, 5] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [4, 5] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 4] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [3, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 6] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [2, 8] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 6] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [1, 9] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [0, 6] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [0, 12] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [0, 6] }, { sprite: rb, at: [12, 6] }, { sprite: ball, at: [4, 10] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 5] }, { sprite: rb, at: [12, 5] }, { sprite: ball, at: [5, 7] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 4] }, { sprite: rb, at: [12, 4] }, { sprite: ball, at: [6, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 2] }, { sprite: ball, at: [7, 4] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 1] }, { sprite: ball, at: [8, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 1] }, { sprite: ball, at: [9, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 1] }, { sprite: ball, at: [10, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 2] }, { sprite: ball, at: [11, 4] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 4] }, { sprite: ball, at: [12, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [12, 5] }, { sprite: ball, at: [13, 7] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 3] }, { sprite: rb, at: [11, 6] }, { sprite: ball, at: [14, 10] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 6] }, { sprite: rb, at: [11, 6] }, { sprite: ball, at: [10, 10] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 5] }, { sprite: rb, at: [12, 5] }, { sprite: ball, at: [9, 7] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 4] }, { sprite: rb, at: [12, 4] }, { sprite: ball, at: [8, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 2] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [7, 4] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 1] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [6, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 1] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [5, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 1] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [4, 3] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 2] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [3, 4] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 4] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [2, 6] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [-1, 5] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [1, 7] }]
+    ms: 80
+  - show: [court, { sprite: r, at: [0, 6] }, { sprite: rb, at: [12, 3] }, { sprite: ball, at: [0, 10] }]
+    ms: 80

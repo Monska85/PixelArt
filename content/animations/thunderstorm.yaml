@@ -1,0 +1,92 @@
+format: pixelart/1
+name: Thunderstorm
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 110
+
+palette:
+  cloud: "#4a5060"
+  cloud_light: "#7a8294"
+  cloud_flash: "#d8e0f0"
+  bolt: "#ffe640"
+  rain: "#5aa8e8"
+  ground: "#1f4a2a"
+
+sprites:
+  rain:
+    points:
+      rain: [
+          [5, 7], [5, 8], [15, 12], [15, 13], [3, 4], [3, 5], [6, 0], [6, 1], [13, 14], [13, 15], [7, 8],
+          [7, 9], [0, 2], [0, 3], [15, 15], [15, 0], [8, 12], [8, 13]
+        ]
+  cloud:
+    points:
+      cloud: [
+          [2, 3], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [11, 3], [12, 3],
+          [13, 3], [14, 3], [1, 4], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [9, 4],
+          [10, 4], [11, 4], [12, 4], [13, 4], [14, 4], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5],
+          [7, 5], [8, 5], [9, 5], [10, 5], [11, 5], [12, 5], [13, 5], [14, 5], [1, 6], [2, 6], [3, 6],
+          [4, 6], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [11, 6], [12, 6], [13, 6]
+        ]
+      cloud_light: [
+          [7, 0], [8, 0], [9, 0], [10, 0], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1],
+          [11, 1], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2],
+          [12, 2], [13, 2]
+        ]
+  bolt:
+    points:
+      bolt: [
+          [9, 7], [10, 7], [8, 8], [9, 8], [7, 9], [8, 9], [9, 9], [10, 9], [9, 10], [8, 11], [7, 12],
+          [6, 13]
+        ]
+  ground:
+    points:
+      ground: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+
+timeline:
+  - show: [{ sprite: rain, at: [0, 0], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 2], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 4], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 6], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 8], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 10], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 12], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 14], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 16], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 18], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 20], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 22], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 24], wrap: true }, ground, cloud, bolt]
+    recolor: { cloud: cloud_flash, cloud_light: cloud_flash }
+  - show: [{ sprite: rain, at: [0, 26], wrap: true }, ground, cloud, bolt]
+  - show: [{ sprite: rain, at: [0, 28], wrap: true }, ground, cloud, bolt]
+    recolor: { cloud: cloud_flash, cloud_light: cloud_flash }
+  - show: [{ sprite: rain, at: [0, 30], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 32], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 34], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 36], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 38], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 40], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 42], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 44], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 46], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 48], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 50], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 52], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 54], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 56], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 58], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 60], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 62], wrap: true }, ground, cloud, bolt]
+    recolor: { cloud: cloud_flash, cloud_light: cloud_flash }
+  - show: [{ sprite: rain, at: [0, 64], wrap: true }, ground, cloud, bolt]
+  - show: [{ sprite: rain, at: [0, 66], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 68], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 70], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 72], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 74], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 76], wrap: true }, ground, cloud]
+  - show: [{ sprite: rain, at: [0, 78], wrap: true }, ground, cloud]

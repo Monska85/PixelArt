@@ -1,7 +1,59 @@
-format: pixelart-schedule/1
+format: pixelart-schedule/2
 name: Seasons
-fallback: [christmas]
+fallback: [default]
 entries:
+  - name: Spring
+    from: { month: 3, day: 21 }
+    to: { month: 6, day: 20 }
+    playlists: [spring]
+    hours:
+      - { from: "00:00", to: "06:00", playlists: [night] }
+      - { from: "06:00", to: "12:00", playlists: [morning, spring] }
+      - { from: "12:00", to: "18:00", playlists: [afternoon, spring] }
+      - { from: "18:00", to: "22:00", playlists: [evening, spring] }
+      - { from: "22:00", to: "24:00", playlists: [night] }
+  - name: Summer
+    from: { month: 6, day: 21 }
+    to: { month: 9, day: 22 }
+    playlists: [summer]
+    hours:
+      - { from: "00:00", to: "06:00", playlists: [night] }
+      - { from: "06:00", to: "12:00", playlists: [morning, summer] }
+      - { from: "12:00", to: "18:00", playlists: [afternoon, summer] }
+      - { from: "18:00", to: "22:00", playlists: [evening, summer] }
+      - { from: "22:00", to: "24:00", playlists: [night] }
+  - name: Autumn
+    from: { month: 9, day: 23 }
+    to: { month: 12, day: 20 }
+    playlists: [autumn]
+    hours:
+      - { from: "00:00", to: "06:00", playlists: [night] }
+      - { from: "06:00", to: "12:00", playlists: [morning, autumn] }
+      - { from: "12:00", to: "18:00", playlists: [afternoon, autumn] }
+      - { from: "18:00", to: "22:00", playlists: [evening, autumn] }
+      - { from: "22:00", to: "24:00", playlists: [night] }
+  - name: Winter
+    from: { month: 12, day: 21 }
+    to: { month: 3, day: 20 }
+    playlists: [winter]
+    hours:
+      - { from: "00:00", to: "06:00", playlists: [night] }
+      - { from: "06:00", to: "12:00", playlists: [morning, winter] }
+      - { from: "12:00", to: "18:00", playlists: [afternoon, winter] }
+      - { from: "18:00", to: "22:00", playlists: [evening, winter] }
+      - { from: "22:00", to: "24:00", playlists: [night] }
+  - name: Valentine's Day
+    from: { month: 2, day: 14 }
+    to: { month: 2, day: 14 }
+    playlists: [valentine]
+  - name: Republic Day
+    from: { month: 6, day: 2 }
+    to: { month: 6, day: 2 }
+    playlists: [republic_day]
+  - name: Ferragosto
+    from: { month: 8, day: 14 }
+    to: { month: 8, day: 16 }
+    playlists: [ferragosto]
   - name: Halloween
     from: { month: 10, day: 1 }
     to: { month: 11, day: 2 }
@@ -10,3 +62,11 @@ entries:
     from: { month: 12, day: 1 }
     to: { month: 1, day: 6 }
     playlists: [christmas]
+  - name: New Year's Eve
+    from: { month: 12, day: 31 }
+    to: { month: 1, day: 1 }
+    playlists: [new_year]
+  - name: Epiphany
+    from: { month: 1, day: 5 }
+    to: { month: 1, day: 6 }
+    playlists: [epiphany]
