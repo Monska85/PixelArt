@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/Monska85/PixelArt/compare/web-v1.4.0...web-v1.5.0) (2026-11-08)
+
+
+### Added
+
+* **web:** show brownout power protection on the board view ([#57](https://github.com/Monska85/PixelArt/issues/57)) ([6aa8b94](https://github.com/Monska85/PixelArt/commit/6aa8b943cc5b88b3e82465eb3df1a368c9f79350))
+
 ## [1.4.0](https://github.com/Monska85/PixelArt/compare/web-v1.3.0...web-v1.4.0) (2026-11-02)
 
 
