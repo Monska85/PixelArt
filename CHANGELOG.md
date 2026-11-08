@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/Monska85/PixelArt/compare/v1.4.0...v1.5.0) (2026-11-08)
+
+
+### Added
+
+* **power:** dim heavy animations after repeated brownouts ([#56](https://github.com/Monska85/PixelArt/issues/56)) ([817b65f](https://github.com/Monska85/PixelArt/commit/817b65fd9d30516b5d2f5e170e762114468ef384))
+
 ## [1.4.0](https://github.com/Monska85/PixelArt/compare/v1.3.0...v1.4.0) (2026-10-31)
 
 
