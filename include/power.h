@@ -135,6 +135,8 @@ void sim_clear_marker();
 void sim_set_model(uint8_t model);
 // Makes every store of the record fail, or work again.
 void sim_fail_stores(bool fail);
+// Every record stored since sim_reset(), oldest first, as the bytes written to NVS.
+std::vector<std::vector<uint8_t>> sim_stores();
 // Queues a start for the next begin(), which runs the queued starts oldest first, each with its own recording,
 // trigger and limit; the last queued one is the reason of that begin()'s own start. `animation` empty: no marker.
 void sim_queue_boot(pixelart::ResetReason reason, const std::string &animation, uint32_t frame);

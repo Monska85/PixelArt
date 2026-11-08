@@ -463,6 +463,40 @@ static void test_marker_estimate_sets_the_first_limit()
   TEST_ASSERT_EQUAL_UINT32(2, s.last_frame);
 }
 
+static pixelart::PowerRecord stored_record(const std::vector<uint8_t> &bytes)
+{
+  pixelart::PowerRecord record;
+  uint8_t model = 0;
+  TEST_ASSERT_TRUE(pixelart::power_record_decode(bytes.data(), bytes.size(), record, model));
+  return record;
+}
+
+static void test_brownout_is_stored_before_its_frame_is_read()
+{
+  TempData data("power");
+  data.write("animations/white.json", WHITE);
+  setup();
+  const size_t before = power::sim_stores().size();
+  brownout_during_white_frame(0, 0, 100);
+  // The first write already holds the brownout, without its frame, in case the power fails again while the frame
+  // is read and rendered; the second adds the frame.
+  const std::vector<std::vector<uint8_t>> stores = power::sim_stores();
+  TEST_ASSERT_EQUAL_size_t(before + 2, stores.size());
+  const pixelart::PowerRecord first = stored_record(stores[before]);
+  TEST_ASSERT_EQUAL_UINT8(2, first.count);
+  TEST_ASSERT_TRUE(first.reasons[1] == pixelart::ResetReason::Brownout);
+  TEST_ASSERT_TRUE(first.has_last);
+  TEST_ASSERT_FALSE(first.last_frame_known);
+  const pixelart::PowerRecord second = stored_record(stores[before + 1]);
+  TEST_ASSERT_EQUAL_UINT8(2, second.count);
+  TEST_ASSERT_TRUE(second.last_frame_known);
+  TEST_ASSERT_EQUAL_STRING("white", second.last_animation);
+  // Without a marker there is no frame to read: one write.
+  power::sim_set_next_reason(pixelart::ResetReason::Brownout);
+  setup();
+  TEST_ASSERT_EQUAL_size_t(before + 3, power::sim_stores().size());
+}
+
 static void test_damaged_or_missing_marker_gives_no_estimate()
 {
   TempData data("power");
@@ -582,6 +616,7 @@ int main(int, char **)
   RUN_TEST(test_file_changes_reach_the_scale_cache);
   RUN_TEST(test_power_reset_restores_full_brightness_at_the_next_frame);
   RUN_TEST(test_marker_estimate_sets_the_first_limit);
+  RUN_TEST(test_brownout_is_stored_before_its_frame_is_read);
   RUN_TEST(test_damaged_or_missing_marker_gives_no_estimate);
   RUN_TEST(test_update_icon_clears_the_marker_and_keeps_the_animation);
   RUN_TEST(test_date_is_stored_once_the_time_is_known);

@@ -25,6 +25,7 @@ bool stores_fail = false;
 bool has_record = false;
 uint8_t stored[pixelart::POWER_RECORD_BYTES];
 std::deque<SimBoot> queued;
+std::vector<std::vector<uint8_t>> stores;
 
 } // namespace
 
@@ -59,6 +60,7 @@ bool store_record(const uint8_t *bytes, size_t size)
     return false;
   memcpy(stored, bytes, size);
   has_record = true;
+  stores.emplace_back(bytes, bytes + size);
   return true;
 }
 
@@ -72,6 +74,7 @@ void sim_reset()
   stores_fail = false;
   has_record = false;
   queued.clear();
+  stores.clear();
 }
 
 void sim_set_next_reason(pixelart::ResetReason reason) { next_reason = reason; }
@@ -99,6 +102,8 @@ void sim_clear_marker() { sim_marker.magic = 0; }
 void sim_set_model(uint8_t version) { model = version; }
 
 void sim_fail_stores(bool fail) { stores_fail = fail; }
+
+std::vector<std::vector<uint8_t>> sim_stores() { return stores; }
 
 void sim_queue_boot(pixelart::ResetReason reason, const std::string &animation, uint32_t frame)
 {

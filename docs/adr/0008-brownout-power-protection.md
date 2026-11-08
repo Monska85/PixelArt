@@ -29,7 +29,7 @@ Some boards restart during bright animations (`bear`, `snow_globe`, `santa_bag` 
 
 - A healthy board sees no change: nothing is computed while the limit is off, loading an animation costs one check, and every frame stays byte-identical, which `make sim` confirms.
 - A board with a weak supply needs 3 restarts before it protects itself, and then plays its brightest animations dimmer. The user can see why in the web app and undo it after fixing the hardware.
-- Each start writes one small NVS record. Starts are rare, so the wear is negligible next to the settings.
+- Each start writes one small NVS record, twice after a brownout with a valid marker (once before the frame is estimated). Starts are rare, so the wear is negligible next to the settings.
 - A brownout during a firmware trial boot, before the first frame, still rolls the firmware back as before.
 - The scan is bounded: an animation with more than 1,024 distinct frames, or whose frames draw more than 262,144 points together, is not scanned, and while the limit is on it is dimmed as if one of its frames were all white. Without the point budget, a 2 KB file of 1,024 frames of 4,096 drawn points took 3.1 seconds to scan on an ESP32-C3, with the loop task answering nothing; 1,024 frames of 256 points took 0.34 seconds. No shipped animation comes close (the longest has 52 frames).
 - If the ESP32-C3 turns out to keep its RTC memory through a brownout, the limits follow the real frames; if it does not, the first limit is 1,000 mA and the steps bring it down from there.

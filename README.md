@@ -73,7 +73,7 @@ The firmware builds with Arduino-ESP32 3.3.12 (ESP-IDF 5.5.5), through PlatformI
 
 A 16x16 matrix draws far more current than a USB port delivers through the ESP32-C3 SuperMini board. The firmware estimates about 1 mA per LED when it is dark plus up to about 46 mA for a full white LED at brightness 255, so the whole matrix in white would need about 12 A at brightness 255 and about 5 A at brightness 100. The shipped animations are much darker, but their brightest frames still reach an estimated 2.2 to 2.9 A at brightness 100 (`bear` is the heaviest), and about 1.2 to 1.6 A at brightness 50. When the supply cannot deliver that, its voltage drops, the board's brownout detector restarts it, and the playlist starts again from its first item.
 
-To power the LED matrix without routing its current through the ESP32-C3 SuperMini board's USB connector, use a separate 5V supply rated for the current above, with some margin (a 5 V 4 A supply for brightness 100). Keep the `GPIO4` to `DIN` wire and connect the supply as follows:
+To power the LED matrix without routing its current through the ESP32-C3 SuperMini board's USB connector, use a separate 5V supply rated for the current above, with some margin: a 5 V 4 A supply covers the shipped animations at brightness 100, and a 5 V 6 A supply also covers a full white matrix at that brightness. Keep the `GPIO4` to `DIN` wire and connect the supply as follows:
 
 - Connect the `5V` pin of the power supply to the `DC IN` pin of the LED matrix and to the `5V` pin of the ESP32-C3 SuperMini board.
 - Connect the `GND` pin of the power supply to the `GND` pin of the LED matrix and to the `GND` pin of the ESP32-C3 SuperMini board.

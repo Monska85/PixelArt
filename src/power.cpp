@@ -90,10 +90,10 @@ void write_marker_frame(uint32_t item, uint32_t repetition, uint8_t brightness)
 namespace
 {
 
-void store()
+void store(const pixelart::PowerRecord &stored)
 {
   uint8_t bytes[pixelart::POWER_RECORD_BYTES];
-  pixelart::power_record_encode(record, detail::model_version(), bytes);
+  pixelart::power_record_encode(stored, detail::model_version(), bytes);
   if (detail::store_record(bytes, sizeof(bytes)))
     return;
   if (!store_failure_logged)
@@ -159,7 +159,28 @@ void notice_date()
   date_pending = false;
   record.last_date_known = true;
   record.last_date = date;
-  store();
+  store(record);
+}
+
+// Makes this start's brownout the last one: its frame when `frame` is known, its date once the time is known.
+void note_brownout(pixelart::PowerRecord &r, const MarkedFrame &frame)
+{
+  r.has_last = true;
+  r.last_frame_known = frame.known;
+  memcpy(r.last_animation, frame.animation, sizeof(r.last_animation));
+  r.last_frame = frame.number;
+  r.last_date_known = false;
+}
+
+// Reading and rendering the marked frame takes time, with the LEDs possibly still showing it: the brownout is
+// stored first, without its frame, so that another brownout meanwhile does not lose it, and the marker stays for
+// the next start. Not inlined, so that its copy of the record is off the stack while the frame is rendered.
+__attribute__((noinline)) void store_brownout_without_frame()
+{
+  pixelart::PowerRecord without_frame = record;
+  note_brownout(without_frame, MarkedFrame());
+  pixelart::power_apply_start(without_frame, pixelart::ResetReason::Brownout, 0);
+  store(without_frame);
 }
 
 // One start: its reason, and for a brownout the frame the marker holds.
@@ -168,13 +189,10 @@ void record_start(pixelart::ResetReason reason)
   uint32_t estimate = 0;
   if (reason == pixelart::ResetReason::Brownout)
   {
-    // The last brownout is this one: its frame when the marker holds one, its date once the time is known.
+    if (marker_valid(detail::marker()))
+      store_brownout_without_frame();
     const MarkedFrame frame = marked_frame();
-    record.has_last = true;
-    record.last_frame_known = frame.known;
-    memcpy(record.last_animation, frame.animation, sizeof(record.last_animation));
-    record.last_frame = frame.number;
-    record.last_date_known = false;
+    note_brownout(record, frame);
     estimate = frame.estimate;
     date_pending = true;
   }
@@ -206,7 +224,7 @@ void begin()
   }
 #endif
   record_start(detail::boot_reason());
-  store();
+  store(record);
 }
 
 void updates_started()
