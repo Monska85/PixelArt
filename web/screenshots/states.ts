@@ -30,7 +30,7 @@ import {
 } from "../e2e/fixtures";
 import type { Page } from "@playwright/test";
 import { connectScripted, scriptedBoard } from "../e2e/scripted";
-import { setServerChoice, watchBoard } from "../e2e/board";
+import { rewritePower, setServerChoice, watchBoard } from "../e2e/board";
 
 const SIZES = [
   { width: 1280, height: 800 },
@@ -194,6 +194,24 @@ export const states = {
     await connected(page, simulator);
     await expect(page.getByTestId("files-summary")).toContainText("Automatic: playing");
     await expect(animations(page)).toBeHidden();
+    await check();
+  },
+  // The simulator takes its starts from its arguments, which a state cannot pass: the status reply is rewritten
+  // to a board at the floor of its limit, with three brownouts, so the note and the advice link are laid out.
+  "board-power-protection": async ({ page, simulator, check }) => {
+    await rewritePower(page, simulator, () => ({
+      brownouts: 3,
+      limit_active: true,
+      limit_ma: 300,
+      at_floor: true,
+      scale: 60,
+      last_brownout: null,
+      resets: ["brownout", "brownout", "brownout"],
+    }));
+    await connectSimulator(page, simulator);
+    await expect(page.getByRole("region", { name: "Power" }).getByTestId("power-protection")).toContainText(
+      "Playing now at 60%.",
+    );
     await check();
   },
   "board-files-open": async ({ page, simulator, check }) => {

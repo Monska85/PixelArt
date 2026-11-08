@@ -22,6 +22,11 @@ export function sourceOfVersion(version: string): { url: string; tag: string | n
   return { url: REPOSITORY_URL, tag: null };
 }
 
+/** A section of the README: the text of the release tag for a release build, `main` for any other build. */
+export function readmeSection(anchor: string, version: string = APP_VERSION): string {
+  return `${REPOSITORY_URL}/blob/${sourceOfVersion(version).tag ?? "main"}/README.md#${anchor}`;
+}
+
 export const FOOTER_TEXT =
   "Runs entirely in your browser. Your animations, settings and WiFi details go only to your board. The board itself contacts only its update source and its time server.";
 
