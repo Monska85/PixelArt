@@ -38,7 +38,7 @@ The frames of an animation are numbered for the estimate from 0, in the order th
 
 ## Recording
 
-At every start, before the first frame and while the LEDs are dark, the firmware reads the reason of the reset (`esp_reset_reason()`) and appends it to the **history**, the reasons of the last 10 starts, oldest first. A start that finds 10 reasons drops the oldest. Each reason is one of these names:
+At every start, before the first frame, the firmware reads the reason of the reset (`esp_reset_reason()`) and appends it to the **history**, the reasons of the last 10 starts, oldest first. A start that finds 10 reasons drops the oldest. It does so as early as it can read the files, right after the file system is mounted and before the protocol, the updater and the network start: the LEDs can keep showing the last frame they received until the new start shows its own, so a weak supply can brown out again while the board starts, and a start that browns out before this point is not recorded. Each reason is one of these names:
 
 | Name         | Reasons of the reset                                                               |
 | ------------ | ---------------------------------------------------------------------------------- |

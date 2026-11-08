@@ -207,6 +207,10 @@ void begin()
 #endif
   record_start(detail::boot_reason());
   store();
+}
+
+void updates_started()
+{
   if (date_pending)
     notice_date();
 }

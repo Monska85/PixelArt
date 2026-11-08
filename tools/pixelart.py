@@ -1499,6 +1499,7 @@ def board_status(board, args):
     return 0
 
 
+POWER_FLOOR_MA = 300  # the lowest limit, docs/board/power-protection-v1.md#limit
 POWER_REASONS = ("brownout", "power_on", "software", "panic", "watchdog", "deep_sleep", "other")
 
 
@@ -1527,7 +1528,8 @@ def valid_power(power):
     resets, last = power.get("resets"), power.get("last_brownout")
     if not (is_whole(power.get("brownouts"), 0, 10) and isinstance(active, bool)
             and isinstance(power.get("at_floor"), bool) and is_whole(power.get("scale"), 1, 100)
-            and (is_whole(limit, 300) if active else "limit_ma" in power and limit is None)
+            and (is_whole(limit, POWER_FLOOR_MA) if active else "limit_ma" in power and limit is None)
+            and power["at_floor"] == (active and limit == POWER_FLOOR_MA)
             and isinstance(resets, list) and len(resets) <= 10 and all(isinstance(r, str) for r in resets)
             and "last_brownout" in power):
         return False

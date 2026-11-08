@@ -18,9 +18,13 @@ namespace power
 {
 
 // Records the reason of this start, estimates the frame of a brownout, applies the trigger and the limit and
-// stores the record. Call it once from setup(), after the file system is mounted and task_sync::begin(), before
-// the player starts.
+// stores the record. Call it once from setup(), as early as it can run: after the file system is mounted and
+// task_sync::begin(), before the player starts.
 void begin();
+
+// updates::begin() has run: stores the date of a brownout this start recorded, when the time is already known.
+// Call it once from setup(), after begin().
+void updates_started();
 
 // Whether the current limit is on. The only check an animation costs while it is off.
 bool limit_active();

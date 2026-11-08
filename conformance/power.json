@@ -816,6 +816,45 @@
       "valid": false
     },
     {
+      "name": "at_floor above the floor",
+      "power": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 1000,
+        "at_floor": true,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["brownout", "brownout", "brownout"]
+      },
+      "valid": false
+    },
+    {
+      "name": "at_floor while the limit is off",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": true,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["power_on"]
+      },
+      "valid": false
+    },
+    {
+      "name": "not at_floor at the floor",
+      "power": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 300,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["brownout", "brownout", "brownout"]
+      },
+      "valid": false
+    },
+    {
       "name": "scale 0",
       "power": {
         "brownouts": 0,

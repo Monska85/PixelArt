@@ -37,12 +37,15 @@ void setup()
   const bool mounted = storage::begin();
   if (!mounted)
     Serial.println("pixelart: cannot mount the file system");
+  task_sync::begin();
+  // The reason of this start, as early as it can read the files: a board that browns out again while it starts
+  // still records this start. Before the first frame.
+  power::begin();
   firmware::health(mounted); // settings are read and the file system is mounted: a trial that is not healthy ends here
   protocol::begin();
-  task_sync::begin();
   updates::begin(settings::current());
-  power::begin(); // the reason of this start, before the first frame, while the LEDs are dark; reads the time
-  begin_player(); // its first choice reads the files before the network task can hold the memory
+  power::updates_started(); // the date of a brownout this start recorded, when the time is already known
+  begin_player();           // its first choice reads the files before the network task can hold the memory
   network::begin(settings::current().wifi_power);
 }
 
