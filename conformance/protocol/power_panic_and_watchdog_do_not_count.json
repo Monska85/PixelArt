@@ -1,0 +1,51 @@
+{
+  "description": "panic and watchdog starts are kept in the history but do not count: two brownouts leave the limit off",
+  "steps": [
+    {
+      "reset": {
+        "reason": "panic"
+      }
+    },
+    {
+      "reset": {
+        "reason": "watchdog"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 2,
+          "limit_active": false,
+          "limit_ma": null,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": null,
+            "frame": null,
+            "date": null
+          },
+          "resets": ["power_on", "panic", "watchdog", "brownout", "brownout"]
+        }
+      }
+    }
+  ]
+}

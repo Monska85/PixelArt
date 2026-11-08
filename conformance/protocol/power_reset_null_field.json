@@ -1,0 +1,38 @@
+{
+  "description": "a field set to null is a field: bad_request",
+  "steps": [
+    {
+      "send": "@PR f8b82427 {\"seq\":1,\"cmd\":\"power_reset\",\"reason\":null}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "bad_request",
+        "message": "<any>"
+      }
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 0,
+          "limit_active": false,
+          "limit_ma": null,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": null,
+          "resets": ["power_on"]
+        }
+      }
+    }
+  ]
+}

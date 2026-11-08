@@ -1,0 +1,48 @@
+{
+  "description": "a firmware with another estimate model version clears the record at its start, then records that start",
+  "steps": [
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "power_model": 2
+    },
+    {
+      "reboot": true
+    },
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 0,
+          "limit_active": false,
+          "limit_ma": null,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": null,
+          "resets": ["software"]
+        }
+      }
+    }
+  ]
+}

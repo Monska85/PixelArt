@@ -21,6 +21,7 @@
 #include "install.h"
 #include "network.h"
 #include "platform.h"
+#include "power.h"
 #include "settings.h"
 #include "storage.h"
 #include "task_sync.h"
@@ -907,6 +908,8 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   bool done = remove_all_files(PLAY_FOLDER, play) && remove_all_files(SCHEDULES_V2_FOLDER, schedules_v2) &&
               remove_all_files(SCHEDULES_FOLDER, schedules) && remove_all_files(PLAYLISTS_FOLDER, playlists) &&
               remove_all_files(ANIMATIONS_FOLDER, animations);
+  if (animations > 0)
+    power::animations_changed();
   if (playlists > 0)
     install::file_changed(Kind::Playlist);
   else if (schedules > 0 || schedules_v2 > 0)
@@ -918,6 +921,8 @@ Status cmd_delete_all(JsonObjectConst request, JsonDocument &reply)
   // The settings go back to their defaults only once every file is gone, with a new token.
   if (reset)
   {
+    if (!power::clear())
+      return fail("storage_error", "the files are removed but the power protection record cannot be cleared");
     if (const char *failure = save_settings(settings::defaults_with_new_token()))
       return fail("storage_error", std::string("the files are removed but ") + failure);
     request_choice();
@@ -1170,6 +1175,47 @@ template <typename Field> void set_server_choice_field(Field field, const pixela
   }
 }
 
+// `status.power`, docs/protocol/protocol-v1.md#status.
+void add_power(JsonObject power_field)
+{
+  const power::Status p = power::status();
+  power_field["brownouts"] = p.brownouts;
+  power_field["limit_active"] = p.limit_active;
+  if (p.limit_active)
+    power_field["limit_ma"] = p.limit_ma;
+  else
+    power_field["limit_ma"] = nullptr;
+  power_field["at_floor"] = p.at_floor;
+  power_field["scale"] = p.scale;
+  if (p.has_last)
+  {
+    JsonObject last = power_field["last_brownout"].to<JsonObject>();
+    if (p.last_frame_known)
+    {
+      last["animation"] = p.last_animation;
+      last["frame"] = p.last_frame;
+    }
+    else
+    {
+      last["animation"] = nullptr;
+      last["frame"] = nullptr;
+    }
+    if (p.last_date_known)
+    {
+      char date[11];
+      snprintf(date, sizeof(date), "%04u-%02u-%02u", p.last_date.year, p.last_date.month, p.last_date.day);
+      last["date"] = std::string(date);
+    }
+    else
+      last["date"] = nullptr;
+  }
+  else
+    power_field["last_brownout"] = nullptr;
+  JsonArray resets = power_field["resets"].to<JsonArray>();
+  for (const char *reason : p.resets)
+    resets.add(reason);
+}
+
 Status cmd_status(JsonObjectConst request, JsonDocument &reply)
 {
   if (Status s = allow_only(request, {}); s.code)
@@ -1248,6 +1294,17 @@ Status cmd_status(JsonObjectConst request, JsonDocument &reply)
   }
   else
     update["last_install"] = nullptr;
+  add_power(reply["power"].to<JsonObject>());
+  return {};
+}
+
+Status cmd_power_reset(JsonObjectConst request, JsonDocument &reply)
+{
+  if (Status s = allow_only(request, {}); s.code)
+    return s;
+  if (!power::clear())
+    return fail("storage_error", "the power protection record cannot be stored; nothing was changed");
+  add_power(reply["power"].to<JsonObject>());
   return {};
 }
 
@@ -1380,6 +1437,7 @@ const Command COMMANDS[] = {
     {"token_regenerate", cmd_token_regenerate},
     {"auth_challenge", cmd_auth_challenge},
     {"auth", cmd_auth},
+    {"power_reset", cmd_power_reset},
 };
 
 // Runs a request that arrived intact and builds its reply.

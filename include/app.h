@@ -24,6 +24,10 @@ constexpr const char *PLAY_FOLDER = "/play";
 // The only play file the board uses: its `default` is the server choice.
 constexpr const char *SERVER_CHOICE_PLAY_FILE = "default";
 
+// The frame buffer of the player, 1 KiB, static so it stays off the loop task's stack. Power protection renders
+// into it too, when no frame of it is needed any more.
+pixelart::Frame &frame_buffer();
+
 // Path of an animation, playlist, schedule or play file on the board, from its ID or name.
 std::string animation_file(const std::string &id);
 std::string playlist_file(const std::string &name);

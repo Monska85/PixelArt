@@ -1,0 +1,87 @@
+{
+  "description": "the limit never rises: ten starts later no brownout is left in the history and the limit is still 1000 mA",
+  "steps": [
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reboot": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "reboot": true
+    },
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 0,
+          "limit_active": true,
+          "limit_ma": 1000,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": null,
+            "frame": null,
+            "date": null
+          },
+          "resets": [
+            "software",
+            "software",
+            "software",
+            "software",
+            "software",
+            "software",
+            "software",
+            "software",
+            "software",
+            "software"
+          ]
+        }
+      }
+    }
+  ]
+}

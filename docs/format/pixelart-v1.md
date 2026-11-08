@@ -103,7 +103,7 @@ The `+ 50` rounds to the nearest whole number, halves upwards. The last rule kee
 | 1                    | 1                          | 1            |
 | 0                    | 50                         | 0            |
 
-The result is used for as long as the animation plays, in the same way as the board brightness: the colors go through the same 16-bit and gamma conversion, then the LED driver scales them by the result. When the board brightness changes while an animation plays, the new result applies from the next frame.
+The result is used for as long as the animation plays, in the same way as the board brightness: the colors go through the same 16-bit and gamma conversion, then the LED driver scales them by the result. When the board brightness changes while an animation plays, the new result applies from the next frame. A board whose [power protection](../board/power-protection-v1.md#brightness) limit is on can lower the result further for an animation whose brightest frame needs more current than its supply delivers; the frames themselves never change.
 
 ## Sprites
 

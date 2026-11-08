@@ -4,6 +4,7 @@
 #include "firmware.h"
 #include "network.h"
 #include "pixel_art.h"
+#include "power.h"
 #include "protocol.h"
 #include "settings.h"
 #include "storage.h"
@@ -40,6 +41,7 @@ void setup()
   protocol::begin();
   task_sync::begin();
   updates::begin(settings::current());
+  power::begin(); // the reason of this start, before the first frame, while the LEDs are dark; reads the time
   begin_player(); // its first choice reads the files before the network task can hold the memory
   network::begin(settings::current().wifi_power);
 }

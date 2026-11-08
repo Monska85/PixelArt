@@ -25,6 +25,7 @@
 #include "improv.h"
 #include "network.h"
 #include "platform.h"
+#include "power.h"
 #include "protocol.h"
 #include "settings.h"
 #include "storage.h"
@@ -158,7 +159,7 @@ static bool matches(JsonVariantConst want, JsonVariantConst got)
       JsonVariantConst member;
       if (!find_member(want.as<JsonObjectConst>(), pair.key().c_str(), member) &&
           strcmp(pair.key().c_str(), "schedule_v2") && strcmp(pair.key().c_str(), "schedules_v2") &&
-          strcmp(pair.key().c_str(), "schedule_format"))
+          strcmp(pair.key().c_str(), "schedule_format") && strcmp(pair.key().c_str(), "power"))
         return false;
     }
     for (JsonPairConst pair : want.as<JsonObjectConst>())
@@ -418,6 +419,30 @@ static void run_case(const fs::path &file)
     {
       reboot(false);
       closes_seen = 0;
+    }
+    else if (!step["reset"].isNull())
+    {
+      JsonVariantConst reset = step["reset"];
+      pixelart::ResetReason reason;
+      TEST_ASSERT_TRUE_MESSAGE(reset["reason"].is<const char *>() &&
+                                   pixelart::reset_reason_from_name(reset["reason"].as<const char *>(), reason),
+                               (where + ": reset needs a reason of status.power.resets").c_str());
+      power::sim_clear_marker();
+      if (!reset["animation"].isNull())
+        TEST_ASSERT_TRUE_MESSAGE(
+            power::sim_set_marker(reset["animation"].as<std::string>(), reset["frame"].as<uint32_t>()),
+            (where + ": the animation or the frame of the reset does not exist").c_str());
+      power::sim_set_next_reason(reason);
+      reboot(false);
+      closes_seen = 0;
+    }
+    else if (!step["power_model"].isNull())
+    {
+      power::sim_set_model(step["power_model"].as<uint8_t>());
+    }
+    else if (!step["power_store_fails"].isNull())
+    {
+      power::sim_fail_stores(step["power_store_fails"].as<bool>());
     }
     else if (!step["reboot_unhealthy"].isNull())
     {

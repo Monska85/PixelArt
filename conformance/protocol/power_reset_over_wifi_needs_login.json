@@ -1,0 +1,21 @@
+{
+  "description": "with network login on, a WiFi client that has not logged in gets unauthorized and nothing changes",
+  "transport": "wifi",
+  "settings": {
+    "network_login": true,
+    "token": "k3j9x0q7w2m5z8a1"
+  },
+  "steps": [
+    {
+      "send": "@PR cdfce8c9 {\"seq\":1,\"cmd\":\"power_reset\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "unauthorized",
+        "message": "<any>"
+      }
+    }
+  ]
+}

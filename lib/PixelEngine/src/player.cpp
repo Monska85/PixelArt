@@ -125,6 +125,26 @@ bool Player::next(Frame &frame)
   }
 }
 
+bool Player::position(uint32_t &item, uint32_t &repetition) const
+{
+  if (!frame_ || repetition_ == 0)
+    return false;
+  item = (uint32_t)(frame_ - animation_.items_.data());
+  repetition = repetition_ - 1;
+  return true;
+}
+
+bool Player::render_at(uint32_t item, uint32_t repetition, Frame &frame) const
+{
+  if (!animation_.loaded_ || item >= animation_.items_.size())
+    return false;
+  const Animation::Item &it = animation_.items_[item];
+  if (it.is_loop || repetition >= it.count)
+    return false;
+  render(it, repetition, frame);
+  return true;
+}
+
 void Player::render(const Animation::Item &item, uint32_t k, Frame &frame) const
 {
   const Animation &a = animation_;

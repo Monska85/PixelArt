@@ -12,6 +12,7 @@
 #include "firmware.h"
 #include "pixel_art.h"
 #include "platform.h"
+#include "power.h"
 #include "protocol.h"
 #include "settings.h"
 #include "storage.h"
@@ -115,11 +116,14 @@ void wait(uint32_t ms)
   }
 }
 
-void apply_brightness(uint8_t percent)
+// Sets the brightness the LEDs receive for an animation's percentage and power scale, and returns it.
+uint8_t apply_brightness(uint8_t percent, uint8_t power_scale = pixelart::POWER_FULL_SCALE)
 {
-  const uint8_t target = pixelart::effective_brightness(settings::brightness(), percent);
+  const uint8_t target =
+      pixelart::power_brightness(pixelart::effective_brightness(settings::brightness(), percent), power_scale);
   if (matrix.getBrightness() != target)
     matrix.setBrightness(target);
+  return target;
 }
 
 bool restart_pending()
@@ -140,6 +144,7 @@ constexpr uint64_t ICON_FRAME_US = 25000;
 // board restarts and this does not return.
 void show_update_icon()
 {
+  power::icon_started(); // no animation frame is on the matrix meanwhile
   int drawn_progress = -1;
   int drawn_brightness = -1;
   while (updates::firmware_installing() && !restart_pending())
@@ -171,6 +176,7 @@ void show_update_icon()
       platform::wait_us(period_end - now);
     }
   }
+  power::icon_ended();
   restart_schedule();
 }
 
@@ -234,9 +240,10 @@ std::vector<std::string> json_names(const char *folder)
   return names;
 }
 
-void draw(const pixelart::Frame &frame, uint8_t percent)
+// Draws a frame of an animation: repetition `repetition` of its timeline item `item`.
+void draw(const pixelart::Frame &frame, uint8_t percent, uint32_t item, uint32_t repetition)
 {
-  apply_brightness(percent);
+  const uint8_t brightness = apply_brightness(percent, power::current_scale());
   matrix.fillScreen(0);
   for (int y = 0; y < pixelart::CANVAS_HEIGHT; y++)
     for (int x = 0; x < pixelart::CANVAS_WIDTH; x++)
@@ -245,6 +252,7 @@ void draw(const pixelart::Frame &frame, uint8_t percent)
       if (c)
         matrix.drawPixel(x, y, Adafruit_NeoMatrix::Color(c >> 16, c >> 8, c));
     }
+  power::frame_shown(item, repetition, brightness); // before show(): a brownout during it finds this frame
   matrix.show();
   task_sync::frame_shown();
   firmware::first_frame_shown();
@@ -255,6 +263,7 @@ void draw(const pixelart::Frame &frame, uint8_t percent)
 void show_no_animations()
 {
   static const uint8_t QUESTION_MARK[][2] = {{6, 4}, {7, 3}, {8, 3}, {9, 4}, {9, 5}, {8, 6}, {7, 7}, {7, 8}, {7, 11}};
+  power::animation_stopped();
   apply_brightness(pixelart::DEFAULT_BRIGHTNESS_PERCENT);
   restart_schedule();
   matrix.fillScreen(0);
@@ -267,6 +276,12 @@ void show_no_animations()
 }
 
 } // namespace
+
+pixelart::Frame &frame_buffer()
+{
+  static pixelart::Frame frame; // 1 KiB: kept off the loop task's small stack
+  return frame;
+}
 
 std::string animation_file(const std::string &id) { return std::string(ANIMATIONS_FOLDER) + "/" + id + JSON_SUFFIX; }
 
@@ -583,20 +598,33 @@ bool play_stored_animation(const std::string &id, uint16_t times)
     return false;
   }
 
-  static pixelart::Frame frame; // 1 KiB: kept off the loop task's small stack
+  pixelart::Frame &frame = frame_buffer();
+  uint8_t power_scale = pixelart::POWER_FULL_SCALE;
+  if (power::limit_active()) // the only cost of power protection while its limit is off
+    power_scale = power::scale_for(
+        id, animation, pixelart::effective_brightness(settings::brightness(), animation.brightness()), frame);
+  power::animation_started(id, power_scale);
   pixelart::Player player(animation);
   restart_schedule();
   for (uint16_t i = 0; i < times; i++)
   {
     player.restart();
+    uint32_t item = 0, repetition = 0;
     while (player.next(frame))
-      draw(frame, animation.brightness());
+    {
+      // position() cannot fail right after next(); if it did, UINT32_MAX leaves the marker without a frame
+      // (power::detail::write_marker_frame).
+      if (!player.position(item, repetition))
+        item = repetition = UINT32_MAX;
+      draw(frame, animation.brightness(), item, repetition);
+    }
     if (list_changed())
     {
       leave_list = true;
       break; // the list changed: leave the repeats
     }
   }
+  power::animation_stopped();
   return true;
 }
 

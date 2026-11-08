@@ -1,0 +1,60 @@
+{
+  "description": "delete_all without settings keeps the power protection record",
+  "steps": [
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "send": "@PR 822b57f4 {\"seq\":1,\"cmd\":\"delete_all\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "play": 0,
+        "schedules": 0,
+        "schedules_v2": 0,
+        "playlists": 0,
+        "animations": 0
+      }
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 3,
+          "limit_active": true,
+          "limit_ma": 1000,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": null,
+            "frame": null,
+            "date": null
+          },
+          "resets": ["power_on", "brownout", "brownout", "brownout"]
+        }
+      }
+    }
+  ]
+}

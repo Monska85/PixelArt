@@ -1,0 +1,39 @@
+{
+  "description": "a start that records a brownout while the local date is known stores that date",
+  "update_source": {
+    "local_date": "2026-12-24"
+  },
+  "steps": [
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 1,
+          "limit_active": false,
+          "limit_ma": null,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": null,
+            "frame": null,
+            "date": "2026-12-24"
+          },
+          "resets": ["power_on", "brownout"]
+        }
+      }
+    }
+  ]
+}

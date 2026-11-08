@@ -1,0 +1,114 @@
+{
+  "description": "three brownouts during frame 0 of a white animation at brightness 100: 4864 mA each (conformance/power.json), so the limit is 4864 x 80 / 100 = 3891 mA; a fourth brownout lowers it to 3891 x 90 / 100 = 3501 mA",
+  "files": {
+    "animations/white.json": "{\"format\":\"pixelart/1\",\"name\":\"White\",\"canvas\":{\"width\":16,\"height\":16},\"background\":\"#ffffff\",\"sprites\":{\"dot\":{\"points\":[[0,0,\"#ffffff\"]]}},\"timeline\":[{\"show\":[]}]}"
+  },
+  "steps": [
+    {
+      "reset": {
+        "reason": "brownout",
+        "animation": "white",
+        "frame": 0
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout",
+        "animation": "white",
+        "frame": 0
+      }
+    },
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 2,
+          "limit_active": false,
+          "limit_ma": null,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": "white",
+            "frame": 0,
+            "date": null
+          },
+          "resets": ["power_on", "brownout", "brownout"]
+        }
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout",
+        "animation": "white",
+        "frame": 0
+      }
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 3,
+          "limit_active": true,
+          "limit_ma": 3891,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": "white",
+            "frame": 0,
+            "date": null
+          },
+          "resets": ["power_on", "brownout", "brownout", "brownout"]
+        }
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout",
+        "animation": "white",
+        "frame": 0
+      }
+    },
+    {
+      "send": "@PR d7145863 {\"seq\":3,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 4,
+          "limit_active": true,
+          "limit_ma": 3501,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": "white",
+            "frame": 0,
+            "date": null
+          },
+          "resets": ["power_on", "brownout", "brownout", "brownout", "brownout"]
+        }
+      }
+    }
+  ]
+}
