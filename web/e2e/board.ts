@@ -196,3 +196,38 @@ export async function setServerChoice(simulator: Simulator, choice: ServerChoice
     await closed;
   }
 }
+
+/**
+ * Replaces the `power` of every status reply the page gets: `replace` takes what the simulator sent (null when the
+ * reply had none) and returns the object to show, or undefined to take `power` out. Returns the objects the simulator
+ * sent, to tell what the board had. Do not combine it with `watchBoard`: the page's last route on the port wins.
+ */
+export async function rewritePower(
+  page: Page,
+  simulator: Simulator,
+  replace: (sent: Record<string, unknown> | null) => Record<string, unknown> | undefined,
+): Promise<Array<Record<string, unknown>>> {
+  const port = new URL(simulator.address).port;
+  const sent: Array<Record<string, unknown>> = [];
+  await page.routeWebSocket(
+    (url) => url.port === port,
+    (socket) => {
+      const server = socket.connectToServer();
+      // With a handler on the server's side Playwright no longer closes the page's socket by itself.
+      server.onClose((code, reason) => {
+        void socket.close(code && code !== 1005 && code !== 1006 ? { code, reason } : {});
+      });
+      socket.onMessage((message) => server.send(message));
+      server.onMessage((message) => {
+        const reply = decodeLine(new TextEncoder().encode(String(message)));
+        if (!reply || typeof reply.wifi !== "object") return socket.send(message);
+        const { power, ...rest } = reply;
+        const original = typeof power === "object" && power !== null ? (power as Record<string, unknown>) : null;
+        if (original) sent.push(original);
+        const changed = replace(original);
+        socket.send(encodeLine(changed === undefined ? rest : { ...rest, power: changed }));
+      });
+    },
+  );
+  return sent;
+}

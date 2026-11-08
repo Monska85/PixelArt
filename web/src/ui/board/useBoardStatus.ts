@@ -23,11 +23,14 @@ interface StatusState {
 
 export interface BoardStatusPoll extends StatusState {
   refresh: () => void;
+  /** Like `refresh`, resolves once the read is done, whether it worked or failed. */
+  refreshAndWait: () => Promise<void>;
 }
 
 /**
  * The board's `status`, read when it mounts, every 2 seconds while something runs and every 10 seconds otherwise, and
- * on `refresh`. One reader per view, shared by its cards: the board serves one client. Nothing is read while `paused`.
+ * on `refresh` or `refreshAndWait` (the same read; only the second can be awaited). One reader per view, shared by its
+ * cards: the board serves one client. Nothing is read while `paused`.
  */
 export function useBoardStatus(client: BoardClient, restarts: number, paused: boolean): BoardStatusPoll {
   const [state, setState] = useState<StatusState>({ status: null, unsupported: false, failed: false });
@@ -70,5 +73,6 @@ export function useBoardStatus(client: BoardClient, restarts: number, paused: bo
     };
   }, [client, read, restarts, paused, running, state.unsupported]);
 
-  return { ...state, refresh: () => void read(() => true) };
+  const refreshAndWait = (): Promise<void> => read(() => true);
+  return { ...state, refresh: () => void refreshAndWait(), refreshAndWait };
 }

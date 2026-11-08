@@ -41,6 +41,7 @@ describe("status", () => {
       },
       timeKnown: true,
       play: null,
+      power: null,
       update: {
         state: "idle",
         progress: 0,
@@ -70,6 +71,7 @@ describe("status", () => {
       },
       timeKnown: false,
       play: null,
+      power: null,
       update: expect.objectContaining({ state: "idle", files: 0 }),
     });
   });
