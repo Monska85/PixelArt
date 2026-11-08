@@ -1494,6 +1494,95 @@ def board_status(board, args):
     print(f"power     {power}")
     print(f"time      {'known' if time_.get('known') else 'not known'}")
     print_update_state(update)
+    if valid_power(reply.get("power")):  # a firmware older than power protection has no status.power
+        print_power(reply["power"])
+    return 0
+
+
+POWER_FLOOR_MA = 300  # the lowest limit, docs/board/power-protection-v1.md#limit
+POWER_REASONS = ("brownout", "power_on", "software", "panic", "watchdog", "deep_sleep", "other")
+
+
+def is_whole(value, low, high=None):
+    """Whether a reply value is a whole number from low to high (JSON true and false are not numbers)."""
+    return isinstance(value, int) and not isinstance(value, bool) and value >= low and (high is None or value <= high)
+
+
+def is_real_date(value):
+    """Whether a reply value is a real date written YYYY-MM-DD."""
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+        return False
+    try:
+        datetime.date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
+def valid_power(power):
+    """Whether status.power follows the client rules of docs/protocol/protocol-v1.md#status: every field the tool
+    uses is checked, unknown fields and reasons are ignored, and anything else makes it count as absent."""
+    if not isinstance(power, dict):
+        return False
+    active, limit = power.get("limit_active"), power.get("limit_ma")
+    resets, last = power.get("resets"), power.get("last_brownout")
+    if not (is_whole(power.get("brownouts"), 0, 10) and isinstance(active, bool)
+            and isinstance(power.get("at_floor"), bool) and is_whole(power.get("scale"), 1, 100)
+            and (is_whole(limit, POWER_FLOOR_MA) if active else "limit_ma" in power and limit is None)
+            and power["at_floor"] == (active and limit == POWER_FLOOR_MA)
+            and isinstance(resets, list) and len(resets) <= 10 and all(isinstance(r, str) for r in resets)
+            and "last_brownout" in power):
+        return False
+    if last is None:
+        return True
+    if not isinstance(last, dict) or not all(k in last for k in ("animation", "frame", "date")):
+        return False
+    animation, frame, date = last["animation"], last["frame"], last["date"]
+    if (animation is None) != (frame is None):
+        return False
+    if animation is not None and not (isinstance(animation, str) and is_whole(frame, 0)):
+        return False
+    return date is None or is_real_date(date)
+
+
+def print_power(power):
+    """The power protection state of status.power (docs/board/power-protection-v1.md)."""
+    power = shown(power)
+    if power.get("limit_active"):
+        state = f"on, limit {power.get('limit_ma')} mA"
+        if power.get("at_floor"):
+            state += ", at the lowest level: the power supply is not adequate"
+    else:
+        state = "off"
+    print(f"protect   {state}")
+    resets = power.get("resets") if isinstance(power.get("resets"), list) else []
+    print(f"brownouts {power.get('brownouts')} of the last {len(resets)} starts" if resets
+          else "brownouts none recorded since the history was cleared")
+    print(f"dimmed    {'no' if power.get('scale') == 100 else str(power.get('scale')) + ' %'}, the animation playing now")
+    last = power.get("last_brownout")
+    if isinstance(last, dict):
+        where = (f"during {last.get('animation')} frame {last.get('frame')}" if last.get("animation") is not None
+                 else "with no animation known")
+        print(f"last      brownout {where}" + (f" on {last.get('date')}" if last.get("date") else ""))
+    if resets:  # a reason this tool does not know shows as other, as the protocol asks
+        print(f"starts    {', '.join(r if r in POWER_REASONS else 'other' for r in resets)}")
+
+
+def board_power(board, args):
+    if not args.yes and not confirmed(
+            "Forget the board's past restarts and play every animation at full brightness again? Do this only after "
+            "changing the power hardware. Type yes to continue: "):
+        print("nothing changed", file=sys.stderr)
+        return 1
+    try:
+        reply = board.command("power_reset")
+    except BoardError as e:
+        if str(e).startswith("unknown_command"):
+            raise BoardError(f"{e}: the board's firmware has no power protection") from e
+        raise
+    print("power protection cleared")
+    if valid_power(reply.get("power")):
+        print_power(reply["power"])
     return 0
 
 
@@ -1663,7 +1752,8 @@ def board_wifi(board, args):
 
 
 BOARD_COMMANDS = {"info": board_info, "ls": board_ls, "put": board_put, "get": board_get, "rm": board_rm, "wipe": board_wipe,
-                  "settings": board_settings, "status": board_status, "wifi": board_wifi, "update": board_update}
+                  "settings": board_settings, "status": board_status, "wifi": board_wifi, "update": board_update,
+                  "power": board_power}
 
 
 def run_board(args):
@@ -1712,7 +1802,11 @@ def add_board_parser(sub):
     settings.add_argument("pairs", nargs="*", metavar="key=value",
                           help="any of: " + ", ".join(SETTING_NAMES) + ". playlists takes IDs separated by commas. "
                                "The token is read only and shown by `settings`")
-    commands.add_parser("status", help="WiFi state, network name, address, signal and update state")
+    commands.add_parser("status", help="WiFi state, network name, address, signal, update and power protection state")
+    power = commands.add_parser("power", help="power protection: clear what the board learned about its supply")
+    power_commands = power.add_subparsers(dest="power_command", required=True)
+    power_reset = power_commands.add_parser("reset", help="forget the past brownouts and the current limit, after changing the power hardware")
+    power_reset.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     update = commands.add_parser("update", help="check for updates, or install what a check found, and wait for the board")
     update_commands = update.add_subparsers(dest="update_command", required=True)
     update_commands.add_parser("check", help="check now")

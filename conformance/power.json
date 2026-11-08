@@ -1,0 +1,1019 @@
+{
+  "description": "Hand-computed rows of power protection, docs/board/power-protection-v1.md. Gamma levels from gamma.h of Adafruit NeoMatrix 1.3.3: gamma5[11] = 24, gamma5[16] = 54 (0x36), gamma5[31] = 255, gamma6[1] = 1, gamma6[32] = 65 (0x41), gamma6[63] = 255. Shapes in conformance/README.md#power-rows.",
+  "estimate": [
+    {
+      "name": "black frame: 256 LEDs at 1 mA, U = 0",
+      "frame": {
+        "pixels": {}
+      },
+      "brightness": 100,
+      "expected": 256
+    },
+    {
+      "name": "one white pixel at 255: V = 255 per channel, U = 765, (256000 + 45900 + 500) / 1000",
+      "frame": {
+        "pixels": {
+          "#ffffff": [[0, 0]]
+        }
+      },
+      "brightness": 255,
+      "expected": 302
+    },
+    {
+      "name": "white background at 255: U = 256 x 765 = 195840, (256000 + 11750400 + 500) / 1000",
+      "frame": {
+        "background": "#ffffff",
+        "pixels": {}
+      },
+      "brightness": 255,
+      "expected": 12006
+    },
+    {
+      "name": "white background at 100: V = 255 x 101 / 256 = 100, U = 76800, (256000 + 4608000 + 500) / 1000",
+      "frame": {
+        "background": "#ffffff",
+        "pixels": {}
+      },
+      "brightness": 100,
+      "expected": 4864
+    },
+    {
+      "name": "brightness 0: every V is 0",
+      "frame": {
+        "background": "#ffffff",
+        "pixels": {}
+      },
+      "brightness": 0,
+      "expected": 256
+    },
+    {
+      "name": "one #808080 pixel at 255: r5 = b5 = 16 -> 54, g6 = 32 -> 65, U = 173, (256000 + 10380 + 500) / 1000",
+      "frame": {
+        "pixels": {
+          "#808080": [[3, 4]]
+        }
+      },
+      "brightness": 255,
+      "expected": 266
+    },
+    {
+      "name": "#808080 background at 128: V = 54 x 129 / 256 = 27 and 65 x 129 / 256 = 32, U = 256 x 86 = 22016, (256000 + 1320960 + 500) / 1000",
+      "frame": {
+        "background": "#808080",
+        "pixels": {}
+      },
+      "brightness": 128,
+      "expected": 1577
+    },
+    {
+      "name": "half rounds up: #000458 has g6 = 1 -> 1 and b5 = 11 -> 24, U = 25, (256000 + 1500 + 500) / 1000 = 258",
+      "frame": {
+        "pixels": {
+          "#000458": [[15, 15]]
+        }
+      },
+      "brightness": 255,
+      "expected": 258
+    },
+    {
+      "name": "the low bits are dropped: #070307 has r5 = g6 = b5 = 0, the same as black",
+      "frame": {
+        "pixels": {
+          "#070307": [[0, 0]]
+        }
+      },
+      "brightness": 255,
+      "expected": 256
+    }
+  ],
+  "power_brightness": [
+    {
+      "brightness": 100,
+      "scale": 100,
+      "expected": 100
+    },
+    {
+      "brightness": 100,
+      "scale": 60,
+      "expected": 60
+    },
+    {
+      "brightness": 255,
+      "scale": 33,
+      "expected": 84
+    },
+    {
+      "brightness": 200,
+      "scale": 99,
+      "expected": 198
+    },
+    {
+      "brightness": 151,
+      "scale": 99,
+      "expected": 149
+    },
+    {
+      "brightness": 1,
+      "scale": 50,
+      "expected": 1
+    },
+    {
+      "brightness": 3,
+      "scale": 1,
+      "expected": 1
+    },
+    {
+      "brightness": 2,
+      "scale": 24,
+      "expected": 1
+    },
+    {
+      "brightness": 2,
+      "scale": 25,
+      "expected": 1
+    },
+    {
+      "brightness": 0,
+      "scale": 50,
+      "expected": 0
+    },
+    {
+      "brightness": 255,
+      "scale": 100,
+      "expected": 255
+    }
+  ],
+  "scale": [
+    {
+      "name": "fits: 12006 mA at 255 is under 20000",
+      "frame": {
+        "background": "#ffffff",
+        "pixels": {}
+      },
+      "brightness": 255,
+      "limit": 20000,
+      "expected": 100
+    },
+    {
+      "name": "fits exactly: 4864 mA at 100",
+      "frame": {
+        "background": "#ffffff",
+        "pixels": {}
+      },
+      "brightness": 100,
+      "limit": 4864,
+      "expected": 100
+    },
+    {
+      "name": "1 mA over: at 99 % E = 99, V = 255 x 100 / 256 = 99, U = 76032, 4818 mA",
+      "frame": {
+        "background": "#ffffff",
+        "pixels": {}
+      },
+      "brightness": 100,
+      "limit": 4863,
+      "expected": 99
+    },
+    {
+      "name": "1000 mA needs V <= 16, so E <= 16: S = 6 gives E = 15, S = 7 gives 18",
+      "frame": {
+        "background": "#ffffff",
+        "pixels": {}
+      },
+      "brightness": 255,
+      "limit": 1000,
+      "expected": 6
+    },
+    {
+      "name": "nothing fits: at E = 1, V = 1 and U = 768 make 302 mA, over 300",
+      "frame": {
+        "background": "#ffffff",
+        "pixels": {}
+      },
+      "brightness": 255,
+      "limit": 300,
+      "expected": 1
+    },
+    {
+      "name": "one white pixel under 300 mA needs V <= 247, so E <= 247: S = 97 gives 247, S = 98 gives 250",
+      "frame": {
+        "pixels": {
+          "#ffffff": [[0, 0]]
+        }
+      },
+      "brightness": 255,
+      "limit": 300,
+      "expected": 97
+    },
+    {
+      "name": "brightness 0: 256 mA fits any limit",
+      "frame": {
+        "background": "#ffffff",
+        "pixels": {}
+      },
+      "brightness": 0,
+      "limit": 300,
+      "expected": 100
+    }
+  ],
+  "scan": [
+    {
+      "name": "the middle frame has two white pixels: 348 mA at 255",
+      "animation": "{\"format\":\"pixelart/1\",\"name\":\"Scan\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"one\":{\"points\":[[0,0,\"#ffffff\"]]},\"two\":{\"points\":[[0,0,\"#ffffff\"],[1,0,\"#ffffff\"]]}},\"timeline\":[{\"show\":[\"one\"]},{\"show\":[\"two\"]},{\"show\":[\"one\"]}]}",
+      "brightness": 255,
+      "expected": {
+        "frame": 1,
+        "estimate": 348
+      }
+    },
+    {
+      "name": "a loop counts its frames once: frames 0 (loop), 1 and 2 (repeat), 3",
+      "animation": "{\"format\":\"pixelart/1\",\"name\":\"Scan\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"one\":{\"points\":[[0,0,\"#ffffff\"]]},\"two\":{\"points\":[[0,0,\"#ffffff\"],[1,0,\"#ffffff\"]]}},\"timeline\":[{\"loop\":2,\"steps\":[{\"show\":[\"one\"]}]},{\"show\":[\"one\"],\"repeat\":2},{\"show\":[\"two\"]}]}",
+      "brightness": 255,
+      "expected": {
+        "frame": 3,
+        "estimate": 348
+      }
+    },
+    {
+      "name": "repetitions differ: k = 1 moves one pixel off the canvas, the first of equal frames wins",
+      "animation": "{\"format\":\"pixelart/1\",\"name\":\"Scan\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"one\":{\"points\":[[0,0,\"#ffffff\"]]},\"two\":{\"points\":[[0,0,\"#ffffff\"],[1,0,\"#ffffff\"]]}},\"timeline\":[{\"loop\":3,\"steps\":[{\"show\":[\"one\"]}]},{\"show\":[{\"sprite\":\"two\",\"at\":[14,0],\"move\":[1,0]}],\"repeat\":2},{\"show\":[{\"sprite\":\"two\",\"at\":[0,5]}]}]}",
+      "brightness": 255,
+      "expected": {
+        "frame": 1,
+        "estimate": 348
+      }
+    },
+    {
+      "name": "the background counts: an empty frame on white is a full white frame",
+      "animation": "{\"format\":\"pixelart/1\",\"name\":\"Scan\",\"canvas\":{\"width\":16,\"height\":16},\"background\":\"#ffffff\",\"sprites\":{\"one\":{\"points\":[[0,0,\"#ffffff\"]]}},\"timeline\":[{\"show\":[]}]}",
+      "brightness": 255,
+      "expected": {
+        "frame": 0,
+        "estimate": 12006
+      }
+    },
+    {
+      "name": "1024 frames are all scanned: the first of equal frames wins",
+      "animation": "{\"format\":\"pixelart/1\",\"name\":\"Scan\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"one\":{\"points\":[[0,0,\"#ffffff\"]]}},\"timeline\":[{\"show\":[\"one\"],\"repeat\":1024}]}",
+      "brightness": 255,
+      "expected": {
+        "frame": 0,
+        "estimate": 302
+      }
+    },
+    {
+      "name": "1025 frames: the scan stops, the heaviest frame is a full white frame, 4864 mA at 100",
+      "animation": "{\"format\":\"pixelart/1\",\"name\":\"Scan\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"one\":{\"points\":[[0,0,\"#ffffff\"]]}},\"timeline\":[{\"show\":[\"one\"],\"repeat\":1025}]}",
+      "brightness": 100,
+      "expected": {
+        "frame": null,
+        "estimate": 4864
+      }
+    },
+    {
+      "name": "exactly 262144 drawn points (1024 frames of 256) are scanned: #808080 at 100 is V = 54 x 101 / 256 = 21 and 65 x 101 / 256 = 25, U = 256 x 67 = 17152, (256000 + 1029120 + 500) / 1000",
+      "animation": "{\"format\":\"pixelart/1\",\"name\":\"Scan\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"a\":{\"points\":{\"#808080\":[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0],[10,0],[11,0],[12,0],[13,0],[14,0],[15,0],[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1],[12,1],[13,1],[14,1],[15,1],[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],[10,2],[11,2],[12,2],[13,2],[14,2],[15,2],[0,3],[1,3],[2,3],[3,3],[4,3],[5,3],[6,3],[7,3],[8,3],[9,3],[10,3],[11,3],[12,3],[13,3],[14,3],[15,3],[0,4],[1,4],[2,4],[3,4],[4,4],[5,4],[6,4],[7,4],[8,4],[9,4],[10,4],[11,4],[12,4],[13,4],[14,4],[15,4],[0,5],[1,5],[2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[9,5],[10,5],[11,5],[12,5],[13,5],[14,5],[15,5],[0,6],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],[15,6],[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7],[8,7],[9,7],[10,7],[11,7],[12,7],[13,7],[14,7],[15,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,8],[7,8],[8,8],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[15,8],[0,9],[1,9],[2,9],[3,9],[4,9],[5,9],[6,9],[7,9],[8,9],[9,9],[10,9],[11,9],[12,9],[13,9],[14,9],[15,9],[0,10],[1,10],[2,10],[3,10],[4,10],[5,10],[6,10],[7,10],[8,10],[9,10],[10,10],[11,10],[12,10],[13,10],[14,10],[15,10],[0,11],[1,11],[2,11],[3,11],[4,11],[5,11],[6,11],[7,11],[8,11],[9,11],[10,11],[11,11],[12,11],[13,11],[14,11],[15,11],[0,12],[1,12],[2,12],[3,12],[4,12],[5,12],[6,12],[7,12],[8,12],[9,12],[10,12],[11,12],[12,12],[13,12],[14,12],[15,12],[0,13],[1,13],[2,13],[3,13],[4,13],[5,13],[6,13],[7,13],[8,13],[9,13],[10,13],[11,13],[12,13],[13,13],[14,13],[15,13],[0,14],[1,14],[2,14],[3,14],[4,14],[5,14],[6,14],[7,14],[8,14],[9,14],[10,14],[11,14],[12,14],[13,14],[14,14],[15,14],[0,15],[1,15],[2,15],[3,15],[4,15],[5,15],[6,15],[7,15],[8,15],[9,15],[10,15],[11,15],[12,15],[13,15],[14,15],[15,15]]}},\"dot\":{\"points\":[[0,0,\"#ffffff\"]]}},\"timeline\":[{\"show\":[\"a\"],\"repeat\":1024}]}",
+      "brightness": 100,
+      "expected": {
+        "frame": 0,
+        "estimate": 1285
+      }
+    },
+    {
+      "name": "262145 drawn points in 1024 frames (1023 x 256 + 257): the scan stops, the heaviest frame is a full white frame, 4864 mA at 100",
+      "animation": "{\"format\":\"pixelart/1\",\"name\":\"Scan\",\"canvas\":{\"width\":16,\"height\":16},\"sprites\":{\"a\":{\"points\":{\"#808080\":[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0],[10,0],[11,0],[12,0],[13,0],[14,0],[15,0],[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1],[12,1],[13,1],[14,1],[15,1],[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],[10,2],[11,2],[12,2],[13,2],[14,2],[15,2],[0,3],[1,3],[2,3],[3,3],[4,3],[5,3],[6,3],[7,3],[8,3],[9,3],[10,3],[11,3],[12,3],[13,3],[14,3],[15,3],[0,4],[1,4],[2,4],[3,4],[4,4],[5,4],[6,4],[7,4],[8,4],[9,4],[10,4],[11,4],[12,4],[13,4],[14,4],[15,4],[0,5],[1,5],[2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[9,5],[10,5],[11,5],[12,5],[13,5],[14,5],[15,5],[0,6],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],[15,6],[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7],[8,7],[9,7],[10,7],[11,7],[12,7],[13,7],[14,7],[15,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,8],[7,8],[8,8],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[15,8],[0,9],[1,9],[2,9],[3,9],[4,9],[5,9],[6,9],[7,9],[8,9],[9,9],[10,9],[11,9],[12,9],[13,9],[14,9],[15,9],[0,10],[1,10],[2,10],[3,10],[4,10],[5,10],[6,10],[7,10],[8,10],[9,10],[10,10],[11,10],[12,10],[13,10],[14,10],[15,10],[0,11],[1,11],[2,11],[3,11],[4,11],[5,11],[6,11],[7,11],[8,11],[9,11],[10,11],[11,11],[12,11],[13,11],[14,11],[15,11],[0,12],[1,12],[2,12],[3,12],[4,12],[5,12],[6,12],[7,12],[8,12],[9,12],[10,12],[11,12],[12,12],[13,12],[14,12],[15,12],[0,13],[1,13],[2,13],[3,13],[4,13],[5,13],[6,13],[7,13],[8,13],[9,13],[10,13],[11,13],[12,13],[13,13],[14,13],[15,13],[0,14],[1,14],[2,14],[3,14],[4,14],[5,14],[6,14],[7,14],[8,14],[9,14],[10,14],[11,14],[12,14],[13,14],[14,14],[15,14],[0,15],[1,15],[2,15],[3,15],[4,15],[5,15],[6,15],[7,15],[8,15],[9,15],[10,15],[11,15],[12,15],[13,15],[14,15],[15,15]]}},\"dot\":{\"points\":[[0,0,\"#ffffff\"]]}},\"timeline\":[{\"show\":[\"a\"],\"repeat\":1023},{\"show\":[\"a\",\"dot\"]}]}",
+      "brightness": 100,
+      "expected": {
+        "frame": null,
+        "estimate": 4864
+      }
+    }
+  ],
+  "limit": [
+    {
+      "name": "two brownouts do not turn the limit on",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": 3402
+        },
+        {
+          "reason": "brownout",
+          "estimate": 3113
+        }
+      ],
+      "expected": {
+        "brownouts": 2,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false
+      }
+    },
+    {
+      "name": "the third brownout: 2980 x 80 / 100 = 2384",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": 3402
+        },
+        {
+          "reason": "brownout",
+          "estimate": 3113
+        },
+        {
+          "reason": "brownout",
+          "estimate": 2980
+        }
+      ],
+      "expected": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 2384,
+        "at_floor": false
+      }
+    },
+    {
+      "name": "further brownouts: 2384 x 90 / 100 = 2145, then 1930",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": 3402
+        },
+        {
+          "reason": "brownout",
+          "estimate": 3113
+        },
+        {
+          "reason": "brownout",
+          "estimate": 2980
+        },
+        {
+          "reason": "brownout",
+          "estimate": 2500
+        },
+        {
+          "reason": "brownout",
+          "estimate": null
+        }
+      ],
+      "expected": {
+        "brownouts": 5,
+        "limit_active": true,
+        "limit_ma": 1930,
+        "at_floor": false
+      }
+    },
+    {
+      "name": "no estimate: the first limit is 1000, the next 900",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": null
+        },
+        {
+          "reason": "brownout",
+          "estimate": null
+        },
+        {
+          "reason": "brownout",
+          "estimate": null
+        },
+        {
+          "reason": "brownout",
+          "estimate": null
+        }
+      ],
+      "expected": {
+        "brownouts": 4,
+        "limit_active": true,
+        "limit_ma": 900,
+        "at_floor": false
+      }
+    },
+    {
+      "name": "one estimate among three: 2000 x 80 / 100",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": null
+        },
+        {
+          "reason": "brownout",
+          "estimate": 2000
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "brownout",
+          "estimate": null
+        }
+      ],
+      "expected": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 1600,
+        "at_floor": false
+      }
+    },
+    {
+      "name": "panics and watchdogs never count",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": 2000
+        },
+        {
+          "reason": "brownout",
+          "estimate": 2000
+        },
+        {
+          "reason": "panic",
+          "estimate": null
+        },
+        {
+          "reason": "watchdog",
+          "estimate": null
+        },
+        {
+          "reason": "software",
+          "estimate": null
+        }
+      ],
+      "expected": {
+        "brownouts": 2,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false
+      }
+    },
+    {
+      "name": "the eleventh start pushes the first brownout out",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": 2000
+        },
+        {
+          "reason": "brownout",
+          "estimate": 2000
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "brownout",
+          "estimate": 2000
+        }
+      ],
+      "expected": {
+        "brownouts": 2,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false
+      }
+    },
+    {
+      "name": "only the brownouts in the history count for the lowest estimate: 1000 has left, 2500 x 80 / 100",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": 1000
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "brownout",
+          "estimate": 3000
+        },
+        {
+          "reason": "brownout",
+          "estimate": 2500
+        },
+        {
+          "reason": "brownout",
+          "estimate": 2600
+        }
+      ],
+      "expected": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 2000,
+        "at_floor": false
+      }
+    },
+    {
+      "name": "a first limit below the floor: 360 x 80 / 100 = 288 becomes 300",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": 360
+        },
+        {
+          "reason": "brownout",
+          "estimate": 360
+        },
+        {
+          "reason": "brownout",
+          "estimate": 360
+        }
+      ],
+      "expected": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 300,
+        "at_floor": true
+      }
+    },
+    {
+      "name": "steps reach the floor and stay: 400 -> 360 -> 324 -> 291, which becomes 300",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": 500
+        },
+        {
+          "reason": "brownout",
+          "estimate": 500
+        },
+        {
+          "reason": "brownout",
+          "estimate": 500
+        },
+        {
+          "reason": "brownout",
+          "estimate": null
+        },
+        {
+          "reason": "brownout",
+          "estimate": null
+        },
+        {
+          "reason": "brownout",
+          "estimate": null
+        }
+      ],
+      "expected": {
+        "brownouts": 6,
+        "limit_active": true,
+        "limit_ma": 300,
+        "at_floor": true
+      }
+    },
+    {
+      "name": "the limit stays on after its brownouts leave the history",
+      "starts": [
+        {
+          "reason": "brownout",
+          "estimate": 500
+        },
+        {
+          "reason": "brownout",
+          "estimate": 500
+        },
+        {
+          "reason": "brownout",
+          "estimate": 500
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "other",
+          "estimate": null
+        },
+        {
+          "reason": "deep_sleep",
+          "estimate": null
+        },
+        {
+          "reason": "software",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        },
+        {
+          "reason": "power_on",
+          "estimate": null
+        }
+      ],
+      "expected": {
+        "brownouts": 0,
+        "limit_active": true,
+        "limit_ma": 400,
+        "at_floor": false
+      }
+    }
+  ],
+  "status": [
+    {
+      "name": "a fresh board",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["power_on"]
+      },
+      "valid": true
+    },
+    {
+      "name": "the limit on, an animation dimmed",
+      "power": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 2384,
+        "at_floor": false,
+        "scale": 60,
+        "last_brownout": {
+          "animation": "bear",
+          "frame": 2,
+          "date": "2026-12-24"
+        },
+        "resets": ["power_on", "brownout", "brownout", "brownout"]
+      },
+      "valid": true
+    },
+    {
+      "name": "at the floor, a brownout without a frame or a date",
+      "power": {
+        "brownouts": 10,
+        "limit_active": true,
+        "limit_ma": 300,
+        "at_floor": true,
+        "scale": 1,
+        "last_brownout": {
+          "animation": null,
+          "frame": null,
+          "date": null
+        },
+        "resets": [
+          "brownout",
+          "brownout",
+          "brownout",
+          "brownout",
+          "brownout",
+          "brownout",
+          "brownout",
+          "brownout",
+          "brownout",
+          "brownout"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "right after power_reset",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": []
+      },
+      "valid": true
+    },
+    {
+      "name": "unknown fields and an unknown reason are ignored",
+      "power": {
+        "brownouts": 1,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": {
+          "animation": "bear",
+          "frame": 0,
+          "date": null,
+          "estimate_ma": 3402
+        },
+        "resets": ["usb_reset", "brownout"],
+        "voltage": 4.7
+      },
+      "valid": true
+    },
+    {
+      "name": "limit_ma missing while the limit is on",
+      "power": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["brownout", "brownout", "brownout"]
+      },
+      "valid": false
+    },
+    {
+      "name": "limit_ma while the limit is off",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": 1000,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["power_on"]
+      },
+      "valid": false
+    },
+    {
+      "name": "limit_ma below the floor",
+      "power": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 299,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["brownout", "brownout", "brownout"]
+      },
+      "valid": false
+    },
+    {
+      "name": "at_floor above the floor",
+      "power": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 1000,
+        "at_floor": true,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["brownout", "brownout", "brownout"]
+      },
+      "valid": false
+    },
+    {
+      "name": "at_floor while the limit is off",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": true,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["power_on"]
+      },
+      "valid": false
+    },
+    {
+      "name": "not at_floor at the floor",
+      "power": {
+        "brownouts": 3,
+        "limit_active": true,
+        "limit_ma": 300,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["brownout", "brownout", "brownout"]
+      },
+      "valid": false
+    },
+    {
+      "name": "scale 0",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 0,
+        "last_brownout": null,
+        "resets": ["power_on"]
+      },
+      "valid": false
+    },
+    {
+      "name": "scale 101",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 101,
+        "last_brownout": null,
+        "resets": ["power_on"]
+      },
+      "valid": false
+    },
+    {
+      "name": "scale missing",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "last_brownout": null,
+        "resets": ["power_on"]
+      },
+      "valid": false
+    },
+    {
+      "name": "brownouts 11",
+      "power": {
+        "brownouts": 11,
+        "limit_active": true,
+        "limit_ma": 300,
+        "at_floor": true,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["brownout"]
+      },
+      "valid": false
+    },
+    {
+      "name": "brownouts as text",
+      "power": {
+        "brownouts": "3",
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["power_on"]
+      },
+      "valid": false
+    },
+    {
+      "name": "11 resets",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": [
+          "power_on",
+          "power_on",
+          "power_on",
+          "power_on",
+          "power_on",
+          "power_on",
+          "power_on",
+          "power_on",
+          "power_on",
+          "power_on",
+          "power_on"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "resets not a list",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": "power_on"
+      },
+      "valid": false
+    },
+    {
+      "name": "a date that is not a real date",
+      "power": {
+        "brownouts": 1,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": {
+          "animation": "bear",
+          "frame": 2,
+          "date": "2026-02-30"
+        },
+        "resets": ["brownout"]
+      },
+      "valid": false
+    },
+    {
+      "name": "a frame without an animation",
+      "power": {
+        "brownouts": 1,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": {
+          "animation": null,
+          "frame": 2,
+          "date": null
+        },
+        "resets": ["brownout"]
+      },
+      "valid": false
+    },
+    {
+      "name": "last_brownout as text",
+      "power": {
+        "brownouts": 1,
+        "limit_active": false,
+        "limit_ma": null,
+        "at_floor": false,
+        "scale": 100,
+        "last_brownout": "bear",
+        "resets": ["brownout"]
+      },
+      "valid": false
+    },
+    {
+      "name": "at_floor missing",
+      "power": {
+        "brownouts": 0,
+        "limit_active": false,
+        "limit_ma": null,
+        "scale": 100,
+        "last_brownout": null,
+        "resets": ["power_on"]
+      },
+      "valid": false
+    }
+  ]
+}

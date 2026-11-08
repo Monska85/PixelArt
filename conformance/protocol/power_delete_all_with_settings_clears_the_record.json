@@ -1,0 +1,57 @@
+{
+  "description": "a factory reset clears the power protection record with the settings",
+  "steps": [
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "send": "@PR 595a097c {\"seq\":1,\"cmd\":\"delete_all\",\"settings\":true}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "play": 0,
+        "schedules": 0,
+        "schedules_v2": 0,
+        "playlists": 0,
+        "animations": 0,
+        "settings": "<any>"
+      }
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 0,
+          "limit_active": false,
+          "limit_ma": null,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": null,
+          "resets": []
+        }
+      }
+    }
+  ]
+}

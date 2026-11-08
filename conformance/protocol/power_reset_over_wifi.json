@@ -1,0 +1,24 @@
+{
+  "description": "power_reset works over WiFi when network login is off",
+  "transport": "wifi",
+  "steps": [
+    {
+      "send": "@PR cdfce8c9 {\"seq\":1,\"cmd\":\"power_reset\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "power": {
+          "brownouts": 0,
+          "limit_active": false,
+          "limit_ma": null,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": null,
+          "resets": []
+        }
+      }
+    }
+  ]
+}

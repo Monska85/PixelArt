@@ -1,0 +1,54 @@
+{
+  "description": "when the power record cannot be cleared, delete_all with settings answers storage_error before the settings change",
+  "settings": {
+    "brightness": 7
+  },
+  "steps": [
+    {
+      "power_store_fails": true
+    },
+    {
+      "send": "@PR 595a097c {\"seq\":1,\"cmd\":\"delete_all\",\"settings\":true}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "storage_error",
+        "message": "<any>"
+      }
+    },
+    {
+      "power_store_fails": false
+    },
+    {
+      "send": "@PR 57b65ab0 {\"seq\":2,\"cmd\":\"settings_get\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": {
+          "brightness": 7,
+          "play": "<any>",
+          "playlists": "<any>",
+          "schedule": "<any>",
+          "playlist": "<any>",
+          "wifi_power": "<any>",
+          "update_mode": "<any>",
+          "update_firmware": "<any>",
+          "update_animations": "<any>",
+          "check_hours": "<any>",
+          "install_start": "<any>",
+          "install_end": "<any>",
+          "timezone": "<any>",
+          "time_sync_hours": "<any>",
+          "ntp_server": "<any>",
+          "animation_source": "<any>",
+          "network_login": "<any>",
+          "token": "<any>"
+        }
+      }
+    }
+  ]
+}

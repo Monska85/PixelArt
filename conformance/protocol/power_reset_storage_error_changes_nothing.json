@@ -1,0 +1,63 @@
+{
+  "description": "when the record cannot be written, power_reset answers storage_error and the limit stays",
+  "steps": [
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "power_store_fails": true
+    },
+    {
+      "send": "@PR cdfce8c9 {\"seq\":1,\"cmd\":\"power_reset\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": false,
+        "error": "storage_error",
+        "message": "<any>"
+      }
+    },
+    {
+      "power_store_fails": false
+    },
+    {
+      "send": "@PR 50b29320 {\"seq\":2,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 3,
+          "limit_active": true,
+          "limit_ma": 1000,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": null,
+            "frame": null,
+            "date": null
+          },
+          "resets": ["power_on", "brownout", "brownout", "brownout"]
+        }
+      }
+    }
+  ]
+}

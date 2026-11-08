@@ -71,12 +71,20 @@ The firmware builds with Arduino-ESP32 3.3.12 (ESP-IDF 5.5.5), through PlatformI
 
 ### Power supply improvement
 
-To power the LED matrix without routing its current through the ESP32-C3 SuperMini board's USB connector, use a separate 5V supply. Keep the `GPIO4` to `DIN` wire and connect the supply as follows:
+A 16x16 matrix draws far more current than a USB port delivers through the ESP32-C3 SuperMini board. The firmware estimates about 1 mA per LED when it is dark plus up to about 46 mA for a full white LED at brightness 255, so the whole matrix in white would need about 12 A at brightness 255 and about 5 A at brightness 100. The shipped animations are much darker, but their brightest frames still reach an estimated 2.2 to 2.9 A at brightness 100 (`bear` is the heaviest), and about 1.2 to 1.6 A at brightness 50. When the supply cannot deliver that, its voltage drops, the board's brownout detector restarts it, and the playlist starts again from its first item.
+
+To power the LED matrix without routing its current through the ESP32-C3 SuperMini board's USB connector, use a separate 5V supply rated for the current above, with some margin: a 5 V 4 A supply covers the shipped animations at brightness 100, and a 5 V 6 A supply also covers a full white matrix at that brightness. Keep the `GPIO4` to `DIN` wire and connect the supply as follows:
 
 - Connect the `5V` pin of the power supply to the `DC IN` pin of the LED matrix and to the `5V` pin of the ESP32-C3 SuperMini board.
 - Connect the `GND` pin of the power supply to the `GND` pin of the LED matrix and to the `GND` pin of the ESP32-C3 SuperMini board.
 
-This keeps the supply stable and prevents voltage drops when bright images or many LEDs are lit, and the computer's USB port is then used only to program the board.
+This keeps the supply stable and prevents voltage drops when bright images or many LEDs are lit, and the computer's USB port is then used only to program the board. Three more things help:
+
+- **A capacitor across the matrix power:** an electrolytic capacitor of about 1000 µF, rated for at least 6.3 V, between `DC IN` and `GND` at the matrix, with its negative lead on `GND`. It covers the short peaks when a bright frame starts.
+- **A resistor on the data line:** about 330 ohm in series on `DIN`, close to the matrix, protects the first LED and keeps the signal clean.
+- **Short, thick power wires:** a thin or long cable loses voltage at these currents. Keep the power wires short and use a thicker wire for the matrix than for the data line.
+
+**Power protection.** A board that restarts because of its supply protects itself: once at least 3 of its last 10 starts were brownouts, it plays the animations that need more current than its supply delivered dimmer, each at one constant level, and leaves the other animations unchanged. The brightness setting does not change. `tools/pixelart.py board ... status` shows when this is on, and `tools/pixelart.py board ... power reset` makes the board forget its past restarts after you improved the supply; a web app that supports power protection shows the same and offers the same reset. How it works is specified in [Power protection](docs/board/power-protection-v1.md).
 
 ## Animations
 
@@ -286,7 +294,8 @@ Use `--port DEVICE` for a board over USB, and `--ws URL` for the simulator or a 
 | `rm ID [--kind KIND]`               | Delete a file                                                                                                                     |
 | `wipe [--yes] [--settings]`         | Delete every animation, playlist, schedule and play file after a confirmation (`--yes` skips it) and print the counts             |
 | `settings [key=value ...]`          | Show the settings, or change them (`brightness`, `play`, `playlists`, `schedule`, `wifi_power`, and the update and time settings) |
-| `status`                            | WiFi state, network name, address, signal, transmit power and update state of the board                                           |
+| `status`                            | WiFi state, network name, address, signal, transmit power, update state and power protection state of the board                   |
+| `power reset [--yes]`               | Make the board forget its past brownouts and its current limit after a confirmation, once the power hardware was improved         |
 | `wifi [--forget]`                   | Set up WiFi over USB, asking for the network name and password (hidden), or forget the network                                    |
 | `update check`                      | Check for updates now, wait for the result and print the update state                                                             |
 | `update install animations`         | Install the animations, playlists, schedules and play files the last check found, wait, and print the update state                |
@@ -323,6 +332,8 @@ The simulator runs the firmware on your computer and shows what the 16x16 matrix
 The simulator needs a host C++17 compiler (`g++` or `clang++`).
 
 With `make`, pass any other simulator option through `ARGS`, for example `make sim ARGS="--png-frames --range 0:16"`. Run `.pio/build/native/program --help` for the full list.
+
+The simulator starts as a board just switched on. `--boot REASON[:ANIMATION:FRAME]`, repeated, gives it earlier starts for [power protection](docs/board/power-protection-v1.md#simulator-and-tests): `make serve ARGS="--boot brownout:bear:1 --boot brownout:bear:1 --boot brownout:bear:1"` serves a board whose limit is on after three brownouts during frame 1 of `bear`.
 
 The simulator does not know the date unless you give it one, so a schedule plays its `fallback`, and with the published content, whose play file chooses the schedule `seasons`, it plays that schedule's `fallback`, the playlist `christmas`, which has the items of `default` and gives the frames the simulator gave before schedules. `--date YYYY-MM-DD` gives it a local date, and it plays the schedule as a board does on that day: `make sim ARGS="--date 2026-10-31"` plays the playlist `halloween`.
 
@@ -453,6 +464,7 @@ The firmware reports its version in `info`, by the rules of [Firmware version](d
 | `src/task_sync.cpp`            | The lock for large allocations and the signal that a frame was shown, shared by the loop task and the network task                                                                                                         |
 | `lib/PixelUpdate/`             | The update decisions: manifest reading, URL rules, versions, the sync plan, the schedule, the install window and the state machine                                                                                         |
 | `src/platform.cpp`             | Board services: firmware version, memory and boot ID                                                                                                                                                                       |
+| `src/power*.cpp`               | Power protection: the history of the starts, the limit and the frame marker (`power.cpp`), with NVS and RTC memory on the board (`_board`) and in memory with test seams in the simulator (`_sim`)                         |
 | `include/`                     | Headers of the modules in `src/`                                                                                                                                                                                           |
 | `src/pixel_matrix.cpp`         | The matrix `show()`, with the optional live mirror                                                                                                                                                                         |
 | `src/sim_main.cpp`             | Entry point of the host simulator (only built by the `native` env)                                                                                                                                                         |

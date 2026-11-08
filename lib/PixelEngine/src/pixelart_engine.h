@@ -97,6 +97,7 @@ public:
 private:
   friend class Player;
   friend class Loader;
+  friend class FrameIndex; // frame numbers of power protection, power_rules.cpp
 
   struct Pos
   {
@@ -395,6 +396,14 @@ public:
 
   // Renders the next frame. Returns false when the timeline is over.
   bool next(Frame &frame);
+
+  // The timeline item and the repetition of the frame next() rendered last. False before the first frame and
+  // after the end.
+  bool position(uint32_t &item, uint32_t &repetition) const;
+
+  // Renders repetition `repetition` of the timeline item `item`, which must be a frame. False, with `frame`
+  // unchanged, when it is not one or has fewer repetitions.
+  bool render_at(uint32_t item, uint32_t repetition, Frame &frame) const;
 
 private:
   struct Level

@@ -1,0 +1,117 @@
+{
+  "description": "without estimates the limit starts at 1000 mA and loses 10 % per brownout: 900, 810, 729, 656, 590, 531, 477, 429, 386, 347, 312, then 280 becomes the floor of 300 mA",
+  "steps": [
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 10,
+          "limit_active": true,
+          "limit_ma": 300,
+          "at_floor": true,
+          "scale": 100,
+          "last_brownout": {
+            "animation": null,
+            "frame": null,
+            "date": null
+          },
+          "resets": [
+            "brownout",
+            "brownout",
+            "brownout",
+            "brownout",
+            "brownout",
+            "brownout",
+            "brownout",
+            "brownout",
+            "brownout",
+            "brownout"
+          ]
+        }
+      }
+    }
+  ]
+}

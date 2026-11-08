@@ -11,11 +11,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <set>
 #include <string>
 
 #include "app.h"
 #include "firmware.h"
+#include "power.h"
 #include "settings.h"
 #include "updates.h"
 
@@ -164,6 +166,48 @@ void set_update_trial(const std::string &text)
     option_error("--update-trial expects ok or fail, got '" + text + "'");
 }
 
+// The bytes of a file up to the animation size limit, or empty when it cannot be read or is larger.
+std::string read_text(const std::string &path)
+{
+  std::ifstream in(path, std::ios::binary);
+  std::string text(pixelart::MAX_FILE_SIZE + 1, '\0');
+  in.read(&text[0], (std::streamsize)text.size());
+  text.resize((size_t)in.gcount());
+  return text.size() > pixelart::MAX_FILE_SIZE ? std::string() : text;
+}
+
+// --boot REASON[:ANIMATION:FRAME]: one start of the simulated board, oldest first; the last one is this start.
+void queue_boot(const std::string &spec)
+{
+  const std::string usage = "--boot expects REASON or brownout:ANIMATION:FRAME, with a REASON of brownout, power_on, "
+                            "software, panic, watchdog, deep_sleep or other, got '" +
+                            spec + "'";
+  const size_t colon = spec.find(':');
+  pixelart::ResetReason reason;
+  if (!pixelart::reset_reason_from_name(spec.substr(0, colon).c_str(), reason))
+    option_error(usage);
+  if (colon == std::string::npos)
+  {
+    power::sim_queue_boot(reason, "", 0);
+    return;
+  }
+  const size_t second = spec.find(':', colon + 1);
+  const std::string animation =
+      spec.substr(colon + 1, second == std::string::npos ? std::string::npos : second - colon - 1);
+  const std::string frame = second == std::string::npos ? "" : spec.substr(second + 1);
+  if (reason != pixelart::ResetReason::Brownout || !pixelart::is_valid_id(animation.c_str()) || frame.empty() ||
+      frame.size() > 9 || frame.find_first_not_of("0123456789") != std::string::npos)
+    option_error(usage);
+  const uint32_t number = (uint32_t)std::stoul(frame);
+  // The animation must be a valid file of the data folder (--data is read before the options), with that frame.
+  const std::string text = read_text(sim::data_dir() + "/animations/" + animation + ".json");
+  pixelart::Animation loaded;
+  std::vector<pixelart::Diagnostic> diagnostics;
+  if (text.empty() || !loaded.load(text.data(), text.size(), diagnostics) || number >= pixelart::frame_count(loaded))
+    option_error("--boot: no valid animation '" + animation + "' with a frame " + frame + " in " + sim::data_dir());
+  power::sim_queue_boot(reason, animation, number);
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -217,6 +261,13 @@ int main(int argc, char **argv)
                        [](const char *text)
                        {
                          set_update_trial(text);
+                       });
+  sim::register_option("--boot",
+                       "a start of the simulated board, oldest first, the last one this start (repeatable): "
+                       "REASON, or brownout:ANIMATION:FRAME for the frame on the matrix when the power failed",
+                       [](const char *spec)
+                       {
+                         queue_boot(spec);
                        });
   // An installed firmware restarts the simulated board, which starts its sketch again.
   firmware::sim_set_restart_hook(

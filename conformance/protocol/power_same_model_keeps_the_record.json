@@ -1,0 +1,49 @@
+{
+  "description": "a restart with the same model version keeps the record",
+  "steps": [
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout"
+      }
+    },
+    {
+      "reboot": true
+    },
+    {
+      "send": "@PR 0328c8a4 {\"seq\":1,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 3,
+          "limit_active": true,
+          "limit_ma": 1000,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": null,
+            "frame": null,
+            "date": null
+          },
+          "resets": ["power_on", "brownout", "brownout", "brownout", "software"]
+        }
+      }
+    }
+  ]
+}

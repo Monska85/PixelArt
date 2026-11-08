@@ -1,0 +1,85 @@
+{
+  "description": "the marker holds the brightness of the frame: at brightness 255 the white frame is 12006 mA, so the limit is 12006 x 80 / 100 = 9604 mA",
+  "files": {
+    "animations/white.json": "{\"format\":\"pixelart/1\",\"name\":\"White\",\"canvas\":{\"width\":16,\"height\":16},\"background\":\"#ffffff\",\"sprites\":{\"dot\":{\"points\":[[0,0,\"#ffffff\"]]}},\"timeline\":[{\"show\":[]}]}"
+  },
+  "steps": [
+    {
+      "send": "@PR 988c7292 {\"seq\":1,\"cmd\":\"settings_set\",\"brightness\":255}"
+    },
+    {
+      "expect": {
+        "seq": 1,
+        "ok": true,
+        "settings": "<any>"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout",
+        "animation": "white",
+        "frame": 0
+      }
+    },
+    {
+      "send": "@PR b230c21a {\"seq\":2,\"cmd\":\"settings_set\",\"brightness\":255}"
+    },
+    {
+      "expect": {
+        "seq": 2,
+        "ok": true,
+        "settings": "<any>"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout",
+        "animation": "white",
+        "frame": 0
+      }
+    },
+    {
+      "send": "@PR 1d74505d {\"seq\":3,\"cmd\":\"settings_set\",\"brightness\":255}"
+    },
+    {
+      "expect": {
+        "seq": 3,
+        "ok": true,
+        "settings": "<any>"
+      }
+    },
+    {
+      "reset": {
+        "reason": "brownout",
+        "animation": "white",
+        "frame": 0
+      }
+    },
+    {
+      "send": "@PR f7862428 {\"seq\":4,\"cmd\":\"status\"}"
+    },
+    {
+      "expect": {
+        "seq": 4,
+        "ok": true,
+        "wifi": "<any>",
+        "time": "<any>",
+        "play": "<any>",
+        "update": "<any>",
+        "power": {
+          "brownouts": 3,
+          "limit_active": true,
+          "limit_ma": 9604,
+          "at_floor": false,
+          "scale": 100,
+          "last_brownout": {
+            "animation": "white",
+            "frame": 0,
+            "date": null
+          },
+          "resets": ["power_on", "brownout", "brownout", "brownout"]
+        }
+      }
+    }
+  ]
+}

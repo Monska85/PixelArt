@@ -19,6 +19,7 @@
 #include <system_error>
 
 #include "firmware.h"
+#include "power.h"
 #include "protocol.h"
 #include "settings.h"
 #include "storage.h"
@@ -62,6 +63,7 @@ struct TempData
     sim::set_data_dir(root.string());
     storage::set_capacity(storage::DEFAULT_CAPACITY);
     firmware::sim_reset();
+    power::sim_reset();
   }
   ~TempData()
   {
@@ -76,6 +78,7 @@ struct TempData
     settings::fail_schedule_saves_after(-1);
     settings::fail_token_saves(false);
     settings::sim_forget_play_keys();
+    power::sim_reset();
     std::error_code ignored; // a destructor must not throw
     fs::remove_all(root, ignored);
   }

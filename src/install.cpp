@@ -6,6 +6,7 @@
 
 #include "app.h"
 #include "platform.h"
+#include "power.h"
 #include "storage.h"
 #include "task_sync.h"
 
@@ -160,6 +161,8 @@ bool commit(Kind kind, const std::string &path, const std::string &target)
 
 void file_changed(Kind kind)
 {
+  if (kind == Kind::Animation)
+    power::animations_changed();
   if (kind == Kind::Playlist)
     request_choice_and_restart();
   else if (kind == Kind::Schedule || kind == Kind::ScheduleV2 || kind == Kind::Play)

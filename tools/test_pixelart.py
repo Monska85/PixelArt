@@ -1017,6 +1017,101 @@ class RequestLineTest(unittest.TestCase):
         self.assertLessEqual(len(line), 1024)
 
 
+POWER_ON = {"brownouts": 3, "limit_active": True, "limit_ma": 2384, "at_floor": False, "scale": 60,
+            "last_brownout": {"animation": "bear", "frame": 1, "date": "2026-12-24"},
+            "resets": ["power_on", "brownout", "brownout", "brownout"]}
+POWER_CLEARED = {"brownouts": 0, "limit_active": False, "limit_ma": None, "at_floor": False, "scale": 100,
+                 "last_brownout": None, "resets": []}
+
+
+class PowerTest(unittest.TestCase):
+    def status_text(self, power):
+        status = {"ok": True, "wifi": {"state": "connected"}, "time": {"known": False}, "update": {"state": "idle"}}
+        if power is not None:
+            status["power"] = power
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            pixelart.board_status(pixelart.Board(Responder(serve(status))), None)
+        return out.getvalue()
+
+    def test_status_prints_the_power_protection_state(self):
+        text = self.status_text(POWER_ON)
+        for expected in ("protect   on, limit 2384 mA\n", "brownouts 3 of the last 4 starts\n",
+                         "dimmed    60 %, the animation playing now\n",
+                         "last      brownout during bear frame 1 on 2026-12-24\n",
+                         "starts    power_on, brownout, brownout, brownout\n"):
+            self.assertIn(expected, text)
+        floor = self.status_text(dict(POWER_ON, limit_ma=300, at_floor=True, scale=1,
+                                      last_brownout={"animation": None, "frame": None, "date": None}))
+        self.assertIn("protect   on, limit 300 mA, at the lowest level: the power supply is not adequate\n", floor)
+        self.assertIn("last      brownout with no animation known\n", floor)
+        cleared = self.status_text(POWER_CLEARED)
+        self.assertIn("protect   off\n", cleared)
+        self.assertIn("dimmed    no, the animation playing now\n", cleared)
+        self.assertIn("brownouts none recorded since the history was cleared\n", cleared)
+        self.assertNotIn("\nlast ", cleared)
+        self.assertNotIn("\nstarts ", cleared)
+
+    def test_power_rows_of_the_conformance_suite(self):
+        # The status rows of conformance/power.json, hand-made from the client rules of the protocol.
+        rows = json.loads((pixelart.ROOT / "conformance" / "power.json").read_text())["status"]
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertEqual(pixelart.valid_power(row["power"]), row["valid"], row["name"])
+
+    def test_status_ignores_an_invalid_power_object(self):
+        text = self.status_text(dict(POWER_ON, scale=0))
+        self.assertNotIn("protect", text)
+        self.assertIn("starts    power_on, brownout, other\n",
+                      self.status_text(dict(POWER_ON, resets=["power_on", "brownout", "usb_reset"])))
+
+    def test_status_of_an_older_firmware_has_no_power_lines(self):
+        text = self.status_text(None)
+        self.assertNotIn("protect", text)
+        self.assertNotIn("brownouts", text)
+
+    def test_status_escapes_the_board_text(self):
+        text = self.status_text(dict(POWER_ON, last_brownout={"animation": "x\x1b[2J", "frame": 0, "date": None}))
+        self.assertNotIn("\x1b", text)
+        self.assertIn("brownout during x\\x1b[2J frame 0\n", text)
+
+    def run_reset(self, reply, yes, answer=None):
+        responder = Responder(serve(reply))
+        board = pixelart.Board(responder)
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                mock.patch("builtins.input", side_effect=answer if isinstance(answer, BaseException) else [answer]):
+            code = pixelart.board_power(board, types.SimpleNamespace(yes=yes, power_command="reset"))
+        sent = [pixelart.decode_line(line)["cmd"] for line in responder.sent]
+        return code, out.getvalue(), err.getvalue(), sent
+
+    def test_reset_with_yes_sends_power_reset_and_prints_the_cleared_state(self):
+        code, out, _, sent = self.run_reset({"ok": True, "power": POWER_CLEARED}, yes=True, answer=AssertionError("asked"))
+        self.assertEqual(code, 0)
+        self.assertEqual(sent.count("power_reset"), 1)
+        self.assertIn("power protection cleared\nprotect   off\n", out)
+
+    def test_reset_asks_first_and_does_nothing_without_yes(self):
+        for answer in ("no", "", EOFError()):
+            code, _, err, sent = self.run_reset({"ok": True, "power": POWER_CLEARED}, yes=False, answer=answer)
+            self.assertEqual(code, 1)
+            self.assertNotIn("power_reset", sent)
+            self.assertIn("nothing changed", err)
+        code, _, _, sent = self.run_reset({"ok": True, "power": POWER_CLEARED}, yes=False, answer="yes")
+        self.assertEqual(code, 0)
+        self.assertIn("power_reset", sent)
+
+    def test_reset_on_an_older_firmware_says_so(self):
+        with self.assertRaisesRegex(pixelart.BoardError, "no power protection"):
+            self.run_reset({"ok": False, "error": "unknown_command", "message": "unknown command"}, yes=True)
+
+    def test_parser_takes_power_reset(self):
+        parser = argparse.ArgumentParser()
+        pixelart.add_board_parser(parser.add_subparsers(dest="command"))
+        args = parser.parse_args(["board", "--ws", "ws://x", "power", "reset", "--yes"])
+        self.assertEqual((args.board_command, args.power_command, args.yes), ("power", "reset", True))
+
+
 class StatusTest(unittest.TestCase):
     def test_status_prints_the_wifi_and_update_state(self):
         status = {"ok": True, "wifi": {"state": "network_not_found", "ip": None, "rssi": None, "power": "8.5",
