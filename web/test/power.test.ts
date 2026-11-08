@@ -111,8 +111,7 @@ describe("status.power", () => {
     expect(parsePower(powerWith({ brownouts: 10 }))?.brownouts).toBe(10);
     expect(parsePower(powerWith({ scale: 1 }))?.scale).toBe(1);
     expect(parsePower(powerWith({ scale: 100 }))?.scale).toBe(100);
-    expect(parsePower(powerWith({ limit_ma: 300 }))?.limitMa).toBe(300);
-    expect(parsePower(powerWith({ limit_ma: 300, at_floor: true }))?.atFloor).toBe(true);
+    expect(parsePower(powerWith({ limit_ma: 300, at_floor: true }))).toMatchObject({ limitMa: 300, atFloor: true });
   });
 
   it("ties limit_ma and at_floor to limit_active", () => {
@@ -121,6 +120,12 @@ describe("status.power", () => {
     expect(parsePower(powerWith({ limit_active: false, limit_ma: null }))).toMatchObject({ limitMa: null });
     expect(parsePower(powerWith({ limit_active: false, limit_ma: null, at_floor: true }))).toBeNull();
     expect(parsePower(powerWith({ limit_active: false, limit_ma: null, at_floor: false }))).not.toBeNull();
+  });
+
+  it("reads at_floor as true exactly when the limit is on at the floor", () => {
+    expect(parsePower(powerWith({ limit_ma: 1200, at_floor: true }))).toBeNull();
+    expect(parsePower(powerWith({ limit_ma: 301, at_floor: true }))).toBeNull();
+    expect(parsePower(powerWith({ limit_ma: 300, at_floor: false }))).toBeNull();
   });
 
   it("reads last_brownout as null or an object whose members are both known or both null", () => {
@@ -245,6 +250,22 @@ describe("powerReset", () => {
     ]) {
       board.override = (r) => (r.cmd === "power_reset" ? reply : undefined);
       await expect(powerReset(client)).rejects.toMatchObject({ code: "protocol" });
+    }
+  });
+
+  it("throws protocol when the power object is readable but not cleared", async () => {
+    const board = new FakeBoard();
+    const client = await connected(board);
+    const cleared = { ...off, resets: [] };
+    for (const power of [
+      valid,
+      { ...cleared, brownouts: 1 },
+      { ...cleared, scale: 60 },
+      { ...cleared, last_brownout: { animation: null, frame: null, date: null } },
+      { ...cleared, resets: ["power_on"] },
+    ]) {
+      board.override = (r) => (r.cmd === "power_reset" ? { ok: true, power } : undefined);
+      await expect(powerReset(client), JSON.stringify(power)).rejects.toMatchObject({ code: "protocol" });
     }
   });
 

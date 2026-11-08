@@ -251,9 +251,11 @@ export function parsePower(value: unknown): PowerStatus | null {
   )
     return null;
   if (!isIntegerIn(scale, 1, 100)) return null;
-  // limit_ma is a number of at least the floor while the limit is on, null while it is off; at_floor needs the limit.
+  // limit_ma is a number of at least the floor while the limit is on, null while it is off.
   if (limit_active && !isIntegerIn(limit_ma, POWER_FLOOR_MA, Number.MAX_SAFE_INTEGER)) return null;
-  if (!limit_active && (limit_ma !== null || at_floor)) return null;
+  if (!limit_active && limit_ma !== null) return null;
+  // at_floor is true exactly when the limit is on at the floor.
+  if (at_floor !== (limit_active && limit_ma === POWER_FLOOR_MA)) return null;
   const limitMa = typeof limit_ma === "number" ? limit_ma : null;
   const lastBrownout = parseLastBrownout(value.last_brownout);
   if (lastBrownout === undefined) return null;
@@ -302,12 +304,22 @@ export async function installUpdate(
   await client.command("update_install", target === "firmware" && force ? { target, force: true } : { target });
 }
 
+const isCleared = (power: PowerStatus): boolean =>
+  power.brownouts === 0 &&
+  !power.limitActive &&
+  power.scale === 100 &&
+  power.lastBrownout === null &&
+  power.resets.length === 0;
+
 /**
  * `power_reset`: the board forgets its past restarts and lifts the limit. Resolves with the cleared power object. An
- * unreadable object throws `protocol`; `unknown_command` (a board without power protection) propagates.
+ * unreadable object, or one that is not cleared, throws `protocol`; `unknown_command` (a board without power
+ * protection) propagates.
  */
 export async function powerReset(client: BoardClient): Promise<PowerStatus> {
   const power = parsePower((await client.command("power_reset")).power);
   if (power === null) throw new BoardError("protocol", "the board sent an unreadable power state for power_reset");
+  if (!isCleared(power))
+    throw new BoardError("protocol", "the board sent a power state that is not cleared for power_reset");
   return power;
 }
