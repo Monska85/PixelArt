@@ -12,6 +12,7 @@ import {
   TOKEN_CARD_NOTE,
   TOKEN_LOGIN_NOTE,
   TIME_SERVER_NOTE,
+  releaseOfVersion,
   repositoryLabel,
   sourceOfVersion,
 } from "../src/ui/privacy";
@@ -274,6 +275,16 @@ describe("what the app can send out of the browser", () => {
       "form-action": ["'none'"],
     });
     expect(html.match(/http-equiv="Content-Security-Policy"/g)).toHaveLength(1);
+  });
+});
+
+describe("the page of a version of the app", () => {
+  it("is the GitHub release for a release", () => {
+    expect(releaseOfVersion("1.5.0")).toBe(`${REPOSITORY_URL}/releases/tag/web-v1.5.0`);
+  });
+
+  it.each(["0.0.0", "1.5.0-dev.3", "", "1.5"])("is the repository for %j, which is not a release", (version) => {
+    expect(releaseOfVersion(version)).toBe(REPOSITORY_URL);
   });
 });
 
