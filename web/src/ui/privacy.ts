@@ -22,6 +22,12 @@ export function sourceOfVersion(version: string): { url: string; tag: string | n
   return { url: REPOSITORY_URL, tag: null };
 }
 
+/** The page of a web app version: its GitHub release, or the repository for a build that is not a release. */
+export function releaseOfVersion(version: string): string {
+  const { tag } = sourceOfVersion(version);
+  return tag ? `${REPOSITORY_URL}/releases/tag/${tag}` : REPOSITORY_URL;
+}
+
 /** A section of the README: the text of the release tag for a release build, `main` for any other build. */
 export function readmeSection(anchor: string, version: string = APP_VERSION): string {
   return `${REPOSITORY_URL}/blob/${sourceOfVersion(version).tag ?? "main"}/README.md#${anchor}`;

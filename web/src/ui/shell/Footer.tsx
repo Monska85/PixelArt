@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { APP_VERSION, FOOTER_TEXT, REPOSITORY_URL, sourceOfVersion } from "../privacy";
+import { APP_VERSION, FOOTER_TEXT, REPOSITORY_URL, releaseOfVersion } from "../privacy";
 
 const link = "underline underline-offset-2 hover:text-foreground";
 
 /** The privacy promise, links and web app version at the bottom of every view. */
 export function Footer() {
-  const versionSource = sourceOfVersion(APP_VERSION);
   return (
     <footer className="mx-auto w-full max-w-6xl px-4 pb-6 text-xs text-muted-foreground" data-testid="footer">
       <p>
@@ -21,7 +20,7 @@ export function Footer() {
         {" · "}
         <a
           className="whitespace-nowrap underline-offset-2 hover:text-foreground hover:underline focus-visible:underline"
-          href={versionSource.url}
+          href={releaseOfVersion(APP_VERSION)}
           target="_blank"
           rel="noopener noreferrer"
           data-testid="footer-version"
