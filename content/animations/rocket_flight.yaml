@@ -1,0 +1,196 @@
+format: pixelart/1
+name: Rocket Flight
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  body: "#f0f0f0"
+  nose: "#e8213a"
+  window: "#2f7bff"
+  window_shine: "#a0d0ff"
+  nozzle: "#808890"
+  flame_y: "#ffe14a"
+  flame_o: "#ff8c1a"
+  star: "#ffffff"
+  star_d: "#5060a0"
+  planet: "#4a7ad0"
+  land: "#4aa04a"
+
+sprites:
+  rocket:
+    points:
+      nose: [
+          [0, 0], [1, 0], [2, 0], [1, 1], [10, 2], [10, 3], [11, 3], [10, 4], [1, 5], [0, 6], [1, 6],
+          [2, 6]
+        ]
+      body: [
+          [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [1, 2], [2, 2], [3, 2], [4, 2], [5, 2],
+          [7, 2], [8, 2], [9, 2], [1, 3], [2, 3], [3, 3], [4, 3], [8, 3], [9, 3], [1, 4], [2, 4], [3, 4],
+          [4, 4], [5, 4], [7, 4], [8, 4], [9, 4], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5]
+        ]
+      nozzle: [[0, 2], [0, 3], [0, 4]]
+      window: [[6, 2], [5, 3], [7, 3], [6, 4]]
+      window_shine: [[6, 3]]
+  flame_a:
+    points:
+      flame_y: [[2, 0], [3, 0], [1, 1], [2, 1], [3, 1], [2, 2], [3, 2]]
+      flame_o: [[0, 1]]
+  flame_b:
+    points:
+      flame_o: [[1, 0], [0, 1], [1, 1], [1, 2]]
+      flame_y: [[2, 0], [3, 0], [2, 1], [3, 1], [2, 2], [3, 2]]
+  planet:
+    points:
+      planet: [
+          [1, 0], [2, 0], [3, 0], [0, 1], [3, 1], [4, 1], [0, 2], [2, 2], [3, 2], [4, 2], [0, 3], [1, 3],
+          [2, 3], [4, 3], [1, 4], [2, 4], [3, 4]
+        ]
+      land: [[1, 1], [2, 1], [1, 2], [3, 3]]
+  sky0:
+    points:
+      star: [[7, 0], [6, 7], [13, 11], [9, 11]]
+      star_d: [[0, 4], [8, 0], [9, 0], [7, 7], [8, 7], [0, 13], [1, 13], [10, 11]]
+  sky1:
+    points:
+      star: [[15, 4], [4, 0], [3, 7], [12, 11], [7, 11]]
+      star_d: [[5, 0], [6, 0], [4, 7], [5, 7], [8, 11]]
+  sky2:
+    points:
+      star: [[12, 4], [1, 0], [0, 7], [11, 11], [13, 13], [5, 11]]
+      star_d: [[13, 4], [14, 4], [2, 0], [3, 0], [1, 7], [2, 7], [14, 13], [15, 13], [6, 11]]
+  sky3:
+    points:
+      star: [[9, 4], [10, 11], [10, 13], [3, 11]]
+      star_d: [[10, 4], [11, 4], [0, 0], [11, 13], [12, 13], [4, 11]]
+  sky4:
+    points:
+      star: [[6, 4], [15, 0], [14, 7], [9, 11], [7, 13], [1, 11]]
+      star_d: [[7, 4], [8, 4], [15, 7], [8, 13], [9, 13], [2, 11]]
+  sky5:
+    points:
+      star: [[3, 4], [12, 0], [11, 7], [8, 11], [4, 13]]
+      star_d: [[4, 4], [5, 4], [13, 0], [14, 0], [12, 7], [13, 7], [5, 13], [6, 13], [0, 11]]
+  sky6:
+    points:
+      star: [[0, 4], [9, 0], [8, 7], [7, 11], [1, 13]]
+      star_d: [[1, 4], [2, 4], [10, 0], [11, 0], [9, 7], [10, 7], [2, 13], [3, 13]]
+  sky7:
+    points:
+      star: [[6, 0], [5, 7], [6, 11], [15, 11]]
+      star_d: [[7, 0], [8, 0], [6, 7], [7, 7], [0, 13]]
+  sky8:
+    points:
+      star: [[14, 4], [3, 0], [2, 7], [5, 11], [15, 13], [13, 11]]
+      star_d: [[15, 4], [4, 0], [5, 0], [3, 7], [4, 7], [14, 11]]
+  sky9:
+    points:
+      star: [[11, 4], [0, 0], [4, 11], [12, 13], [11, 11]]
+      star_d: [[12, 4], [13, 4], [1, 0], [2, 0], [0, 7], [1, 7], [13, 13], [14, 13], [12, 11]]
+  sky10:
+    points:
+      star: [[8, 4], [3, 11], [9, 13], [9, 11]]
+      star_d: [[9, 4], [10, 4], [10, 13], [11, 13], [10, 11]]
+  sky11:
+    points:
+      star: [[5, 4], [14, 0], [13, 7], [2, 11], [6, 13], [7, 11]]
+      star_d: [[6, 4], [7, 4], [15, 0], [14, 7], [15, 7], [7, 13], [8, 13], [8, 11]]
+  sky12:
+    points:
+      star: [[2, 4], [11, 0], [10, 7], [1, 11], [3, 13], [5, 11]]
+      star_d: [[3, 4], [4, 4], [12, 0], [13, 0], [11, 7], [12, 7], [4, 13], [5, 13], [6, 11]]
+  sky13:
+    points:
+      star: [[8, 0], [7, 7], [0, 11], [0, 13], [3, 11]]
+      star_d: [[0, 4], [1, 4], [9, 0], [10, 0], [8, 7], [9, 7], [1, 13], [2, 13], [4, 11]]
+  sky14:
+    points:
+      star: [[5, 0], [4, 7], [1, 11]]
+      star_d: [[6, 0], [7, 0], [5, 7], [6, 7], [2, 11]]
+  sky15:
+    points:
+      star: [[13, 4], [2, 0], [1, 7], [14, 13]]
+      star_d: [[14, 4], [15, 4], [3, 0], [4, 0], [2, 7], [3, 7], [15, 13], [0, 11]]
+  sky16:
+    points:
+      star: [[10, 4], [11, 13]]
+      star_d: [[11, 4], [12, 4], [0, 0], [1, 0], [0, 7], [12, 13], [13, 13]]
+  sky17:
+    points:
+      star: [[7, 4], [15, 7], [8, 13], [15, 11]]
+      star_d: [[8, 4], [9, 4], [9, 13], [10, 13]]
+  sky18:
+    points:
+      star: [[4, 4], [13, 0], [12, 7], [15, 11], [5, 13], [13, 11]]
+      star_d: [[5, 4], [6, 4], [14, 0], [15, 0], [13, 7], [14, 7], [6, 13], [7, 13], [14, 11]]
+  sky19:
+    points:
+      star: [[1, 4], [10, 0], [9, 7], [14, 11], [2, 13], [11, 11]]
+      star_d: [[2, 4], [3, 4], [11, 0], [12, 0], [10, 7], [11, 7], [3, 13], [4, 13], [12, 11]]
+  sky20:
+    points:
+      star: [[7, 0], [6, 7], [13, 11], [9, 11]]
+      star_d: [[0, 4], [8, 0], [9, 0], [7, 7], [8, 7], [0, 13], [1, 13], [10, 11]]
+  sky21:
+    points:
+      star: [[15, 4], [4, 0], [3, 7], [12, 11], [7, 11]]
+      star_d: [[5, 0], [6, 0], [4, 7], [5, 7], [8, 11]]
+  sky22:
+    points:
+      star: [[12, 4], [1, 0], [0, 7], [11, 11], [13, 13], [5, 11]]
+      star_d: [[13, 4], [14, 4], [2, 0], [3, 0], [1, 7], [2, 7], [14, 13], [15, 13], [6, 11]]
+  sky23:
+    points:
+      star: [[9, 4], [10, 11], [10, 13], [3, 11]]
+      star_d: [[10, 4], [11, 4], [0, 0], [11, 13], [12, 13], [4, 11]]
+
+timeline:
+  - loop: 2
+    steps:
+      - show: [sky0, { sprite: planet, at: [16, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_b, at: [0, 6] }]
+        ms: 110
+      - show: [sky1, { sprite: planet, at: [16, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_a, at: [0, 6] }]
+        ms: 110
+      - show: [sky2, { sprite: planet, at: [15, 11] }, { sprite: rocket, at: [3, 3] }, { sprite: flame_b, at: [0, 5] }]
+        ms: 110
+      - show: [sky3, { sprite: planet, at: [14, 11] }, { sprite: rocket, at: [3, 3] }, { sprite: flame_a, at: [0, 5] }]
+        ms: 110
+      - show: [sky4, { sprite: planet, at: [13, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_b, at: [0, 6] }]
+        ms: 110
+      - show: [sky5, { sprite: planet, at: [12, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_a, at: [0, 6] }]
+        ms: 110
+      - show: [sky6, { sprite: planet, at: [11, 11] }, { sprite: rocket, at: [3, 5] }, { sprite: flame_b, at: [0, 7] }]
+        ms: 110
+      - show: [sky7, { sprite: planet, at: [10, 11] }, { sprite: rocket, at: [3, 5] }, { sprite: flame_a, at: [0, 7] }]
+        ms: 110
+      - show: [sky8, { sprite: planet, at: [9, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_b, at: [0, 6] }]
+        ms: 110
+      - show: [sky9, { sprite: planet, at: [9, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_a, at: [0, 6] }]
+        ms: 110
+      - show: [sky10, { sprite: planet, at: [8, 11] }, { sprite: rocket, at: [3, 3] }, { sprite: flame_b, at: [0, 5] }]
+        ms: 110
+      - show: [sky11, { sprite: planet, at: [7, 11] }, { sprite: rocket, at: [3, 3] }, { sprite: flame_a, at: [0, 5] }]
+        ms: 110
+      - show: [sky12, { sprite: planet, at: [6, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_b, at: [0, 6] }]
+        ms: 110
+      - show: [sky13, { sprite: planet, at: [5, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_a, at: [0, 6] }]
+        ms: 110
+      - show: [sky14, { sprite: planet, at: [4, 11] }, { sprite: rocket, at: [3, 5] }, { sprite: flame_b, at: [0, 7] }]
+        ms: 110
+      - show: [sky15, { sprite: planet, at: [3, 11] }, { sprite: rocket, at: [3, 5] }, { sprite: flame_a, at: [0, 7] }]
+        ms: 110
+      - show: [sky16, { sprite: planet, at: [2, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_b, at: [0, 6] }]
+        ms: 110
+      - show: [sky17, { sprite: planet, at: [2, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_a, at: [0, 6] }]
+        ms: 110
+      - show: [sky18, { sprite: planet, at: [1, 11] }, { sprite: rocket, at: [3, 3] }, { sprite: flame_b, at: [0, 5] }]
+        ms: 110
+      - show: [sky19, { sprite: planet, at: [0, 11] }, { sprite: rocket, at: [3, 3] }, { sprite: flame_a, at: [0, 5] }]
+        ms: 110
+      - show: [sky20, { sprite: planet, at: [-1, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_b, at: [0, 6] }]
+        ms: 110
+      - show: [sky21, { sprite: planet, at: [-2, 11] }, { sprite: rocket, at: [3, 4] }, { sprite: flame_a, at: [0, 6] }]
+        ms: 110
+      - show: [sky22, { sprite: planet, at: [-3, 11] }, { sprite: rocket, at: [3, 5] }, { sprite: flame_b, at: [0, 7] }]
+        ms: 110
+      - show: [sky23, { sprite: planet, at: [-4, 11] }, { sprite: rocket, at: [3, 5] }, { sprite: flame_a, at: [0, 7] }]
+        ms: 110

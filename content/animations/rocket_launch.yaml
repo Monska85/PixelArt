@@ -1,0 +1,134 @@
+format: pixelart/1
+name: Rocket Launch
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  body: "#f0f0f0"
+  nose: "#e8213a"
+  window: "#2f7bff"
+  window_shine: "#a0d0ff"
+  nozzle: "#808890"
+  flame_y: "#ffe14a"
+  flame_o: "#ff8c1a"
+  smoke: "#9a9aa8"
+  smoke_l: "#c8c8d0"
+  pad: "#5a5a66"
+  star: "#8090c0"
+
+sprites:
+  rocket:
+    points:
+      nose: [
+          [3, 0], [2, 1], [3, 1], [4, 1], [0, 9], [6, 9], [0, 10], [1, 10], [5, 10], [6, 10], [0, 11],
+          [6, 11]
+        ]
+      body: [
+          [2, 2], [3, 2], [4, 2], [1, 3], [2, 3], [3, 3], [4, 3], [5, 3], [1, 4], [2, 4], [4, 4], [5, 4],
+          [1, 5], [5, 5], [1, 6], [2, 6], [4, 6], [5, 6], [1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [1, 8],
+          [2, 8], [3, 8], [4, 8], [5, 8], [1, 9], [2, 9], [3, 9], [4, 9], [5, 9], [2, 10], [3, 10],
+          [4, 10]
+        ]
+      window: [[3, 4], [2, 5], [4, 5], [3, 6]]
+      window_shine: [[3, 5]]
+      nozzle: [[2, 11], [3, 11], [4, 11]]
+  flame_s:
+    points:
+      flame_y: [[1, 0], [2, 0], [3, 0]]
+      flame_o: [[2, 1]]
+  flame_a:
+    points:
+      flame_y: [[1, 0], [2, 0], [3, 0], [1, 1], [2, 1], [3, 1]]
+      flame_o: [[0, 1], [4, 1], [1, 2], [2, 2], [3, 2], [2, 3]]
+  flame_b:
+    points:
+      flame_y: [[1, 0], [2, 0], [3, 0], [1, 1], [2, 1], [3, 1], [1, 2], [3, 2]]
+      flame_o: [[0, 2], [2, 2], [4, 2], [1, 3], [3, 3], [2, 4]]
+  pad:
+    points:
+      pad: [
+          [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15], [10, 15], [11, 15],
+          [12, 15], [13, 15]
+        ]
+  stars:
+    points:
+      star: [[1, 2], [13, 1], [14, 6], [2, 8], [11, 4], [3, 12], [15, 11]]
+  smoke2:
+    points:
+      smoke: [
+          [1, 12], [2, 12], [3, 12], [4, 12], [0, 13], [5, 13], [0, 14], [5, 14], [11, 12], [12, 12],
+          [13, 12], [14, 12], [10, 13], [15, 13], [10, 14], [15, 14]
+        ]
+      smoke_l: [[0, 15], [5, 15], [10, 15], [15, 15]]
+  shared0:
+    points:
+      smoke: [[2, 13], [3, 13], [2, 14], [3, 14], [12, 13], [13, 13], [12, 14], [13, 14]]
+      smoke_l: [[2, 15], [3, 15], [12, 15], [13, 15]]
+  shared1:
+    points:
+      smoke: [[1, 13], [4, 13], [1, 14], [4, 14], [11, 13], [14, 13], [11, 14], [14, 14]]
+      smoke_l: [[1, 15], [4, 15], [11, 15], [14, 15]]
+
+timeline:
+  - show: [stars, pad, { sprite: rocket, at: [4, 2] }]
+    ms: 1000
+  - show: [stars, pad, { sprite: rocket, at: [4, 2] }, { sprite: flame_s, at: [5, 14] }]
+    ms: 120
+  - show: [stars, pad, { sprite: rocket, at: [4, 2] }]
+    ms: 120
+  - show: [stars, pad, { sprite: rocket, at: [4, 2] }, { sprite: flame_s, at: [5, 14] }]
+    ms: 120
+  - show: [stars, pad, { sprite: rocket, at: [4, 2] }]
+    ms: 120
+  - show: [stars, pad, { sprite: rocket, at: [4, 2] }, { sprite: flame_s, at: [5, 14] }]
+    ms: 120
+  - show: [stars, pad, { sprite: rocket, at: [4, 2] }]
+    ms: 120
+  - show: [stars, pad, { sprite: rocket, at: [4, 2] }, { sprite: flame_s, at: [5, 14] }]
+    ms: 120
+  - show: [stars, pad, { sprite: rocket, at: [4, 2] }]
+    ms: 120
+  - show: [stars, pad, shared0, { sprite: rocket, at: [4, 2] }, { sprite: flame_b, at: [5, 14] }]
+    ms: 110
+  - show: [stars, pad, shared0, { sprite: rocket, at: [4, 2] }, { sprite: flame_a, at: [5, 14] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, { sprite: rocket, at: [4, 2] }, { sprite: flame_b, at: [5, 14] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, { sprite: rocket, at: [4, 2] }, { sprite: flame_a, at: [5, 14] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, 2] }, { sprite: flame_b, at: [5, 14] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, 2] }, { sprite: flame_a, at: [5, 14] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, 2] }, { sprite: flame_b, at: [5, 14] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, 1] }, { sprite: flame_a, at: [5, 13] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, 1] }, { sprite: flame_b, at: [5, 13] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, 0] }, { sprite: flame_a, at: [5, 12] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, 0] }, { sprite: flame_b, at: [5, 12] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, -1] }, { sprite: flame_a, at: [5, 11] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, -3] }, { sprite: flame_b, at: [5, 9] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, -4] }, { sprite: flame_a, at: [5, 8] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, -6] }, { sprite: flame_b, at: [5, 6] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, -8] }, { sprite: flame_a, at: [5, 4] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, -11] }, { sprite: flame_b, at: [5, 1] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, -14] }, { sprite: flame_a, at: [5, -2] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1, smoke2, { sprite: rocket, at: [4, -19] }, { sprite: flame_b, at: [5, -7] }]
+    ms: 110
+  - show: [stars, pad, shared0, shared1]
+    ms: 500
+  - show: [stars, pad, shared0]
+    ms: 500
+  - show: [stars, pad]
+    ms: 800

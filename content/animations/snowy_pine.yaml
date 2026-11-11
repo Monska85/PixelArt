@@ -1,0 +1,215 @@
+format: pixelart/1
+name: Snowy Pine
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  pine: "#1f8a3e"
+  pine_dark: "#145c29"
+  trunk: "#6b4226"
+  snow: "#f0f6ff"
+  soil: "#3a2a1a"
+  flake: "#ffffff"
+
+sprites:
+  pine0:
+    points:
+      pine: [
+          [7, 0], [8, 0], [6, 1], [9, 1], [5, 2], [10, 2], [5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4],
+          [4, 5], [11, 5], [3, 6], [12, 6], [4, 8], [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [10, 8],
+          [11, 8], [3, 9], [12, 9], [2, 10], [13, 10]
+        ]
+      soil: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+  pine3:
+    points:
+      snow: [
+          [7, 2], [8, 2], [4, 3], [6, 3], [9, 3], [11, 3], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6],
+          [2, 7], [3, 7], [4, 7], [11, 7], [12, 7], [13, 7], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10],
+          [9, 10], [10, 10], [11, 10], [1, 11], [2, 11], [3, 11], [12, 11], [13, 11], [14, 11]
+        ]
+  snow0:
+    points:
+      flake: [[14, 9], [3, 1], [1, 4], [4, 5], [3, 7], [1, 6], [15, 13], [7, 1], [2, 4], [2, 2]]
+  snow1:
+    points:
+      flake: [[14, 10], [3, 2], [1, 5], [4, 6], [3, 8], [1, 7], [15, 0], [7, 2], [2, 5], [2, 3]]
+  snow2:
+    points:
+      flake: [[14, 11], [3, 3], [1, 6], [4, 7], [3, 9], [1, 8], [15, 1], [7, 3], [2, 6], [2, 4]]
+  snow3:
+    points:
+      flake: [[14, 12], [3, 4], [1, 7], [4, 8], [3, 10], [1, 9], [15, 2], [7, 4], [2, 7], [2, 5]]
+  snow4:
+    points:
+      flake: [[14, 13], [3, 5], [1, 8], [4, 9], [3, 11], [1, 10], [15, 3], [7, 5], [2, 8], [2, 6]]
+  snow5:
+    points:
+      flake: [[15, 0], [4, 6], [2, 9], [5, 10], [4, 12], [2, 11], [0, 4], [8, 6], [3, 9], [3, 7]]
+  snow6:
+    points:
+      flake: [[15, 1], [4, 7], [2, 10], [5, 11], [4, 13], [2, 12], [0, 5], [8, 7], [3, 10], [3, 8]]
+  snow7:
+    points:
+      flake: [[15, 2], [4, 8], [2, 11], [5, 12], [4, 0], [2, 13], [0, 6], [8, 8], [3, 11], [3, 9]]
+  snow8:
+    points:
+      flake: [[15, 3], [4, 9], [2, 12], [5, 13], [4, 1], [2, 0], [0, 7], [8, 9], [3, 12], [3, 10]]
+  snow9:
+    points:
+      flake: [[15, 4], [4, 10], [2, 13], [5, 0], [4, 2], [2, 1], [0, 8], [8, 10], [3, 13], [3, 11]]
+  snow10:
+    points:
+      flake: [[0, 5], [5, 11], [3, 0], [6, 1], [5, 3], [3, 2], [1, 9], [9, 11], [4, 0], [4, 12]]
+  snow11:
+    points:
+      flake: [[0, 6], [5, 12], [3, 1], [6, 2], [5, 4], [3, 3], [1, 10], [9, 12], [4, 1], [4, 13]]
+  snow12:
+    points:
+      flake: [[0, 7], [5, 13], [3, 2], [6, 3], [5, 5], [3, 4], [1, 11], [9, 13], [4, 2], [4, 0]]
+  snow13:
+    points:
+      flake: [[0, 8], [5, 0], [3, 3], [6, 4], [5, 6], [3, 5], [1, 12], [9, 0], [4, 3], [4, 1]]
+  shared0:
+    points:
+      snow: [
+          [7, 0], [8, 0], [6, 1], [9, 1], [5, 2], [10, 2], [5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4],
+          [4, 5], [11, 5], [3, 6], [12, 6], [4, 8], [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [10, 8],
+          [11, 8], [3, 9], [12, 9], [2, 10], [13, 10], [0, 15], [1, 15], [2, 15], [3, 15], [4, 15],
+          [5, 15], [6, 15], [7, 15], [8, 15], [9, 15], [10, 15], [11, 15], [12, 15], [13, 15], [14, 15],
+          [15, 15]
+        ]
+  shared1:
+    points:
+      pine: [
+          [7, 2], [8, 2], [6, 3], [9, 3], [5, 6], [6, 6], [7, 6], [8, 6], [9, 6], [10, 6], [4, 7], [11, 7],
+          [4, 10], [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [10, 10], [11, 10]
+        ]
+      pine_dark: [
+          [4, 3], [11, 3], [2, 7], [3, 7], [12, 7], [13, 7], [1, 11], [2, 11], [3, 11], [12, 11], [13, 11],
+          [14, 11]
+        ]
+  shared2:
+    points:
+      pine: [[7, 3], [8, 3], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7]]
+      pine_dark: [[4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11], [11, 11]]
+      trunk: [[7, 12], [7, 13], [8, 12], [8, 13]]
+  shared3:
+    points:
+      snow: [
+          [7, 1], [8, 1], [6, 2], [9, 2], [5, 3], [10, 3], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5],
+          [4, 6], [11, 6], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [3, 10],
+          [12, 10], [0, 14], [1, 14], [2, 14], [3, 14], [4, 14], [5, 14], [6, 14], [9, 14], [10, 14],
+          [11, 14], [12, 14], [13, 14], [14, 14], [15, 14]
+        ]
+  shared4:
+    points:
+      pine: [
+          [7, 1], [8, 1], [6, 2], [9, 2], [5, 3], [10, 3], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5],
+          [4, 6], [11, 6], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [3, 10],
+          [12, 10]
+        ]
+
+timeline:
+  - show: [shared1, shared2, shared4, pine0]
+    ms: 1200
+  - show: [shared1, shared2, shared4, pine0, snow0]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow1]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow2]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow3]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow4]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow5]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow6]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow7]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow8]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow9]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow10]
+    ms: 170
+  - show: [shared1, shared2, shared4, pine0, snow11]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow12]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow13]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow0]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow1]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow2]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow3]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow4]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow5]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow6]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow7]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow8]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared4, snow9]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow10]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow11]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow12]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow13]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow0]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow1]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow2]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow3]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow4]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow5]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow6]
+    ms: 170
+  - show: [shared0, shared1, shared2, shared3, snow7]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow8]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow9]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow10]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow11]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow12]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow13]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow0]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow1]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow2]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow3]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow4]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3, snow5]
+    ms: 170
+  - show: [shared0, shared2, shared3, pine3]
+    ms: 2500

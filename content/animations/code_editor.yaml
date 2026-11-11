@@ -1,0 +1,411 @@
+format: pixelart/1
+name: Code Editor
+version: 1
+description: Colourful code typed line by line in an editor window
+canvas: { width: 16, height: 16 }
+frame_ms: 120
+
+palette:
+  bar: "#3a404c"
+  dot_r: "#ff5f56"
+  dot_y: "#ffbd2e"
+  dot_g: "#27c93f"
+  keyword: "#c678dd"
+  function: "#61afef"
+  punct: "#abb2bf"
+  variable: "#e06c75"
+  operator: "#56b6c2"
+  string: "#98c379"
+  comment: "#5c6370"
+  number: "#d19a66"
+  gutter: "#2c313a"
+  cursor: "#ffffff"
+
+sprites:
+  f0:
+    points:
+      cursor: [[2, 4]]
+  f1:
+    points:
+      keyword: [[2, 4], [3, 4], [4, 4]]
+      cursor: [[5, 4]]
+  f2:
+    points:
+      keyword: [[2, 4], [3, 4], [4, 4]]
+      cursor: [[10, 4]]
+  f3:
+    points:
+      keyword: [[2, 4], [3, 4], [4, 4]]
+      punct: [[11, 4]]
+      cursor: [[12, 4]]
+  f4:
+    points:
+      gutter: [[0, 6]]
+      keyword: [[2, 4], [3, 4], [4, 4]]
+      punct: [[11, 4]]
+      cursor: [[4, 6]]
+  f5:
+    points:
+      gutter: [[0, 6]]
+      keyword: [[2, 4], [3, 4], [4, 4]]
+      punct: [[11, 4]]
+      cursor: [[7, 6]]
+  f6:
+    points:
+      gutter: [[0, 6]]
+      keyword: [[2, 4], [3, 4], [4, 4]]
+      punct: [[11, 4]]
+      operator: [[8, 6]]
+      cursor: [[9, 6]]
+  f7:
+    points:
+      gutter: [[0, 6]]
+      keyword: [[2, 4], [3, 4], [4, 4]]
+      punct: [[11, 4]]
+      operator: [[8, 6]]
+      cursor: [[13, 6]]
+  f8:
+    points:
+      gutter: [[0, 6], [0, 8]]
+      keyword: [[2, 4], [3, 4], [4, 4]]
+      punct: [[11, 4]]
+      operator: [[8, 6]]
+      cursor: [[4, 8]]
+  f9:
+    points:
+      gutter: [[0, 6], [0, 8]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8]]
+      punct: [[11, 4]]
+      operator: [[8, 6]]
+      cursor: [[6, 8]]
+  f10:
+    points:
+      gutter: [[0, 6], [0, 8]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8]]
+      punct: [[11, 4]]
+      variable: [[7, 8]]
+      operator: [[8, 6]]
+      cursor: [[11, 8]]
+  f11:
+    points:
+      gutter: [[0, 6], [0, 8]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8]]
+      punct: [[11, 4], [12, 8]]
+      variable: [[7, 8]]
+      operator: [[8, 6]]
+      cursor: [[13, 8]]
+  f12:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8]]
+      punct: [[11, 4], [12, 8]]
+      variable: [[7, 8]]
+      operator: [[8, 6]]
+      cursor: [[6, 10]]
+  f13:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8]]
+      punct: [[11, 4], [12, 8]]
+      variable: [[7, 8]]
+      operator: [[8, 6]]
+      cursor: [[10, 10]]
+  f14:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8]]
+      punct: [[11, 4], [12, 8]]
+      variable: [[7, 8]]
+      operator: [[8, 6]]
+  f15:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8]]
+      punct: [[11, 4], [12, 8]]
+      variable: [[7, 8]]
+      operator: [[8, 6]]
+      cursor: [[4, 12]]
+  f16:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8]]
+      punct: [[11, 4], [12, 8], [4, 12]]
+      variable: [[7, 8]]
+      operator: [[8, 6]]
+      cursor: [[5, 12]]
+  f17:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8]]
+      punct: [[11, 4], [12, 8], [4, 12]]
+      variable: [[7, 8]]
+      operator: [[8, 6]]
+      cursor: [[4, 14]]
+  f18:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8], [4, 14], [5, 14], [6, 14]]
+      punct: [[11, 4], [12, 8], [4, 12]]
+      variable: [[7, 8]]
+      operator: [[8, 6]]
+      cursor: [[7, 14]]
+  f19:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[2, 4], [3, 4], [4, 4], [4, 8], [5, 8], [4, 14], [5, 14], [6, 14]]
+      punct: [[11, 4], [12, 8], [4, 12]]
+      variable: [[7, 8], [8, 14], [9, 14], [10, 14]]
+      operator: [[8, 6]]
+      cursor: [[11, 14]]
+  f20:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      cursor: [[2, 14]]
+  f21:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      punct: [[2, 14]]
+      cursor: [[3, 14]]
+  f22:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 4]]
+      cursor: [[2, 14]]
+  f23:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 4]]
+      comment: [[2, 14], [3, 14], [4, 14], [5, 14], [6, 14], [7, 14], [8, 14]]
+      cursor: [[9, 14]]
+  f24:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 8], [5, 8]]
+      cursor: [[2, 14]]
+  f25:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 8], [5, 8], [2, 14], [3, 14], [4, 14]]
+      cursor: [[5, 14]]
+  f26:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 8], [5, 8], [2, 14], [3, 14], [4, 14]]
+      cursor: [[11, 14]]
+  f27:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      punct: [[12, 14]]
+      keyword: [[4, 8], [5, 8], [2, 14], [3, 14], [4, 14]]
+      cursor: [[13, 14]]
+  f28:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      cursor: [[4, 14]]
+  f29:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      cursor: [[8, 14]]
+  f30:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      operator: [[9, 14]]
+      cursor: [[10, 14]]
+  f31:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      operator: [[9, 14]]
+      string: [[11, 14], [12, 14], [13, 14], [14, 14]]
+      cursor: [[15, 14]]
+  f32:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 4]]
+      cursor: [[2, 14]]
+  f33:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 4]]
+      punct: [[2, 14]]
+      cursor: [[3, 14]]
+  f34:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 4]]
+      punct: [[2, 14]]
+      cursor: [[3, 14]]
+  f35:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 4]]
+      punct: [[2, 14]]
+  f36:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 4]]
+      punct: [[2, 14]]
+      cursor: [[3, 14]]
+  f37:
+    points:
+      gutter: [[0, 6], [0, 8], [0, 10], [0, 12], [0, 14]]
+      keyword: [[4, 4]]
+      punct: [[2, 14]]
+  shared0:
+    points:
+      gutter: [[0, 4]]
+      bar: [
+          [0, 0], [0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1], [2, 2], [3, 0], [3, 2], [4, 0], [4, 1],
+          [4, 2], [5, 0], [5, 2], [6, 0], [6, 1], [6, 2], [7, 0], [7, 1], [7, 2], [8, 0], [8, 1], [8, 2],
+          [9, 0], [9, 1], [9, 2], [10, 0], [10, 1], [10, 2], [11, 0], [11, 1], [11, 2], [12, 0], [12, 1],
+          [12, 2], [13, 0], [13, 1], [13, 2], [14, 0], [14, 1], [14, 2], [15, 0], [15, 1], [15, 2]
+        ]
+      dot_r: [[1, 1]]
+      dot_y: [[3, 1]]
+      dot_g: [[5, 1]]
+  shared1:
+    points:
+      keyword: [[6, 4], [2, 10], [3, 10]]
+      variable: [[4, 12], [5, 12], [6, 12], [7, 12]]
+      punct: [[2, 6], [12, 10]]
+      comment: [[2, 8], [3, 8], [4, 8], [5, 8], [6, 8], [7, 8], [8, 8]]
+      function: [[10, 10]]
+      operator: [[9, 12]]
+      string: [[11, 12], [12, 12], [13, 12], [14, 12]]
+  shared2:
+    points:
+      function: [[6, 4], [7, 4], [8, 4], [9, 4]]
+  shared3:
+    points:
+      punct: [[4, 4], [2, 8], [12, 12]]
+      keyword: [[6, 6], [2, 12], [3, 12]]
+      comment: [[2, 10], [3, 10], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10]]
+      function: [[6, 12], [7, 12], [8, 12], [9, 12], [10, 12]]
+  shared4:
+    points:
+      function: [[6, 10], [7, 10], [8, 10], [9, 10]]
+  shared5:
+    points:
+      string: [[11, 4], [12, 4], [13, 4], [14, 4], [15, 4]]
+      punct: [[4, 6], [2, 10]]
+      keyword: [[6, 8]]
+      comment: [[2, 12], [3, 12], [4, 12], [5, 12], [6, 12], [7, 12], [8, 12]]
+  shared6:
+    points:
+      variable: [[4, 6], [5, 6], [6, 6]]
+  shared7:
+    points:
+      variable: [[8, 8], [9, 8], [10, 8]]
+  shared8:
+    points:
+      number: [[10, 6], [11, 6], [12, 6]]
+  shared9:
+    points:
+      keyword: [[5, 4], [4, 10]]
+      variable: [[8, 4], [9, 4], [10, 4]]
+  shared10:
+    points:
+      variable: [[8, 6], [9, 6], [10, 6]]
+      keyword: [[4, 6], [5, 6], [4, 12]]
+  shared11:
+    points:
+      string: [[11, 10], [12, 10], [13, 10], [14, 10], [15, 10]]
+  shared12:
+    points:
+      variable: [[4, 4], [5, 4], [6, 4], [7, 6], [8, 12], [9, 12], [10, 12]]
+      operator: [[8, 4]]
+      number: [[10, 4], [11, 4], [12, 4]]
+      keyword: [[5, 12], [6, 12]]
+      punct: [[12, 6], [4, 10]]
+      function: [[6, 8], [7, 8], [8, 8], [9, 8]]
+      string: [[11, 8], [12, 8], [13, 8], [14, 8], [15, 8]]
+  shared13:
+    points:
+      keyword: [[5, 10], [6, 10]]
+      variable: [[7, 4], [8, 10], [9, 10], [10, 10]]
+      punct: [[12, 4], [4, 8], [2, 12]]
+      function: [[6, 6], [7, 6], [8, 6], [9, 6]]
+      string: [[11, 6], [12, 6], [13, 6], [14, 6], [15, 6]]
+  shared14:
+    points:
+      variable: [[4, 14], [5, 14], [6, 14], [7, 14]]
+  shared15:
+    points:
+      function: [[6, 14], [7, 14], [8, 14], [9, 14], [10, 14]]
+
+timeline:
+  - show: [shared0, f0]
+    ms: 160
+  - show: [shared0, f1]
+    ms: 160
+  - show: [shared0, shared2, f2]
+    ms: 160
+  - show: [shared0, shared2, f3]
+    ms: 160
+  - show: [shared0, shared2, f4]
+    ms: 160
+  - show: [shared0, shared2, shared6, f5]
+    ms: 160
+  - show: [shared0, shared2, shared6, f6]
+    ms: 160
+  - show: [shared0, shared2, shared6, shared8, f7]
+    ms: 160
+  - show: [shared0, shared2, shared6, shared8, f8]
+    ms: 160
+  - show: [shared0, shared2, shared6, shared8, f9]
+    ms: 160
+  - show: [shared0, shared2, shared6, shared7, shared8, f10]
+    ms: 160
+  - show: [shared0, shared2, shared6, shared7, shared8, f11]
+    ms: 160
+  - show: [shared0, shared2, shared6, shared7, shared8, f12]
+    ms: 160
+  - show: [shared0, shared2, shared4, shared6, shared7, shared8, f13]
+    ms: 160
+  - show: [shared0, shared2, shared4, shared6, shared7, shared8, shared11, f14]
+    ms: 160
+  - show: [shared0, shared2, shared4, shared6, shared7, shared8, shared11, f15]
+    ms: 160
+  - show: [shared0, shared2, shared4, shared6, shared7, shared8, shared11, f16]
+    ms: 160
+  - show: [shared0, shared2, shared4, shared6, shared7, shared8, shared11, f17]
+    ms: 160
+  - show: [shared0, shared2, shared4, shared6, shared7, shared8, shared11, f18]
+    ms: 160
+  - show: [shared0, shared2, shared4, shared6, shared7, shared8, shared11, f19]
+    ms: 160
+  - show: [shared0, shared10, shared12, f20]
+    ms: 160
+  - show: [shared0, shared10, shared12, f21]
+    ms: 160
+  - show: [shared0, shared9, shared13, f22]
+    ms: 160
+  - show: [shared0, shared9, shared13, f23]
+    ms: 160
+  - show: [shared0, shared2, shared5, shared7, f24]
+    ms: 160
+  - show: [shared0, shared2, shared5, shared7, f25]
+    ms: 160
+  - show: [shared0, shared2, shared5, shared7, shared15, f26]
+    ms: 160
+  - show: [shared0, shared2, shared5, shared7, shared15, f27]
+    ms: 160
+  - show: [shared0, shared3, shared10, f28]
+    ms: 160
+  - show: [shared0, shared3, shared10, shared14, f29]
+    ms: 160
+  - show: [shared0, shared3, shared10, shared14, f30]
+    ms: 160
+  - show: [shared0, shared3, shared10, shared14, f31]
+    ms: 160
+  - show: [shared0, shared1, shared4, shared9, f32]
+    ms: 160
+  - show: [shared0, shared1, shared4, shared9, f33]
+    ms: 160
+  - show: [shared0, shared1, shared4, shared9, f34]
+    ms: 300
+  - show: [shared0, shared1, shared4, shared9, f35]
+    ms: 300
+  - show: [shared0, shared1, shared4, shared9, f36]
+    ms: 300
+  - show: [shared0, shared1, shared4, shared9, f37]
+    ms: 300

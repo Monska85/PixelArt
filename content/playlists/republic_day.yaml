@@ -1,0 +1,8 @@
+format: pixelart-playlist/1
+name: Republic Day
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: tricolor_jets
+  - animation: italian_flag
+  - animation: fireworks

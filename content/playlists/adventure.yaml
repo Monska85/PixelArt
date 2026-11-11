@@ -1,0 +1,11 @@
+format: pixelart-playlist/1
+name: Adventure
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: treasure_chest
+  - animation: treasure_map
+  - animation: compass
+  - animation: pirate_ship
+  - animation: tent
+  - animation: volcano

@@ -1,0 +1,86 @@
+format: pixelart/1
+name: Mushroom
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 300
+
+palette:
+  leaf_orange: "#ff8c1a"
+  leaf_red: "#d93a1f"
+  leaf_yellow: "#ffc93c"
+  soil: "#5a3a1f"
+  cap: "#e8213a"
+  dot: "#ffffff"
+  stem: "#f2e6d0"
+  eye: "#202020"
+  mouth: "#ff8fb0"
+  small_cap: "#c26a2a"
+
+sprites:
+  ground:
+    points:
+      leaf_orange: [[0, 14], [3, 14], [5, 14], [8, 14], [10, 14], [13, 14], [15, 14]]
+      leaf_red: [[1, 14], [4, 14], [7, 14], [11, 14], [14, 14]]
+      leaf_yellow: [[2, 14], [6, 14], [9, 14], [12, 14]]
+      soil: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+  cap:
+    points:
+      cap: [
+          [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [2, 1], [3, 1], [5, 1], [6, 1], [7, 1], [8, 1],
+          [9, 1], [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [8, 2], [9, 2], [10, 2], [0, 3], [2, 3],
+          [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [11, 3], [0, 4], [1, 4], [2, 4], [3, 4],
+          [5, 4], [6, 4], [7, 4], [8, 4], [9, 4], [10, 4], [11, 4]
+        ]
+      dot: [[4, 1], [7, 2], [1, 3], [10, 3], [4, 4]]
+  stem:
+    points:
+      stem: [
+          [2, 0], [3, 0], [4, 0], [5, 0], [2, 1], [4, 1], [2, 2], [3, 2], [4, 2], [5, 2], [2, 3], [5, 3],
+          [2, 4], [3, 4], [4, 4], [5, 4]
+        ]
+      eye: [[3, 1], [5, 1]]
+      mouth: [[3, 3], [4, 3]]
+  small:
+    points:
+      small_cap: [[11, 11], [12, 11], [13, 11], [10, 12], [11, 12], [12, 12], [13, 12], [14, 12]]
+      stem: [[12, 13], [12, 14]]
+
+timeline:
+  - show: [ground]
+    ms: 400
+  - show: [{ sprite: stem, at: [2, 14] }, { sprite: cap, at: [0, 9] }, ground]
+    ms: 160
+  - show: [{ sprite: stem, at: [2, 13] }, { sprite: cap, at: [0, 8] }, ground]
+    ms: 160
+  - show: [{ sprite: stem, at: [2, 12] }, { sprite: cap, at: [0, 7] }, ground]
+    ms: 160
+  - show: [{ sprite: stem, at: [2, 11] }, { sprite: cap, at: [0, 6] }, ground]
+    ms: 160
+  - show: [{ sprite: stem, at: [2, 10] }, { sprite: cap, at: [0, 5] }, ground]
+    ms: 160
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 4] }, ground]
+    ms: 160
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 4] }, ground]
+    ms: 500
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 4] }, ground, small]
+    ms: 500
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 4] }, ground, small]
+    ms: 300
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 3] }, ground, small]
+    ms: 300
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 4] }, ground, small]
+    ms: 300
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 3] }, ground, small]
+    ms: 300
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 4] }, ground, small]
+    ms: 300
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 3] }, ground, small]
+    ms: 300
+    recolor: { eye: stem }
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 4] }, ground, small]
+    ms: 300
+  - show: [{ sprite: stem, at: [2, 9] }, { sprite: cap, at: [0, 3] }, ground, small]
+    ms: 300

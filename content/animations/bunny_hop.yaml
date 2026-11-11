@@ -1,0 +1,131 @@
+format: pixelart/1
+name: Bunny Hop
+version: 1
+canvas: { width: 16, height: 16 }
+frame_ms: 150
+
+palette:
+  grass: "#3fa34d"
+  dark_grass: "#2b7a37"
+  soil: "#6b4226"
+  fur: "#e8e4dc"
+  ear: "#ffa3c4"
+  eye: "#202020"
+  nose: "#ff6f9c"
+  tail: "#ffffff"
+  flower: "#ffd23f"
+
+sprites:
+  ground:
+    points:
+      dark_grass: [[1, 13], [3, 13], [12, 13], [14, 13]]
+      grass: [
+          [0, 14], [1, 14], [2, 14], [3, 14], [4, 14], [5, 14], [6, 14], [7, 14], [8, 14], [9, 14],
+          [10, 14], [11, 14], [12, 14], [13, 14], [14, 14], [15, 14]
+        ]
+      soil: [
+          [0, 15], [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15],
+          [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15]
+        ]
+  flowers:
+    points:
+      flower: [[2, 12], [10, 12], [14, 13]]
+  sit:
+    points:
+      fur: [
+          [4, 0], [5, 0], [4, 1], [4, 2], [3, 3], [4, 3], [5, 3], [6, 3], [2, 4], [3, 4], [4, 4], [5, 4],
+          [7, 4], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [0, 6], [1, 6], [2, 6], [3, 6], [4, 6],
+          [5, 6], [6, 6], [1, 7], [2, 7], [4, 7], [5, 7]
+        ]
+      ear: [[5, 1], [5, 2]]
+      eye: [[6, 4]]
+      tail: [[0, 5]]
+      nose: [[7, 5]]
+  leap:
+    points:
+      fur: [
+          [3, 0], [4, 0], [3, 1], [4, 2], [3, 3], [4, 3], [5, 3], [6, 3], [1, 4], [2, 4], [3, 4], [4, 4],
+          [5, 4], [7, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [1, 6], [2, 6], [3, 6],
+          [4, 6], [5, 6], [0, 7], [1, 7], [6, 7], [7, 7]
+        ]
+      ear: [[4, 1], [5, 2]]
+      tail: [[0, 4]]
+      eye: [[6, 4]]
+      nose: [[7, 5]]
+
+timeline:
+  - show: [ground, flowers]
+    ms: 300
+  - show: [ground, flowers, { sprite: sit, at: [-8, 6] }]
+    ms: 160
+  - show: [ground, flowers, { sprite: leap, at: [-7, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [-6, 3] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [-5, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: sit, at: [-4, 6] }]
+    ms: 160
+  - show: [ground, flowers, { sprite: leap, at: [-3, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [-2, 3] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [-1, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: sit, at: [0, 6] }]
+    ms: 160
+  - show: [ground, flowers, { sprite: leap, at: [1, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [2, 3] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [3, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: sit, at: [4, 6] }]
+    ms: 200
+  - show: [ground, flowers, { sprite: sit, at: [4, 6] }]
+    ms: 200
+    recolor: { nose: ear }
+  - show: [ground, flowers, { sprite: sit, at: [4, 6] }]
+    ms: 200
+  - show: [ground, flowers, { sprite: sit, at: [4, 6] }]
+    ms: 200
+    recolor: { nose: ear }
+  - show: [ground, flowers, { sprite: sit, at: [4, 6] }]
+    ms: 200
+  - show: [ground, flowers, { sprite: sit, at: [4, 6] }]
+    ms: 200
+    recolor: { nose: ear }
+  - show: [ground, flowers, { sprite: sit, at: [4, 6] }]
+    ms: 160
+  - show: [ground, flowers, { sprite: leap, at: [5, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [6, 3] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [7, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: sit, at: [8, 6] }]
+    ms: 160
+  - show: [ground, flowers, { sprite: leap, at: [9, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [10, 3] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [11, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: sit, at: [12, 6] }]
+    ms: 160
+  - show: [ground, flowers, { sprite: leap, at: [13, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [14, 3] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [15, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: sit, at: [16, 6] }]
+    ms: 160
+  - show: [ground, flowers, { sprite: leap, at: [17, 4] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [18, 3] }]
+    ms: 110
+  - show: [ground, flowers, { sprite: leap, at: [19, 4] }]
+    ms: 110
+  - show: [ground, flowers]
+    ms: 400

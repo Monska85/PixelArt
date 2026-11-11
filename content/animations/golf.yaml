@@ -1,0 +1,109 @@
+format: pixelart/1
+name: Golf
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  grass: "#3fa34d"
+  grass_light: "#5fc86a"
+  hole: "#0a1a0a"
+  pole: "#f5f5f5"
+  flag: "#ff3b30"
+  ball: "#ffffff"
+  club: "#c8ccd8"
+  grip: "#3a3a44"
+
+sprites:
+  ground:
+    points:
+      grass: [
+          [0, 12], [0, 14], [1, 12], [1, 14], [2, 13], [2, 15], [3, 13], [3, 15], [4, 12], [4, 14],
+          [5, 12], [5, 14], [6, 13], [6, 15], [7, 13], [7, 15], [8, 12], [8, 14], [9, 12], [9, 14],
+          [10, 13], [10, 15], [11, 13], [11, 15], [12, 14], [13, 12], [13, 14], [14, 13], [14, 15],
+          [15, 13], [15, 15]
+        ]
+      grass_light: [
+          [0, 13], [0, 15], [1, 13], [1, 15], [2, 12], [2, 14], [3, 12], [3, 14], [4, 13], [4, 15],
+          [5, 13], [5, 15], [6, 12], [6, 14], [7, 12], [7, 14], [8, 13], [8, 15], [9, 13], [9, 15],
+          [10, 12], [10, 14], [11, 14], [12, 13], [12, 15], [13, 13], [13, 15], [14, 12], [14, 14],
+          [15, 12], [15, 14]
+        ]
+      hole: [[11, 12], [12, 12]]
+  pole:
+    points:
+      pole: [[12, 2], [12, 3], [12, 4], [12, 5], [12, 6], [12, 7], [12, 8], [12, 9], [12, 10], [12, 11]]
+  ball:
+    points:
+      ball: [[0, 0], [1, 0], [0, 1], [1, 1]]
+  flag0:
+    points:
+      flag: [[13, 2], [13, 3], [13, 4], [13, 5], [14, 3], [14, 4]]
+  flag1:
+    points:
+      flag: [[13, 2], [13, 3], [13, 4], [13, 5], [14, 3], [14, 4]]
+  flag2:
+    points:
+      flag: [[13, 2], [13, 3], [13, 4], [13, 5], [14, 3], [14, 4]]
+  flag3:
+    points:
+      flag: [[13, 2], [13, 3], [13, 4], [13, 5], [14, 3], [14, 4]]
+  club_back:
+    points:
+      grip: [[2, 2], [1, 2], [0, 3]]
+      club: [[-1, 4], [-2, 4], [-3, 5], [-4, 6], [-5, 6]]
+  club_down:
+    points:
+      grip: [[2, 2], [2, 3], [2, 4]]
+      club: [[2, 5], [2, 6], [2, 7], [2, 8], [2, 9], [2, 10], [3, 10]]
+  club_follow:
+    points:
+      grip: [[2, 2], [3, 2], [4, 3]]
+      club: [[5, 4], [6, 4], [7, 5], [8, 6], [9, 6], [10, 6]]
+
+timeline:
+  - loop: 2
+    steps:
+      - show: [ground, pole, flag0, club_down, { sprite: ball, at: [3, 10] }]
+        ms: 600
+      - show: [ground, pole, flag1, club_back, { sprite: ball, at: [3, 10] }]
+        ms: 400
+      - show: [ground, pole, flag2, club_down, { sprite: ball, at: [3, 10] }]
+        ms: 80
+      - show: [ground, pole, flag3, club_follow, { sprite: ball, at: [4, 10] }]
+        ms: 80
+      - show: [ground, pole, flag0, { sprite: ball, at: [5, 10] }]
+        ms: 90
+      - show: [ground, pole, flag1, { sprite: ball, at: [6, 10] }]
+        ms: 90
+      - show: [ground, pole, flag2, { sprite: ball, at: [7, 10] }]
+        ms: 90
+      - show: [ground, pole, flag3, { sprite: ball, at: [8, 10] }]
+        ms: 90
+      - show: [ground, pole, flag0, { sprite: ball, at: [9, 10] }]
+        ms: 90
+      - show: [ground, pole, flag1, { sprite: ball, at: [9, 10] }]
+        ms: 90
+      - show: [ground, pole, flag2, { sprite: ball, at: [10, 10] }]
+        ms: 90
+      - show: [ground, pole, flag3, { sprite: ball, at: [10, 10] }]
+        ms: 90
+      - show: [ground, pole, flag0, { sprite: ball, at: [11, 10] }]
+        ms: 90
+      - show: [ground, pole, flag1, { sprite: ball, at: [11, 11] }]
+        ms: 150
+      - show: [ground, pole, flag2]
+        ms: 200
+      - show: [ground, pole, flag3]
+        ms: 200
+      - show: [ground, pole, flag0]
+        ms: 200
+      - show: [ground, pole, flag1]
+        ms: 200
+      - show: [ground, pole, flag2]
+        ms: 200
+      - show: [ground, pole, flag3]
+        ms: 200
+      - show: [ground, pole, flag0]
+        ms: 200
+      - show: [ground, pole, flag1]
+        ms: 200

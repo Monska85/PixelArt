@@ -1,0 +1,15 @@
+format: pixelart-playlist/1
+name: Autumn
+canvas: { width: 16, height: 16 }
+
+items:
+  - animation: fox
+  - animation: mushroom
+  - animation: squirrel
+  - animation: autumn_tree
+  - animation: owl_moon
+  - animation: thunderstorm
+  - animation: scarecrow
+  - animation: reindeer
+  - animation: acorn
+  - animation: apple_worm

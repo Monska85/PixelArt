@@ -1,0 +1,109 @@
+format: pixelart/1
+name: Birthday Cake
+version: 1
+canvas: { width: 16, height: 16 }
+
+palette:
+  cake: "#f0c890"
+  cake_d: "#c89a60"
+  icing: "#ff8ac0"
+  plate: "#c8ccd8"
+  s1: "#3ad0ff"
+  s2: "#ffd23f"
+  s3: "#5aff6a"
+  candle_a: "#ffffff"
+  candle_b: "#3a8aff"
+  flame: "#ffd23f"
+  flame_o: "#ff8c1a"
+  smoke: "#8a8a96"
+
+sprites:
+  cake:
+    points:
+      plate: [
+          [1, 15], [2, 15], [3, 15], [4, 15], [5, 15], [6, 15], [7, 15], [8, 15], [9, 15], [10, 15],
+          [11, 15], [12, 15], [13, 15], [14, 15]
+        ]
+      cake: [
+          [3, 12], [4, 12], [6, 12], [7, 12], [8, 12], [10, 12], [11, 12], [12, 12], [2, 13], [4, 13],
+          [5, 13], [7, 13], [9, 13], [10, 13], [11, 13], [13, 13], [2, 14], [3, 14], [4, 14], [5, 14],
+          [6, 14], [7, 14], [8, 14], [9, 14], [11, 14], [13, 14], [5, 8], [6, 8], [8, 8], [9, 8], [10, 8],
+          [4, 9], [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9]
+        ]
+      icing: [
+          [2, 11], [3, 11], [4, 11], [5, 11], [6, 11], [7, 11], [8, 11], [9, 11], [10, 11], [11, 11],
+          [12, 11], [13, 11], [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [2, 12],
+          [5, 12], [9, 12], [13, 12], [12, 13], [4, 8], [7, 8], [11, 8]
+        ]
+      s1: [[3, 13], [10, 14]]
+      s2: [[6, 13], [12, 14]]
+      s3: [[8, 13], [5, 9]]
+      cake_d: [[4, 10], [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [10, 10], [11, 10]]
+  candles:
+    points:
+      candle_a: [[5, 6], [8, 6], [10, 6], [5, 4], [8, 4], [10, 4]]
+      candle_b: [[5, 5], [8, 5], [10, 5]]
+  flame_a:
+    points:
+      flame: [[5, 3], [8, 3], [10, 3]]
+      flame_o: [[5, 2], [8, 2], [10, 2]]
+  flame_b:
+    points:
+      flame: [[5, 3], [8, 3], [10, 3]]
+      flame_o: [[6, 2], [7, 2], [11, 2]]
+  flame_lean:
+    points:
+      flame_o: [[6, 3], [9, 3], [11, 3]]
+  smoke0:
+    points:
+      smoke: [[5, 4], [8, 3], [10, 4]]
+  smoke1:
+    points:
+      smoke: [[6, 3], [7, 2], [11, 3]]
+  smoke2:
+    points:
+      smoke: [[5, 2], [8, 1], [10, 2]]
+  smoke3:
+    points:
+      smoke: [[6, 1], [7, 0], [11, 1]]
+  smoke4:
+    points:
+      smoke: [[5, 0], [10, 0]]
+
+timeline:
+  - loop: 2
+    steps:
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_b]
+        ms: 160
+      - show: [cake, candles, flame_a]
+        ms: 160
+      - show: [cake, candles, flame_lean]
+        ms: 180
+      - show: [cake, candles, smoke0]
+        ms: 180
+      - show: [cake, candles, smoke1]
+        ms: 180
+      - show: [cake, candles, smoke2]
+        ms: 180
+      - show: [cake, candles, smoke3]
+        ms: 180
+      - show: [cake, candles, smoke4]
+        ms: 180
+      - show: [cake, candles]
+        ms: 1000
