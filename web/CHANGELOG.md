@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/Monska85/PixelArt/compare/web-v1.5.0...web-v1.6.0) (2026-11-10)
+
+
+### Added
+
+* **web:** link footer version to its release ([#60](https://github.com/Monska85/PixelArt/issues/60)) ([9f4df62](https://github.com/Monska85/PixelArt/commit/9f4df627415a14554799111266f3931aa47f9c5d))
+
 ## [1.5.0](https://github.com/Monska85/PixelArt/compare/web-v1.4.0...web-v1.5.0) (2026-11-08)
 
 
